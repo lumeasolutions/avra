@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <!-- ═══ SEO PRIMARY ═══════════════════════════════════════════════════ -->
+  <title>AVRA — Logiciel ERP pour Cuisinistes, Menuisiers & Agenceurs | Essai Gratuit</title>
+  <meta name="description" content="AVRA est le logiciel ERP SaaS conçu pour les professionnels de l'agencement : cuisinistes, menuisiers, agenceurs et architectes d'intérieur. Gérez projets, devis, chantiers et équipes depuis une seule plateforme. Essai gratuit 14 jours."/>
+  <meta name="keywords" content="logiciel cuisiniste, ERP menuisier, logiciel agenceur, logiciel architecte intérieur, gestion chantier, logiciel devis agencement, ERP agencement, AVRA"/>
+  <meta name="robots" content="index, follow"/>
+  <meta name="author" content="AVRA SAS"/>
+  <link rel="canonical" href="https://www.avra.fr/"/>
+
+  <!-- ═══ OPEN GRAPH ════════════════════════════════════════════════════ -->
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://www.avra.fr/"/>
+  <meta property="og:title" content="AVRA — L'ERP des professionnels de l'agencement"/>
+  <meta property="og:description" content="Gérez vos projets, devis, chantiers et équipes depuis une seule plateforme. Conçu pour les cuisinistes, menuisiers et agenceurs."/>
+  <meta property="og:image" content="https://www.avra.fr/og-image.jpg"/>
+  <meta property="og:locale" content="fr_FR"/>
+  <meta property="og:site_name" content="AVRA"/>
+
+  <!-- ═══ TWITTER CARD ══════════════════════════════════════════════════ -->
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content="AVRA — L'ERP des professionnels de l'agencement"/>
+  <meta name="twitter:description" content="Gérez vos projets, devis, chantiers et équipes depuis une seule plateforme."/>
+  <meta name="twitter:image" content="https://www.avra.fr/og-image.jpg"/>
+
+  <!-- ═══ JSON-LD SCHEMAS ═══════════════════════════════════════════════ -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"AVRA","url":"https://www.avra.fr","applicationCategory":"BusinessApplication","operatingSystem":"Web, iOS, Android","description":"ERP SaaS pour les professionnels de l'agencement intérieur : cuisinistes, menuisiers, agenceurs, architectes d'intérieur.","inLanguage":"fr","offers":[{"@type":"Offer","name":"Starter","price":"49","priceCurrency":"EUR"},{"@type":"Offer","name":"Pro","price":"129","priceCurrency":"EUR"},{"@type":"Offer","name":"Studio","price":"299","priceCurrency":"EUR"}],"aggregateRating":{"@type":"AggregateRating","ratingValue":"4.9","reviewCount":"127","bestRating":"5"},"publisher":{"@type":"Organization","name":"AVRA SAS","url":"https://www.avra.fr"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"AVRA","url":"https://www.avra.fr","logo":"https://www.avra.fr/logo.png","contactPoint":{"@type":"ContactPoint","email":"contact@avra.fr","contactType":"customer service","availableLanguage":"French"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"AVRA est-il adapté aux petites structures ?","acceptedAnswer":{"@type":"Answer","text":"Oui, AVRA est conçu pour les artisans indépendants comme pour les studios de 20 personnes. Le plan Starter est idéal pour démarrer seul."}},{"@type":"Question","name":"Puis-je importer mes données depuis Excel ?","acceptedAnswer":{"@type":"Answer","text":"Oui, AVRA permet d'importer vos clients, projets et devis depuis un fichier Excel ou CSV en quelques clics."}},{"@type":"Question","name":"Y a-t-il un engagement ?","acceptedAnswer":{"@type":"Answer","text":"Non, AVRA est sans engagement. Vous pouvez résilier à tout moment depuis votre espace client."}},{"@type":"Question","name":"L'IA est-elle incluse dans tous les plans ?","acceptedAnswer":{"@type":"Answer","text":"L'IA Studio est disponible à partir du plan Pro (100 requêtes/mois) et en illimité sur le plan Studio."}}]}</script>
+
+  <!-- ═══ FONTS ═══════════════════════════════════════════════════════ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet"/>
+
+  <style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{
+    --g950:#0e1c11;--g900:#1a2e1f;--g800:#243d29;--g700:#304035;
+    --g600:#3d5244;--ivory:#faf7f2;--ivory2:#f2ece3;
+    --cu:#a67749;--cu2:#c49060;--cu3:#8a6038;--cuglow:rgba(166,119,73,.35);
+    --white:#fff;--td:#1a2e1f;--tm:#5a7060;--brd:rgba(48,64,53,.1);--r:14px;--rl:22px;
+  }
+  html{scroll-behavior:smooth;overflow-x:hidden;}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--ivory);color:var(--td);line-height:1.6;overflow-x:hidden;cursor:none;}
+  h1,h2,h3,h4{font-family:'Fraunces',serif;line-height:1.15;letter-spacing:-.02em;}
+  a{text-decoration:none;color:inherit;}
+  button{cursor:none;}
+
+  /* CURSOR */
+  #cur{position:fixed;width:10px;height:10px;background:var(--cu);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform .1s,background .2s;}
+  #ring{position:fixed;width:36px;height:36px;border:1.5px solid var(--cu);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:width .3s,height .3s,border-color .2s;}
+  body.hov #cur{transform:translate(-50%,-50%) scale(2.5);background:transparent;}
+  body.hov #ring{width:60px;height:60px;}
+  ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:var(--g900);}::-webkit-scrollbar-thumb{background:var(--cu);border-radius:2px;}
+
+  /* NAV */
+  nav{position:fixed;top:0;left:0;right:0;z-index:500;display:flex;align-items:center;justify-content:space-between;padding:0 6%;height:72px;transition:background .4s,box-shadow .4s;}
+  nav.sc{background:rgba(10,18,12,.9);backdrop-filter:blur(20px);box-shadow:0 1px 0 rgba(255,255,255,.06);}
+  .logo{font-family:'Fraunces',serif;font-size:1.7rem;font-weight:700;color:var(--white);letter-spacing:-.03em;}
+  .logo span{color:var(--cu);}
+  .nav-links{display:flex;align-items:center;gap:2.2rem;list-style:none;}
+  .nav-links a{color:rgba(255,255,255,.6);font-size:.88rem;font-weight:500;transition:color .2s;position:relative;}
+  .nav-links a::after{content:'';position:absolute;bottom:-3px;left:0;right:0;height:1px;background:var(--cu);transform:scaleX(0);transition:transform .25s;}
+  .nav-links a:hover{color:var(--white);}
+  .nav-links a:hover::after{transform:scaleX(1);}
+  .nav-cta{display:flex;gap:.75rem;}
+
+  /* BUTTONS */
+  .btn{display:inline-flex;align-items:center;gap:.5rem;padding:.6rem 1.4rem;border-radius:100px;font-size:.85rem;font-weight:600;border:none;transition:all .25s cubic-bezier(.22,1,.36,1);position:relative;overflow:hidden;}
+  .btn-outline{background:transparent;color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.2);}
+  .btn-outline:hover{background:rgba(255,255,255,.1);color:var(--white);}
+  .btn-cu{background:var(--cu);color:var(--white);}
+  .btn-cu:hover{background:var(--cu2);box-shadow:0 4px 20px var(--cuglow);transform:translateY(-2px);}
+  .btn-dark{background:var(--g900);color:var(--white);}
+  .btn-dark:hover{background:var(--g800);transform:translateY(-2px);}
+  .btn-lg{padding:.85rem 2rem;font-size:.95rem;border-radius:var(--r);}
+  .btn-xl{padding:1.1rem 2.5rem;font-size:1rem;border-radius:var(--r);}
+
+  /* HERO */
+  .hero{min-height:100vh;background:var(--g950);position:relative;overflow:hidden;display:flex;align-items:center;padding:100px 6% 80px;}
+  #hc{position:absolute;inset:0;width:100%;height:100%;opacity:.55;pointer-events:none;}
+  .hglow{position:absolute;top:-30%;right:-20%;width:70vw;height:70vw;border-radius:50%;background:radial-gradient(circle,rgba(166,119,73,.18) 0%,transparent 65%);pointer-events:none;}
+  .hglow2{position:absolute;bottom:-40%;left:-15%;width:55vw;height:55vw;border-radius:50%;background:radial-gradient(circle,rgba(48,64,53,.5) 0%,transparent 65%);pointer-events:none;}
+  .hero-in{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center;position:relative;z-index:1;width:100%;}
+  .badge{display:inline-flex;align-items:center;gap:.5rem;background:rgba(166,119,73,.15);border:1px solid rgba(166,119,73,.3);color:#d4a56a;padding:.35rem 1rem;border-radius:100px;font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:1.75rem;}
+  .badge-dot{width:6px;height:6px;border-radius:50%;background:var(--cu);box-shadow:0 0 8px var(--cu);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  .hero h1{font-size:clamp(2.8rem,5.2vw,4.8rem);color:var(--white);margin-bottom:1.5rem;font-weight:700;}
+  .hero h1 em{font-style:normal;color:var(--cu);}
+  .hero p.sub{font-size:1.1rem;color:rgba(255,255,255,.62);margin-bottom:2.5rem;max-width:480px;line-height:1.75;}
+  .hero-acts{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:3.5rem;}
+  .hero-soc{display:flex;align-items:center;gap:1rem;}
+  .avs{display:flex;}
+  .av{width:34px;height:34px;border-radius:50%;border:2px solid var(--g950);background:var(--g700);display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:var(--white);margin-left:-10px;}
+  .av:first-child{margin-left:0;}
+  .soc-txt{font-size:.82rem;color:rgba(255,255,255,.5);}
+  .soc-txt strong{color:rgba(255,255,255,.85);}
+
+  /* MOCKUP */
+  .hero-vis{position:relative;}
+  .mwrap{position:relative;transform:perspective(1200px) rotateY(-8deg) rotateX(3deg);transition:transform .6s cubic-bezier(.22,1,.36,1);}
+  .mwrap:hover{transform:perspective(1200px) rotateY(-3deg) rotateX(1deg);}
+  .mok{background:var(--ivory);border-radius:18px;box-shadow:0 0 0 1px rgba(255,255,255,.08),0 40px 80px rgba(0,0,0,.6),0 0 120px rgba(166,119,73,.12);overflow:hidden;}
+  .mbar{background:var(--g900);padding:.6rem 1rem;display:flex;align-items:center;gap:.5rem;}
+  .d{width:10px;height:10px;border-radius:50%;}
+  .dr{background:#ff5f57;}.dy{background:#ffbd2e;}.dg{background:#28c940;}
+  .murl{flex:1;background:rgba(255,255,255,.07);border-radius:6px;padding:.2rem .7rem;font-size:.68rem;color:rgba(255,255,255,.3);margin:0 .5rem;font-family:monospace;}
+  .mbody{display:grid;grid-template-columns:185px 1fr;height:360px;}
+  .mside{background:var(--g800);padding:1.2rem 1rem;display:flex;flex-direction:column;gap:.2rem;}
+  .mbrand{font-family:'Fraunces',serif;color:var(--white);font-size:1.05rem;font-weight:700;padding:.5rem .6rem 1rem;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:.5rem;}
+  .mbrand span{color:var(--cu);}
+  .mi{display:flex;align-items:center;gap:.65rem;padding:.52rem .65rem;border-radius:8px;color:rgba(255,255,255,.48);font-size:.74rem;font-weight:500;transition:all .15s;}
+  .mi.act{background:rgba(255,255,255,.1);color:var(--white);}
+  .mi svg{width:14px;height:14px;flex-shrink:0;}
+  .mmain{background:var(--ivory);padding:1.25rem;overflow:hidden;}
+  .mhd{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;}
+  .mtitle{font-weight:700;font-size:.9rem;color:var(--td);}
+  .mtag{background:var(--cu);color:var(--white);font-size:.6rem;font-weight:700;padding:.18rem .55rem;border-radius:100px;}
+  .mkpis{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem;margin-bottom:1rem;}
+  .mkpi{background:var(--white);border-radius:10px;padding:.8rem;box-shadow:0 1px 6px rgba(48,64,53,.07);}
+  .mkl{font-size:.6rem;color:var(--tm);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.25rem;}
+  .mkv{font-size:1.05rem;font-weight:700;color:var(--td);}
+  .mku{font-size:.6rem;color:#2d7a3d;font-weight:600;}
+  .mproj{background:var(--white);border-radius:9px;padding:.6rem .8rem;display:flex;align-items:center;gap:.65rem;margin-bottom:.45rem;box-shadow:0 1px 4px rgba(48,64,53,.05);}
+  .mdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .mpn{font-size:.72rem;font-weight:600;color:var(--td);flex:1;}
+  .ms{font-size:.58rem;font-weight:700;padding:.12rem .45rem;border-radius:100px;}
+  .sg{background:rgba(45,90,61,.12);color:#2d5a3d;}
+  .so{background:rgba(166,119,73,.15);color:var(--cu);}
+  .sb{background:rgba(61,90,106,.12);color:#3d5a6a;}
+  .fbadge{position:absolute;background:var(--white);border-radius:var(--r);padding:.75rem 1rem;box-shadow:0 8px 32px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.05);font-size:.78rem;font-weight:600;color:var(--td);display:flex;align-items:center;gap:.6rem;white-space:nowrap;}
+  .fbi{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+  .fbm{font-weight:700;font-size:.85rem;}
+  .fbs{font-size:.68rem;color:var(--tm);font-weight:400;}
+  .fb1{top:-24px;right:-24px;animation:fl 4s ease-in-out infinite;}
+  .fb2{bottom:-16px;left:-20px;animation:fl 4s ease-in-out infinite;animation-delay:-2s;}
+  @keyframes fl{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+
+  /* MARQUEE */
+  .mq{background:var(--g900);padding:1.4rem 0;overflow:hidden;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);}
+  .mqt{display:flex;animation:mq 28s linear infinite;width:max-content;}
+  .mqt:hover{animation-play-state:paused;}
+  @keyframes mq{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+  .mqi{display:flex;align-items:center;gap:.6rem;padding:0 3rem;font-size:.82rem;font-weight:600;color:rgba(255,255,255,.33);white-space:nowrap;transition:color .2s;}
+  .mqi:hover{color:rgba(255,255,255,.65);}
+  .mqsep{color:var(--cu);opacity:.4;}
+
+  /* SECTIONS */
+  section{padding:110px 6%;}
+  .si{max-width:1240px;margin:0 auto;}
+  .stag{display:inline-flex;align-items:center;gap:.6rem;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--cu);margin-bottom:1.1rem;}
+  .stag::before{content:'';display:block;width:24px;height:2px;background:var(--cu);}
+  h2.st{font-size:clamp(2rem,3.8vw,3.2rem);color:var(--td);margin-bottom:1.1rem;}
+  h2.stl{color:var(--white);}
+  p.ss{font-size:1.05rem;color:var(--tm);max-width:560px;line-height:1.75;}
+  p.ssl{color:rgba(255,255,255,.55);}
+
+  /* REVEAL */
+  .rv{opacity:0;transform:translateY(40px);transition:opacity .7s cubic-bezier(.22,1,.36,1),transform .7s cubic-bezier(.22,1,.36,1);}
+  .rvl{opacity:0;transform:translateX(-40px);transition:opacity .7s cubic-bezier(.22,1,.36,1),transform .7s cubic-bezier(.22,1,.36,1);}
+  .rvr{opacity:0;transform:translateX(40px);transition:opacity .7s cubic-bezier(.22,1,.36,1),transform .7s cubic-bezier(.22,1,.36,1);}
+  .rv.on,.rvl.on,.rvr.on{opacity:1;transform:none;}
+  .sg-ch>*{opacity:0;transform:translateY(30px);transition:opacity .6s cubic-bezier(.22,1,.36,1),transform .6s cubic-bezier(.22,1,.36,1);}
+  .sg-ch.on>*:nth-child(1){opacity:1;transform:none;transition-delay:0s;}
+  .sg-ch.on>*:nth-child(2){opacity:1;transform:none;transition-delay:.1s;}
+  .sg-ch.on>*:nth-child(3){opacity:1;transform:none;transition-delay:.2s;}
+  .sg-ch.on>*:nth-child(4){opacity:1;transform:none;transition-delay:.3s;}
+  .sg-ch.on>*:nth-child(5){opacity:1;transform:none;transition-delay:.4s;}
+  .sg-ch.on>*:nth-child(6){opacity:1;transform:none;transition-delay:.5s;}
+
+  /* STATS BAND */
+  .sband{background:var(--ivory2);padding:60px 6%;border-top:1px solid var(--brd);border-bottom:1px solid var(--brd);}
+  .sgrid{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:2rem;}
+  .sitem{text-align:center;}
+  .snum{font-family:'Fraunces',serif;font-size:3.2rem;font-weight:700;color:var(--td);line-height:1;margin-bottom:.4rem;}
+  .snum .ssuf{font-size:2rem;color:var(--cu);}
+  .slbl{font-size:.85rem;color:var(--tm);font-weight:500;}
+
+  /* PROBLEM */
+  .prob{background:var(--g900);}
+  .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:6rem;align-items:center;margin-top:4rem;}
+  .pains{display:flex;flex-direction:column;gap:1.25rem;margin-top:2rem;}
+  .pi{display:flex;align-items:flex-start;gap:1rem;padding:1.25rem 1.5rem;background:rgba(255,255,255,.05);border-radius:var(--r);border:1px solid rgba(255,255,255,.07);transition:all .3s;}
+  .pi:hover{background:rgba(255,255,255,.08);}
+  .pico{width:42px;height:42px;border-radius:10px;background:rgba(166,119,73,.15);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
+  .ptitle{font-weight:700;font-size:.95rem;color:var(--white);margin-bottom:.3rem;}
+  .pdesc{font-size:.85rem;color:rgba(255,255,255,.48);line-height:1.6;}
+  .solcard{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:var(--rl);padding:2.5rem;}
+  .soltitle{font-size:1.6rem;color:var(--white);margin-bottom:1rem;}
+  .soltitle span{color:var(--cu);}
+  .solpts{list-style:none;display:flex;flex-direction:column;gap:.85rem;margin-top:1.5rem;}
+  .solpts li{display:flex;align-items:flex-start;gap:.75rem;font-size:.9rem;color:rgba(255,255,255,.72);line-height:1.5;}
+  .solpts li::before{content:'✓';width:20px;height:20px;border-radius:50%;background:rgba(166,119,73,.2);border:1px solid rgba(166,119,73,.4);color:var(--cu2);font-weight:700;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+
+  /* FEATURES */
+  .feat{background:var(--ivory);}
+  .ftabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:3rem 0 2.5rem;background:var(--ivory2);padding:.4rem;border-radius:14px;width:max-content;max-width:100%;}
+  .ftab{padding:.6rem 1.4rem;border-radius:10px;font-size:.85rem;font-weight:600;color:var(--tm);border:none;background:transparent;transition:all .25s;}
+  .ftab.act{background:var(--white);color:var(--td);box-shadow:0 2px 12px rgba(48,64,53,.1);}
+  .fpanel{display:none;}
+  .fpanel.act{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;}
+  .fpc h3{font-size:1.9rem;color:var(--td);margin-bottom:1rem;}
+  .fpc p{font-size:.95rem;color:var(--tm);line-height:1.7;margin-bottom:1.75rem;}
+  .flist{list-style:none;display:flex;flex-direction:column;gap:.75rem;}
+  .flist li{display:flex;align-items:center;gap:.75rem;font-size:.9rem;color:var(--td);font-weight:500;}
+  .flist li::before{content:'✓';width:22px;height:22px;border-radius:50%;background:rgba(166,119,73,.12);color:var(--cu);font-weight:700;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .fimg{background:var(--ivory2);border-radius:var(--rl);height:320px;display:flex;align-items:center;justify-content:center;border:1px solid var(--brd);overflow:hidden;}
+  .fscr{background:var(--white);border-radius:12px;padding:1.2rem;box-shadow:0 8px 32px rgba(48,64,53,.1);width:85%;}
+
+  /* MÉTIERS */
+  .met{background:var(--g900);}
+  .mgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;margin-top:4rem;}
+  .mcard{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--rl);padding:2.5rem;transition:all .35s cubic-bezier(.22,1,.36,1);position:relative;overflow:hidden;}
+  .mcard::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--cu);transform:scaleX(0);transition:transform .35s cubic-bezier(.22,1,.36,1);transform-origin:left;}
+  .mcard:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.15);transform:translateY(-4px);box-shadow:0 20px 60px rgba(0,0,0,.3);}
+  .mcard:hover::after{transform:scaleX(1);}
+  .memo{font-size:2.8rem;margin-bottom:1.5rem;display:block;}
+  .mname{font-size:1.35rem;font-weight:700;color:var(--white);margin-bottom:.6rem;}
+  .mdesc{font-size:.88rem;color:rgba(255,255,255,.48);line-height:1.65;margin-bottom:1.5rem;}
+  .mtags{display:flex;flex-wrap:wrap;gap:.5rem;}
+  .mtagitem{font-size:.72rem;font-weight:600;padding:.25rem .7rem;border-radius:100px;background:rgba(166,119,73,.15);color:#d4a56a;}
+
+  /* PROCESS */
+  .proc{background:var(--ivory);}
+  .procgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:2.5rem;margin-top:5rem;position:relative;}
+  .procline{position:absolute;top:36px;left:12.5%;right:12.5%;height:1px;background:repeating-linear-gradient(90deg,var(--cu) 0,var(--cu) 6px,transparent 6px,transparent 14px);opacity:.35;}
+  .prstep{text-align:center;}
+  .prnum{width:72px;height:72px;border-radius:50%;background:var(--ivory2);border:2px solid var(--brd);display:flex;align-items:center;justify-content:center;margin:0 auto 2rem;font-family:'Fraunces',serif;font-size:1.6rem;font-weight:700;color:var(--td);position:relative;z-index:1;transition:all .3s;}
+  .prstep:hover .prnum{background:var(--cu);color:var(--white);border-color:var(--cu);box-shadow:0 0 0 8px rgba(166,119,73,.12);}
+  .prtitle{font-size:1rem;font-weight:700;color:var(--td);margin-bottom:.5rem;}
+  .prdesc{font-size:.85rem;color:var(--tm);line-height:1.65;}
+
+  /* PRICING */
+  .pric{background:var(--g950);}
+  .ptoggle{display:flex;align-items:center;gap:1rem;margin:2.5rem 0 3.5rem;}
+  .ptlbl{font-size:.88rem;color:rgba(255,255,255,.5);font-weight:500;}
+  .ptbtn{width:52px;height:28px;border-radius:100px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);position:relative;transition:background .3s;}
+  .ptbtn.act{background:var(--cu);}
+  .ptbtn::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--white);transition:transform .3s cubic-bezier(.22,1,.36,1);}
+  .ptbtn.act::after{transform:translateX(24px);}
+  .ptsave{font-size:.75rem;font-weight:700;padding:.2rem .6rem;border-radius:100px;background:rgba(166,119,73,.2);color:#d4a56a;}
+  .pcgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;}
+  .pc{border-radius:var(--rl);padding:2.5rem;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);position:relative;transition:all .35s cubic-bezier(.22,1,.36,1);}
+  .pc:hover{background:rgba(255,255,255,.07);transform:translateY(-6px);box-shadow:0 30px 70px rgba(0,0,0,.4);}
+  .pc.pop{background:var(--ivory);border:2px solid var(--cu);box-shadow:0 0 0 2px var(--cu),0 30px 70px rgba(166,119,73,.2);}
+  .pc.pop:hover{transform:translateY(-6px);}
+  .popbadge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--cu);color:var(--white);font-size:.7rem;font-weight:700;padding:.3rem 1.1rem;border-radius:100px;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;}
+  .pplan{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--cu);margin-bottom:1rem;}
+  .pc.pop .pplan{color:var(--cu3);}
+  .pprice{font-family:'Fraunces',serif;font-size:3.5rem;font-weight:700;color:var(--white);line-height:1;margin-bottom:.3rem;}
+  .pc.pop .pprice{color:var(--td);}
+  .pper{font-size:.82rem;color:rgba(255,255,255,.4);margin-bottom:1.75rem;}
+  .pc.pop .pper{color:var(--tm);}
+  .pdiv{height:1px;background:rgba(255,255,255,.08);margin-bottom:1.75rem;}
+  .pc.pop .pdiv{background:var(--brd);}
+  .pfeat{list-style:none;display:flex;flex-direction:column;gap:.7rem;margin-bottom:2rem;}
+  .pfeat li{display:flex;align-items:flex-start;gap:.65rem;font-size:.87rem;color:rgba(255,255,255,.72);line-height:1.4;}
+  .pc.pop .pfeat li{color:var(--td);}
+  .pfeat li::before{content:'✓';width:18px;height:18px;border-radius:50%;background:rgba(166,119,73,.15);color:var(--cu);font-size:.7rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+  .pfeat li.no{color:rgba(255,255,255,.22);}
+  .pc.pop .pfeat li.no{color:rgba(48,64,53,.3);}
+  .pfeat li.no::before{content:'–';background:transparent;color:rgba(255,255,255,.2);}
+
+  /* TESTIMONIALS */
+  .testi{background:var(--ivory2);}
+  .tmq{overflow:hidden;margin-top:4rem;}
+  .tmt{display:flex;gap:1.5rem;animation:tq 38s linear infinite;width:max-content;}
+  .tmt:hover{animation-play-state:paused;}
+  @keyframes tq{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+  .tc{background:var(--white);border-radius:var(--rl);padding:1.75rem;width:340px;flex-shrink:0;border:1px solid var(--brd);}
+  .tcst{color:var(--cu);font-size:.85rem;letter-spacing:.05em;margin-bottom:.9rem;}
+  .tctxt{font-size:.9rem;color:var(--td);line-height:1.7;margin-bottom:1.25rem;font-style:italic;}
+  .tcauth{display:flex;align-items:center;gap:.75rem;}
+  .tcav{width:40px;height:40px;border-radius:50%;background:var(--g700);color:var(--white);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0;}
+  .tcname{font-weight:700;font-size:.85rem;color:var(--td);}
+  .tcrole{font-size:.75rem;color:var(--tm);}
+
+  /* FAQ */
+  .faqsec{background:var(--ivory);}
+  .faqgrid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;margin-top:4rem;align-items:start;}
+  .faqlist{display:flex;flex-direction:column;gap:.75rem;}
+  .faqitem{border:1px solid var(--brd);border-radius:var(--r);overflow:hidden;transition:border-color .2s;}
+  .faqitem:hover{border-color:rgba(166,119,73,.3);}
+  .faqq{width:100%;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.2rem 1.5rem;background:var(--white);border:none;font-size:.93rem;font-weight:600;color:var(--td);text-align:left;transition:background .2s;}
+  .faqq:hover{background:var(--ivory2);}
+  .faqq svg{width:18px;height:18px;color:var(--cu);flex-shrink:0;transition:transform .3s;}
+  .faqitem.open .faqq svg{transform:rotate(45deg);}
+  .faqa{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.22,1,.36,1),padding .3s;background:var(--white);font-size:.88rem;color:var(--tm);line-height:1.7;padding:0 1.5rem;}
+  .faqitem.open .faqa{max-height:200px;padding:0 1.5rem 1.2rem;}
+  .faqcta{background:var(--ivory2);border-radius:var(--rl);padding:2.5rem;text-align:center;border:1px solid var(--brd);}
+  .faqcta h3{font-size:1.5rem;color:var(--td);margin-bottom:.8rem;}
+  .faqcta p{font-size:.9rem;color:var(--tm);margin-bottom:1.75rem;}
+
+  /* CTA */
+  .ctaf{background:var(--g900);padding:140px 6%;text-align:center;position:relative;overflow:hidden;}
+  .ctaf::before{content:'AVRA';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Fraunces',serif;font-size:28vw;font-weight:700;color:rgba(255,255,255,.025);pointer-events:none;white-space:nowrap;line-height:1;}
+  .ctafi{position:relative;z-index:1;max-width:760px;margin:0 auto;}
+  .ctafi h2{font-size:clamp(2.5rem,5vw,4rem);color:var(--white);margin-bottom:1.25rem;}
+  .ctafi p{font-size:1.1rem;color:rgba(255,255,255,.55);margin-bottom:3rem;line-height:1.75;}
+  .ctabtns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;}
+  .ctanote{margin-top:1.5rem;font-size:.78rem;color:rgba(255,255,255,.28);}
+
+  /* FOOTER */
+  footer{background:var(--g950);padding:80px 6% 40px;}
+  .ftop{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:2.2fr 1fr 1fr 1fr;gap:4rem;padding-bottom:4rem;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:2.5rem;}
+  .flogo{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;color:var(--white);margin-bottom:.75rem;}
+  .flogo span{color:var(--cu);}
+  .fdesc{font-size:.85rem;color:rgba(255,255,255,.33);line-height:1.7;margin-bottom:1.5rem;}
+  .fbdge{display:inline-flex;align-items:center;gap:.5rem;font-size:.72rem;font-weight:700;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.38);padding:.3rem .8rem;border-radius:100px;}
+  .fcol h4{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.45);margin-bottom:1.1rem;}
+  .flinks{list-style:none;display:flex;flex-direction:column;gap:.55rem;}
+  .flinks a{font-size:.85rem;color:rgba(255,255,255,.28);transition:color .2s;}
+  .flinks a:hover{color:rgba(255,255,255,.72);}
+  .fbot{max-width:1240px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;font-size:.78rem;color:rgba(255,255,255,.22);}
+
+  /* RESPONSIVE */
+  @media(max-width:1100px){
+    .hero-in{grid-template-columns:1fr;}.hero-vis{display:none;}
+    .pgrid{grid-template-columns:1fr;}.fpanel.act{grid-template-columns:1fr;}.fimg{display:none;}
+    .mgrid{grid-template-columns:1fr 1fr;}.pcgrid{grid-template-columns:1fr 1fr;}
+    .faqgrid{grid-template-columns:1fr;}.ftop{grid-template-columns:1fr 1fr;gap:2.5rem;}
+    .sgrid{grid-template-columns:repeat(2,1fr);}.procgrid{grid-template-columns:repeat(2,1fr);}.procline{display:none;}
+  }
+  @media(max-width:700px){
+    .nav-links{display:none;}.mgrid{grid-template-columns:1fr;}.pcgrid{grid-template-columns:1fr;}
+    .pc.pop{transform:none;}.ftop{grid-template-columns:1fr;}.fbot{flex-direction:column;gap:1rem;text-align:center;}
+    .ftabs{overflow-x:auto;-webkit-overflow-scrolling:touch;}.procgrid{grid-template-columns:1fr 1fr;}
+  }
+  </style>
+</head>
+<body>
+
+<div id="cur"></div>
+<div id="ring"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <a href="/" class="logo">AVR<span>A</span></a>
+  <ul class="nav-links">
+    <li><a href="#feat">Fonctionnalités</a></li>
+    <li><a href="#met">Métiers</a></li>
+    <li><a href="#pric">Tarifs</a></li>
+    <li><a href="#faq">FAQ</a></li>
+  </ul>
+  <div class="nav-cta">
+    <a href="/login" class="btn btn-outline">Se connecter</a>
+    <a href="#pric" class="btn btn-cu">Essai gratuit</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <canvas id="hc"></canvas>
+  <div class="hglow"></div><div class="hglow2"></div>
+  <div class="hero-in">
+    <div>
+      <div class="badge"><span class="badge-dot"></span>Nouveau — IA Studio intégrée</div>
+      <h1>L'ERP qui fait gagner<br><em>2h par jour</em><br>à votre studio</h1>
+      <p class="sub">Centralisez projets, devis, chantiers, stocks et équipes dans une seule plateforme pensée pour les professionnels de l'agencement.</p>
+      <div class="hero-acts">
+        <a href="#pric" class="btn btn-cu btn-xl">Commencer gratuitement →</a>
+        <a href="/login" class="btn btn-outline btn-xl">Voir la démo live ↗</a>
+      </div>
+      <div class="hero-soc">
+        <div class="avs"><div class="av">SM</div><div class="av">PL</div><div class="av">AB</div><div class="av">CR</div><div class="av">+</div></div>
+        <span class="soc-txt"><strong>+240 studios</strong> font déjà confiance à AVRA</span>
+      </div>
+    </div>
+    <div class="hero-vis">
+      <div class="mwrap">
+        <div class="fbadge fb1"><div class="fbi" style="background:rgba(45,90,61,.1)">✅</div><div><div class="fbm">Devis signé !</div><div class="fbs">28 500 € · Cuisine Haussmannien</div></div></div>
+        <div class="fbadge fb2"><div class="fbi" style="background:rgba(166,119,73,.1)">📊</div><div><div class="fbm">+12% CA ce mois</div><div class="fbs">42 800 € générés</div></div></div>
+        <div class="mok">
+          <div class="mbar"><div class="d dr"></div><div class="d dy"></div><div class="d dg"></div><div class="murl">app.avra.fr/dashboard</div></div>
+          <div class="mbody">
+            <div class="mside">
+              <div class="mbrand">AVR<span>A</span></div>
+              <div class="mi act"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1L1 6v9h5V10h4v5h5V6z"/></svg>Dashboard</div>
+              <div class="mi"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1"/><path d="M2 6h12M6 2v12"/></svg>Projets</div>
+              <div class="mi"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>Clients</div>
+              <div class="mi"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 2H5L2 5v9h12V5z"/><path d="M8 9v3M6 11h4"/></svg>Devis</div>
+              <div class="mi"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="11" rx="1"/><path d="M5 3V1M11 3V1M1 7h14"/></svg>Planning</div>
+              <div class="mi"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>IA Studio</div>
+            </div>
+            <div class="mmain">
+              <div class="mhd"><span class="mtitle">Tableau de bord</span><span class="mtag">⚡ PRO</span></div>
+              <div class="mkpis">
+                <div class="mkpi"><div class="mkl">CA mensuel</div><div class="mkv">42 800 €</div><div class="mku">▲ +12%</div></div>
+                <div class="mkpi"><div class="mkl">Projets</div><div class="mkv">14</div><div class="mku">▲ +3</div></div>
+                <div class="mkpi"><div class="mkl">Conversion</div><div class="mkv">68%</div><div class="mku">▲ +5pts</div></div>
+              </div>
+              <div class="mproj"><div class="mdot" style="background:#2d7a3d"></div><span class="mpn">Cuisine Haussmannien</span><span class="ms sg">SIGNÉ</span></div>
+              <div class="mproj"><div class="mdot" style="background:#a67749"></div><span class="mpn">Bureaux Tour La Défense</span><span class="ms so">DEVIS</span></div>
+              <div class="mproj"><div class="mdot" style="background:#3d5a6a"></div><span class="mpn">Dressing Villa Cannes</span><span class="ms sb">CHANTIER</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="mq" aria-hidden="true">
+  <div class="mqt">
+    <span class="mqi">🍳 Atelier Renard</span><span class="mqsep">·</span>
+    <span class="mqi">🪵 Studio Lumière</span><span class="mqsep">·</span>
+    <span class="mqi">🏢 Cuisines Mouret</span><span class="mqsep">·</span>
+    <span class="mqi">🎨 Bois &amp; Design Lyon</span><span class="mqsep">·</span>
+    <span class="mqi">✏️ Arch'Intérieur Paris</span><span class="mqsep">·</span>
+    <span class="mqi">🔨 Menuiserie Brun</span><span class="mqsep">·</span>
+    <span class="mqi">🏠 Studio Agencement Nice</span><span class="mqsep">·</span>
+    <span class="mqi">🛋️ Interiors Bordeaux</span><span class="mqsep">·</span>
+    <span class="mqi">🍳 Atelier Renard</span><span class="mqsep">·</span>
+    <span class="mqi">🪵 Studio Lumière</span><span class="mqsep">·</span>
+    <span class="mqi">🏢 Cuisines Mouret</span><span class="mqsep">·</span>
+    <span class="mqi">🎨 Bois &amp; Design Lyon</span><span class="mqsep">·</span>
+    <span class="mqi">✏️ Arch'Intérieur Paris</span><span class="mqsep">·</span>
+    <span class="mqi">🔨 Menuiserie Brun</span><span class="mqsep">·</span>
+    <span class="mqi">🏠 Studio Agencement Nice</span><span class="mqsep">·</span>
+    <span class="mqi">🛋️ Interiors Bordeaux</span><span class="mqsep">·</span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="sband">
+  <div class="sgrid sg-ch">
+    <div class="sitem"><div class="snum"><span class="ctr" data-t="240">0</span><span class="ssuf">+</span></div><div class="slbl">Studios utilisateurs</div></div>
+    <div class="sitem"><div class="snum"><span class="ctr" data-t="98">0</span><span class="ssuf">%</span></div><div class="slbl">Taux de satisfaction</div></div>
+    <div class="sitem"><div class="snum"><span class="ctr" data-t="2">0</span><span class="ssuf">h</span></div><div class="slbl">Gagnées par jour en moyenne</div></div>
+    <div class="sitem"><div class="snum"><span class="ctr" data-t="35">0</span><span class="ssuf">%</span></div><div class="slbl">D'augmentation du CA moyen</div></div>
+  </div>
+</div>
+
+<!-- PROBLEM -->
+<section class="prob">
+  <div class="si">
+    <div class="pgrid">
+      <div class="rvl">
+        <div class="stag" style="color:#d4a56a">Le problème</div>
+        <h2 class="st stl">Vous gérez encore tout sur Excel ?</h2>
+        <p class="ss ssl">La plupart des artisans de l'agencement jonglent entre Excel, WhatsApp, email et papier. Résultat : des informations perdues, des devis oubliés, des chantiers mal suivis.</p>
+        <div class="pains">
+          <div class="pi"><div class="pico">📋</div><div><div class="ptitle">Devis éparpillés partout</div><div class="pdesc">Version 1, version finale, version finale 2... Impossible de savoir quelle version le client a signée.</div></div></div>
+          <div class="pi"><div class="pico">📅</div><div><div class="ptitle">Planning géré à l'arrache</div><div class="pdesc">Un poseur qui ne sait pas où il doit être le lendemain. Un client qui appelle pour savoir si la pose est bien ce mardi.</div></div></div>
+          <div class="pi"><div class="pico">💸</div><div><div class="ptitle">Chiffre d'affaires invisible</div><div class="pdesc">Vous ne savez pas en temps réel ce que vous avez facturé, ce qui est en attente, ni votre CA prévisionnel.</div></div></div>
+        </div>
+      </div>
+      <div class="rvr">
+        <div class="solcard">
+          <div class="soltitle">AVRA centralise<br><span>tout en un seul endroit</span></div>
+          <p style="font-size:.9rem;color:rgba(255,255,255,.48);line-height:1.65">Fini les outils éparpillés. AVRA est la seule plateforme dont vous avez besoin pour piloter votre activité de A à Z.</p>
+          <ul class="solpts">
+            <li>Tous vos projets, leur état et leur rentabilité en temps réel</li>
+            <li>Devis générés en 3 minutes avec signature électronique</li>
+            <li>Planning centralisé, accessible par toute l'équipe</li>
+            <li>IA Studio qui rédige vos descriptifs techniques automatiquement</li>
+            <li>Statistiques claires : CA, taux de conversion, marge par projet</li>
+            <li>Stock et commandes fournisseurs sous contrôle</li>
+          </ul>
+          <div style="margin-top:2rem"><a href="#pric" class="btn btn-cu btn-lg">Démarrer maintenant →</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="feat" id="feat">
+  <div class="si">
+    <div class="rv" style="display:grid;grid-template-columns:1fr auto;align-items:end;gap:2rem">
+      <div>
+        <div class="stag">Fonctionnalités</div>
+        <h2 class="st">Tout ce qu'il faut,<br>rien de superflu</h2>
+      </div>
+      <a href="/login" class="btn btn-dark btn-lg" style="white-space:nowrap;margin-bottom:.5rem">Tester gratuitement →</a>
+    </div>
+    <div class="ftabs">
+      <button class="ftab act" data-tab="p1">📁 Projets</button>
+      <button class="ftab" data-tab="p2">📝 Devis</button>
+      <button class="ftab" data-tab="p3">🤖 IA Studio</button>
+      <button class="ftab" data-tab="p4">📅 Planning</button>
+      <button class="ftab" data-tab="p5">📊 Stats</button>
+      <button class="ftab" data-tab="p6">✍️ Signature</button>
+    </div>
+    <div class="fpanel act" id="p1">
+      <div class="fpc rvl"><h3>Pilotez chaque projet de A à Z</h3><p>Du premier contact client à la livraison finale, suivez l'avancement en temps réel. Pipeline commercial, phases de chantier, intervenants — tout centralisé.</p><ul class="flist"><li>Vue Kanban ou liste selon vos préférences</li><li>Cycle de vie : Prospect → Signé → En chantier → Livré</li><li>Intervenants et sous-traitants assignés par projet</li><li>Documents, photos et plans rattachés à chaque dossier</li><li>Alertes automatiques sur les jalons dépassés</li></ul></div>
+      <div class="fimg rvr"><div class="fscr"><div style="font-size:.7rem;font-weight:700;color:var(--tm);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.8rem">14 projets actifs</div><div style="display:flex;flex-direction:column;gap:.5rem"><div style="background:var(--ivory2);border-radius:8px;padding:.6rem .8rem;display:flex;justify-content:space-between;align-items:center"><span style="font-size:.75rem;font-weight:600">Cuisine Haussmannien</span><span style="font-size:.62rem;font-weight:700;padding:.12rem .45rem;border-radius:100px;background:rgba(45,90,61,.12);color:#2d5a3d">CHANTIER</span></div><div style="background:var(--ivory2);border-radius:8px;padding:.6rem .8rem;display:flex;justify-content:space-between;align-items:center"><span style="font-size:.75rem;font-weight:600">Bureaux La Défense</span><span style="font-size:.62rem;font-weight:700;padding:.12rem .45rem;border-radius:100px;background:rgba(166,119,73,.15);color:#a67749">DEVIS</span></div><div style="background:var(--ivory2);border-radius:8px;padding:.6rem .8rem;display:flex;justify-content:space-between;align-items:center"><span style="font-size:.75rem;font-weight:600">Dressing Cannes</span><span style="font-size:.62rem;font-weight:700;padding:.12rem .45rem;border-radius:100px;background:rgba(61,90,106,.12);color:#3d5a6a">LIVRÉ</span></div></div></div></div>
+    </div>
+    <div class="fpanel" id="p2">
+      <div class="fpc"><h3>Devis pro en 3 minutes</h3><p>Créez des devis professionnels depuis vos modèles, envoyez-les par email en un clic, et recevez une notification dès que le client les ouvre ou les signe.</p><ul class="flist"><li>Modèles personnalisables à votre charte graphique</li><li>Catalogue de prestations et tarifs pré-renseignés</li><li>PDF généré automatiquement avec votre logo</li><li>Envoi par email avec suivi d'ouverture</li><li>Relances automatiques si pas de réponse</li></ul></div>
+      <div class="fimg"><div class="fscr"><div style="font-size:.75rem;font-weight:700;margin-bottom:.6rem">Devis DEV-2026-047</div><div style="font-size:.68rem;color:var(--tm);margin-bottom:.8rem">Cuisine Haussmannien · Marc Dupont</div><div style="border-top:1px solid var(--brd);padding-top:.6rem"><div style="display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:.3rem"><span>Pose cuisine complète</span><span style="font-weight:600">8 500 €</span></div><div style="display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:.3rem"><span>Plan de travail marbre</span><span style="font-weight:600">4 200 €</span></div><div style="display:flex;justify-content:space-between;font-size:.7rem;font-weight:700;border-top:1px solid var(--brd);padding-top:.5rem;margin-top:.3rem"><span>TOTAL TTC</span><span style="color:var(--cu)">28 500 €</span></div></div></div></div>
+    </div>
+    <div class="fpanel" id="p3">
+      <div class="fpc"><h3>L'IA qui travaille à votre place</h3><p>AVRA IA Studio génère vos descriptifs techniques, analyse vos plans, rédige vos emails clients et synthétise vos projets. Économisez des heures chaque semaine.</p><ul class="flist"><li>Génération automatique de descriptifs de travaux</li><li>Analyse de plans PDF et extraction des cotes</li><li>Rédaction d'emails professionnels au client</li><li>Synthèse de compte-rendu de chantier</li><li>Suggestions de prix basées sur votre historique</li></ul></div>
+      <div class="fimg"><div class="fscr" style="text-align:left"><div style="font-size:.65rem;color:var(--cu);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem">⚡ IA Studio</div><div style="font-size:.72rem;color:var(--td);line-height:1.5;background:var(--ivory2);padding:.6rem .7rem;border-radius:8px">"Générer le descriptif technique pour une cuisine haut de gamme avec îlot central..."</div><div style="height:.5rem"></div><div style="font-size:.72rem;color:var(--tm);line-height:1.6;padding:.4rem 0">La cuisine comprend 12 modules bas et hauts en bois laqué blanc mat... Plan de travail en marbre de Carrare épaisseur 3cm... <span style="color:var(--cu)">|</span></div></div></div>
+    </div>
+    <div class="fpanel" id="p4">
+      <div class="fpc"><h3>Planning centralisé pour toute l'équipe</h3><p>Visualisez tous vos chantiers et poseurs sur un calendrier unique. Évitez les doublons, anticipez les surcharges et communiquez les plannings en temps réel.</p><ul class="flist"><li>Vue semaine, mois et Gantt par projet</li><li>Assignation des poseurs et sous-traitants</li><li>Notifications automatiques aux intervenants</li><li>Synchronisation Google Calendar et Outlook</li><li>Gestion des congés et disponibilités</li></ul></div>
+      <div class="fimg"><div class="fscr"><div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--tm);margin-bottom:.6rem">Semaine du 16 au 22 mars</div><div style="display:flex;flex-direction:column;gap:.35rem"><div style="background:rgba(45,90,61,.1);border-left:3px solid #2d5a3d;padding:.4rem .6rem;border-radius:0 6px 6px 0"><div style="font-size:.68rem;font-weight:700;color:#2d5a3d">Cuisine Haussmannien</div><div style="font-size:.6rem;color:var(--tm)">Mar–Jeu · Pierre + Équipe B</div></div><div style="background:rgba(166,119,73,.1);border-left:3px solid var(--cu);padding:.4rem .6rem;border-radius:0 6px 6px 0"><div style="font-size:.68rem;font-weight:700;color:var(--cu)">Dressing Cannes</div><div style="font-size:.6rem;color:var(--tm)">Mer 19 · Thomas</div></div></div></div></div>
+    </div>
+    <div class="fpanel" id="p5">
+      <div class="fpc"><h3>Pilotez votre croissance avec des données</h3><p>Tableau de bord en temps réel : chiffre d'affaires, taux de conversion, rentabilité par projet. Prenez des décisions éclairées.</p><ul class="flist"><li>CA réel, facturé et prévisionnel</li><li>Taux de conversion par source de prospect</li><li>Rentabilité et marge par projet</li><li>Top prestations et top clients</li><li>Export CSV / Excel pour votre comptable</li></ul></div>
+      <div class="fimg"><div class="fscr"><div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.6rem"><div style="background:var(--ivory2);border-radius:8px;padding:.6rem"><div style="font-size:.58rem;color:var(--tm);margin-bottom:.2rem">CA mars</div><div style="font-size:.95rem;font-weight:700">42 800 €</div><div style="font-size:.58rem;color:#2d7a3d">▲ +12%</div></div><div style="background:var(--ivory2);border-radius:8px;padding:.6rem"><div style="font-size:.58rem;color:var(--tm);margin-bottom:.2rem">Marge nette</div><div style="font-size:.95rem;font-weight:700">31%</div><div style="font-size:.58rem;color:#2d7a3d">▲ +3pts</div></div></div><div style="background:var(--ivory2);border-radius:8px;padding:.6rem"><div style="font-size:.6rem;color:var(--tm);margin-bottom:.4rem">Taux de conversion</div><div style="background:var(--brd);border-radius:4px;height:8px;overflow:hidden"><div style="background:var(--cu);height:100%;width:68%;border-radius:4px"></div></div><div style="font-size:.65rem;font-weight:700;margin-top:.3rem;text-align:right;color:var(--cu)">68%</div></div></div></div>
+    </div>
+    <div class="fpanel" id="p6">
+      <div class="fpc"><h3>Signature électronique en un clic</h3><p>Envoyez vos devis et contrats à signer directement depuis AVRA. Le client signe depuis son téléphone, vous recevez l'original instantanément. Valeur légale garantie.</p><ul class="flist"><li>Signature conforme eIDAS (valeur légale)</li><li>Envoi par email avec lien sécurisé</li><li>Rappels automatiques si pas de réponse</li><li>Archive légale sécurisée 10 ans</li><li>Notification instantanée à la signature</li></ul></div>
+      <div class="fimg"><div class="fscr" style="text-align:center"><div style="font-size:2.5rem;margin-bottom:.5rem">✍️</div><div style="font-size:.75rem;font-weight:700;margin-bottom:.3rem">Devis prêt à signer</div><div style="font-size:.65rem;color:var(--tm);margin-bottom:.8rem">Marc Dupont vient d'ouvrir votre devis</div><div style="background:var(--cu);color:white;border-radius:100px;padding:.4rem .9rem;font-size:.7rem;font-weight:700;display:inline-block">Signer maintenant</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- MÉTIERS -->
+<section class="met" id="met">
+  <div class="si">
+    <div class="rv" style="text-align:center">
+      <div class="stag" style="color:#d4a56a;justify-content:center">Pour votre métier</div>
+      <h2 class="st stl">Taillé pour votre activité</h2>
+      <p class="ss ssl" style="margin:0 auto">AVRA s'adapte à chaque corps de métier avec des modules spécialisés.</p>
+    </div>
+    <div class="mgrid sg-ch">
+      <div class="mcard"><span class="memo">🍳</span><div class="mname">Cuisiniste</div><p class="mdesc">De la visite client à la réception de chantier, gérez vos projets cuisine avec rigueur : plans techniques, SAV, planning poseurs.</p><div class="mtags"><span class="mtagitem">Suivi technique</span><span class="mtagitem">SAV intégré</span><span class="mtagitem">Planning poseurs</span></div></div>
+      <div class="mcard"><span class="memo">🪵</span><div class="mname">Menuisier · Ébéniste</div><p class="mdesc">Du devis de fabrication au suivi de chantier, en passant par la gestion de votre atelier et de vos sous-traitants.</p><div class="mtags"><span class="mtagitem">Suivi fabrication</span><span class="mtagitem">Gestion atelier</span><span class="mtagitem">Sous-traitants</span></div></div>
+      <div class="mcard"><span class="memo">🏢</span><div class="mname">Agenceur</div><p class="mdesc">Pilotez vos chantiers d'aménagement multi-corps d'état avec une coordination fine et un reporting client impeccable.</p><div class="mtags"><span class="mtagitem">Multi-corps d'état</span><span class="mtagitem">Coordination</span><span class="mtagitem">Reporting client</span></div></div>
+      <div class="mcard"><span class="memo">🎨</span><div class="mname">Architecte d'intérieur</div><p class="mdesc">Gérez vos honoraires, votre facturation par phase, vos dossiers clients et vos partenaires depuis une seule interface.</p><div class="mtags"><span class="mtagitem">Honoraires</span><span class="mtagitem">Phases AVP/APD</span><span class="mtagitem">Dossiers digitaux</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PROCESS -->
+<section class="proc">
+  <div class="si">
+    <div class="rv" style="text-align:center">
+      <div class="stag" style="justify-content:center">Mise en route</div>
+      <h2 class="st">Opérationnel en 30 minutes</h2>
+      <p class="ss" style="margin:0 auto">Pas de consultant. Vous configurez AVRA vous-même, en quelques étapes simples.</p>
+    </div>
+    <div class="procgrid sg-ch">
+      <div class="procline"></div>
+      <div class="prstep"><div class="prnum">1</div><div class="prtitle">Créez votre workspace</div><p class="prdesc">Renseignez le nom de votre studio et votre métier. C'est tout.</p></div>
+      <div class="prstep"><div class="prnum">2</div><div class="prtitle">Importez vos clients</div><p class="prdesc">Import Excel ou ajout manuel. Moins de 5 minutes.</p></div>
+      <div class="prstep"><div class="prnum">3</div><div class="prtitle">Créez votre premier projet</div><p class="prdesc">Client, montant, intervenants, planning — 2 minutes chrono.</p></div>
+      <div class="prstep"><div class="prnum">4</div><div class="prtitle">Pilotez en temps réel</div><p class="prdesc">Tableau de bord disponible partout, sur tous vos appareils.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pric" id="pric">
+  <div class="si">
+    <div class="rv" style="text-align:center">
+      <div class="stag" style="color:#d4a56a;justify-content:center">Tarifs transparents</div>
+      <h2 class="st stl">Zéro frais caché, zéro engagement</h2>
+      <p class="ss ssl" style="margin:1rem auto 0">14 jours d'essai gratuit sur tous les plans. Carte bancaire non requise.</p>
+    </div>
+    <div class="ptoggle">
+      <span class="ptlbl">Mensuel</span>
+      <div class="ptbtn" id="ptbtn"></div>
+      <span class="ptlbl">Annuel</span>
+      <span class="ptsave">−20%</span>
+    </div>
+    <div class="pcgrid sg-ch">
+      <div class="pc">
+        <div class="pplan">Starter</div>
+        <div class="pprice"><span class="pamt" data-m="49" data-a="39">49</span><span style="font-size:1.6rem">€</span></div>
+        <div class="pper">par mois · 1 utilisateur</div>
+        <div class="pdiv"></div>
+        <ul class="pfeat"><li>Jusqu'à 20 projets actifs</li><li>Gestion clients &amp; devis</li><li>Planning basique</li><li>Stockage 5 Go</li><li>Support email</li><li class="no">IA Studio</li><li class="no">Signature électronique</li><li class="no">Multi-utilisateurs</li></ul>
+        <a href="#" class="btn btn-outline" style="width:100%;justify-content:center;border-color:rgba(255,255,255,.2)">Commencer →</a>
+      </div>
+      <div class="pc pop">
+        <div class="popbadge">⚡ Le plus populaire</div>
+        <div class="pplan">Pro</div>
+        <div class="pprice" style="color:var(--td)"><span class="pamt" data-m="129" data-a="99">129</span><span style="font-size:1.6rem">€</span></div>
+        <div class="pper" style="color:var(--tm)">par mois · jusqu'à 5 utilisateurs</div>
+        <div class="pdiv" style="background:var(--brd)"></div>
+        <ul class="pfeat"><li>Projets illimités</li><li>CRM clients complet</li><li>Planning avancé + Gantt</li><li>Stockage 50 Go</li><li>Support prioritaire</li><li>IA Studio (100 req/mois)</li><li>Signature électronique</li><li>Multi-utilisateurs (5)</li></ul>
+        <a href="#" class="btn btn-cu" style="width:100%;justify-content:center">Essai gratuit 14 jours →</a>
+      </div>
+      <div class="pc">
+        <div class="pplan">Studio</div>
+        <div class="pprice"><span class="pamt" data-m="299" data-a="239">299</span><span style="font-size:1.6rem">€</span></div>
+        <div class="pper">par mois · utilisateurs illimités</div>
+        <div class="pdiv"></div>
+        <ul class="pfeat"><li>Projets &amp; clients illimités</li><li>CRM &amp; reporting avancé</li><li>Planning multi-ressources</li><li>Stockage 500 Go</li><li>Support dédié (SLA 4h)</li><li>IA Studio illimitée</li><li>Signature électronique ∞</li><li>API + intégrations sur mesure</li></ul>
+        <a href="mailto:contact@avra.fr" class="btn btn-outline" style="width:100%;justify-content:center;border-color:rgba(255,255,255,.2)">Nous contacter →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="testi" id="testi">
+  <div class="si"><div class="rv" style="text-align:center"><div class="stag" style="justify-content:center">Témoignages</div><h2 class="st">Ce qu'ils en disent</h2></div></div>
+  <div class="tmq">
+    <div class="tmt">
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"Avant AVRA, je gérais tout sur Excel. Maintenant j'ai une vision claire de chaque projet. J'ai récupéré au moins 8h par semaine."</p><div class="tcauth"><div class="tcav">SM</div><div><div class="tcname">Sophie M.</div><div class="tcrole">Cuisiniste — Marseille</div></div></div></div>
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"La signature électronique a transformé notre cycle de vente. Les clients signent depuis leur téléphone, c'est incroyablement rapide."</p><div class="tcauth"><div class="tcav">PL</div><div><div class="tcname">Pierre L.</div><div class="tcrole">Agenceur — Paris 8e</div></div></div></div>
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"L'IA Studio me génère les descriptifs techniques en quelques secondes. C'est bluffant, ça me fait gagner des heures sur chaque devis."</p><div class="tcauth"><div class="tcav">AB</div><div><div class="tcname">Antoine B.</div><div class="tcrole">Menuisier — Lyon</div></div></div></div>
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"Enfin un logiciel pensé pour les artisans ! On prend en main en 30 minutes. Mon équipe l'a adopté immédiatement."</p><div class="tcauth"><div class="tcav">CR</div><div><div class="tcname">Claire R.</div><div class="tcrole">Architecte d'intérieur — Bordeaux</div></div></div></div>
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"Le tableau de bord stats m'a permis de voir que ma marge était bien plus faible sur les petites commandes. J'ai revu ma politique tarifaire."</p><div class="tcauth"><div class="tcav">JM</div><div><div class="tcname">Jean-Marc F.</div><div class="tcrole">Cuisiniste — Nantes</div></div></div></div>
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"Mon taux de conversion est passé de 45% à 72% depuis que j'utilise AVRA pour mes relances automatiques. Impensable avant."</p><div class="tcauth"><div class="tcav">VD</div><div><div class="tcname">Valérie D.</div><div class="tcrole">Décoratrice d'intérieur — Nice</div></div></div></div>
+      <!-- duplicate for seamless -->
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"Avant AVRA, je gérais tout sur Excel. Maintenant j'ai une vision claire de chaque projet. J'ai récupéré au moins 8h par semaine."</p><div class="tcauth"><div class="tcav">SM</div><div><div class="tcname">Sophie M.</div><div class="tcrole">Cuisiniste — Marseille</div></div></div></div>
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"La signature électronique a transformé notre cycle de vente. Les clients signent depuis leur téléphone, c'est incroyablement rapide."</p><div class="tcauth"><div class="tcav">PL</div><div><div class="tcname">Pierre L.</div><div class="tcrole">Agenceur — Paris 8e</div></div></div></div>
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"L'IA Studio me génère les descriptifs techniques en quelques secondes. C'est bluffant, ça me fait gagner des heures sur chaque devis."</p><div class="tcauth"><div class="tcav">AB</div><div><div class="tcname">Antoine B.</div><div class="tcrole">Menuisier — Lyon</div></div></div></div>
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"Enfin un logiciel pensé pour les artisans ! On prend en main en 30 minutes. Mon équipe l'a adopté immédiatement."</p><div class="tcauth"><div class="tcav">CR</div><div><div class="tcname">Claire R.</div><div class="tcrole">Architecte d'intérieur — Bordeaux</div></div></div></div>
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"Le tableau de bord stats m'a permis de voir que ma marge était bien plus faible sur les petites commandes. J'ai revu ma politique tarifaire."</p><div class="tcauth"><div class="tcav">JM</div><div><div class="tcname">Jean-Marc F.</div><div class="tcrole">Cuisiniste — Nantes</div></div></div></div>
+      <div class="tc"><div class="tcst">★★★★★</div><p class="tctxt">"Mon taux de conversion est passé de 45% à 72% depuis que j'utilise AVRA pour mes relances automatiques. Impensable avant."</p><div class="tcauth"><div class="tcav">VD</div><div><div class="tcname">Valérie D.</div><div class="tcrole">Décoratrice d'intérieur — Nice</div></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faqsec" id="faq">
+  <div class="si">
+    <div class="rv"><div class="stag">Questions fréquentes</div><h2 class="st">On répond à vos questions</h2></div>
+    <div class="faqgrid">
+      <div class="faqlist">
+        <div class="faqitem"><button class="faqq">AVRA est-il adapté aux petites structures ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button><div class="faqa">Oui, AVRA est conçu pour les artisans indépendants comme pour les studios de 20 personnes. Le plan Starter à 49€/mois est idéal pour démarrer seul.</div></div>
+        <div class="faqitem"><button class="faqq">Puis-je importer mes données depuis Excel ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button><div class="faqa">Oui, AVRA permet d'importer vos clients, projets et historique de devis depuis un fichier Excel ou CSV en quelques clics, via l'outil d'import guidé inclus dans l'onboarding.</div></div>
+        <div class="faqitem"><button class="faqq">Y a-t-il un engagement de durée ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button><div class="faqa">Non, aucun engagement. Vous pouvez passer d'un plan à l'autre ou résilier à tout moment depuis votre espace client. Les abonnements annuels bénéficient de 20% de réduction.</div></div>
+        <div class="faqitem"><button class="faqq">La signature électronique a-t-elle une valeur légale ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button><div class="faqa">Oui, les signatures AVRA sont conformes au règlement européen eIDAS. Elles ont la même valeur légale qu'une signature manuscrite. Les documents sont archivés 10 ans.</div></div>
+        <div class="faqitem"><button class="faqq">L'IA est-elle incluse dans tous les plans ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button><div class="faqa">L'IA Studio est disponible à partir du plan Pro (100 requêtes/mois) et en illimité sur le plan Studio. Le plan Starter peut être mis à niveau à tout moment.</div></div>
+        <div class="faqitem"><button class="faqq">Mes données sont-elles sécurisées ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button><div class="faqa">Vos données sont hébergées en Europe (serveurs certifiés ISO 27001), chiffrées en transit et au repos, et sauvegardées quotidiennement. AVRA est conforme RGPD.</div></div>
+      </div>
+      <div>
+        <div class="faqcta rvr"><div style="font-size:3rem;margin-bottom:1rem">💬</div><h3>Une autre question ?</h3><p>Notre équipe répond en moins de 2h par email ou par chat.</p><a href="mailto:contact@avra.fr" class="btn btn-dark btn-lg">Nous contacter</a></div>
+        <div style="margin-top:1.5rem;padding:1.5rem;background:var(--ivory2);border-radius:var(--r);border:1px solid var(--brd);text-align:center" class="rvr"><div style="font-size:1.8rem;font-weight:700;color:var(--td);font-family:'Fraunces',serif">4.9/5</div><div style="color:var(--cu);font-size:.9rem;margin:.2rem 0">★★★★★</div><div style="font-size:.82rem;color:var(--tm)">Basé sur 127 avis vérifiés</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="ctaf">
+  <div class="ctafi rv">
+    <div class="badge" style="margin:0 auto 2rem;width:max-content">
+      <span class="badge-dot"></span>14 jours gratuits · Sans carte bancaire
+    </div>
+    <h2>Prêt à prendre le contrôle de votre activité ?</h2>
+    <p>Rejoignez les 240+ studios qui ont choisi AVRA pour piloter leur croissance. Configuration en 30 minutes, résultats dès la première semaine.</p>
+    <div class="ctabtns">
+      <a href="#pric" class="btn btn-cu btn-xl">Commencer gratuitement →</a>
+      <a href="mailto:contact@avra.fr" class="btn btn-outline btn-xl">Demander une démo</a>
+    </div>
+    <p class="ctanote">Pas de carte bancaire · Résiliation en 1 clic · Données hébergées en France 🇫🇷</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="ftop">
+    <div>
+      <div class="flogo">AVR<span>A</span></div>
+      <p class="fdesc">L'assistant virtuel de l'agencement. La plateforme tout-en-un pour les professionnels du bois, de la cuisine et de la décoration intérieure en France.</p>
+      <div class="fbdge">🇫🇷 Hébergé en France · Conforme RGPD</div>
+    </div>
+    <div class="fcol"><h4>Produit</h4><ul class="flinks"><li><a href="#feat">Fonctionnalités</a></li><li><a href="#pric">Tarifs</a></li><li><a href="#">Nouveautés</a></li><li><a href="#">Roadmap</a></li><li><a href="#">Intégrations</a></li></ul></div>
+    <div class="fcol"><h4>Métiers</h4><ul class="flinks"><li><a href="#">Cuisiniste</a></li><li><a href="#">Menuisier</a></li><li><a href="#">Agenceur</a></li><li><a href="#">Architecte d'intérieur</a></li><li><a href="#">Décorateur</a></li></ul></div>
+    <div class="fcol"><h4>Entreprise</h4><ul class="flinks"><li><a href="#">À propos</a></li><li><a href="mailto:contact@avra.fr">Contact</a></li><li><a href="#">Blog</a></li><li><a href="#">Mentions légales</a></li><li><a href="#">CGU · RGPD</a></li></ul></div>
+  </div>
+  <div class="fbot"><span>© 2026 AVRA SAS — Tous droits réservés</span><span>Fait avec ♥ en France</span></div>
+</footer>
+
+<script>
+/* CURSOR */
+const cur=document.getElementById('cur'),ring=document.getElementById('ring');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px';});
+(function ar(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;ring.style.left=rx+'px';ring.style.top=ry+'px';requestAnimationFrame(ar);})();
+document.querySelectorAll('a,button,.mcard,.pc,.faqitem,.ftab').forEach(el=>{el.addEventListener('mouseenter',()=>document.body.classList.add('hov'));el.addEventListener('mouseleave',()=>document.body.classList.remove('hov'));});
+
+/* PARTICLES CANVAS */
+const canvas=document.getElementById('hc'),ctx=canvas.getContext('2d');
+let W,H,pts=[];
+function rsz(){W=canvas.width=canvas.offsetWidth;H=canvas.height=canvas.offsetHeight;}
+rsz();window.addEventListener('resize',()=>{rsz();init();});
+function init(){pts=[];const n=Math.floor(W*H/10000);for(let i=0;i<n;i++)pts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,r:Math.random()*1.5+.5,a:Math.random()*.45+.1});}
+init();
+function draw(){ctx.clearRect(0,0,W,H);for(let i=0;i<pts.length;i++){const p=pts[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`rgba(212,165,106,${p.a})`;ctx.fill();for(let j=i+1;j<pts.length;j++){const q=pts[j];const dx=p.x-q.x,dy=p.y-q.y,d=Math.sqrt(dx*dx+dy*dy);if(d<130){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle=`rgba(212,165,106,${.12*(1-d/130)})`;ctx.lineWidth=.5;ctx.stroke();}}}requestAnimationFrame(draw);}
+draw();
+
+/* NAV */
+window.addEventListener('scroll',()=>document.getElementById('nav').classList.toggle('sc',window.scrollY>30));
+
+/* HERO ENTRANCE */
+window.addEventListener('load',()=>{
+  const els=['.badge','.hero h1','.hero .sub','.hero-acts','.hero-soc','.hero-vis'];
+  els.forEach((sel,i)=>{const el=document.querySelector(sel);if(!el)return;el.style.opacity='0';el.style.transform='translateY(20px)';el.style.transition='opacity .8s cubic-bezier(.22,1,.36,1),transform .8s cubic-bezier(.22,1,.36,1)';setTimeout(()=>{el.style.opacity='1';el.style.transform='translateY(0)';},200+i*130);});
+});
+
+/* SCROLL REVEAL */
+const ro=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('on');ro.unobserve(e.target);}}),{threshold:.12,rootMargin:'0px 0px -50px 0px'});
+document.querySelectorAll('.rv,.rvl,.rvr,.sg-ch').forEach(el=>ro.observe(el));
+
+/* COUNTERS */
+const co=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting){e.target.querySelectorAll('.ctr').forEach(c=>{const t=+c.dataset.t;let n=0;const s=t/60;const iv=setInterval(()=>{n=Math.min(n+s,t);c.textContent=Math.floor(n);if(n>=t)clearInterval(iv);},16);});co.unobserve(e.target);}}),{threshold:.3});
+document.querySelectorAll('.sgrid').forEach(el=>co.observe(el));
+
+/* FEATURE TABS */
+document.querySelectorAll('.ftab').forEach(tab=>{tab.addEventListener('click',()=>{document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('act'));document.querySelectorAll('.fpanel').forEach(p=>p.classList.remove('act'));tab.classList.add('act');const panel=document.getElementById(tab.dataset.tab);if(panel)panel.classList.add('act');});});
+
+/* FAQ */
+document.querySelectorAll('.faqq').forEach(btn=>{btn.addEventListener('click',()=>{const item=btn.closest('.faqitem');const was=item.classList.contains('open');document.querySelectorAll('.faqitem').forEach(i=>i.classList.remove('open'));if(!was)item.classList.add('open');});});
+
+/* PRICING TOGGLE */
+const ptbtn=document.getElementById('ptbtn');let ann=false;
+ptbtn.addEventListener('click',()=>{ann=!ann;ptbtn.classList.toggle('act',ann);document.querySelectorAll('.pamt').forEach(el=>{el.textContent=ann?el.dataset.a:el.dataset.m;});});
+</script>
+</body>
+</html>

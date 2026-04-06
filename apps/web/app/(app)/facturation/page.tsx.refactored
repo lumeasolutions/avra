@@ -1,0 +1,85 @@
+'use client';
+
+import React, { useState, useMemo, useCallback } from 'react';
+import {
+  FileText, FileCheck, Globe, Check, Copy, ExternalLink,
+} from 'lucide-react';
+import { useAVRAStore } from '@/store/useAVRAStore';
+import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { useFacturation } from './hooks/useFacturation';
+import { ModalDevis } from './components/ModalDevis';
+import { OngletDevis, OngletFactures, OngletEFacturation } from './components/Onglets';
+
+type TabKey = 'devis' | 'factures' | 'e-facturation';
+
+const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+  { key: 'devis', label: 'Devis', icon: <FileCheck className="h-4 w-4" /> },
+  { key: 'factures', label: 'Factures', icon: <FileText className="h-4 w-4" /> },
+  { key: 'e-facturation', label: 'E-Facturation', icon: <Globe className="h-4 w-4" /> },
+];
+
+export default function FacturationPage() {
+  const {
+    invoices,
+    devis,
+    activeTab,
+    setActiveTab,
+  } = useFacturation();
+
+  const [showDevisModal, setShowDevisModal] = useState(false);
+
+  const tabCounts: Record<TabKey, number | undefined> = {
+    devis: devis.length,
+    factures: invoices.length,
+    'e-facturation': undefined,
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <PageHeader
+        icon={<FileText className="h-7 w-7" />}
+        title="Facturation"
+        subtitle={`${invoices.length} facture(s) · ${devis.length} devis`}
+        actions={
+          <div className="flex gap-1 bg-white/15 border border-white/20 rounded-2xl p-1.5 shadow-sm w-fit">
+            {TABS.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-150',
+                  activeTab === tab.key
+                    ? 'bg-white/25 text-white shadow-sm'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                )}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+                {tabCounts[tab.key] !== undefined && (
+                  <span
+                    className={cn(
+                      'text-[10px] font-bold rounded-full px-1.5 py-0.5',
+                      activeTab === tab.key ? 'bg-white/20 text-white' : 'bg-white/10 text-white/70'
+                    )}
+                  >
+                    {tabCounts[tab.key]}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        }
+      />
+
+      {/* Contenu des onglets */}
+      {activeTab === 'devis' && <OngletDevis onCreateDevis={() => setShowDevisModal(true)} />}
+      {activeTab === 'factures' && <OngletFactures />}
+      {activeTab === 'e-facturation' && <OngletEFacturation />}
+
+      {/* Modal Devis */}
+      {showDevisModal && <ModalDevis onClose={() => setShowDevisModal(false)} />}
+    </div>
+  );
+}

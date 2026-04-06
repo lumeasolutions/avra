@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fonctionnalités AVRA — Toutes les features pour gérer votre activité</title>
+  <meta name="description" content="Découvrez toutes les fonctionnalités AVRA : gestion dossiers, facturation, planning, IA Studio, stock, signature électronique, notifications, statistiques et portails partenaires.">
+  <meta name="canonical" href="https://avra.fr/fonctionnalites">
+  <meta property="og:title" content="Fonctionnalités AVRA">
+  <meta property="og:description" content="Gestion dossiers, facturation, planning, IA Studio, stock, signature électronique et plus. Tout ce qu'il faut pour gérer vos projets d'agencement.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://avra.fr/fonctionnalites">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Fonctionnalités AVRA",
+    "description": "Toutes les fonctionnalités d'AVRA pour l'agencement intérieur"
+  }
+  </script>
+
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Hero */
+    .hero {
+      min-height: 70vh;
+      display: flex;
+      align-items: center;
+      padding-top: 76px;
+      background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%);
+      text-align: center;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 60px 5%;
+    }
+
+    .hero h1 {
+      color: var(--white);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero p {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 1.2rem;
+    }
+
+    /* Features sections */
+    .feature-section {
+      padding: 80px 5%;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .feature-section.alt {
+      background: var(--cream);
+    }
+
+    .feature-section-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .feature-section-text h3 {
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .feature-section-text p {
+      margin-bottom: 1.2rem;
+      line-height: 1.8;
+    }
+
+    .feature-bullets {
+      list-style: none;
+      margin: 1.5rem 0;
+    }
+
+    .feature-bullets li {
+      padding: 0.6rem 0;
+      padding-left: 1.8rem;
+      position: relative;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .feature-bullets li::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 1.5rem;
+      line-height: 1;
+    }
+
+    .feature-icon-big {
+      font-size: 4rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .feature-mockup {
+      background: var(--green);
+      border-radius: 16px;
+      padding: 2rem;
+      min-height: 350px;
+      border: 1px solid rgba(201,169,110,.2);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+    }
+
+    .mockup-item-small {
+      background: linear-gradient(135deg, rgba(74,99,80,.4), rgba(201,169,110,.15));
+      border-radius: 10px;
+      padding: 1rem;
+      border: 1px solid rgba(201,169,110,.2);
+      margin-bottom: 0.8rem;
+    }
+
+    .mockup-item-small:last-child {
+      margin-bottom: 0;
+    }
+
+    .mockup-label {
+      color: var(--gold);
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+    }
+
+    .mockup-bar {
+      height: 6px;
+      background: rgba(255,255,255,.1);
+      border-radius: 3px;
+      margin-bottom: 0.4rem;
+    }
+
+    /* Comparison table */
+    .comparison-section {
+      padding: 100px 5%;
+      background: var(--white);
+    }
+
+    .comparison-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .comparison-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .comparison-table th {
+      background: var(--green-dark);
+      color: var(--white);
+      padding: 1.5rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(201,169,110,.2);
+    }
+
+    .comparison-table th.avra-col {
+      background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+      color: var(--gold);
+    }
+
+    .comparison-table td {
+      padding: 1.2rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .comparison-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .comparison-table tbody tr:nth-child(even) {
+      background: var(--cream);
+    }
+
+    .check-icon {
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 1.2rem;
+    }
+
+    .x-icon {
+      color: var(--text-muted);
+      opacity: 0.3;
+    }
+
+    /* Response grid */
+    @media (max-width: 968px) {
+      .feature-section-container {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+
+      .comparison-table {
+        font-size: 0.9rem;
+      }
+
+      .comparison-table th,
+      .comparison-table td {
+        padding: 1rem;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .hero h1 {
+        font-size: 2rem;
+      }
+
+      .comparison-table {
+        font-size: 0.8rem;
+      }
+
+      .comparison-table th,
+      .comparison-table td {
+        padding: 0.8rem 0.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav id="navbar">
+    <a href="index.html" class="nav-logo">
+      <img src="logo.png" alt="Logo AVRA" style="height:40px;width:40px;object-fit:contain;"/>
+      <span class="nav-logo-text">AVRA</span>
+    </a>
+    <div class="nav-links">
+      <a href="metiers.html">Métiers</a>
+      <a href="fonctionnalites.html">Fonctionnalités</a>
+      <a href="comment-ca-marche.html">Comment ça marche</a>
+      <a href="temoignages.html">Témoignages</a>
+      <a href="tarifs.html">Tarifs</a>
+    </div>
+    <div class="nav-cta">
+      <a href="http://localhost:3002/login" class="btn-nav-login">Se connecter</a>
+      <a href="http://localhost:3002/register" class="btn-nav-primary">Essai gratuit — 14 jours</a>
+    </div>
+    <div class="nav-hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Toutes les fonctionnalités dont vous avez besoin</h1>
+      <p>Des outils complets pour gérer chaque aspect de votre activité d'agencement. Dossiers, facturation, planning, IA, stock, signature électronique et bien plus.</p>
+    </div>
+  </section>
+
+  <!-- Gestion Dossiers -->
+  <section class="feature-section reveal">
+    <div class="feature-section-container">
+      <div class="feature-section-text">
+        <div class="feature-icon-big">📁</div>
+        <h3>Gestion Complète des Dossiers</h3>
+        <p>Centralisez tous vos projets. Chaque dossier contient plans, documents clients, échanges, devis et factures associés. Plus besoin de naviguer entre 10 dossiers différents.</p>
+        <ul class="feature-bullets">
+          <li>Statuts et phases de projet personnalisables</li>
+          <li>Upload de plans, images, documents</li>
+          <li>Historique complet des modifications</li>
+          <li>Recherche et filtrage avancés</li>
+          <li>Partage sécurisé avec clients et équipe</li>
+        </ul>
+      </div>
+      <div class="feature-mockup">
+        <div class="mockup-item-small">
+          <div class="mockup-label">Dossier 1: Cuisine Dubois</div>
+          <div class="mockup-bar"></div>
+          <div class="mockup-bar" style="width: 30%; background: var(--gold);"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Dossier 2: SDB Martin</div>
+          <div class="mockup-bar"></div>
+          <div class="mockup-bar" style="width: 60%;"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Dossier 3: Bureau Lefevre</div>
+          <div class="mockup-bar"></div>
+          <div class="mockup-bar" style="width: 90%;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Facturation & Devis -->
+  <section class="feature-section alt reveal">
+    <div class="feature-section-container">
+      <div class="feature-mockup">
+        <div class="mockup-item-small">
+          <div class="mockup-label">Devis #2024001</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+          <div class="mockup-bar" style="width: 70%;"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Facture #2024-FIN-001</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+          <div class="mockup-bar" style="width: 50%;"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Avoir #2024-AV-001</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+          <div class="mockup-bar" style="width: 40%;"></div>
+        </div>
+      </div>
+      <div class="feature-section-text">
+        <div class="feature-icon-big">💰</div>
+        <h3>Facturation & Devis Intelligents</h3>
+        <p>Générez devis et factures en secondes avec numérotation légale. Suivi des paiements, relances automatiques, et intégration comptable.</p>
+        <ul class="feature-bullets">
+          <li>Templates de devis personnalisables</li>
+          <li>Calcul automatique des marges et TVA</li>
+          <li>Historique des paiements et retards</li>
+          <li>Relances client automatiques</li>
+          <li>Export comptable (CSV, XML)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Planning Chantier -->
+  <section class="feature-section reveal">
+    <div class="feature-section-container">
+      <div class="feature-section-text">
+        <div class="feature-icon-big">📅</div>
+        <h3>Planning & Chantier</h3>
+        <p>Planifiez interventions, pose et livraisons. Vue calendrier claire, attribution équipe, alertes retard et suivi temps réel sur le chantier.</p>
+        <ul class="feature-bullets">
+          <li>Calendrier interactif par équipe</li>
+          <li>Attribution de tâches et responsabilités</li>
+          <li>Gestion des ressources et matériaux</li>
+          <li>Alertes retard et dépassement budgétaire</li>
+          <li>Notes et photos de chantier</li>
+        </ul>
+      </div>
+      <div class="feature-mockup">
+        <div class="mockup-item-small">
+          <div class="mockup-label">Semaine 1: Mesure & Plans</div>
+          <div class="mockup-bar" style="width: 100%; background: var(--gold);"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Semaine 2: Commande matériaux</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Semaine 3-4: Fabrication</div>
+          <div class="mockup-bar" style="width: 50%;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- IA Studio -->
+  <section class="feature-section alt reveal">
+    <div class="feature-section-container">
+      <div class="feature-mockup">
+        <div class="mockup-item-small">
+          <div class="mockup-label">Cuisine moderne</div>
+          <div style="height: 80px; background: linear-gradient(135deg, rgba(201,169,110,.3), rgba(74,99,80,.2)); border-radius: 6px; margin-top: 0.5rem;"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Palette couleurs</div>
+          <div style="height: 40px; background: linear-gradient(90deg, #8B7355, #C9A96E, #D4B882); border-radius: 6px; margin-top: 0.5rem;"></div>
+        </div>
+      </div>
+      <div class="feature-section-text">
+        <div class="feature-icon-big">✨</div>
+        <h3>IA Studio — Rendus 3D Photorréalistes</h3>
+        <p>Montrez à vos clients le rendu final avant de commander. Rendus IA haute qualité, variations multiples, ambiances différentes.</p>
+        <ul class="feature-bullets">
+          <li>Rendus en ultra haute qualité</li>
+          <li>Variantes matériaux et couleurs</li>
+          <li>Ambiances d'éclairage multiples</li>
+          <li>Export et partage client simplifié</li>
+          <li>Historique et versioning</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stock -->
+  <section class="feature-section reveal">
+    <div class="feature-section-container">
+      <div class="feature-section-text">
+        <div class="feature-icon-big">📦</div>
+        <h3>Gestion du Stock & Matériaux</h3>
+        <p>Suivez vos matériaux, fournisseurs et prix en temps réel. Les devis et factures reflètent toujours vos coûts actuels.</p>
+        <ul class="feature-bullets">
+          <li>Inventaire actualisé en temps réel</li>
+          <li>Gestion fournisseurs et tarifs</li>
+          <li>Alertes stock faible</li>
+          <li>Historique prix et marges</li>
+          <li>Export et commandes fournisseurs</li>
+        </ul>
+      </div>
+      <div class="feature-mockup">
+        <div class="mockup-item-small">
+          <div class="mockup-label">Bois chene - Stock: 45</div>
+          <div class="mockup-bar" style="width: 90%;"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Stratifie blanc - Stock: 8</div>
+          <div class="mockup-bar" style="width: 20%; background: rgba(200,50,50,.5);"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Quincaillerie deco - Stock: 120</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Signature Électronique -->
+  <section class="feature-section alt reveal">
+    <div class="feature-section-container">
+      <div class="feature-mockup">
+        <div class="mockup-item-small">
+          <div class="mockup-label">Contrat signé</div>
+          <div class="mockup-bar" style="width: 100%; background: var(--gold);"></div>
+          <div class="mockup-bar" style="width: 60%;"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">En attente signature</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+          <div class="mockup-bar" style="width: 40%;"></div>
+        </div>
+      </div>
+      <div class="feature-section-text">
+        <div class="feature-icon-big">✍️</div>
+        <h3>Signature Électronique Légale</h3>
+        <p>Devis et contrats signés légalement en quelques clics. Valeur contractuelle garantie, conforme aux standards internationaux.</p>
+        <ul class="feature-bullets">
+          <li>Signatures électroniques légales</li>
+          <li>Chaîne de signature multi-signataires</li>
+          <li>Audit trail complet</li>
+          <li>Archivage sécurisé</li>
+          <li>Conformité RGPD et eIDAS</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Notifications & Alertes -->
+  <section class="feature-section reveal">
+    <div class="feature-section-container">
+      <div class="feature-section-text">
+        <div class="feature-icon-big">🔔</div>
+        <h3>Notifications & Alertes Intelligentes</h3>
+        <p>Restez alerté sur les événements importants : devis à relancer, retards chantier, paiements en retard, stock faible.</p>
+        <ul class="feature-bullets">
+          <li>Alertes temps réel personnalisables</li>
+          <li>Relances client automatiques</li>
+          <li>Notifications équipe sur mobile</li>
+          <li>Résumés quotidiens/hebdos</li>
+          <li>Intégration email et SMS</li>
+        </ul>
+      </div>
+      <div class="feature-mockup">
+        <div class="mockup-item-small">
+          <div class="mockup-label">Devis Dubois - J3</div>
+          <div class="mockup-bar" style="width: 100%; background: rgba(200,50,50,.4);"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Chantier Martin retard</div>
+          <div class="mockup-bar" style="width: 100%; background: rgba(200,50,50,.4);"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Paiement en retard</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Statistiques & Reporting -->
+  <section class="feature-section alt reveal">
+    <div class="feature-section-container">
+      <div class="feature-mockup">
+        <div class="mockup-item-small">
+          <div class="mockup-label">CA Mois: 45,230€</div>
+          <div class="mockup-bar" style="width: 100%; background: var(--gold);"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Marge: 38%</div>
+          <div class="mockup-bar" style="width: 76%;"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Taux conversion: 32%</div>
+          <div class="mockup-bar" style="width: 64%;"></div>
+        </div>
+      </div>
+      <div class="feature-section-text">
+        <div class="feature-icon-big">📊</div>
+        <h3>Statistiques & Reporting</h3>
+        <p>Dashboards visuels pour suivre votre santé financière. CA, marges, taux conversion, temps moyen chantier, et bien plus.</p>
+        <ul class="feature-bullets">
+          <li>Dashboards personnalisables</li>
+          <li>Rapports automatiques mensuels</li>
+          <li>Comparaison périodes</li>
+          <li>Analyse par équipe ou projet</li>
+          <li>Export graphiques et données</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Portails Partenaires -->
+  <section class="feature-section reveal">
+    <div class="feature-section-container">
+      <div class="feature-section-text">
+        <div class="feature-icon-big">🤝</div>
+        <h3>Portails Partenaires (Architectes, Fournisseurs)</h3>
+        <p>Invitez architectes, cuisinistes, menuisiers ou fournisseurs. Chacun voit ce qu'il doit voir, collaborez en temps réel.</p>
+        <ul class="feature-bullets">
+          <li>Portails spécialisés par métier</li>
+          <li>Permissions granulaires</li>
+          <li>Partage plans et rendus</li>
+          <li>Commentaires et feedback intégrés</li>
+          <li>Suivi validations et approbations</li>
+        </ul>
+      </div>
+      <div class="feature-mockup">
+        <div class="mockup-item-small">
+          <div class="mockup-label">Architecte - En consultation</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Fournisseur - Tarif validé</div>
+          <div class="mockup-bar" style="width: 100%; background: var(--gold);"></div>
+        </div>
+        <div class="mockup-item-small">
+          <div class="mockup-label">Menuisier - En fabrication</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison Table -->
+  <section class="comparison-section reveal">
+    <div class="comparison-container">
+      <div class="comparison-header">
+        <span class="section-label">COMPARAISON</span>
+        <h2 class="section-title">AVRA vs alternatives</h2>
+        <p class="section-subtitle">Voyez comment AVRA se compare à Excel, Basecamp, Monday.com et les ERP génériques.</p>
+      </div>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Fonctionnalité</th>
+            <th>Excel</th>
+            <th>Basecamp</th>
+            <th>Monday.com</th>
+            <th class="avra-col">AVRA</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Gestion dossiers</strong></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Facturation & devis intégrés</strong></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Planning chantier</strong></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>IA & rendus 3D</strong></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Gestion stock</strong></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Signature électronique</strong></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Alertes intelligentes</strong></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Dashboards temps réel</strong></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Portails partenaires</strong></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+            <td><span class="check-icon">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Pensé pour l'agencement</strong></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="x-icon">✗</span></td>
+            <td><span class="check-icon">✓</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section style="padding: 100px 5%; background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%); text-align: center;">
+    <div style="max-width: 700px; margin: 0 auto;">
+      <h2 style="color: var(--white); margin-bottom: 1.5rem;">Prêt à découvrir toutes ces fonctionnalités?</h2>
+      <p style="color: rgba(255,255,255,.85); margin-bottom: 2rem; font-size: 1.1rem;">Commencez votre essai gratuit de 14 jours. Pas de carte bancaire requise.</p>
+      <a href="http://localhost:3002/register" class="btn-primary">Démarrer maintenant</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer role="contentinfo">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-logo" style="margin-bottom:1rem;">
+            <img src="logo.png" alt="Logo AVRA" style="height:36px;width:36px;object-fit:contain;"/>
+            <span class="nav-logo-text">AVRA</span>
+          </div>
+          <p>L'ERP et assistant IA N°1 pour les professionnels de l'agencement intérieur.</p>
+        </div>
+        <div class="footer-col">
+          <h5>Produit</h5>
+          <a href="fonctionnalites.html">Fonctionnalités</a>
+          <a href="tarifs.html">Tarifs</a>
+          <a href="comment-ca-marche.html">Comment ça marche</a>
+          <a href="metiers.html">Métiers</a>
+        </div>
+        <div class="footer-col">
+          <h5>Entreprise</h5>
+          <a href="temoignages.html">Témoignages</a>
+          <a href="#">Blog</a>
+          <a href="#">À propos</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-col">
+          <h5>Légal</h5>
+          <a href="#">Mentions légales</a>
+          <a href="#">CGU</a>
+          <a href="#">Confidentialité</a>
+          <a href="#">Cookies</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 AVRA — Luméa SAS. Tous droits réservés.</span>
+        <div class="footer-bottom-links">
+          <a href="#">LinkedIn</a>
+          <a href="#">Twitter</a>
+          <a href="#">YouTube</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const nav = document.getElementById('navbar');
+    window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 20));
+
+    const reveals = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e, i) => {
+        if(e.isIntersecting){
+          setTimeout(() => e.target.classList.add('revealed'), i * 80);
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(el => io.observe(el));
+
+    function toggleMenu(){
+      const links = document.querySelector('.nav-links');
+      links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    // Set active nav link
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      if(link.getAttribute('href') === 'fonctionnalites.html') {
+        link.classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>

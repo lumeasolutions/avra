@@ -1,0 +1,318 @@
+### IA Integration API Tests
+### Usage: Copy these requests into VS Code REST Client or Postman
+
+@baseUrl = http://localhost:3001
+@token = YOUR_JWT_TOKEN_HERE
+@workspaceId = your-workspace-id
+
+### Get IA Status
+GET {{baseUrl}}/api/ia/status
+
+### Chat - Single Message
+POST {{baseUrl}}/api/ia/chat
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Combien de dossiers ai-je actuellement?"
+    }
+  ]
+}
+
+### Chat - Multi-turn Conversation
+POST {{baseUrl}}/api/ia/chat
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Bonjour! Peux-tu me donner un résumé?"
+    },
+    {
+      "role": "assistant",
+      "content": "Bonjour! Je surveille vos dossiers actifs. Vous en avez actuellement 12."
+    },
+    {
+      "role": "user",
+      "content": "Combien sont urgents?"
+    }
+  ]
+}
+
+### Chat - With Context
+POST {{baseUrl}}/api/ia/chat
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Quelles sont les alertes importantes?"
+    }
+  ]
+}
+
+### Analyze Dossier
+POST {{baseUrl}}/api/ia/analyze
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dossierId": "clsk123abc456"
+}
+
+### Suggest Alerts
+POST {{baseUrl}}/api/ia/suggest-alerts
+Authorization: Bearer {{token}}
+
+### Generate Realistic Render
+POST {{baseUrl}}/api/ia/rendu
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "facades": "gris clair mat",
+  "planTravail": "bois chêne naturel",
+  "style": "scandinave",
+  "lightingStyle": "naturelle + spots discrets",
+  "roomSize": "moyenne"
+}
+
+### Generate Render - Different Style
+POST {{baseUrl}}/api/ia/rendu
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "facades": "noir brillant",
+  "planTravail": "marbre blanc",
+  "style": "contemporain",
+  "lightingStyle": "spots puissants",
+  "roomSize": "grande"
+}
+
+### Generate Render - Industrial Style
+POST {{baseUrl}}/api/ia/rendu
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "facades": "blanc cassé",
+  "planTravail": "béton ciré",
+  "style": "industriel",
+  "lightingStyle": "mixte",
+  "roomSize": "ouverte"
+}
+
+### Colorize Kitchen - White Facades
+POST {{baseUrl}}/api/ia/coloriste
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "facadeHex": "#ffffff",
+  "poigneeHex": "#000000",
+  "planHex": "#d4a574",
+  "facadeFinish": "mat",
+  "lightingStyle": "naturelle",
+  "handleMaterial": "acier inoxydable",
+  "countertopMaterial": "bois"
+}
+
+### Colorize Kitchen - Dark Facades
+POST {{baseUrl}}/api/ia/coloriste
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "facadeHex": "#2c2c2c",
+  "poigneeHex": "#c5a370",
+  "planHex": "#ffffff",
+  "facadeFinish": "brillant",
+  "lightingStyle": "spots",
+  "handleMaterial": "laiton",
+  "countertopMaterial": "quartz"
+}
+
+### Colorize Kitchen - Minimal
+POST {{baseUrl}}/api/ia/coloriste
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "facadeHex": "#f5f5f5",
+  "poigneeHex": "#999999",
+  "planHex": "#e8e8e8",
+  "facadeFinish": "satiné",
+  "lightingStyle": "mixte"
+}
+
+### Upload File for IA
+POST {{baseUrl}}/api/ia/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----FormBoundary
+
+------FormBoundary
+Content-Disposition: form-data; name="file"; filename="kitchen.jpg"
+Content-Type: image/jpeg
+
+< ./path/to/kitchen.jpg
+------FormBoundary
+Content-Disposition: form-data; name="projectId"
+
+clsk123project
+------FormBoundary
+Content-Disposition: form-data; name="title"
+
+Photo initiale cuisine
+
+------FormBoundary--
+
+### Create IA Job
+POST {{baseUrl}}/api/ia/job
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "type": "RENDER",
+  "projectId": "clsk123project",
+  "prompt": "Rendu réaliste cuisine scandinave gris et bois"
+}
+
+### List IA Jobs
+GET {{baseUrl}}/api/ia/jobs
+Authorization: Bearer {{token}}
+
+### List IA Jobs for Project
+GET {{baseUrl}}/api/ia/jobs?projectId=clsk123project
+Authorization: Bearer {{token}}
+
+### Get IA Job Details
+GET {{baseUrl}}/api/ia/jobs/clsk123jobid
+Authorization: Bearer {{token}}
+
+---
+
+## Testing Flow
+
+### 1. Basic Status Check
+```
+GET /api/ia/status
+Expect: {"qwenEnabled": true, "falEnabled": true}
+```
+
+### 2. Chat Test
+```
+POST /api/ia/chat with simple message
+Expect: Streaming SSE response with AI content
+```
+
+### 3. Image Generation
+```
+POST /api/ia/rendu with kitchen params
+Expect: {"imageUrl": "https://..."}
+```
+
+### 4. Full Workflow
+```
+1. Upload file → /api/ia/upload
+2. Create job → /api/ia/job
+3. List jobs → /api/ia/jobs
+4. Get job details → /api/ia/jobs/:id
+5. Check result document
+```
+
+---
+
+## Common Test Cases
+
+### Test Case: Chat Fallback Mode
+When QWEN_API_KEY is not set:
+1. GET /api/ia/status → qwenEnabled: false
+2. POST /api/ia/chat → Returns mock responses (pattern-matching)
+3. Check console logs for "Mock mode" messages
+
+### Test Case: Image Generation Fallback
+When FAL_KEY is not set:
+1. GET /api/ia/status → falEnabled: false
+2. POST /api/ia/rendu → Returns placeholder image URL
+3. Placeholder URL format: https://via.placeholder.com/?text=...
+
+### Test Case: Streaming Response
+Monitor SSE chunks:
+1. POST /api/ia/chat
+2. Listen to response stream
+3. Should receive multiple `data: {"content": "..."}` lines
+4. Final `data: {"done": true}`
+
+### Test Case: Error Handling
+Test with invalid data:
+1. POST /api/ia/analyze with non-existent dossierId
+2. Expect: 404 or error message
+3. No unhandled exceptions in API logs
+
+### Test Case: Authentication
+Test without token:
+1. POST /api/ia/chat without Authorization header
+2. Expect: 401 Unauthorized
+3. Test with invalid token
+4. Expect: 401 Unauthorized
+
+---
+
+## Performance Benchmarks
+
+**Chat Endpoint**
+- Expected: 0.5-3s per response
+- With streaming: First chunk < 500ms
+
+**Image Generation**
+- Expected: 10-60s (fal.ai polling)
+- Fallback mode: < 100ms
+
+**Analyze Endpoint**
+- Expected: 1-5s per dossier
+
+**Suggest Alerts**
+- Expected: 2-10s for full workspace analysis
+
+---
+
+## Troubleshooting
+
+### Issue: SSE Connection Drops
+- Check network connection
+- Verify CORS headers in response
+- Check API logs for stream errors
+
+### Issue: Images Return 403 Forbidden
+- fal.ai API key may have IP whitelist
+- Check fal.ai dashboard for limits
+- Verify FAL_KEY is correct
+
+### Issue: Chat Returns Generic Mock Response
+- QWEN_API_KEY may be invalid
+- DashScope account may not have quota
+- Check DashScope dashboard for errors
+
+### Issue: Timeout on Image Generation
+- fal.ai may be overloaded
+- Model may require more processing time
+- Try with smaller image size
+
+---
+
+## Notes
+
+- Replace `YOUR_JWT_TOKEN_HERE` with actual JWT token from login
+- Replace `your-workspace-id` with actual workspace ID
+- For local testing, use http://localhost:3001
+- For staging: https://staging-api.avra.com
+- For production: https://api.avra.com
+- Enable VS Code REST Client extension or use Postman for testing

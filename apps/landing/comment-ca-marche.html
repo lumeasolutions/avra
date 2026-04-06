@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comment ça marche - AVRA Opérationnel en 5 minutes</title>
+  <meta name="description" content="Découvrez comment AVRA est opérationnel en 5 minutes. Inscription, configuration, import clients, premier dossier et invitation équipe.">
+  <meta name="canonical" href="https://avra.fr/comment-ca-marche">
+  <meta property="og:title" content="Comment ça marche - AVRA">
+  <meta property="og:description" content="Opérationnel en 5 minutes. Découvrez le setup rapide d'AVRA pour les agencements intérieurs.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://avra.fr/comment-ca-marche">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    "name": "Comment démarrer avec AVRA",
+    "step": [
+      {"name": "Inscription", "text": "Créez votre compte en 2 minutes"},
+      {"name": "Configuration", "text": "Personnalisez vos paramètres"},
+      {"name": "Import clients", "text": "Importez votre base existante"},
+      {"name": "Premier dossier", "text": "Créez votre premier projet"},
+      {"name": "Invitation équipe", "text": "Invitez votre équipe"}
+    ]
+  }
+  </script>
+
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Hero */
+    .hero {
+      min-height: 70vh;
+      display: flex;
+      align-items: center;
+      padding-top: 76px;
+      background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%);
+      text-align: center;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 60px 5%;
+    }
+
+    .hero h1 {
+      color: var(--white);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero p {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 1.2rem;
+    }
+
+    /* Steps section */
+    .steps-section {
+      padding: 100px 5%;
+      background: var(--white);
+    }
+
+    .steps-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .steps-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 30px;
+      margin-bottom: 80px;
+    }
+
+    .step-card {
+      text-align: center;
+      position: relative;
+    }
+
+    .step-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 1.5rem;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+      border-radius: 50%;
+      color: var(--green-deep);
+      font-weight: 800;
+      font-size: 1.8rem;
+      box-shadow: 0 4px 20px rgba(201,169,110,.3);
+    }
+
+    .step-card h3 {
+      margin-bottom: 0.8rem;
+      color: var(--text);
+    }
+
+    .step-card p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    /* Connector lines */
+    .steps-grid::before {
+      content: '';
+      position: absolute;
+      top: 30px;
+      left: 5%;
+      right: 5%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      z-index: 0;
+    }
+
+    /* Step detail sections */
+    .step-detail {
+      margin-bottom: 100px;
+      padding: 60px 5%;
+      background: var(--cream);
+      border-radius: 24px;
+      margin-left: 5%;
+      margin-right: 5%;
+    }
+
+    .step-detail:nth-child(odd) {
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    .step-detail-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .step-detail-text h3 {
+      color: var(--text);
+      margin-bottom: 1.2rem;
+      font-size: 1.5rem;
+    }
+
+    .step-detail-text p {
+      margin-bottom: 1.2rem;
+      line-height: 1.8;
+    }
+
+    .step-detail-bullets {
+      list-style: none;
+      margin: 1.5rem 0;
+    }
+
+    .step-detail-bullets li {
+      padding: 0.6rem 0;
+      padding-left: 1.8rem;
+      position: relative;
+      color: var(--text-muted);
+    }
+
+    .step-detail-bullets li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    .step-mockup {
+      background: var(--green);
+      border-radius: 16px;
+      padding: 2rem;
+      min-height: 350px;
+      border: 1px solid rgba(201,169,110,.2);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+    }
+
+    .mockup-field {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(201,169,110,.2);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .mockup-field:last-child {
+      margin-bottom: 0;
+    }
+
+    .field-label {
+      color: var(--gold);
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .field-content {
+      height: 8px;
+      background: rgba(255,255,255,.1);
+      border-radius: 4px;
+    }
+
+    /* Video section */
+    .video-section {
+      padding: 100px 5%;
+      background: var(--white);
+    }
+
+    .video-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .video-placeholder {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(135deg, var(--green-dark), var(--green));
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(201,169,110,.2);
+      font-size: 3rem;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .video-placeholder:hover {
+      transform: scale(1.02);
+      box-shadow: 0 12px 40px rgba(201,169,110,.2);
+    }
+
+    /* FAQ Section */
+    .faq-section {
+      padding: 100px 5%;
+      background: linear-gradient(180deg, var(--white) 0%, var(--cream) 100%);
+    }
+
+    .faq-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .faq-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .faq-item {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+      transition: var(--transition);
+    }
+
+    .faq-item:hover {
+      border-color: var(--gold);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .faq-question {
+      padding: 1.5rem 2rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      color: var(--text);
+      user-select: none;
+    }
+
+    .faq-icon {
+      font-size: 1.3rem;
+      transition: var(--transition);
+      color: var(--gold);
+    }
+
+    .faq-item.open .faq-icon {
+      transform: rotate(180deg);
+    }
+
+    .faq-answer {
+      padding: 0 2rem;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      color: var(--text-muted);
+      line-height: 1.8;
+    }
+
+    .faq-item.open .faq-answer {
+      padding: 0 2rem 1.5rem;
+      max-height: 500px;
+    }
+
+    /* Responsive */
+    @media (max-width: 968px) {
+      .step-detail-container {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+
+      .step-mockup {
+        min-height: 250px;
+      }
+
+      .steps-grid {
+        grid-template-columns: 1fr;
+        margin-bottom: 40px;
+      }
+
+      .step-detail {
+        margin: 40px 5%;
+        padding: 40px 5%;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .hero h1 {
+        font-size: 1.8rem;
+      }
+
+      .step-number {
+        width: 50px;
+        height: 50px;
+        font-size: 1.4rem;
+      }
+
+      .video-placeholder {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav id="navbar">
+    <a href="index.html" class="nav-logo">
+      <img src="logo.png" alt="Logo AVRA" style="height:40px;width:40px;object-fit:contain;"/>
+      <span class="nav-logo-text">AVRA</span>
+    </a>
+    <div class="nav-links">
+      <a href="metiers.html">Métiers</a>
+      <a href="fonctionnalites.html">Fonctionnalités</a>
+      <a href="comment-ca-marche.html">Comment ça marche</a>
+      <a href="temoignages.html">Témoignages</a>
+      <a href="tarifs.html">Tarifs</a>
+    </div>
+    <div class="nav-cta">
+      <a href="http://localhost:3002/login" class="btn-nav-login">Se connecter</a>
+      <a href="http://localhost:3002/register" class="btn-nav-primary">Essai gratuit — 14 jours</a>
+    </div>
+    <div class="nav-hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Opérationnel en 5 minutes</h1>
+      <p>Inscription, configuration et premier dossier. Aucune complexité. Juste les essentiels pour démarrer.</p>
+    </div>
+  </section>
+
+  <!-- Steps Overview -->
+  <section class="steps-section reveal">
+    <div class="steps-container">
+      <div class="steps-header">
+        <span class="section-label">PROCESS DE DÉMARRAGE</span>
+        <h2 class="section-title">Cinq étapes simples</h2>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-card reveal">
+          <div class="step-number">1</div>
+          <h3>Inscription</h3>
+          <p>Créez votre compte en 2 minutes</p>
+        </div>
+        <div class="step-card reveal">
+          <div class="step-number">2</div>
+          <h3>Configuration</h3>
+          <p>Personnalisez vos paramètres</p>
+        </div>
+        <div class="step-card reveal">
+          <div class="step-number">3</div>
+          <h3>Import Clients</h3>
+          <p>Importez votre base existante</p>
+        </div>
+        <div class="step-card reveal">
+          <div class="step-number">4</div>
+          <h3>Premier Dossier</h3>
+          <p>Créez votre premier projet</p>
+        </div>
+        <div class="step-card reveal">
+          <div class="step-number">5</div>
+          <h3>Équipe</h3>
+          <p>Invitez votre équipe</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 1: Inscription -->
+  <section class="step-detail reveal">
+    <div class="step-detail-container">
+      <div class="step-detail-text">
+        <span class="section-label">ÉTAPE 1</span>
+        <h3>Inscription en 2 minutes</h3>
+        <p>Créez votre compte AVRA. Email, mot de passe, et c'est parti. Aucune vérification téléphonique, aucune question compliquée. Juste l'essentiel.</p>
+        <ul class="step-detail-bullets">
+          <li>Email et mot de passe sécurisé</li>
+          <li>Verification email instantanée</li>
+          <li>Pas de documentation à signer</li>
+          <li>Accès immédiat à l'app</li>
+        </ul>
+      </div>
+      <div class="step-mockup">
+        <div class="mockup-field">
+          <div class="field-label">Email</div>
+          <div class="field-content" style="width: 70%;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Mot de passe</div>
+          <div class="field-content" style="width: 60%;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Entreprise</div>
+          <div class="field-content" style="width: 65%;"></div>
+        </div>
+        <div style="text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid rgba(201,169,110,.2);">
+          <div class="field-content" style="width: 100%; height: 40px; background: linear-gradient(135deg, rgba(201,169,110,.3), rgba(201,169,110,.1)); border-radius: 8px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 2: Configuration -->
+  <section class="step-detail reveal">
+    <div class="step-detail-container">
+      <div class="step-mockup">
+        <div class="mockup-field">
+          <div class="field-label">Numéro SIRET</div>
+          <div class="field-content" style="width: 75%;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Adresse</div>
+          <div class="field-content" style="width: 85%;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Téléphone</div>
+          <div class="field-content" style="width: 60%;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Logo</div>
+          <div class="field-content" style="width: 40%;"></div>
+        </div>
+      </div>
+      <div class="step-detail-text">
+        <span class="section-label">ÉTAPE 2</span>
+        <h3>Configuration en 3 minutes</h3>
+        <p>Entrez les infos de votre entreprise. Logo, SIRET, adresse. Ces infos apparaîtront sur vos factures et devis. Simple et rapide.</p>
+        <ul class="step-detail-bullets">
+          <li>Logo entreprise pour factures</li>
+          <li>SIRET et infos légales</li>
+          <li>TVA et numéro intra-communautaire</li>
+          <li>Paramètres de facturation</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 3: Import Clients -->
+  <section class="step-detail reveal">
+    <div class="step-detail-container">
+      <div class="step-detail-text">
+        <span class="section-label">ÉTAPE 3</span>
+        <h3>Import Clients depuis Excel</h3>
+        <p>Vous avez une liste de clients Excel ? Importez-la en quelques clics. AVRA récupère noms, téléphones, emails et crée les fiches automatiquement.</p>
+        <ul class="step-detail-bullets">
+          <li>Upload fichier Excel ou CSV</li>
+          <li>Mapping colonnes automatique</li>
+          <li>Création fiches clients instantanée</li>
+          <li>Historique import conservé</li>
+        </ul>
+      </div>
+      <div class="step-mockup">
+        <div class="mockup-field">
+          <div class="field-label">Fichier à importer</div>
+          <div class="field-content" style="width: 80%;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Clients détectés: 245</div>
+          <div style="height: 30px; background: linear-gradient(90deg, rgba(201,169,110,.4), transparent); border-radius: 6px; margin-top: 0.5rem;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Doublons: 0</div>
+          <div style="height: 20px; background: rgba(255,255,255,.05); border-radius: 6px; margin-top: 0.5rem;"></div>
+        </div>
+        <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(201,169,110,.2);">
+          <div class="field-content" style="width: 100%; height: 35px; background: linear-gradient(135deg, rgba(201,169,110,.3), rgba(201,169,110,.1)); border-radius: 8px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 4: Premier Dossier -->
+  <section class="step-detail reveal">
+    <div class="step-detail-container">
+      <div class="step-mockup">
+        <div class="mockup-field">
+          <div class="field-label">Nom du dossier</div>
+          <div class="field-content" style="width: 85%;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Client</div>
+          <div class="field-content" style="width: 70%;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Type de projet</div>
+          <div class="field-content" style="width: 60%;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Budget estimé</div>
+          <div class="field-content" style="width: 50%;"></div>
+        </div>
+      </div>
+      <div class="step-detail-text">
+        <span class="section-label">ÉTAPE 4</span>
+        <h3>Créer votre premier dossier</h3>
+        <p>Créez votre premier projet. Sélectionnez un client, donnez un nom au dossier, et voilà. Vous pouvez dès maintenant ajouter documents, devis, planning.</p>
+        <ul class="step-detail-bullets">
+          <li>Création dossier en 30 secondes</li>
+          <li>Lien client automatique</li>
+          <li>Statut et phase par défaut</li>
+          <li>Invite équipe depuis le dossier</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 5: Équipe -->
+  <section class="step-detail reveal">
+    <div class="step-detail-container">
+      <div class="step-detail-text">
+        <span class="section-label">ÉTAPE 5</span>
+        <h3>Inviter votre équipe</h3>
+        <p>Invitez vos employés avec un lien simple. Chacun crée son compte, se connecte, et a accès aux dossiers. Permissions granulaires pour chaque rôle.</p>
+        <ul class="step-detail-bullets">
+          <li>Invitation par email simple</li>
+          <li>Rôles: Admin, Manager, Employé</li>
+          <li>Permissions par dossier</li>
+          <li>Audit des actions utilisateurs</li>
+        </ul>
+      </div>
+      <div class="step-mockup">
+        <div class="mockup-field">
+          <div class="field-label">Email équipier</div>
+          <div class="field-content" style="width: 80%;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Rôle: Manager</div>
+          <div class="field-content" style="width: 50%;"></div>
+        </div>
+        <div class="mockup-field">
+          <div class="field-label">Permissions</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+            <div class="field-content" style="height: 20px;"></div>
+            <div class="field-content" style="height: 20px;"></div>
+          </div>
+        </div>
+        <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(201,169,110,.2);">
+          <div class="field-content" style="width: 100%; height: 35px; background: linear-gradient(135deg, rgba(201,169,110,.3), rgba(201,169,110,.1)); border-radius: 8px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Video Section -->
+  <section class="video-section reveal">
+    <div class="video-container">
+      <span class="section-label">DÉMONSTRATION</span>
+      <h2 class="section-title" style="margin-bottom: 3rem;">Voir le setup en vidéo</h2>
+      <div class="video-placeholder" onclick="alert('Vidéo de démonstration')">▶️</div>
+      <p style="margin-top: 2rem; color: var(--text-muted);">Regardez comment un utilisateur configure AVRA en 5 minutes. Réel, sans coupure.</p>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section class="faq-section">
+    <div class="faq-container">
+      <div class="faq-header reveal">
+        <span class="section-label">QUESTIONS FRÉQUENTES</span>
+        <h2 class="section-title">Questions courantes sur la mise en place</h2>
+      </div>
+
+      <div class="reveal">
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Combien de temps prend vraiment la mise en place?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Pour une PME avec une équipe de 3-4 personnes: 5 minutes pour vous, 10 minutes pour inviter votre équipe. Si vous importez une base de clients existante: +5 minutes. Total: moins de 20 minutes pour être complètement opérationnel.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Faut-il une formation pour ma équipe?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Non. L'interface est très intuitive. Nous mettons à disposition des vidéos de 2-3 minutes par fonction. Votre équipe peut commencer à l'utiliser immédiatement. Une session de 30 minutes avec nous suffit pour les fonctionnalités avancées.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Peut-on vraiment importer Excel directement?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Oui. Upload votre fichier Excel ou CSV. AVRA détecte automatiquement les colonnes (nom, email, téléphone, etc.) et crée les fiches clients. Vous pouvez vérifier avant validation et corriger les doublons.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Et si on migrate depuis un autre logiciel?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Contactez notre équipe support. Selon votre système actuel (Sage, Ciel, Excel, etc.), nous pouvons faire une migration guidée. Le plus long est généralement de préparer l'export depuis votre système actuel, pas d'importer dans AVRA.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Peut-on démarrer avec le plan Starter et passer à Pro plus tard?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Bien sûr. Commencez en Starter, tous vos dossiers et données restent. Vous pouvez passer à Pro n'importe quand, au jour le jour. Aucun problème de migration.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Nos données sont-elles sécurisées?</span>
+          <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Oui. Chiffrement TLS, serveurs en France, sauvegardes quotidiennes. Conformité RGPD, pas de partage de données. Vous restez propriétaire de vos données. Vous pouvez exporter tout moment.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Quel est le support pendant l'onboarding?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Support par email (réponse en 24h), chat live en app, vidéos tutoriels. Les clients Pro bénéficient d'une session 1:1 de 30 min avec un expert pour la configuration. Vous ne serez jamais bloqué.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Peut-on tester sans créer un "vrai" compte?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Oui. L'essai gratuit de 14 jours vous donne accès complet à toutes les features. C'est un vrai compte, pas un mode démo. Vous pouvez inviter votre équipe, importer clients, créer des dossiers réels.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Comment on annule si ça ne convient pas?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Pendant les 14 jours d'essai, vous pouvez annuler à tout moment sans raison. Après, vous êtes en abonnement mensuel sans engagement minimum. Vous pouvez résilier à la fin de votre mois courant.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Y a-t-il des frais cachés ou setup?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Non. Pricing complètement transparent. Aucun frais de setup, d'installation ou de migration. Les prix affichés sont les vrais prix. Facturation au premier jour du mois.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section style="padding: 100px 5%; background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%); text-align: center;">
+    <div style="max-width: 700px; margin: 0 auto;">
+      <h2 style="color: var(--white); margin-bottom: 1.5rem;">Prêt à démarrer?</h2>
+      <p style="color: rgba(255,255,255,.85); margin-bottom: 2rem; font-size: 1.1rem;">14 jours d'essai gratuit. Pas de carte bancaire requise. Opérationnel en 5 minutes.</p>
+      <a href="http://localhost:3002/register" class="btn-primary">Créer mon compte</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer role="contentinfo">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-logo" style="margin-bottom:1rem;">
+            <img src="logo.png" alt="Logo AVRA" style="height:36px;width:36px;object-fit:contain;"/>
+            <span class="nav-logo-text">AVRA</span>
+          </div>
+          <p>L'ERP et assistant IA N°1 pour les professionnels de l'agencement intérieur.</p>
+        </div>
+        <div class="footer-col">
+          <h5>Produit</h5>
+          <a href="fonctionnalites.html">Fonctionnalités</a>
+          <a href="tarifs.html">Tarifs</a>
+          <a href="comment-ca-marche.html">Comment ça marche</a>
+          <a href="metiers.html">Métiers</a>
+        </div>
+        <div class="footer-col">
+          <h5>Entreprise</h5>
+          <a href="temoignages.html">Témoignages</a>
+          <a href="#">Blog</a>
+          <a href="#">À propos</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-col">
+          <h5>Légal</h5>
+          <a href="#">Mentions légales</a>
+          <a href="#">CGU</a>
+          <a href="#">Confidentialité</a>
+          <a href="#">Cookies</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 AVRA — Luméa SAS. Tous droits réservés.</span>
+        <div class="footer-bottom-links">
+          <a href="#">LinkedIn</a>
+          <a href="#">Twitter</a>
+          <a href="#">YouTube</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const nav = document.getElementById('navbar');
+    window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 20));
+
+    const reveals = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e, i) => {
+        if(e.isIntersecting){
+          setTimeout(() => e.target.classList.add('revealed'), i * 80);
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(el => io.observe(el));
+
+    function toggleMenu(){
+      const links = document.querySelector('.nav-links');
+      links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function toggleFAQ(element) {
+      const item = element.parentElement;
+      item.classList.toggle('open');
+    }
+
+    // Set active nav link
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      if(link.getAttribute('href') === 'comment-ca-marche.html') {
+        link.classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>

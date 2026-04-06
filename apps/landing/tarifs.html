@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tarifs AVRA — Pricing Transparent et Abordable</title>
+  <meta name="description" content="Plans simples et transparents pour tous. Starter 49€/mois, Pro 89€/mois avec IA, Enterprise sur devis. 14 jours gratuit, sans engagement.">
+  <meta name="canonical" href="https://avra.fr/tarifs">
+  <meta property="og:title" content="Tarifs AVRA">
+  <meta property="og:description" content="Pricing transparent: Starter 49€, Pro 89€, Enterprise sur devis. Essai 14 jours gratuit.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://avra.fr/tarifs">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "PriceSpecification",
+    "priceCurrency": "EUR",
+    "price": "49"
+  }
+  </script>
+
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Hero */
+    .hero {
+      min-height: 70vh;
+      display: flex;
+      align-items: center;
+      padding-top: 76px;
+      background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%);
+      text-align: center;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 60px 5%;
+    }
+
+    .hero h1 {
+      color: var(--white);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero p {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 1.2rem;
+    }
+
+    /* Billing Toggle */
+    .billing-section {
+      padding: 40px 5%;
+      background: var(--white);
+      text-align: center;
+    }
+
+    .billing-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 20px;
+      background: var(--cream);
+      padding: 8px;
+      border-radius: 50px;
+      border: 1px solid var(--border);
+    }
+
+    .billing-option {
+      padding: 8px 20px;
+      border-radius: 40px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: var(--transition);
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+    }
+
+    .billing-option.active {
+      background: var(--white);
+      color: var(--text);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .billing-discount {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+      color: var(--green-deep);
+      padding: 4px 12px;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-left: 1rem;
+    }
+
+    /* Pricing Cards */
+    .pricing-section {
+      padding: 60px 5%;
+      background: linear-gradient(180deg, var(--white) 0%, var(--cream) 100%);
+    }
+
+    .pricing-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin-bottom: 60px;
+    }
+
+    .pricing-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2.5rem;
+      transition: var(--transition);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pricing-card:hover {
+      transform: translateY(-8px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--gold);
+    }
+
+    .pricing-card.featured {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 2px rgba(201,169,110,.15);
+      transform: scale(1.05);
+    }
+
+    .pricing-card.featured:hover {
+      transform: scale(1.05) translateY(-8px);
+    }
+
+    .badge-popular {
+      position: absolute;
+      top: -12px;
+      right: 30px;
+      background: linear-gradient(135deg, var(--gold-light), var(--gold));
+      color: var(--green-deep);
+      padding: 6px 16px;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      box-shadow: 0 4px 15px rgba(201,169,110,.3);
+    }
+
+    .pricing-name {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    .pricing-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .pricing-amount {
+      display: flex;
+      align-items: baseline;
+      margin-bottom: 0.5rem;
+    }
+
+    .price-euro {
+      font-size: 2.8rem;
+      font-weight: 800;
+      color: var(--gold);
+      font-family: var(--font-display);
+    }
+
+    .price-period {
+      color: var(--text-muted);
+      margin-left: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .price-note {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pricing-features {
+      list-style: none;
+      flex-grow: 1;
+      margin-bottom: 2rem;
+    }
+
+    .pricing-features li {
+      padding: 0.8rem 0;
+      padding-left: 1.8rem;
+      position: relative;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .pricing-features li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    .pricing-features li.disabled {
+      opacity: 0.5;
+      color: var(--text-muted);
+    }
+
+    .pricing-features li.disabled::before {
+      content: '—';
+      color: var(--text-muted);
+    }
+
+    .pricing-cta {
+      display: block;
+      width: 100%;
+      text-align: center;
+    }
+
+    /* Feature Comparison Table */
+    .comparison-section {
+      padding: 100px 5%;
+      background: var(--white);
+    }
+
+    .comparison-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .comparison-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .comparison-table th {
+      background: var(--green-dark);
+      color: var(--white);
+      padding: 1.5rem;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(201,169,110,.2);
+    }
+
+    .comparison-table td {
+      padding: 1.2rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .comparison-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .comparison-table tbody tr:nth-child(even) {
+      background: var(--cream);
+    }
+
+    .check-mark {
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 1.2rem;
+    }
+
+    /* FAQ Pricing */
+    .faq-pricing-section {
+      padding: 100px 5%;
+      background: linear-gradient(180deg, var(--cream) 0%, var(--white) 100%);
+    }
+
+    .faq-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .faq-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .faq-item {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+
+    .faq-question {
+      padding: 1.5rem 2rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      color: var(--text);
+      user-select: none;
+    }
+
+    .faq-icon {
+      font-size: 1.3rem;
+      color: var(--gold);
+      transition: var(--transition);
+    }
+
+    .faq-item.open .faq-icon {
+      transform: rotate(180deg);
+    }
+
+    .faq-answer {
+      padding: 0 2rem;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      color: var(--text-muted);
+      line-height: 1.8;
+    }
+
+    .faq-item.open .faq-answer {
+      padding: 0 2rem 1.5rem;
+      max-height: 500px;
+    }
+
+    /* CTA Section */
+    .cta-section {
+      padding: 100px 5%;
+      background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%);
+      text-align: center;
+    }
+
+    .cta-content {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .cta-content h2 {
+      color: var(--white);
+      margin-bottom: 1.5rem;
+    }
+
+    .cta-content p {
+      color: rgba(255,255,255,.85);
+      margin-bottom: 2rem;
+      font-size: 1.1rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 968px) {
+      .pricing-card.featured {
+        transform: scale(1);
+      }
+
+      .pricing-card.featured:hover {
+        transform: translateY(-8px);
+      }
+
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .comparison-table {
+        font-size: 0.9rem;
+      }
+
+      .comparison-table th,
+      .comparison-table td {
+        padding: 1rem;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .hero h1 {
+        font-size: 1.8rem;
+      }
+
+      .billing-discount {
+        display: block;
+        margin: 0.5rem auto 0;
+      }
+
+      .price-euro {
+        font-size: 2.2rem;
+      }
+
+      .comparison-table {
+        font-size: 0.8rem;
+      }
+
+      .comparison-table th,
+      .comparison-table td {
+        padding: 0.8rem 0.6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav id="navbar">
+    <a href="index.html" class="nav-logo">
+      <img src="logo.png" alt="Logo AVRA" style="height:40px;width:40px;object-fit:contain;"/>
+      <span class="nav-logo-text">AVRA</span>
+    </a>
+    <div class="nav-links">
+      <a href="metiers.html">Métiers</a>
+      <a href="fonctionnalites.html">Fonctionnalités</a>
+      <a href="comment-ca-marche.html">Comment ça marche</a>
+      <a href="temoignages.html">Témoignages</a>
+      <a href="tarifs.html">Tarifs</a>
+    </div>
+    <div class="nav-cta">
+      <a href="http://localhost:3002/login" class="btn-nav-login">Se connecter</a>
+      <a href="http://localhost:3002/register" class="btn-nav-primary">Essai gratuit — 14 jours</a>
+    </div>
+    <div class="nav-hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Tarifs simples et transparents</h1>
+      <p>Pas de surprise, pas de frais cachés. Plans clairs pour tous les besoins. Paiement mensuel, sans engagement.</p>
+    </div>
+  </section>
+
+  <!-- Billing Toggle -->
+  <section class="billing-section reveal">
+    <div class="billing-toggle">
+      <button class="billing-option active" onclick="setBilling('monthly')">Facturation mensuelle</button>
+      <button class="billing-option" onclick="setBilling('annual')">Facturation annuelle</button>
+      <span class="billing-discount" id="discount-badge" style="display:none;">20% d'économie</span>
+    </div>
+  </section>
+
+  <!-- Pricing Cards -->
+  <section class="pricing-section reveal">
+    <div class="pricing-container">
+      <div class="pricing-grid">
+        <!-- Starter -->
+        <div class="pricing-card reveal">
+          <h3 class="pricing-name">Starter</h3>
+          <p class="pricing-desc">Parfait pour débuter</p>
+          <div class="pricing-amount">
+            <span class="price-euro" id="starter-price">49</span>
+            <span class="price-period">€/mois</span>
+          </div>
+          <p class="price-note">1 utilisateur • Facturation annuelle possible</p>
+          <ul class="pricing-features">
+            <li>Gestion dossiers</li>
+            <li>Devis & Facturation</li>
+            <li>Planning basique</li>
+            <li class="disabled">IA Studio</li>
+            <li class="disabled">Stock avancé</li>
+            <li class="disabled">Signature électronique</li>
+            <li class="disabled">Portails partenaires</li>
+            <li>Support email</li>
+          </ul>
+          <a href="http://localhost:3002/register?plan=starter" class="btn-outline pricing-cta">Choisir Starter</a>
+        </div>
+
+        <!-- Pro (Featured) -->
+        <div class="pricing-card featured reveal">
+          <div class="badge-popular">PLUS POPULAIRE</div>
+          <h3 class="pricing-name">Pro</h3>
+          <p class="pricing-desc">Recommandé pour la plupart</p>
+          <div class="pricing-amount">
+            <span class="price-euro" id="pro-price">89</span>
+            <span class="price-period">€/mois</span>
+          </div>
+          <p class="price-note">Jusqu'à 5 utilisateurs • IA incluse</p>
+          <ul class="pricing-features">
+            <li>Gestion dossiers complète</li>
+            <li>Devis & Facturation avancés</li>
+            <li>Planning & Chantier</li>
+            <li>IA Studio avec rendus 3D</li>
+            <li>Gestion Stock</li>
+            <li>Signature électronique</li>
+            <li>Portails partenaires</li>
+            <li>Alertes intelligentes</li>
+            <li>Dashboards et statistiques</li>
+            <li>Support prioritaire</li>
+          </ul>
+          <a href="http://localhost:3002/register?plan=pro" class="btn-primary pricing-cta">Essayer Pro</a>
+        </div>
+
+        <!-- Enterprise -->
+        <div class="pricing-card reveal">
+          <h3 class="pricing-name">Enterprise</h3>
+          <p class="pricing-desc">Pour les équipes exigeantes</p>
+          <div class="pricing-amount">
+            <span class="price-euro" style="font-size: 2rem;">Sur</span>
+            <span class="price-period" style="font-size: 1.2rem; margin-left: 0.3rem;">devis</span>
+          </div>
+          <p class="price-note">Utilisateurs illimités • Tout inclus</p>
+          <ul class="pricing-features">
+            <li>Tous les plans Pro</li>
+            <li>Utilisateurs illimités</li>
+            <li>API & Intégrations</li>
+            <li>SSO / Authentification avancée</li>
+            <li>Support dédié 24/7</li>
+            <li>SLA garanti 99.9%</li>
+            <li>Onboarding personnalisé</li>
+            <li>Formations équipe</li>
+            <li>Migrations de données</li>
+            <li>Customisations possibles</li>
+          </ul>
+          <a href="mailto:contact@avra.fr" class="btn-primary pricing-cta">Nous contacter</a>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 3rem;">
+        <p style="color: var(--text-muted); font-size: 1.05rem;">
+          Tous les plans incluent <strong>14 jours d'essai gratuit</strong>. Pas de carte bancaire requise.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature Comparison -->
+  <section class="comparison-section reveal">
+    <div class="comparison-container">
+      <div class="comparison-header">
+        <span class="section-label">COMPARAISON</span>
+        <h2 class="section-title">Quelle plan vous convient?</h2>
+      </div>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Fonctionnalité</th>
+            <th>Starter</th>
+            <th>Pro</th>
+            <th>Enterprise</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Utilisateurs</strong></td>
+            <td>1</td>
+            <td>Jusqu'à 5</td>
+            <td>Illimité</td>
+          </tr>
+          <tr>
+            <td><strong>Dossiers & Projets</strong></td>
+            <td><span class="check-mark">✓</span></td>
+            <td><span class="check-mark">✓</span></td>
+            <td><span class="check-mark">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Facturation & Devis</strong></td>
+            <td><span class="check-mark">✓</span></td>
+            <td><span class="check-mark">✓</span></td>
+            <td><span class="check-mark">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Planning & Chantier</strong></td>
+            <td>Basique</td>
+            <td><span class="check-mark">✓</span></td>
+            <td><span class="check-mark">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>IA Studio (Rendus 3D)</strong></td>
+            <td>—</td>
+            <td><span class="check-mark">✓</span></td>
+            <td><span class="check-mark">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Gestion Stock</strong></td>
+            <td>—</td>
+            <td><span class="check-mark">✓</span></td>
+            <td><span class="check-mark">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Signature Électronique</strong></td>
+            <td>—</td>
+            <td><span class="check-mark">✓</span></td>
+            <td><span class="check-mark">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Portails Partenaires</strong></td>
+            <td>—</td>
+            <td><span class="check-mark">✓</span></td>
+            <td><span class="check-mark">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Alertes Intelligentes</strong></td>
+            <td>—</td>
+            <td><span class="check-mark">✓</span></td>
+            <td><span class="check-mark">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Dashboards & Stats</strong></td>
+            <td>—</td>
+            <td><span class="check-mark">✓</span></td>
+            <td><span class="check-mark">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Support</strong></td>
+            <td>Email</td>
+            <td>Prioritaire</td>
+            <td>24/7 Dédié</td>
+          </tr>
+          <tr>
+            <td><strong>SLA Garantie</strong></td>
+            <td>—</td>
+            <td>99.5%</td>
+            <td>99.9%</td>
+          </tr>
+          <tr>
+            <td><strong>API & Intégrations</strong></td>
+            <td>—</td>
+            <td>Basique</td>
+            <td><span class="check-mark">✓</span></td>
+          </tr>
+          <tr>
+            <td><strong>Onboarding</strong></td>
+            <td>Autodidacte</td>
+            <td>Session 1:1</td>
+            <td>Personnalisé</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- FAQ Pricing -->
+  <section class="faq-pricing-section">
+    <div class="faq-container">
+      <div class="faq-header reveal">
+        <span class="section-label">FAQ TARIFS</span>
+        <h2 class="section-title">Questions fréquentes</h2>
+      </div>
+
+      <div class="reveal">
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Puis-je changer de plan?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Oui, absolument. Vous pouvez passer à un plan supérieur ou inférieur n'importe quand. Aucun problème. Les changements sont applicables au prochain cycle de facturation.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Comment fonctionne l'essai gratuit?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            14 jours gratuits, accès complet à tous les plans (Starter, Pro, Enterprise). C'est un vrai compte, pas un mode démo. Pas de carte bancaire requise à l'inscription. Si vous ne convertissez pas, rien n'est débité.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>La facturation annuelle, c'est comment?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Vous payez 12 mois à l'avance et vous économisez 20%. Par exemple: Starter au lieu de 49€/mois devient 47€/mois si paiement annuel. Facturé une fois par an.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Qu'est-ce qu'inclut "Jusqu'à 5 utilisateurs" en Pro?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Le plan Pro permet 5 utilisateurs simultanés. Chaque utilisateur a un compte avec permissions granulaires. Si vous avez 6 employés, vous avez deux options: 2 plans Pro ou passer à Enterprise.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Y a-t-il des frais de setup ou de mise en place?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Non, aucun frais caché. Les plans Starter et Pro n'incluent pas de setup payant. Pour Enterprise, des frais de customisation/intégration peuvent s'ajouter selon vos besoins spécifiques.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Comment annuler mon abonnement?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Pendant les 14 jours d'essai, vous pouvez annuler sans condition. Après, vous êtes en abonnement sans engagement minimum. Vous pouvez résilier à la fin de votre mois courant. Aucune pénalité.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Acceptez-vous les virements ou bon de commande?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Pour Starter et Pro: paiement par carte bancaire uniquement. Pour Enterprise: nous pouvons discuter virements, bons de commande, ou facturation annuelle selon vos besoins.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Que se passe-t-il après les 14 jours d'essai?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Vous êtes facturé le 15e jour pour le plan que vous avez choisi. Si vous ne convertissez pas, votre compte est fermé et vous ne perdez rien. Si vous convertissez, vos 14 jours gratuits sont déduits.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Avez-vous des réductions pour les associations ou ONG?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Nous ne sommes pas une plateforme accessible aux associations ou ONG pour l'instant. AVRA est dédiée aux professionnels de l'agencement (B2B). Contactez-nous si vous avez une situation spéciale.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFAQ(this)">
+            <span>Et si je n'ai besoin que d'une fonctionnalité?</span>
+            <div class="faq-icon">▼</div>
+          </div>
+          <div class="faq-answer">
+            Si vous n'avez besoin que de facturation, Starter est fait pour vous (49€/mois). Si vous avez besoin de plusieurs fonctionnalités (planning, stock, IA), Pro est plus intéressant même si vous n'utilisez pas tout d'emblée.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section reveal">
+    <div class="cta-content">
+      <h2>Prêt à commencer?</h2>
+      <p>14 jours gratuits, accès complet, sans engagement. Opérationnel en 5 minutes.</p>
+      <a href="http://localhost:3002/register" class="btn-primary">Démarrer maintenant</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer role="contentinfo">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-logo" style="margin-bottom:1rem;">
+            <img src="logo.png" alt="Logo AVRA" style="height:36px;width:36px;object-fit:contain;"/>
+            <span class="nav-logo-text">AVRA</span>
+          </div>
+          <p>L'ERP et assistant IA N°1 pour les professionnels de l'agencement intérieur.</p>
+        </div>
+        <div class="footer-col">
+          <h5>Produit</h5>
+          <a href="fonctionnalites.html">Fonctionnalités</a>
+          <a href="tarifs.html">Tarifs</a>
+          <a href="comment-ca-marche.html">Comment ça marche</a>
+          <a href="metiers.html">Métiers</a>
+        </div>
+        <div class="footer-col">
+          <h5>Entreprise</h5>
+          <a href="temoignages.html">Témoignages</a>
+          <a href="#">Blog</a>
+          <a href="#">À propos</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-col">
+          <h5>Légal</h5>
+          <a href="#">Mentions légales</a>
+          <a href="#">CGU</a>
+          <a href="#">Confidentialité</a>
+          <a href="#">Cookies</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 AVRA — Luméa SAS. Tous droits réservés.</span>
+        <div class="footer-bottom-links">
+          <a href="#">LinkedIn</a>
+          <a href="#">Twitter</a>
+          <a href="#">YouTube</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const nav = document.getElementById('navbar');
+    window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 20));
+
+    const reveals = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e, i) => {
+        if(e.isIntersecting){
+          setTimeout(() => e.target.classList.add('revealed'), i * 80);
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(el => io.observe(el));
+
+    function toggleMenu(){
+      const links = document.querySelector('.nav-links');
+      links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function setBilling(type) {
+      document.querySelectorAll('.billing-option').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const discountBadge = document.getElementById('discount-badge');
+      if(type === 'annual') {
+        document.getElementById('starter-price').textContent = '47';
+        document.getElementById('pro-price').textContent = '71';
+        discountBadge.style.display = 'inline-block';
+      } else {
+        document.getElementById('starter-price').textContent = '49';
+        document.getElementById('pro-price').textContent = '89';
+        discountBadge.style.display = 'none';
+      }
+    }
+
+    function toggleFAQ(element) {
+      const item = element.parentElement;
+      item.classList.toggle('open');
+    }
+
+    // Set active nav link
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      if(link.getAttribute('href') === 'tarifs.html') {
+        link.classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>

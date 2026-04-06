@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AVRA — ERP + IA pour les professionnels de l'agencement intérieur</title>
+  <meta name="description" content="AVRA est l'ERP et assistant IA N°1 pour les cuisinistes, menuisiers, architectes d'intérieur et agenceurs. Gérez vos projets sans friction avec facturation, planning, dossiers et rendus IA.">
+  <meta name="canonical" href="https://avra.fr">
+  <meta property="og:title" content="AVRA — ERP + IA pour les professionnels de l'agencement">
+  <meta property="og:description" content="Gérez vos projets d'agencement sans friction avec AVRA. Dossiers, facturation, planning, IA, stock et signature électronique.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://avra.fr">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "AVRA",
+    "description": "ERP et assistant IA pour les professionnels de l'agencement intérieur",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "EUR",
+      "price": "49"
+    }
+  }
+  </script>
+
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Hero section */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding-top: 76px;
+      background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%);
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
+        repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(201,169,110,.03) 2px, rgba(201,169,110,.03) 4px);
+      pointer-events: none;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 60px 5%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .hero-text h1 {
+      color: var(--white);
+      margin-bottom: 1.5rem;
+      font-size: clamp(2.2rem, 4vw, 3.6rem);
+    }
+
+    .hero-text p {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      max-width: 500px;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .dashboard-mockup {
+      position: relative;
+      background: linear-gradient(135deg, rgba(255,255,255,.1), rgba(201,169,110,.05));
+      border-radius: 20px;
+      padding: 2rem;
+      border: 1px solid rgba(201,169,110,.2);
+      backdrop-filter: blur(20px);
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .mockup-header {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1.5rem;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(201,169,110,.4);
+    }
+
+    .mockup-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .mockup-block {
+      height: 60px;
+      background: linear-gradient(135deg, rgba(74,99,80,.3), rgba(201,169,110,.15));
+      border-radius: 12px;
+      border: 1px solid rgba(201,169,110,.2);
+    }
+
+    /* Trust band */
+    .trust-band {
+      padding: 80px 5%;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .trust-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .trust-label {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .trust-logos {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+
+    .trust-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 140px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--green-dark), var(--green));
+      border-radius: 12px;
+      border: 1px solid rgba(201,169,110,.15);
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    /* Features grid */
+    .features {
+      padding: 100px 5%;
+      background: linear-gradient(180deg, var(--white) 0%, var(--cream) 100%);
+    }
+
+    .features-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .features-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      border: 1px solid var(--border);
+      text-align: center;
+      transition: var(--transition);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-8px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--gold);
+    }
+
+    .feature-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .feature-card h3 {
+      margin-bottom: 0.8rem;
+      color: var(--text);
+    }
+
+    .feature-card p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    /* Big feature sections */
+    .big-feature {
+      padding: 100px 5%;
+      background: var(--white);
+    }
+
+    .big-feature.alt {
+      background: linear-gradient(180deg, var(--cream) 0%, var(--white) 100%);
+    }
+
+    .big-feature-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .big-feature-container.reverse {
+      direction: rtl;
+    }
+
+    .big-feature-content {
+      direction: ltr;
+    }
+
+    .big-feature h2 {
+      margin-bottom: 1.5rem;
+      color: var(--text);
+    }
+
+    .big-feature p {
+      margin-bottom: 1.5rem;
+      font-size: 1.05rem;
+    }
+
+    .feature-list {
+      list-style: none;
+      margin: 2rem 0;
+    }
+
+    .feature-list li {
+      padding: 0.8rem 0;
+      padding-left: 2rem;
+      position: relative;
+      color: var(--text-muted);
+    }
+
+    .feature-list li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 1.2rem;
+    }
+
+    .mockup-dark {
+      background: var(--green);
+      border-radius: 16px;
+      padding: 2rem;
+      border: 1px solid rgba(201,169,110,.2);
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .mockup-item {
+      background: linear-gradient(135deg, rgba(74,99,80,.4), rgba(201,169,110,.15));
+      border-radius: 12px;
+      padding: 1.2rem;
+      border: 1px solid rgba(201,169,110,.2);
+      margin-bottom: 1rem;
+    }
+
+    .mockup-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .mockup-item-title {
+      color: var(--gold);
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      font-size: 0.85rem;
+    }
+
+    .mockup-item-content {
+      height: 8px;
+      background: rgba(255,255,255,.1);
+      border-radius: 4px;
+    }
+
+    /* Testimonial section */
+    .testimonial-feature {
+      padding: 100px 5%;
+      background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%);
+      color: var(--white);
+    }
+
+    .testimonial-container {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .testimonial-content {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(201,169,110,.2);
+      border-radius: 20px;
+      padding: 3rem;
+      backdrop-filter: blur(20px);
+      margin-bottom: 2rem;
+    }
+
+    .stars {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.2em;
+    }
+
+    .testimonial-text {
+      font-size: 1.3rem;
+      line-height: 1.8;
+      margin-bottom: 2rem;
+      font-style: italic;
+    }
+
+    .testimonial-author {
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+
+    .testimonial-role {
+      color: rgba(255,255,255,.7);
+      font-size: 0.9rem;
+      margin-top: 0.3rem;
+    }
+
+    /* Final CTA */
+    .final-cta {
+      padding: 80px 5%;
+      background: var(--cream);
+      text-align: center;
+    }
+
+    .final-cta h2 {
+      margin-bottom: 1.5rem;
+    }
+
+    .final-cta p {
+      margin-bottom: 2.5rem;
+      font-size: 1.1rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 968px) {
+      .hero-content {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+
+      .big-feature-container {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+
+      .big-feature-container.reverse {
+        direction: ltr;
+      }
+
+      .trust-logos {
+        gap: 20px;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .hero-text h1 {
+        font-size: 1.8rem;
+      }
+
+      .dashboard-mockup {
+        padding: 1.5rem;
+      }
+
+      .mockup-row {
+        grid-template-columns: 1fr;
+      }
+
+      .testimonial-content {
+        padding: 2rem;
+      }
+
+      .hero-cta {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .hero-cta a {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav id="navbar">
+    <a href="index.html" class="nav-logo">
+      <img src="logo.png" alt="Logo AVRA" style="height:40px;width:40px;object-fit:contain;"/>
+      <span class="nav-logo-text">AVRA</span>
+    </a>
+    <div class="nav-links">
+      <a href="metiers.html">Métiers</a>
+      <a href="fonctionnalites.html">Fonctionnalités</a>
+      <a href="comment-ca-marche.html">Comment ça marche</a>
+      <a href="temoignages.html">Témoignages</a>
+      <a href="tarifs.html">Tarifs</a>
+    </div>
+    <div class="nav-cta">
+      <a href="http://localhost:3002/login" class="btn-nav-login">Se connecter</a>
+      <a href="http://localhost:3002/register" class="btn-nav-primary">Essai gratuit — 14 jours</a>
+    </div>
+    <div class="nav-hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-text">
+        <h1>Gérez vos projets d'agencement sans friction</h1>
+        <p>AVRA est l'ERP + assistant IA conçu pour les cuisinistes, menuisiers, architectes d'intérieur et agenceurs. Dossiers, facturation, planning et rendus IA — tout en un.</p>
+        <div class="hero-cta">
+          <a href="http://localhost:3002/register" class="btn-primary">Démarrer gratuitement</a>
+          <a href="comment-ca-marche.html" class="btn-secondary">Voir comment ça marche</a>
+        </div>
+      </div>
+      <div class="dashboard-mockup">
+        <div class="mockup-header">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+        <div class="mockup-row">
+          <div class="mockup-block"></div>
+          <div class="mockup-block"></div>
+        </div>
+        <div class="mockup-row">
+          <div class="mockup-block"></div>
+          <div class="mockup-block"></div>
+        </div>
+        <div class="mockup-row">
+          <div class="mockup-block"></div>
+          <div class="mockup-block"></div>
+        </div>
+        <div class="mockup-row">
+          <div class="mockup-block"></div>
+          <div class="mockup-block"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust Band -->
+  <section class="trust-band reveal">
+    <div class="trust-content">
+      <p class="trust-label">Déjà utilisé par plus de 2400 professionnels</p>
+      <div class="trust-logos">
+        <div class="trust-logo">Concept Cuisine</div>
+        <div class="trust-logo">Menuiserie Dubois</div>
+        <div class="trust-logo">Design Intérieur</div>
+        <div class="trust-logo">Agencement Pro</div>
+        <div class="trust-logo">Bois & Design</div>
+        <div class="trust-logo">Intérieur Plus</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Grid -->
+  <section class="features">
+    <div class="features-container">
+      <div class="features-header reveal">
+        <span class="section-label">FONCTIONNALITÉS</span>
+        <h2 class="section-title">Tout ce dont vous avez besoin</h2>
+        <p class="section-subtitle">Des outils puissants pour gérer chaque aspect de votre activité d'agencement.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon">📁</div>
+          <h3>Gestion Dossiers</h3>
+          <p>Organisez tous vos projets en un seul endroit. Statuts, documents, échanges clients intégrés.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">💰</div>
+          <h3>Facturation & Devis</h3>
+          <p>Générez devis et factures en secondes. Suivi des paiements, relances automatiques.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">📅</div>
+          <h3>Planning Chantier</h3>
+          <p>Planifiez interventions et pose. Vue calendrier, attribution équipe, alertes retard.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">✨</div>
+          <h3>IA Studio</h3>
+          <p>Générez rendus 3D et images photorréalistes. Montrez vos projets avant réalisation.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">📦</div>
+          <h3>Gestion Stock</h3>
+          <p>Suivi matériaux, fournisseurs, prix. Devis et factures avec coûts à jour.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">✍️</div>
+          <h3>Signature Électronique</h3>
+          <p>Contrats et bons de commande signés légalement. Valeur contractuelle garantie.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Big Feature: IA Studio -->
+  <section class="big-feature">
+    <div class="big-feature-container">
+      <div class="big-feature-content reveal">
+        <span class="section-label">IA STUDIO</span>
+        <h2>Rendus 3D en quelques secondes</h2>
+        <p>Montrez à vos clients à quoi ressemblera leur cuisine, salle de bain ou chambre. Les rendus IA Studio créent de l'engagement et augmentent vos taux de signature.</p>
+        <ul class="feature-list">
+          <li>Rendus photorréalistes en haute qualité</li>
+          <li>Intégration matériaux et couleurs</li>
+          <li>Variations et ambiances multiples</li>
+          <li>Export et partage client simplifié</li>
+        </ul>
+        <a href="fonctionnalites.html" class="btn-primary">Découvrir l'IA Studio</a>
+      </div>
+      <div class="mockup-dark reveal">
+        <div class="mockup-item">
+          <div class="mockup-item-title">Cuisine moderne</div>
+          <div class="mockup-item-content" style="height: 120px; background: linear-gradient(135deg, rgba(201,169,110,.3), rgba(74,99,80,.2));"></div>
+        </div>
+        <div class="mockup-item">
+          <div class="mockup-item-title">Avec matériaux</div>
+          <div class="mockup-item-content" style="height: 80px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Big Feature: CRM Pipeline -->
+  <section class="big-feature alt">
+    <div class="big-feature-container reverse">
+      <div class="big-feature-content reveal">
+        <span class="section-label">PIPELINE CRM</span>
+        <h2>Votre vente en une vue</h2>
+        <p>Un pipeline CRM puissant et intuitif pour gérer vos prospects, devis en attente et clients. Visualisez votre cycle de vente, identifiez les blocages, augmentez votre taux de conversion.</p>
+        <ul class="feature-list">
+          <li>Kanban personnalisable par étape</li>
+          <li>Historique interactions clients</li>
+          <li>Probabilité et valeur de chaque dossier</li>
+          <li>Alertes et relances intelligentes</li>
+        </ul>
+        <a href="fonctionnalites.html" class="btn-primary">Optimiser vos ventes</a>
+      </div>
+      <div class="mockup-dark reveal">
+        <div class="mockup-item">
+          <div class="mockup-item-title">Prospection</div>
+          <div class="mockup-item-content" style="height: 60px; background: linear-gradient(135deg, rgba(201,169,110,.2), rgba(74,99,80,.15));"></div>
+        </div>
+        <div class="mockup-item">
+          <div class="mockup-item-title">Devis envoyé</div>
+          <div class="mockup-item-content" style="height: 60px;"></div>
+        </div>
+        <div class="mockup-item">
+          <div class="mockup-item-title">En attente</div>
+          <div class="mockup-item-content" style="height: 60px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonial -->
+  <section class="testimonial-feature reveal">
+    <div class="testimonial-container">
+      <div class="testimonial-content">
+        <div class="stars">★★★★★</div>
+        <p class="testimonial-text">"AVRA a transformé ma façon de travailler. Mes devis se font maintenant en 5 minutes au lieu de 2 heures. Et les rendus IA ? Mes clients en redemandent!"</p>
+        <p class="testimonial-author">Marie Dubois</p>
+        <p class="testimonial-role">Cuisiniste à Lyon</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="final-cta reveal">
+    <h2>Prêt à transformer votre activité?</h2>
+    <p>Commencez votre essai gratuit de 14 jours. Pas de carte bancaire requise.</p>
+    <a href="http://localhost:3002/register" class="btn-primary">Démarrer maintenant</a>
+  </section>
+
+  <!-- Footer -->
+  <footer role="contentinfo">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-logo" style="margin-bottom:1rem;">
+            <img src="logo.png" alt="Logo AVRA" style="height:36px;width:36px;object-fit:contain;"/>
+            <span class="nav-logo-text">AVRA</span>
+          </div>
+          <p>L'ERP et assistant IA N°1 pour les professionnels de l'agencement intérieur.</p>
+        </div>
+        <div class="footer-col">
+          <h5>Produit</h5>
+          <a href="fonctionnalites.html">Fonctionnalités</a>
+          <a href="tarifs.html">Tarifs</a>
+          <a href="comment-ca-marche.html">Comment ça marche</a>
+          <a href="metiers.html">Métiers</a>
+        </div>
+        <div class="footer-col">
+          <h5>Entreprise</h5>
+          <a href="temoignages.html">Témoignages</a>
+          <a href="#">Blog</a>
+          <a href="#">À propos</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-col">
+          <h5>Légal</h5>
+          <a href="#">Mentions légales</a>
+          <a href="#">CGU</a>
+          <a href="#">Confidentialité</a>
+          <a href="#">Cookies</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 AVRA — Luméa SAS. Tous droits réservés.</span>
+        <div class="footer-bottom-links">
+          <a href="#">LinkedIn</a>
+          <a href="#">Twitter</a>
+          <a href="#">YouTube</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const nav = document.getElementById('navbar');
+    window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 20));
+
+    const reveals = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e, i) => {
+        if(e.isIntersecting){
+          setTimeout(() => e.target.classList.add('revealed'), i * 80);
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(el => io.observe(el));
+
+    function toggleMenu(){
+      const links = document.querySelector('.nav-links');
+      links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    // Set active nav link
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      if(link.getAttribute('href') === 'index.html') {
+        link.classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>

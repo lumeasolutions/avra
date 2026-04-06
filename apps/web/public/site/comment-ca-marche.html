@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Comment démarrer avec AVRA. Opérationnel en 5 minutes, sans formation ni configuration complexe.">
+  <title>Comment ça marche — AVRA</title>
+  <link rel="stylesheet" href="/site/style.css">
+</head>
+<body>
+
+<nav id="nav">
+  <a href="/site/index.html" class="nav-logo">
+    <img src="/logoavra2.png" alt="AVRA">
+    <span class="nav-logo-text">AVRA</span>
+  </a>
+  <div class="nav-links">
+    <a href="/site/index.html">Accueil</a>
+    <a href="/site/fonctionnalites.html">Fonctionnalités</a>
+    <a href="/site/comment-ca-marche.html" class="active">Comment ça marche</a>
+    <a href="/site/temoignages.html">Témoignages</a>
+    <a href="/site/tarifs.html">Tarifs</a>
+    <a href="/site/metiers.html">Métiers</a>
+  </div>
+  <div class="nav-cta">
+    <a href="/login"><button class="btn-nav">Connexion</button></a>
+    <a href="/register"><button class="btn-nav-gold">Essai gratuit 14 jours</button></a>
+  </div>
+  <div class="nav-ham" onclick="toggleMenu()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+<div class="mob-menu" id="mob">
+  <a href="/site/index.html">Accueil</a>
+  <a href="/site/fonctionnalites.html">Fonctionnalités</a>
+  <a href="/site/comment-ca-marche.html">Comment ça marche</a>
+  <a href="/site/temoignages.html">Témoignages</a>
+  <a href="/site/tarifs.html">Tarifs</a>
+  <a href="/site/metiers.html">Métiers</a>
+  <div class="mob-cta">
+    <a href="/login"><button class="btn-outline" style="width:100%;justify-content:center">Connexion</button></a>
+    <a href="/register"><button class="btn-gold" style="width:100%;justify-content:center">Essai gratuit</button></a>
+  </div>
+</div>
+
+<!-- HERO SECTION -->
+<section class="sec sec-dark" style="padding-top:140px">
+  <div class="wrap center">
+    <span class="label label-light">Démarrage rapide</span>
+    <h1>Opérationnel en 5 minutes<br>Sans formation, sans complexité</h1>
+    <p style="max-width:600px;margin:2rem auto;font-size:1.1rem;color:rgba(255,255,255,.8)">AVRA est conçu pour être intuitif. Interface épurée, onboarding guidé, import automatique de vos données. Vous produisez des devis dès le premier jour.</p>
+  </div>
+</section>
+
+<!-- TIMELINE - 5 ÉTAPES -->
+<section class="sec sec-cream">
+  <div class="wrap">
+    <div class="center" style="margin-bottom:4rem">
+      <h2>Vos 5 premières minutes avec AVRA</h2>
+      <p style="max-width:700px;margin:1.5rem auto">Un processus dédié aux professionnels de l'agencement. Pas de questions inutiles.</p>
+    </div>
+
+    <div style="position:relative">
+      <!-- Timeline line -->
+      <div style="position:absolute;top:28px;left:50%;transform:translateX(-50%);width:2px;height:calc(100% - 56px);background:linear-gradient(180deg,#c9a96e,transparent);display:none;@media(max-width:768px){display:none}"></div>
+
+      <div class="grid-auto">
+        <!-- Étape 1 -->
+        <div>
+          <div class="step-num">1</div>
+          <h4>S'inscrire</h4>
+          <p>Email, mot de passe, nom de votre entreprise. C'est tout. Validez votre email en 10 secondes et accédez au dashboard.</p>
+          <p style="margin-top:1rem;font-size:.9rem;color:#999">Durée : 1 min</p>
+        </div>
+
+        <!-- Étape 2 -->
+        <div>
+          <div class="step-num">2</div>
+          <h4>Configurer</h4>
+          <p>Complétez votre profil professionnel : secteur d'activité, SIRET, coordonnées, logo. L'assistant de configuration vous guide étape par étape.</p>
+          <p style="margin-top:1rem;font-size:.9rem;color:#999">Durée : 2 min</p>
+        </div>
+
+        <!-- Étape 3 -->
+        <div>
+          <div class="step-num">3</div>
+          <h4>Importer vos données</h4>
+          <p>Uploadez votre fichier clients Excel/CSV. AVRA reconnaît automatiquement les colonnes et importe tout en quelques secondes. Vos anciens clients sont là.</p>
+          <p style="margin-top:1rem;font-size:.9rem;color:#999">Durée : 1 min</p>
+        </div>
+
+        <!-- Étape 4 -->
+        <div>
+          <div class="step-num">4</div>
+          <h4>Créer votre premier dossier</h4>
+          <p>Créez un devis ou une facture pour tester. Les modèles pré-remplis avec vos infos, les produits importés et signatures. Un clic et c'est envoyé au client.</p>
+          <p style="margin-top:1rem;font-size:.9rem;color:#999">Durée : 1 min</p>
+        </div>
+
+        <!-- Étape 5 -->
+        <div>
+          <div class="step-num">5</div>
+          <h4>Développez</h4>
+          <p>Invitez votre équipe, configurez vos permissions, ajoutez vos produits/services standards. Vous êtes maintenant prêt à l'utiliser au quotidien.</p>
+          <p style="margin-top:1rem;font-size:.9rem;color:#999">Durée : variable</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MIGRATION -->
+<section class="sec sec-dark">
+  <div class="wrap">
+    <div class="center" style="margin-bottom:3rem">
+      <h2>Migration depuis votre ancien logiciel</h2>
+      <p style="max-width:700px;margin:1.5rem auto;color:rgba(255,255,255,.7)">Vous utilisez un autre logiciel ? Nous gérons l'import de vos données historiques.</p>
+    </div>
+
+    <div class="grid-2">
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2rem;border:1px solid rgba(201,169,110,.2)">
+        <h4 style="color:#fff;margin-bottom:1.5rem">Formats supportés</h4>
+        <ul class="check-list">
+          <li style="color:rgba(255,255,255,.8)">Excel (.xlsx, .xls)</li>
+          <li style="color:rgba(255,255,255,.8)">CSV (comma-separated values)</li>
+          <li style="color:rgba(255,255,255,.8)">Données depuis Sage, Ciel, Gestion</li>
+          <li style="color:rgba(255,255,255,.8)">Données depuis Cegid, EBP</li>
+          <li style="color:rgba(255,255,255,.8)">Exports depuis Devis Pro, ArchiCAD</li>
+          <li style="color:rgba(255,255,255,.8)">Autres formats sur demande</li>
+        </ul>
+      </div>
+
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2rem;border:1px solid rgba(201,169,110,.2)">
+        <h4 style="color:#fff;margin-bottom:1.5rem">Ce qu'on importe</h4>
+        <ul class="check-list">
+          <li style="color:rgba(255,255,255,.8)">Historique clients complet</li>
+          <li style="color:rgba(255,255,255,.8)">Factures et devis passés</li>
+          <li style="color:rgba(255,255,255,.8)">Catalogue produits/services</li>
+          <li style="color:rgba(255,255,255,.8)">Tarifs et prix spéciaux</li>
+          <li style="color:rgba(255,255,255,.8)">Historique comptable (si besoin)</li>
+          <li style="color:rgba(255,255,255,.8)">Documents et pièces jointes</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:3rem">
+      <p style="color:rgba(255,255,255,.6);margin-bottom:1rem">Besoin d'aide pour l'import ? Notre équipe peut faire la migration pour vous.</p>
+      <a href="/register"><button class="btn-gold">Discuter de votre migration</button></a>
+    </div>
+  </div>
+</section>
+
+<!-- FORMATION & ONBOARDING -->
+<section class="sec sec-cream">
+  <div class="wrap">
+    <div class="center" style="margin-bottom:3rem">
+      <h2>Formation et accompagnement inclus</h2>
+      <p style="max-width:700px;margin:1.5rem auto">Vous n'êtes jamais seul. Support, tutoriels et formation à votre rythme.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card reveal d1">
+        <h4>Tutoriels vidéo</h4>
+        <p>Plus de 50 vidéos de 2-3 minutes couvrant chaque fonction. Regardez à votre rythme, quand vous en avez besoin.</p>
+      </div>
+      <div class="card reveal d2">
+        <h4>Base de connaissance</h4>
+        <p>Articles détaillés, FAQ, cas d'usage. Tout est documenté pour trouver la réponse en 30 secondes.</p>
+      </div>
+      <div class="card reveal d3">
+        <h4>Support par mail</h4>
+        <p>Support illimité en français. Réponse en moins de 4h. Pas de coûts cachés, tout est inclus.</p>
+      </div>
+      <div class="card reveal d4">
+        <h4>Webinaires en direct</h4>
+        <p>Tous les jeudis à 14h : session de 30 min sur un sujet. Questions/réponses en direct avec l'équipe.</p>
+      </div>
+      <div class="card reveal d5">
+        <h4>Onboarding personnel</h4>
+        <p>Plan Pro/Enterprise : appel d'une heure avec un expert pour vous configurer complètement.</p>
+      </div>
+      <div class="card reveal d6">
+        <h4>Communauté d'utilisateurs</h4>
+        <p>Groupe privé Slack de cuisinistes, menuisiers, architectes. Partage de bonnes pratiques et conseils.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GARANTIES -->
+<section class="sec sec-dark">
+  <div class="wrap">
+    <div class="center" style="margin-bottom:3rem">
+      <h2>Nos engagements envers vous</h2>
+      <p style="max-width:700px;margin:1.5rem auto;color:rgba(255,255,255,.7)">Vous prenez zéro risque en essayant AVRA.</p>
+    </div>
+
+    <div class="grid-2">
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2.5rem;border:1px solid rgba(201,169,110,.2);reveal">
+        <div style="font-size:2.5rem;margin-bottom:1rem">14 jours</div>
+        <h4 style="color:#fff">Essai gratuit complet</h4>
+        <p style="color:rgba(255,255,255,.7);margin-top:1rem">Accès à toutes les fonctionnalités pendant 14 jours. Pas de limitation, pas de dégradation. Annulez à tout moment sans raison.</p>
+      </div>
+
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2.5rem;border:1px solid rgba(201,169,110,.2);reveal">
+        <div style="font-size:2.5rem;margin-bottom:1rem">Pas de CB</div>
+        <h4 style="color:#fff">Pas de carte requise</h4>
+        <p style="color:rgba(255,255,255,.7);margin-top:1rem">Aucune information de paiement n'est demandée. L'essai expire simplement après 14 jours si vous ne renouvelez pas.</p>
+      </div>
+
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2.5rem;border:1px solid rgba(201,169,110,.2);reveal">
+        <div style="font-size:2.5rem;margin-bottom:1rem">100%</div>
+        <h4 style="color:#fff">Vos données vous appartiennent</h4>
+        <p style="color:rgba(255,255,255,.7);margin-top:1rem">Export illimité à tout moment au format CSV, Excel ou JSON. Vous n'êtes jamais prisonnier de nos serveurs.</p>
+      </div>
+
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2.5rem;border:1px solid rgba(201,169,110,.2);reveal">
+        <div style="font-size:2.5rem;margin-bottom:1rem">🇫🇷</div>
+        <h4 style="color:#fff">Hébergement France</h4>
+        <p style="color:rgba(255,255,255,.7);margin-top:1rem">Vos données sont hébergées en France sur des serveurs Scaleway et OVH. Conforme RGPD et loi de protection des données.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="sec sec-cream">
+  <div class="wrap wrap-sm">
+    <div class="center" style="margin-bottom:3rem">
+      <h2>Questions fréquentes</h2>
+      <p>Tout ce que vous devez savoir pour bien commencer.</p>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:1rem">
+      <!-- FAQ Item 1 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer;transition:all .3s">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Combien de temps pour la migration de mes données ?</span>
+          <span style="font-size:1.5rem;line-height:1">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70;line-height:1.7">Pour la plupart des clients, moins d'une heure. Si vous avez un gros catalogue (1000+ articles) ou des historiques complexes, nous pouvons le faire pour vous. Comptez quelques jours pour une vraie audit et nettoyage des données. C'est un service gratuit pour tout abonnement Pro ou Enterprise.</p>
+      </details>
+
+      <!-- FAQ Item 2 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer;transition:all .3s">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Est-ce que je peux utiliser AVRA sans internet ?</span>
+          <span style="font-size:1.5rem;line-height:1">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70;line-height:1.7">AVRA fonctionne en ligne seulement (cloud). Pas de version desktop. En revanche, une fois la page chargée, certaines actions fonctionnent hors ligne et se synchronisent quand la connexion revient. Par exemple, vous pouvez créer des devis sans internet, ils s'enverront une fois que la connexion est rétablie.</p>
+      </details>
+
+      <!-- FAQ Item 3 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer;transition:all .3s">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Puis-je utiliser AVRA sur mobile ?</span>
+          <span style="font-size:1.5rem;line-height:1">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70;line-height:1.7">Oui ! AVRA est 100% responsive et fonctionne sur tous les navigateurs mobiles. L'app iOS/Android est en bêta. Vous pouvez d'ores et déjà utiliser AVRA depuis votre téléphone via Safari ou Chrome.</p>
+      </details>
+
+      <!-- FAQ Item 4 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer;transition:all .3s">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Y a-t-il une limite d'utilisateurs ou de factures ?</span>
+          <span style="font-size:1.5rem;line-height:1">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70;line-height:1.7">Non. Tous les plans incluent des utilisateurs illimités et des factures illimitées. Vous payez le même prix que vous ayez 1 ou 10 employés. Pas de coût par utilisateur supplémentaire.</p>
+      </details>
+
+      <!-- FAQ Item 5 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer;transition:all .3s">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Comment fonctionne la signature électronique sur AVRA ?</span>
+          <span style="font-size:1.5rem;line-height:1">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70;line-height:1.7">Vous envoyez un devis ou un contrat via AVRA. Le client reçoit un lien par email. Il clique, lit le document, ajoute sa signature électroniquement (dessin, tampon ou signature typée). La signature est enregistrée de manière sécurisée et est légalement valable. Vous recevez un PDF signé.</p>
+      </details>
+
+      <!-- FAQ Item 6 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer;transition:all .3s">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Comment intégrer mes logiciels existants (devis, DAO, compta) ?</span>
+          <span style="font-size:1.5rem;line-height:1">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70;line-height:1.7">Via notre API ouverte ou via des connecteurs pré-construits. Par exemple : export automatique dans Sage, LiveMentor avec votre logiciel de DAO, webhooks pour déclencher des actions. Contactez notre équipe support pour découvrir les intégrations possibles.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- DÉMO VIDÉO -->
+<section class="sec sec-dark center">
+  <div class="wrap wrap-sm">
+    <h2 style="margin-bottom:2rem">Voir AVRA en action</h2>
+    <div style="background:rgba(201,169,110,.08);border-radius:20px;border:1px solid rgba(201,169,110,.2);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+      <div style="text-align:center;color:rgba(255,255,255,.4)">
+        <div style="font-size:4rem;margin-bottom:1rem">▶</div>
+        <p>Démo vidéo : 5 minutes avec AVRA</p>
+      </div>
+    </div>
+    <p style="color:rgba(255,255,255,.6);margin-top:1.5rem;font-size:.95rem">Une courte vidéo montrant la création d'un devis, son envoi et son suivi du paiement. C'est aussi simple que ça.</p>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="sec sec-cream center">
+  <div class="wrap wrap-sm">
+    <h2>Prêt à commencer ?</h2>
+    <p style="color:#6b7c70;margin:1.5rem 0 2rem;font-size:1.05rem">Essayez AVRA gratuitement pendant 14 jours. Pas de carte bancaire, pas d'engagement.</p>
+    <a href="/register"><button class="btn-gold">Commencer mon essai gratuit</button></a>
+    <p style="color:#999;margin-top:1.5rem;font-size:.9rem">Ou <a href="mailto:contact@avra.fr" style="color:#c9a96e;font-weight:500">prenez rendez-vous</a> pour une démo personnalisée</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="ft-grid">
+      <div class="ft-brand">
+        <span class="ft-brand-name">AVRA</span>
+        <p>L'ERP intelligent conçu pour les professionnels de l'agencement intérieur.</p>
+      </div>
+      <div class="ft-col">
+        <h5>Produit</h5>
+        <a href="/site/fonctionnalites.html">Fonctionnalités</a>
+        <a href="/site/tarifs.html">Tarifs</a>
+        <a href="/site/comment-ca-marche.html">Comment ça marche</a>
+        <a href="/site/temoignages.html">Témoignages</a>
+      </div>
+      <div class="ft-col">
+        <h5>Métiers</h5>
+        <a href="/site/metiers.html#cuisiniste">Cuisiniste</a>
+        <a href="/site/metiers.html#menuisier">Menuisier</a>
+        <a href="/site/metiers.html#architecte">Architecte d'intérieur</a>
+        <a href="/site/metiers.html#agenceur">Agenceur</a>
+      </div>
+      <div class="ft-col">
+        <h5>Contact</h5>
+        <a href="mailto:contact@avra.fr">contact@avra.fr</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/confidentialite">Confidentialité</a>
+        <a href="/cgv">CGV</a>
+      </div>
+    </div>
+    <div class="ft-bottom">
+      <span>© 2025 AVRA by Luméa — Tous droits réservés</span>
+      <div class="ft-links">
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/confidentialite">Politique de confidentialité</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+function toggleMenu(){document.getElementById("mob").classList.toggle("open")}
+window.addEventListener("scroll",()=>{document.getElementById("nav").classList.toggle("scrolled",window.scrollY>20)})
+</script>
+
+</body>
+</html>
