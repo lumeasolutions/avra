@@ -26,6 +26,7 @@ RUN pnpm --filter @avra/api exec prisma generate
 RUN pnpm --filter @avra/api build
 
 # ─── Stage 2: Runner ────────────────────────────────────────────────────
+# cache-bust: 2026-04-07
 FROM node:20-alpine AS runner
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
