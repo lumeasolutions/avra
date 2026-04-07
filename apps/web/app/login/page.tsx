@@ -139,6 +139,8 @@ export default function LoginPage() {
         }
         @media (max-width: 900px) {
           body { overflow: auto !important; }
+          .login-left-features { display: none !important; }
+          .login-left-testimonial { display: none !important; }
           .login-wrapper {
             position: relative !important;
             flex-direction: column !important;
@@ -319,7 +321,7 @@ export default function LoginPage() {
             </div>
 
             {/* Features list */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
+            <div className="login-left-features" style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
               {features.map((feat, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', animation: `fadeInUp 0.6s ease-out ${0.15 * i + 0.5}s both` }}>
                   <CheckCircle size={16} style={{ color: '#C9A96E', flexShrink: 0 }} />
@@ -329,7 +331,7 @@ export default function LoginPage() {
             </div>
 
             {/* Témoignage */}
-            <div style={{
+            <div className="login-left-testimonial" style={{
               marginTop: '40px',
               padding: '20px 24px',
               background: 'rgba(201,169,110,0.06)',
