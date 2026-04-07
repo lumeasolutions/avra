@@ -7,6 +7,7 @@ import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
+import { SkipCsrf } from '../../common/guards/csrf.guard';
 import type { JwtPayload } from '@avra/types';
 
 const IS_PROD = process.env.NODE_ENV === 'production';
@@ -49,6 +50,7 @@ export class AuthController {
 
   // 🔒 SECURITY: Brute-force protection — 5 tentatives max per 15 minutes per IP
   @Public()
+  @SkipCsrf()
   @Throttle({ auth: { ttl: 15 * 60 * 1000, limit: 5 } })
   @Post('login')
   async login(
@@ -62,6 +64,7 @@ export class AuthController {
     return safeResult;
   }
 
+  @SkipCsrf()
   @Post('refresh')
   async refresh(
     @Body() dto: { userId: string; refreshToken: string },
@@ -86,6 +89,7 @@ export class AuthController {
 
   // 🔒 SECURITY: Brute-force protection — limit registration attempts
   @Public()
+  @SkipCsrf()
   @Throttle({ auth: { ttl: 15 * 60 * 1000, limit: 5 } })
   @Post('register')
   async register(@Body() dto: RegisterDto) {
