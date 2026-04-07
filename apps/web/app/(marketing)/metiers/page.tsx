@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import '../marketing.css';
 import { useState } from 'react';
 import {
   ChefHat,
@@ -373,7 +374,7 @@ export default function MetiersPage() {
       {/* ══════════════════════════════════════════
           ALL 4 MÉTIERS GRID
       ══════════════════════════════════════════ */}
-      <section style={{ padding: '100px 5%', background: '#fff' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: '#fff' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '64px' }}>
             <div style={{
@@ -466,7 +467,7 @@ export default function MetiersPage() {
       {/* ══════════════════════════════════════════
           AVANT / APRÈS  (pain points)
       ══════════════════════════════════════════ */}
-      <section style={{ padding: '100px 5%', background: 'linear-gradient(160deg, #f8f5ef 0%, #eef2ec 100%)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'linear-gradient(160deg, #f8f5ef 0%, #eef2ec 100%)' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <div style={{ display: 'flex', gap: '60px', alignItems: 'center', flexWrap: 'wrap' }}>
 
@@ -579,7 +580,7 @@ export default function MetiersPage() {
       {/* ══════════════════════════════════════════
           COMMON FEATURES GRID
       ══════════════════════════════════════════ */}
-      <section style={{ padding: '100px 5%', background: '#fff' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: '#fff' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '60px' }}>
             <div style={{

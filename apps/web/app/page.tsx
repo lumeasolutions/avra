@@ -575,8 +575,7 @@ export default function HomePage() {
       {/* ════════════════════════════════════════════════════════════════
           FEATURES GRID — 6 cartes avec vraie image en fond de section
           ════════════════════════════════════════════════════════════════ */}
-      <section
-        style={{
+      <section className="section-pad" style={{
           padding: '100px 5%',
           background: '#ffffff',
           position: 'relative',
@@ -817,8 +816,7 @@ export default function HomePage() {
       {/* ════════════════════════════════════════════════════════════════
           IA SECTION — dark bg avec vraie image
           ════════════════════════════════════════════════════════════════ */}
-      <section
-        style={{
+      <section className="section-pad" style={{
           padding: '100px 5%',
           background: '#1e2b22',
           position: 'relative',
@@ -853,6 +851,7 @@ export default function HomePage() {
         />
 
         <div
+          className="grid-2col"
           style={{
             maxWidth: 1200,
             margin: '0 auto',
@@ -1110,8 +1109,7 @@ export default function HomePage() {
       {/* ════════════════════════════════════════════════════════════════
           PIPELINE CRM — avec image
           ════════════════════════════════════════════════════════════════ */}
-      <section
-        style={{
+      <section className="section-pad" style={{
           padding: '100px 5%',
           background: '#f9f6f0',
           position: 'relative',
@@ -1119,6 +1117,7 @@ export default function HomePage() {
         }}
       >
         <div
+          className="grid-2col"
           style={{
             maxWidth: 1200,
             margin: '0 auto',
@@ -1356,6 +1355,7 @@ export default function HomePage() {
           }}
         />
         <div
+          className="stats-band-grid"
           style={{
             maxWidth: 1100,
             margin: '0 auto',
@@ -1406,7 +1406,7 @@ export default function HomePage() {
       {/* ════════════════════════════════════════════════════════════════
           COMMENT CA MARCHE — 4 étapes
           ════════════════════════════════════════════════════════════════ */}
-      <section style={{ padding: '100px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: '#ffffff' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '4.5rem' }}>
             <div
@@ -1707,7 +1707,7 @@ export default function HomePage() {
       {/* ════════════════════════════════════════════════════════════════
           FAQ ACCORDION
           ════════════════════════════════════════════════════════════════ */}
-      <section style={{ padding: '100px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: '#ffffff' }}>
         <div style={{ maxWidth: 780, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
             <div
@@ -1805,8 +1805,7 @@ export default function HomePage() {
       {/* ════════════════════════════════════════════════════════════════
           CTA FINAL — avec image de fond
           ════════════════════════════════════════════════════════════════ */}
-      <section
-        style={{
+      <section className="section-pad" style={{
           padding: '100px 5%',
           background: '#1e2b22',
           position: 'relative',

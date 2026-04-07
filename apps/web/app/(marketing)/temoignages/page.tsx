@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import '../marketing.css';
 
 export const metadata: Metadata = {
   title: 'Témoignages — Ils ont choisi AVRA pour gérer leur activité',
@@ -229,7 +230,7 @@ export default function TemoignagesPage() {
         }}
       >
         <div
-          className="container"
+          className="container stats-band-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4,1fr)',

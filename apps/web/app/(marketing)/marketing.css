@@ -704,6 +704,17 @@ footer {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
+/* Stats band : 4 colonnes → 2x2 sur tablet, 1 col sur mobile */
+.stats-band-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Section avec padding 100px réduit sur mobile */
+.section-pad {
+  padding: 100px 5%;
+}
+
 /* Hero grid : 2 colonnes → 1 colonne sur mobile */
 .hero-grid {
   display: grid;
@@ -796,8 +807,17 @@ footer {
    BREAKPOINT TABLET — 900px
    ════════════════════════════════════════════════════════════════ */
 @media (max-width: 900px) {
+  .section-pad {
+    padding: 70px 5% !important;
+  }
+
   .grid-2col {
     grid-template-columns: 1fr !important;
+  }
+
+  .stats-band-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 24px !important;
   }
 
   .hero-grid {
@@ -882,6 +902,15 @@ footer {
 
   .features-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  .stats-band-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 24px !important;
+  }
+
+  .section-pad {
+    padding: 60px 5% !important;
   }
 
   .login-left-panel {

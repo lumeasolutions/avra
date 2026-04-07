@@ -100,7 +100,7 @@ export default function ArchitecteInteriorPage() {
       </section>
 
       {/* Problèmes typiques */}
-      <section style={{ padding: '100px 5%', background: 'var(--white)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--white)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
             <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>Vos défis quotidiens</div>
@@ -165,7 +165,7 @@ export default function ArchitecteInteriorPage() {
       </section>
 
       {/* Solutions AVRA */}
-      <section style={{ padding: '100px 5%', background: 'var(--cream-light)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--cream-light)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
             <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>Solutions AVRA pour architectes d&apos;intérieur</div>
@@ -182,7 +182,7 @@ export default function ArchitecteInteriorPage() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+          <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
             {[
               {
                 icon: Folder,
@@ -295,9 +295,10 @@ export default function ArchitecteInteriorPage() {
       </section>
 
       {/* IA Studio */}
-      <section style={{ padding: '100px 5%', background: 'var(--white)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--white)' }}>
         <div className="container">
           <div
+            className="grid-2col"
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
@@ -358,9 +359,10 @@ export default function ArchitecteInteriorPage() {
       </section>
 
       {/* Portail client */}
-      <section style={{ padding: '100px 5%', background: 'var(--cream-light)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--cream-light)' }}>
         <div className="container">
           <div
+            className="grid-2col"
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
@@ -421,7 +423,7 @@ export default function ArchitecteInteriorPage() {
       </section>
 
       {/* Témoignage */}
-      <section style={{ padding: '100px 5%', background: 'var(--green-deep)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--green-deep)' }}>
         <div className="container">
           <div
             className="reveal"
@@ -469,7 +471,7 @@ export default function ArchitecteInteriorPage() {
       </section>
 
       {/* CTA Final */}
-      <section style={{ padding: '100px 5%', background: 'linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%)' }}>
         <div className="container">
           <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
             <h2 style={{ color: 'var(--white)', marginBottom: '1.5rem' }}>

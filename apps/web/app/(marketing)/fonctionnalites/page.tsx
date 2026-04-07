@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
+import '../marketing.css';
 import {
   FolderOpen,
   Receipt,
@@ -657,6 +658,7 @@ export default function FonctionnalitesPage() {
         />
 
         <div
+          className="stats-band-grid"
           style={{
             position: 'relative',
             maxWidth: 1100,
@@ -704,7 +706,7 @@ export default function FonctionnalitesPage() {
       </section>
 
       {/* ─── AVANT / APRÈS ─── */}
-      <section style={{ background: 'var(--color-white)', padding: '100px 5%' }}>
+      <section className="section-pad" style={{ background: 'var(--color-white)', padding: '100px 5%' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
             <div
@@ -947,8 +949,7 @@ export default function FonctionnalitesPage() {
       </section>
 
       {/* ─── CTA FINAL ─── */}
-      <section
-        style={{
+      <section className="section-pad" style={{
           padding: '100px 5%',
           background: 'var(--color-cream)',
           textAlign: 'center',

@@ -99,7 +99,7 @@ export default function AgenceurPage() {
       </section>
 
       {/* Problèmes typiques */}
-      <section style={{ padding: '100px 5%', background: 'var(--white)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--white)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
             <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>Vos défis quotidiens</div>
@@ -164,7 +164,7 @@ export default function AgenceurPage() {
       </section>
 
       {/* Solutions AVRA */}
-      <section style={{ padding: '100px 5%', background: 'var(--cream-light)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--cream-light)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
             <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>Solutions AVRA pour agenceurs</div>
@@ -181,7 +181,7 @@ export default function AgenceurPage() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+          <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
             {[
               {
                 icon: MapPin,
@@ -294,7 +294,7 @@ export default function AgenceurPage() {
       </section>
 
       {/* Coordination */}
-      <section style={{ padding: '100px 5%', background: 'var(--white)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--white)' }}>
         <div className="container">
           <div
             style={{
@@ -303,6 +303,7 @@ export default function AgenceurPage() {
               gap: '60px',
               alignItems: 'center',
             }}
+            className="grid-2col"
           >
             <div className="reveal">
               <div className="section-label" style={{ marginBottom: '1.5rem' }}>Synchronisation</div>
@@ -358,7 +359,7 @@ export default function AgenceurPage() {
       </section>
 
       {/* Chiffres */}
-      <section style={{ padding: '100px 5%', background: 'var(--green-deep)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--green-deep)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
             <h2 style={{ color: 'var(--white)', marginBottom: '1rem' }}>Les résultats parlent d&apos;eux-mêmes</h2>
@@ -419,7 +420,7 @@ export default function AgenceurPage() {
       </section>
 
       {/* Témoignage */}
-      <section style={{ padding: '100px 5%', background: 'var(--white)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--white)' }}>
         <div className="container">
           <div
             className="reveal"
@@ -467,7 +468,7 @@ export default function AgenceurPage() {
       </section>
 
       {/* CTA Final */}
-      <section style={{ padding: '100px 5%', background: 'linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%)' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: 'linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%)' }}>
         <div className="container">
           <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
             <h2 style={{ color: 'var(--white)', marginBottom: '1.5rem' }}>

@@ -3,6 +3,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
+import '../marketing.css';
 import { useState } from 'react';
 import {
   ArrowRight,
@@ -481,7 +482,7 @@ export default function CommentCaMarchePage() {
       </section>
 
       {/* ─── FAQ ─── */}
-      <section style={{ padding: '100px 5%', background: '#fff' }}>
+      <section className="section-pad" style={{ padding: '100px 5%', background: '#fff' }}>
         <div style={{ maxWidth: '760px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '56px' }}>
             <div style={{
@@ -575,7 +576,7 @@ export default function CommentCaMarchePage() {
       </section>
 
       {/* ─── CTA FINAL ─── */}
-      <section style={{
+      <section className="section-pad" style={{
         padding: '100px 5%',
         background: 'linear-gradient(160deg, #0e1810 0%, #1e2b22 60%, #2d3e30 100%)',
         position: 'relative', overflow: 'hidden',
