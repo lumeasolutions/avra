@@ -6,7 +6,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+function resolveApiUrl(req: NextRequest): string {
+  const raw = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+  // Si l'URL est absolue (http/https), on la retourne telle quelle
+  if (/^https?:\/\//i.test(raw)) return raw;
+  // Sinon (ex: "/api/v1"), on construit une URL absolue à partir de la requête entrante
+  const proto = req.headers.get('x-forwarded-proto') ?? 'https';
+  const host = req.headers.get('host');
+  return `${proto}://${host}${raw}`;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,7 +30,8 @@ export async function POST(req: NextRequest) {
       headers['Authorization'] = `Bearer ${accessToken}`;
     }
 
-    const backendResponse = await fetch(`${API_URL}/ia/chat`, {
+    const apiUrl = resolveApiUrl(req);
+    const backendResponse = await fetch(`${apiUrl}/ia/chat`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),

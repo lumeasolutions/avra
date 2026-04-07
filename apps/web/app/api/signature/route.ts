@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated } from '@/lib/server/auth-guard';
 
+function resolveBackendUrl(req: NextRequest): string {
+  const raw = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const proto = req.headers.get('x-forwarded-proto') ?? 'https';
+  const host = req.headers.get('host');
+  return `${proto}://${host}${raw}`;
+}
+
 /**
  * GET /api/signature - Fetch signature requests
  * Proxy to backend
@@ -15,7 +23,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get('projectId');
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const backendUrl = resolveBackendUrl(req);
     const url = projectId
       ? `${backendUrl}/signature?projectId=${projectId}`
       : `${backendUrl}/signature`;
@@ -59,7 +67,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const accessToken = req.cookies.get('access_token')?.value;
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const backendUrl = resolveBackendUrl(req);
 
     const response = await fetch(`${backendUrl}/signature`, {
       method: 'POST',
@@ -111,7 +119,7 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
     const accessToken = req.cookies.get('access_token')?.value;
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const backendUrl = resolveBackendUrl(req);
 
     const response = await fetch(
       `${backendUrl}/signature/${signatureId}/status`,
@@ -165,7 +173,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     const accessToken = req.cookies.get('access_token')?.value;
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const backendUrl = resolveBackendUrl(req);
 
     const response = await fetch(`${backendUrl}/signature/${signatureId}`, {
       method: 'DELETE',
