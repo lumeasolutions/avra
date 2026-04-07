@@ -391,6 +391,10 @@ export default function TarifsClient() {
               Comparaison détaillée
             </h2>
 
+            {/* Scrollable wrapper for mobile */}
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <div style={{ minWidth: '560px' }}>
+
             {/* Table header */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0', marginBottom: '8px', padding: '0 0 16px', borderBottom: '2px solid #f0efe8', position: 'sticky', top: '76px', background: '#fff', zIndex: 10 }}>
               <div />
@@ -437,6 +441,8 @@ export default function TarifsClient() {
                 </div>
               );
             })}
+            </div>{/* end minWidth wrapper */}
+            </div>{/* end overflow-x wrapper */}
           </div>
         </section>
       )}

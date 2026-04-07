@@ -438,6 +438,7 @@ export default function FonctionnalitesPage() {
             }}
           >
             <div
+              className="grid-2col"
               style={{
                 maxWidth: 1200,
                 margin: '0 auto',
@@ -510,6 +511,7 @@ export default function FonctionnalitesPage() {
 
                 {/* Feature list */}
                 <div
+                  className="grid-2col"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',

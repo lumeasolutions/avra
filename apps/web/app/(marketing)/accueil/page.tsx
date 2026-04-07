@@ -43,7 +43,7 @@ export default function AccueilPage() {
         paddingTop: '76px', overflow: 'hidden',
         background: 'linear-gradient(135deg, #1e2b22 0%, #304035 100%)',
       }}>
-        <div style={{
+        <div className="hero-grid" style={{
           maxWidth: 1200, margin: '0 auto', padding: '60px 5%',
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px',
           alignItems: 'center', width: '100%',
@@ -203,7 +203,7 @@ export default function AccueilPage() {
 
       {/* ── IA SECTION ── */}
       <section className="section" style={{ background: 'var(--green-deep)' }}>
-        <div className="container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '80px', alignItems: 'center' }}>
+        <div className="container grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '80px', alignItems: 'center' }}>
           <div style={{ color: 'var(--white)' }} className="reveal">
             <div className="section-label">Intelligence Artificielle</div>
             <h2 style={{ color: 'var(--white)', marginBottom: '1.5rem' }}>L&apos;IA qui transforme vos projets</h2>
@@ -259,7 +259,7 @@ export default function AccueilPage() {
 
       {/* ── PIPELINE CRM ── */}
       <section className="section" style={{ background: 'var(--cream-light)' }}>
-        <div className="container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '80px', alignItems: 'center' }}>
+        <div className="container grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '80px', alignItems: 'center' }}>
           <div className="reveal" style={{
             background: 'var(--white)', borderRadius: 20, padding: '2rem',
             boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border)',

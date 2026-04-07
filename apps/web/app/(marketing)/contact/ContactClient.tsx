@@ -49,7 +49,7 @@ export default function ContactClient() {
         {/* MAIN CONTENT */}
         <section style={{ padding: '80px 20px', background: '#ffffff' }}>
           <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'start' }}>
+            <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'start' }}>
               {/* FORMULAIRE GAUCHE */}
               <div>
                 <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 30, color: '#1e2b22' }}>Envoyez-nous un message</h2>
@@ -62,7 +62,7 @@ export default function ContactClient() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Prénom</label>
                         <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="Jean" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />

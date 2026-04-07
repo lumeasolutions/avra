@@ -63,6 +63,9 @@ export default function LoginPage() {
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { overflow: hidden; }
+        @media (max-width: 900px) {
+          body { overflow: auto !important; }
+        }
 
         @keyframes particleFloat {
           0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
@@ -101,6 +104,67 @@ export default function LoginPage() {
         @keyframes borderGlow {
           0%, 100% { box-shadow: 0 0 0 0 rgba(201,169,110,0); }
           50% { box-shadow: 0 0 0 3px rgba(201,169,110,0.15); }
+        }
+
+        /* ── Mobile responsive ── */
+        .login-wrapper {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          background: #060d08;
+          font-family: 'Inter', -apple-system, sans-serif;
+          overflow: hidden;
+        }
+        .login-panel-left {
+          flex: 0 0 52%;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 60px 5%;
+          background: linear-gradient(160deg, #0e1810 0%, #1a2b1e 40%, #0e1810 100%);
+          overflow: hidden;
+        }
+        .login-panel-right {
+          flex: 0 0 48%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 60px 6%;
+          background: linear-gradient(160deg, #080f0a 0%, #0e1810 60%, #080f0a 100%);
+          position: relative;
+          overflow: hidden;
+        }
+        @media (max-width: 900px) {
+          body { overflow: auto !important; }
+          .login-wrapper {
+            position: relative !important;
+            flex-direction: column !important;
+            overflow-y: auto !important;
+            min-height: 100vh !important;
+          }
+          .login-panel-left {
+            flex: none !important;
+            width: 100% !important;
+            padding: 40px 6% 30px !important;
+            min-height: auto !important;
+          }
+          .login-panel-right {
+            flex: none !important;
+            width: 100% !important;
+            padding: 30px 6% 50px !important;
+            min-height: auto !important;
+          }
+        }
+        @media (max-width: 600px) {
+          .login-panel-left {
+            padding: 32px 5% 24px !important;
+          }
+          .login-panel-right {
+            padding: 20px 5% 40px !important;
+          }
         }
 
         .login-particle {
@@ -159,28 +223,12 @@ export default function LoginPage() {
         .btn-submit:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
       `}</style>
 
-      <div style={{
-        position: 'fixed', inset: 0,
-        display: 'flex',
-        background: '#060d08',
-        fontFamily: "'Inter', -apple-system, sans-serif",
-        overflow: 'hidden',
-      }}>
+      <div className="login-wrapper">
 
         {/* ════════════════════════════════════════
             PANNEAU GAUCHE — Branding + WaoW
             ════════════════════════════════════════ */}
-        <div style={{
-          flex: '0 0 52%',
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '60px 5%',
-          background: 'linear-gradient(160deg, #0e1810 0%, #1a2b1e 40%, #0e1810 100%)',
-          overflow: 'hidden',
-        }}>
+        <div className="login-panel-left">
           {/* Fond texture subtile — dégradé pur sans image */}
           <div style={{
             position: 'absolute', inset: 0, zIndex: 0,
@@ -304,17 +352,7 @@ export default function LoginPage() {
         {/* ════════════════════════════════════════
             PANNEAU DROIT — Formulaire
             ════════════════════════════════════════ */}
-        <div style={{
-          flex: '0 0 48%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '60px 6%',
-          background: 'linear-gradient(160deg, #080f0a 0%, #0e1810 60%, #080f0a 100%)',
-          position: 'relative',
-          overflow: 'hidden',
-        }}>
+        <div className="login-panel-right">
           {/* Déco lumière dorée en arrière-plan */}
           <div style={{ position: 'absolute', top: '-80px', right: '-80px', width: '350px', height: '350px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.05) 0%, transparent 65%)', pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', bottom: '-60px', left: '-60px', width: '280px', height: '280px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(58,125,90,0.07) 0%, transparent 65%)', pointerEvents: 'none' }} />

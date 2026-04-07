@@ -118,6 +118,7 @@ export default function HomePage() {
         />
 
         <div
+          className="hero-grid"
           style={{
             maxWidth: 1200,
             margin: '0 auto',
@@ -210,6 +211,7 @@ export default function HomePage() {
 
             {/* CTA buttons */}
             <div
+              className="cta-buttons-row"
               style={{
                 display: 'flex',
                 gap: '16px',
@@ -265,7 +267,7 @@ export default function HomePage() {
             </div>
 
             {/* Stats */}
-            <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
+            <div className="hero-stats" style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
               {[
                 { value: '2 400+', label: 'Professionnels' },
                 { value: '98%', label: 'Satisfaction' },
@@ -301,7 +303,7 @@ export default function HomePage() {
           </div>
 
           {/* Colonne droite : logo doré + mockup dashboard */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '28px' }}>
+          <div className="hero-right-col" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '28px' }}>
 
             {/* Chouette AVRA hero — vraie image + rendu propre */}
             <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

@@ -688,6 +688,211 @@ footer {
   }
 }
 
+/* ════════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — Classes utilitaires pour JSX inline-styled
+   ════════════════════════════════════════════════════════════════ */
+
+/* Utilitaire générique : grille 2 colonnes → 1 colonne sur mobile */
+.grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Utilitaire : grille N colonnes avec auto-fit → responsive automatique */
+.grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+/* Hero grid : 2 colonnes → 1 colonne sur mobile */
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 70px;
+  align-items: center;
+}
+
+/* Colonne droite hero (chouette + mockup) : visible desktop, masquée mobile */
+.hero-right-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+/* Stats hero */
+.hero-stats {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+/* Login split panel */
+.login-split {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.login-left-panel {
+  flex: 0 0 52%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 5%;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-right-panel {
+  flex: 0 0 48%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 5%;
+  position: relative;
+}
+
+/* Features grid responsive */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+/* Testimonials grid */
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+/* Pricing grid */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+/* Process steps */
+.process-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+}
+
+/* CTA buttons row */
+.cta-buttons-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   BREAKPOINT TABLET — 900px
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .grid-2col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 40px !important;
+    padding: 60px 5% !important;
+  }
+
+  .hero-right-col {
+    display: none !important;
+  }
+
+  .testimonials-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .pricing-grid {
+    grid-template-columns: 1fr !important;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .process-steps {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 24px !important;
+  }
+
+  .login-split {
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 100vh;
+    overflow-y: auto !important;
+  }
+
+  .login-left-panel {
+    flex: none !important;
+    width: 100% !important;
+    padding: 40px 6% 30px !important;
+    min-height: auto !important;
+  }
+
+  .login-right-panel {
+    flex: none !important;
+    width: 100% !important;
+    padding: 30px 6% 50px !important;
+    min-height: auto !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   BREAKPOINT MOBILE — 600px
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  .hero-grid {
+    padding: 48px 5% !important;
+    gap: 32px !important;
+  }
+
+  .hero-stats {
+    gap: 24px !important;
+  }
+
+  .cta-buttons-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .cta-buttons-row a,
+  .cta-buttons-row button {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .testimonials-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .process-steps {
+    grid-template-columns: 1fr !important;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .login-left-panel {
+    padding: 32px 6% 24px !important;
+  }
+
+  .login-right-panel {
+    padding: 24px 6% 40px !important;
+  }
+}
+
 /* ── Nav owl & logo animations ── */
 @keyframes owlFloat {
   0%, 100% { transform: translateY(0px) rotate(-2deg); }
