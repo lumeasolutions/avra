@@ -6,18 +6,11 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Copy monorepo manifests
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY packages/types/package.json ./packages/types/
-COPY apps/api/package.json ./apps/api/
+# Copy ALL source at once (avoids corrupted per-layer cache refs)
+COPY . .
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
-
-# Copy source
-COPY packages/types ./packages/types
-COPY apps/api ./apps/api
-COPY prisma ./prisma
 
 # Generate Prisma client
 RUN pnpm --filter @avra/api exec prisma generate
@@ -26,7 +19,6 @@ RUN pnpm --filter @avra/api exec prisma generate
 RUN pnpm --filter @avra/api build
 
 # ─── Stage 2: Runner ────────────────────────────────────────────────────
-# cache-bust: 2026-04-07
 FROM node:20-alpine AS runner
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
