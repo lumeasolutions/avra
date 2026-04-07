@@ -49,7 +49,7 @@ export default function MenuisierBordeaux() {
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <a href="/register"><button style={{ padding: '14px 32px', background: '#1e2b22', color: '#f9f6f0', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Essai gratuit 14 jours</button></a>
-            <a href="/fonctionnalites"><button style={{ padding: '14px 32px', background: 'transparent', color: '#1e2b22', border: '2px solid #1e2b22', borderRadius: '8px', cursor: 'pointer' }}}}>Voir fonctionnalités</button></a>
+            <a href="/fonctionnalites"><button style={{ padding: '14px 32px', background: 'transparent', color: '#1e2b22', border: '2px solid #1e2b22', borderRadius: '8px', cursor: 'pointer' }}>Voir fonctionnalités</button></a>
           </div>
         </div>
       </section>
