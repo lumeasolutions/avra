@@ -6,6 +6,7 @@ import { PermissionGuard } from './permissions/permission.guard';
 import { WorkspaceGuard } from './permissions/workspace.guard';
 import { GdprConsentGuard } from './logging/gdpr-consent.guard';
 import { AppCacheModule } from './cache/cache.module';
+import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 
 /**
  * Common Module
@@ -18,6 +19,12 @@ import { AppCacheModule } from './cache/cache.module';
   imports: [AppCacheModule],
   controllers: [SecurityController],
   providers: [
+    // ✅ AUTH: JWT global — runs first so request.user is populated
+    // before PermissionGuard / WorkspaceGuard. Respects @Public() decorator.
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
     // ✅ SECURITY: Check GDPR consent and anonymize IPs
     {
       provide: APP_GUARD,
