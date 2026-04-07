@@ -35,19 +35,27 @@ export const metadata: Metadata = {
     'logiciel gestion projet agencement',
     'devis cuisine logiciel',
   ],
-  authors: [{ name: 'AVRA', url: 'https://avra.fr' }],
+  authors: [{ name: 'AVRA', url: 'https://avra-kappa.vercel.app' }],
   creator: 'AVRA',
   publisher: 'AVRA',
-  metadataBase: new URL('https://avra.fr'),
+  metadataBase: new URL('https://avra-kappa.vercel.app'),
   alternates: { canonical: '/' },
   openGraph: {
     title: "AVRA — Le logiciel N°1 des professionnels de l'agencement",
     description:
       'Gérez dossiers, facturation, planning et IA depuis une seule app pensée pour votre métier. +2 400 professionnels font confiance à AVRA.',
-    url: 'https://avra.fr',
+    url: 'https://avra-kappa.vercel.app',
     siteName: 'AVRA',
     locale: 'fr_FR',
     type: 'website',
+    images: [
+      {
+        url: '/opengraph-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'AVRA - ERP pour les professionnels de l\'agencement',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
@@ -55,6 +63,7 @@ export const metadata: Metadata = {
     description:
       "Gérez vos projets d'agencement sans effort. Dossiers, facturation, IA, planning — tout en un.",
     creator: '@avra_app',
+    images: ['/opengraph-image.png'],
   },
   robots: {
     index: true,
