@@ -6,12 +6,14 @@
  * il n'est jamais lisible par JavaScript (protection XSS).
  * Le header Authorization n'est utilisé qu'en mode démo (pas de backend réel).
  */
-// Utiliser le proxy Next.js (/api-proxy) côté navigateur pour éviter tout problème CORS.
-// Côté serveur (SSR/middleware), utiliser l'URL directe.
-const _rawApiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+// Tout est servi sur le même domaine Vercel : le frontend appelle /api/v1/*
+// qui est routé par vercel.json vers la Serverless Function NestJS (apps/web/api/index.ts).
+// Les routes Next.js Route Handlers (/api/ia/*, /api/signature, /api/save-image)
+// restent gérées par Next.js. Le préfixe v1 évite tout conflit.
+const _rawApiUrl = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1';
 const API_BASE = typeof window !== 'undefined'
-  ? '/api-proxy'  // Proxy Next.js → pas de CORS
-  : _rawApiUrl;   // SSR → appel direct
+  ? '/api/v1'     // Same-origin → routé via vercel.json vers la Serverless Function NestJS
+  : _rawApiUrl;   // SSR → même chemin relatif
 
 /** Récupère le token démo depuis le store Zustand (uniquement si pas de cookie serveur) */
 function getDemoToken(): string | null {

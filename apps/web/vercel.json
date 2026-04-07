@@ -1,6 +1,18 @@
 {
   "framework": "nextjs",
-  "buildCommand": "cd ../.. && pnpm exec prisma migrate deploy --schema=./prisma/schema.prisma && pnpm --filter @avra/web build",
+  "buildCommand": "cd ../.. && pnpm exec prisma generate --schema=./prisma/schema.prisma && pnpm exec prisma migrate deploy --schema=./prisma/schema.prisma && pnpm --filter @avra/web build",
   "outputDirectory": ".next",
-  "installCommand": "cd ../.. && pnpm install"
+  "installCommand": "cd ../.. && pnpm install --no-frozen-lockfile",
+  "functions": {
+    "api/index.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "/api/index"
+    }
+  ]
 }

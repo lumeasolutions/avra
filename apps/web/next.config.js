@@ -82,16 +82,6 @@ const nextConfig = {
     ];
   },
 
-  // Proxy vers l'API NestJS — évite les problèmes CORS en dev et prod
-  async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
-    return [
-      {
-        source: '/api-proxy/:path*',
-        destination: `${apiUrl}/:path*`,
-      },
-    ];
-  },
 };
 
 module.exports = nextConfig;
