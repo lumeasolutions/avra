@@ -92,8 +92,19 @@ export class AuthController {
   @SkipCsrf()
   @Throttle({ auth: { ttl: 15 * 60 * 1000, limit: 5 } })
   @Post('register')
-  async register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto);
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.register(dto);
+    // Si register renvoie un accessToken, le poser en cookie httpOnly comme login
+    const accessToken = (result as { accessToken?: string }).accessToken;
+    if (accessToken) {
+      setAuthCookies(res, accessToken);
+      const { accessToken: _, ...safeResult } = result as { accessToken?: string };
+      return safeResult;
+    }
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
