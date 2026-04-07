@@ -215,7 +215,7 @@ export default function BlogPage() {
 
       <script type="application/ld+json">{JSON.stringify({ '@context': 'https://schema.org', '@type': 'Blog', name: 'Blog AVRA', description: 'Blog des professionnels de l\'agencement intérieur', url: 'https://avra.fr/blog' })}</script>
 
-      <style jsx>{`
+      <style>{`
         .container { max-width: 1200px; margin: 0 auto; }
         .reveal { opacity: 0; transform: translateY(20px); animation: revealAnim 0.8s ease forwards; }
         @keyframes revealAnim { to { opacity: 1; transform: translateY(0); } }

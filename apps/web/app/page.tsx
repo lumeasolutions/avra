@@ -798,7 +798,7 @@ export default function HomePage() {
 
       <Footer />
 
-      <style jsx>{`
+      <style>{`
         @keyframes fadeDown {
           from {
             opacity: 0;

@@ -423,7 +423,7 @@ export default function MenuisierLyon() {
         })}
       </script>
 
-      <style jsx>{`
+      <style>{`
         .breadcrumb-nav {
           font-size: 0.95rem;
           color: #6b7c70;

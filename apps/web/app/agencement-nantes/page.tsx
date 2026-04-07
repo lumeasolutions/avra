@@ -147,7 +147,7 @@ export default function AgencementNantes() {
 
       <script type="application/ld+json">{JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://avra.fr/' }, { '@type': 'ListItem', position: 2, name: 'Métiers', item: 'https://avra.fr/metiers' }, { '@type': 'ListItem', position: 3, name: 'Agenceur', item: 'https://avra.fr/metiers#agenceur' }, { '@type': 'ListItem', position: 4, name: 'Nantes', item: 'https://avra.fr/agencement-nantes' }] })}</script>
 
-      <style jsx>{`
+      <style>{`
         .breadcrumb-nav { font-size: 0.95rem; color: #6b7c70; }
         .breadcrumb-nav a { color: #6b7c70; text-decoration: none; transition: color 0.3s ease; }
         .breadcrumb-nav a:hover { color: #c9a96e; }
