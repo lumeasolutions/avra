@@ -13,13 +13,13 @@ export default function Nav() {
 
   return (
     <nav className={scrolled ? 'scrolled' : ''}>
-      <a href="/accueil" className="nav-logo">
+      <a href="/" className="nav-logo">
         <img src="/logoavra2.png" alt="AVRA Logo" />
         <span className="nav-logo-text">AVRA</span>
       </a>
 
       <div className="nav-links">
-        <a href="/accueil">Accueil</a>
+        <a href="/">Accueil</a>
         <a href="/fonctionnalites">Fonctionnalités</a>
         <a href="/comment-ca-marche">Comment ça marche</a>
         <a href="/temoignages">Témoignages</a>
@@ -50,7 +50,7 @@ export default function Nav() {
           display: 'flex', flexDirection: 'column', gap: '8px'
         }}>
           {[
-            ['Accueil', '/accueil'],
+            ['Accueil', '/'],
             ['Fonctionnalités', '/fonctionnalites'],
             ['Comment ça marche', '/comment-ca-marche'],
             ['Témoignages', '/temoignages'],
