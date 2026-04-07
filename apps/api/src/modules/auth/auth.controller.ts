@@ -1,5 +1,5 @@
-import { Body, Controller, Post, UseGuards, Get, Res } from '@nestjs/common';
-import { Response } from 'express';
+import { Body, Controller, Post, UseGuards, Get, Res, Req } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -47,6 +47,20 @@ function clearAuthCookies(res: Response) {
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  /** TEMP DEBUG: voir ce que le backend reçoit comme cookies/headers */
+  @Public()
+  @SkipCsrf()
+  @Get('debug-headers')
+  debugHeaders(@Req() req: Request) {
+    return {
+      cookieHeader: req.headers.cookie ?? null,
+      authorization: req.headers.authorization ?? null,
+      host: req.headers.host,
+      xfProto: req.headers['x-forwarded-proto'],
+      url: req.url,
+    };
+  }
 
   // 🔒 SECURITY: Brute-force protection — 5 tentatives max per 15 minutes per IP
   @Public()
