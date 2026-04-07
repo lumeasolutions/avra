@@ -5,6 +5,7 @@ import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
 import Link from 'next/link';
 import { MapPin, Briefcase, TrendingUp, Home, AlertCircle, Layers } from 'lucide-react';
+import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Logiciel menuisier Lyon — ERP menuiserie complet pour Lyon et la région',
@@ -35,7 +36,7 @@ export default function MenuisierLyon() {
       </nav>
 
       {/* Hero Section */}
-      <section style={{ padding: '80px 5%', background: 'linear-gradient(135deg, #f9f6f0 0%, #ede5dd 100%)' }}>
+      <section className="section-pad" style={{ background: 'linear-gradient(135deg, #f9f6f0 0%, #ede5dd 100%)' }}>
         <div className="container">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
             <MapPin size={20} color="#c9a96e" />
@@ -88,7 +89,7 @@ export default function MenuisierLyon() {
       </section>
 
       {/* Marché menuisier Lyon */}
-      <section style={{ padding: '80px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ background: '#ffffff' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '32px', color: '#1e2b22' }}>
             Le marché de la menuiserie à Lyon et en Rhône-Alpes
@@ -121,7 +122,7 @@ export default function MenuisierLyon() {
       </section>
 
       {/* Pourquoi AVRA */}
-      <section style={{ padding: '80px 5%', background: '#f9f6f0' }}>
+      <section className="section-pad" style={{ background: '#f9f6f0' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '48px', color: '#1e2b22', textAlign: 'center' }}>
             Pourquoi les menuisiers lyonnais choisissent AVRA
@@ -200,7 +201,7 @@ export default function MenuisierLyon() {
       </section>
 
       {/* Fonctionnalités clés */}
-      <section style={{ padding: '80px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ background: '#ffffff' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '48px', color: '#1e2b22', textAlign: 'center' }}>
             Fonctionnalités essentielles pour menuisiers lyonnais
@@ -245,7 +246,7 @@ export default function MenuisierLyon() {
       </section>
 
       {/* Conformité e-facture */}
-      <section style={{ padding: '80px 5%', background: '#f9f6f0' }}>
+      <section className="section-pad" style={{ background: '#f9f6f0' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '32px', color: '#1e2b22', textAlign: 'center' }}>
             Conforme à la facturation électronique 2026
@@ -269,7 +270,7 @@ export default function MenuisierLyon() {
       </section>
 
       {/* CTA Final */}
-      <section style={{ padding: '80px 5%', background: '#1e2b22' }}>
+      <section className="section-pad" style={{ background: '#1e2b22' }}>
         <div className="container" style={{ textAlign: 'center' }}>
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '24px', color: '#f9f6f0' }}>
             Faites le pas vers la modernité
@@ -299,7 +300,7 @@ export default function MenuisierLyon() {
       </section>
 
       {/* Autres villes */}
-      <section style={{ padding: '80px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ background: '#ffffff' }}>
         <div className="container">
           <h3 style={{ fontSize: '1.5rem', marginBottom: '32px', color: '#1e2b22', textAlign: 'center' }}>
             Aussi disponible dans les villes proches

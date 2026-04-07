@@ -5,6 +5,7 @@ import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
 import Link from 'next/link';
 import { MapPin, Building2, TrendingUp, BarChart3, Zap, CheckSquare } from 'lucide-react';
+import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Logiciel agencement Toulouse — Pro de l\'agencement intérieur en Occitanie',
@@ -27,7 +28,7 @@ export default function AgencementToulouse() {
         <a href="/">Accueil</a><span>/</span><a href="/metiers">Métiers</a><span>/</span><a href="/metiers#agenceur">Agenceur</a><span>/</span><span style={{ fontWeight: 600 }}>Toulouse</span>
       </nav>
 
-      <section style={{ padding: '80px 5%', background: 'linear-gradient(135deg, #f9f6f0 0%, #ede5dd 100%)' }}>
+      <section className="section-pad" style={{ background: 'linear-gradient(135deg, #f9f6f0 0%, #ede5dd 100%)' }}>
         <div className="container">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}><MapPin size={20} color="#c9a96e" /><span style={{ fontSize: '1rem', fontWeight: 600, color: '#c9a96e', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Occitanie</span></div>
 
@@ -46,7 +47,7 @@ export default function AgencementToulouse() {
         </div>
       </section>
 
-      <section style={{ padding: '80px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ background: '#ffffff' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '32px', color: '#1e2b22' }}>
             Le marché de l'agencement à Toulouse : secteur en croissance
@@ -64,7 +65,7 @@ export default function AgencementToulouse() {
         </div>
       </section>
 
-      <section style={{ padding: '80px 5%', background: '#f9f6f0' }}>
+      <section className="section-pad" style={{ background: '#f9f6f0' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '48px', color: '#1e2b22', textAlign: 'center' }}>Pourquoi les agenceurs toulousains choisissent AVRA</h2>
 
@@ -92,7 +93,7 @@ export default function AgencementToulouse() {
         </div>
       </section>
 
-      <section style={{ padding: '80px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ background: '#ffffff' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '48px', color: '#1e2b22', textAlign: 'center' }}>Fonctionnalités clés pour agenceurs</h2>
 
@@ -107,7 +108,7 @@ export default function AgencementToulouse() {
         </div>
       </section>
 
-      <section style={{ padding: '80px 5%', background: '#f9f6f0' }}>
+      <section className="section-pad" style={{ background: '#f9f6f0' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '32px', color: '#1e2b22', textAlign: 'center' }}>Conforme e-facture 2026</h2>
           <p style={{ fontSize: '1.1rem', color: '#6b7c70', marginBottom: '24px', textAlign: 'center', maxWidth: '900px', marginLeft: 'auto', marginRight: 'auto' }}>
@@ -120,7 +121,7 @@ export default function AgencementToulouse() {
         </div>
       </section>
 
-      <section style={{ padding: '80px 5%', background: '#1e2b22' }}>
+      <section className="section-pad" style={{ background: '#1e2b22' }}>
         <div className="container" style={{ textAlign: 'center' }}>
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '24px', color: '#f9f6f0' }}>Pilotez vos projets d'agencement avec AVRA</h2>
           <p style={{ fontSize: '1.2rem', color: 'rgba(249,246,240,0.85)', marginBottom: '32px', maxWidth: '700px', marginLeft: 'auto', marginRight: 'auto' }}>
@@ -130,7 +131,7 @@ export default function AgencementToulouse() {
         </div>
       </section>
 
-      <section style={{ padding: '80px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ background: '#ffffff' }}>
         <div className="container">
           <h3 style={{ fontSize: '1.5rem', marginBottom: '32px', color: '#1e2b22', textAlign: 'center' }}>Aussi disponible pour d'autres métiers et villes</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px' }}>

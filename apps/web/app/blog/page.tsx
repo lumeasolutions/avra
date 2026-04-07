@@ -5,6 +5,7 @@ import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
 import BlogArticleCard from './BlogArticleCard';
 import NewsletterForm from './NewsletterForm';
+import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Blog AVRA — Conseils et guides pour les pros de l\'agencement',
@@ -43,7 +44,7 @@ export default function BlogPage() {
       <ScrollReveal />
 
       {/* Hero */}
-      <section style={{ padding: '80px 5%', background: 'linear-gradient(135deg, #f9f6f0 0%, #ede5dd 100%)' }}>
+      <section className="section-pad" style={{ background: 'linear-gradient(135deg, #f9f6f0 0%, #ede5dd 100%)' }}>
         <div className="container">
           <h1 style={{ fontSize: 'clamp(2.2rem, 5.5vw, 4rem)', marginBottom: '16px', color: '#1e2b22', fontWeight: 800 }}>
             Le blog des pros de l'agencement
@@ -56,7 +57,7 @@ export default function BlogPage() {
       </section>
 
       {/* À la une */}
-      <section style={{ padding: '80px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ background: '#ffffff' }}>
         <div className="container">
           <h2 style={{ fontSize: '1.75rem', marginBottom: '48px', color: '#1e2b22' }}>À la une</h2>
 
@@ -95,7 +96,7 @@ export default function BlogPage() {
       </section>
 
       {/* Newsletter */}
-      <section style={{ padding: '80px 5%', background: '#f9f6f0' }}>
+      <section className="section-pad" style={{ background: '#f9f6f0' }}>
         <div className="container">
           <div style={{ maxWidth: '600px', marginLeft: 'auto', marginRight: 'auto', textAlign: 'center' }}>
             <h2 style={{ fontSize: '1.75rem', marginBottom: '16px', color: '#1e2b22' }}>

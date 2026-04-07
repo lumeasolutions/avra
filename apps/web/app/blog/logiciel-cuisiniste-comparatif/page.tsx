@@ -3,6 +3,7 @@
 import Nav from '../../(marketing)/components/Nav';
 import Footer from '../../(marketing)/components/Footer';
 import ScrollReveal from '../../(marketing)/components/ScrollReveal';
+import '../../(marketing)/marketing.css';
 import Link from 'next/link';
 import { Calendar, Clock, ArrowLeft } from 'lucide-react';
 
@@ -12,7 +13,7 @@ export default function ComparatifCuisiniste() {
       <Nav />
       <ScrollReveal />
 
-      <div style={{ padding: '80px 5%', background: '#f9f6f0' }}>
+      <div className="blog-article-wrap" style={{ background: '#f9f6f0' }}>
         <div style={{ maxWidth: '800px', marginLeft: 'auto', marginRight: 'auto' }}>
           <Link href="/blog" style={{ color: '#c9a96e', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
             <ArrowLeft size={20} /> Retour au blog

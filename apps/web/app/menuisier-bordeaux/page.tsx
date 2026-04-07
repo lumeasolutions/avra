@@ -5,6 +5,7 @@ import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
 import Link from 'next/link';
 import { MapPin, Briefcase, Zap, BarChart3, Users, Shield } from 'lucide-react';
+import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Logiciel menuisier Bordeaux — Solution complète pour menuisiers en Gironde',
@@ -32,7 +33,7 @@ export default function MenuisierBordeaux() {
       </nav>
 
       {/* Hero */}
-      <section style={{ padding: '80px 5%', background: 'linear-gradient(135deg, #f9f6f0 0%, #ede5dd 100%)' }}>
+      <section className="section-pad" style={{ background: 'linear-gradient(135deg, #f9f6f0 0%, #ede5dd 100%)' }}>
         <div className="container">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
             <MapPin size={20} color="#c9a96e" />
@@ -55,7 +56,7 @@ export default function MenuisierBordeaux() {
       </section>
 
       {/* Marché */}
-      <section style={{ padding: '80px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ background: '#ffffff' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '32px', color: '#1e2b22' }}>
             Le marché dynamique de la menuiserie en Nouvelle-Aquitaine
@@ -74,7 +75,7 @@ export default function MenuisierBordeaux() {
       </section>
 
       {/* Avantages */}
-      <section style={{ padding: '80px 5%', background: '#f9f6f0' }}>
+      <section className="section-pad" style={{ background: '#f9f6f0' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '48px', color: '#1e2b22', textAlign: 'center' }}>
             Pourquoi les menuisiers bordelais choisissent AVRA
@@ -105,7 +106,7 @@ export default function MenuisierBordeaux() {
       </section>
 
       {/* Fonctionnalités */}
-      <section style={{ padding: '80px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ background: '#ffffff' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '48px', color: '#1e2b22', textAlign: 'center' }}>
             Fonctionnalités pour menuisiers bordelais
@@ -123,7 +124,7 @@ export default function MenuisierBordeaux() {
       </section>
 
       {/* E-facture */}
-      <section style={{ padding: '80px 5%', background: '#f9f6f0' }}>
+      <section className="section-pad" style={{ background: '#f9f6f0' }}>
         <div className="container">
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '32px', color: '#1e2b22', textAlign: 'center' }}>Conforme e-facture 2026</h2>
 
@@ -139,7 +140,7 @@ export default function MenuisierBordeaux() {
       </section>
 
       {/* CTA */}
-      <section style={{ padding: '80px 5%', background: '#1e2b22' }}>
+      <section className="section-pad" style={{ background: '#1e2b22' }}>
         <div className="container" style={{ textAlign: 'center' }}>
           <h2 style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.6rem)', marginBottom: '24px', color: '#f9f6f0' }}>Prêt à transformer votre menuiserie ?</h2>
 
@@ -152,7 +153,7 @@ export default function MenuisierBordeaux() {
       </section>
 
       {/* Autres villes */}
-      <section style={{ padding: '80px 5%', background: '#ffffff' }}>
+      <section className="section-pad" style={{ background: '#ffffff' }}>
         <div className="container">
           <h3 style={{ fontSize: '1.5rem', marginBottom: '32px', color: '#1e2b22', textAlign: 'center' }}>Aussi disponible dans les villes proches</h3>
 

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Nav from '../(marketing)/components/Nav'
 import Footer from '../(marketing)/components/Footer'
+import '../(marketing)/marketing.css'
 
 export const metadata: Metadata = {
   title: 'Mentions légales — AVRA by Luméa Solutions',
@@ -16,7 +17,7 @@ export default function MentionsLegalesPage() {
     <>
       <Nav />
       <div style={{ background: '#ffffff', color: '#1e2b22', minHeight: '100vh', fontFamily: 'var(--font-dm-sans, "DM Sans"), system-ui, sans-serif' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '120px 20px 60px', lineHeight: 1.8 }}>
+        <div className="legal-wrap">
           {/* Header */}
           <div style={{ marginBottom: 60 }}>
             <h1 style={{ fontSize: 48, fontWeight: 700, marginBottom: 20, color: '#1e2b22' }}>
