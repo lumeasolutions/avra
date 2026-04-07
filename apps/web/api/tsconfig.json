@@ -5,8 +5,14 @@
     "moduleResolution": "node",
     "target": "es2020",
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "noEmit": false,
-    "isolatedModules": false
+    "isolatedModules": false,
+    "skipLibCheck": true,
+    "strict": false,
+    "strictNullChecks": true
   },
-  "include": ["./**/*.ts"]
+  "include": ["./**/*.ts", "../../api/src/**/*.ts"]
 }
