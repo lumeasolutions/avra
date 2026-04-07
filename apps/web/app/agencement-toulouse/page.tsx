@@ -40,8 +40,8 @@ export default function AgencementToulouse() {
           </p>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-            <a href="/register"><button style={{ padding: '14px 32px', background: '#1e2b22', color: '#f9f6f0', border: 'none', borderRadius: '8px', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.background = '#253029'} onMouseLeave={(e) => e.currentTarget.style.background = '#1e2b22'}>Essai gratuit 14 jours</button></a>
-            <a href="/fonctionnalites"><button style={{ padding: '14px 32px', background: 'transparent', color: '#1e2b22', border: '2px solid #1e2b22', borderRadius: '8px', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#1e2b22'; e.currentTarget.style.color = '#f9f6f0'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#1e2b22'; }}>Voir fonctionnalités</button></a>
+            <a href="/register"><button style={{ padding: '14px 32px', background: '#1e2b22', color: '#f9f6f0', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Essai gratuit 14 jours</button></a>
+            <a href="/fonctionnalites"><button style={{ padding: '14px 32px', background: 'transparent', color: '#1e2b22', border: '2px solid #1e2b22', borderRadius: '8px', cursor: 'pointer' }}}}>Voir fonctionnalités</button></a>
           </div>
         </div>
       </section>
@@ -126,7 +126,7 @@ export default function AgencementToulouse() {
           <p style={{ fontSize: '1.2rem', color: 'rgba(249,246,240,0.85)', marginBottom: '32px', maxWidth: '700px', marginLeft: 'auto', marginRight: 'auto' }}>
             Les agenceurs toulousains gèrent 3x plus de projets avec AVRA.
           </p>
-          <a href="/register"><button style={{ padding: '16px 40px', background: '#c9a96e', color: '#1e2b22', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.background = '#d4b882'} onMouseLeave={(e) => e.currentTarget.style.background = '#c9a96e'}>Commencer l'essai gratuit</button></a>
+          <a href="/register"><button style={{ padding: '16px 40px', background: '#c9a96e', color: '#1e2b22', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>Commencer l'essai gratuit</button></a>
         </div>
       </section>
 
@@ -134,9 +134,9 @@ export default function AgencementToulouse() {
         <div className="container">
           <h3 style={{ fontSize: '1.5rem', marginBottom: '32px', color: '#1e2b22', textAlign: 'center' }}>Aussi disponible pour d'autres métiers et villes</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px' }}>
-            <a href="/agencement-nantes" style={{ textDecoration: 'none' }}><div style={{ padding: '24px', background: '#f9f6f0', borderRadius: '8px', border: '1px solid rgba(201,169,110,0.15)', textAlign: 'center', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.background = '#ede5dd'} onMouseLeave={(e) => e.currentTarget.style.background = '#f9f6f0'}><p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e2b22' }}>Logiciel agencement Nantes</p></div></a>
-            <a href="/menuisier-bordeaux" style={{ textDecoration: 'none' }}><div style={{ padding: '24px', background: '#f9f6f0', borderRadius: '8px', border: '1px solid rgba(201,169,110,0.15)', textAlign: 'center', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.background = '#ede5dd'} onMouseLeave={(e) => e.currentTarget.style.background = '#f9f6f0'}><p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e2b22' }}>Logiciel menuisier Bordeaux</p></div></a>
-            <a href="/cuisiniste-marseille" style={{ textDecoration: 'none' }}><div style={{ padding: '24px', background: '#f9f6f0', borderRadius: '8px', border: '1px solid rgba(201,169,110,0.15)', textAlign: 'center', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.background = '#ede5dd'} onMouseLeave={(e) => e.currentTarget.style.background = '#f9f6f0'}><p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e2b22' }}>Logiciel cuisiniste Marseille</p></div></a>
+            <a href="/agencement-nantes" style={{ textDecoration: 'none' }}><div style={{ padding: '24px', background: '#f9f6f0', borderRadius: '8px', border: '1px solid rgba(201,169,110,0.15)', textAlign: 'center', cursor: 'pointer' }}><p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e2b22' }}>Logiciel agencement Nantes</p></div></a>
+            <a href="/menuisier-bordeaux" style={{ textDecoration: 'none' }}><div style={{ padding: '24px', background: '#f9f6f0', borderRadius: '8px', border: '1px solid rgba(201,169,110,0.15)', textAlign: 'center', cursor: 'pointer' }}><p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e2b22' }}>Logiciel menuisier Bordeaux</p></div></a>
+            <a href="/cuisiniste-marseille" style={{ textDecoration: 'none' }}><div style={{ padding: '24px', background: '#f9f6f0', borderRadius: '8px', border: '1px solid rgba(201,169,110,0.15)', textAlign: 'center', cursor: 'pointer' }}><p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e2b22' }}>Logiciel cuisiniste Marseille</p></div></a>
           </div>
         </div>
       </section>

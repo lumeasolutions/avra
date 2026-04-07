@@ -1,21 +1,10 @@
+'use client';
 
-import type { Metadata } from 'next';
-import Nav from '../../../(marketing)/components/Nav';
-import Footer from '../../../(marketing)/components/Footer';
-import ScrollReveal from '../../../(marketing)/components/ScrollReveal';
+import Nav from '../../(marketing)/components/Nav';
+import Footer from '../../(marketing)/components/Footer';
+import ScrollReveal from '../../(marketing)/components/ScrollReveal';
 import Link from 'next/link';
 import { Calendar, Clock, ArrowLeft } from 'lucide-react';
-
-export const metadata: Metadata = {
-  title: 'Meilleur logiciel cuisiniste 2026 : top 7 comparatif complet',
-  description: 'Comparatif détaillé des 7 meilleurs logiciels pour cuisinistes en 2026. Fonctionnalités, prix, points forts et faibles. Inclus : AVRA, Extrabat, InterFast, OBAT, Tolteck, Organilog, Tactidevis.',
-  alternates: { canonical: 'https://avra.fr/blog/logiciel-cuisiniste-comparatif' },
-  openGraph: {
-    title: 'Meilleur logiciel cuisiniste 2026 : top 7 comparatif complet',
-    description: 'Comparatif détaillé des 7 meilleurs logiciels pour cuisinistes en 2026. Fonctionnalités, prix, points forts et faibles.',
-    url: 'https://avra.fr/blog/logiciel-cuisiniste-comparatif',
-  },
-};
 
 export default function ComparatifCuisiniste() {
   return (
@@ -244,7 +233,7 @@ export default function ComparatifCuisiniste() {
 
       <Footer />
 
-      <script type="application/ld+json">{JSON.stringify({ '@context': 'https://schema.org', '@type': 'BlogPosting', headline: 'Meilleur logiciel cuisiniste 2026 : top 7 comparatif complet', description: 'Comparatif détaillé des 7 meilleurs logiciels pour cuisinistes en 2026.', author: { '@type': 'Organization', name: 'AVRA' }, datePublished: '2026-04-15', dateModified: '2026-04-15' })}</script>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON.stringify({ '@context': 'https://schema.org', '@type': 'BlogPosting', headline: 'Meilleur logiciel cuisiniste 2026 : top 7 comparatif complet', description: 'Comparatif détaillé des 7 meilleurs logiciels pour cuisinistes en 2026.', author: { '@type': 'Organization', name: 'AVRA' }, datePublished: '2026-04-15', dateModified: '2026-04-15' })) }} />
 
       <style>{`
         table { background: white; }

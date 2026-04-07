@@ -63,8 +63,6 @@ export default function CuisinistelyOn() {
                 cursor: 'pointer',
                 transition: 'all 0.3s ease'
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#253029'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#1e2b22'; }}
               >
                 Essai gratuit 14 jours
               </button>
@@ -81,8 +79,6 @@ export default function CuisinistelyOn() {
                 cursor: 'pointer',
                 transition: 'all 0.3s ease'
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#1e2b22'; e.currentTarget.style.color = '#f9f6f0'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#1e2b22'; }}
               >
                 Voir fonctionnalités
               </button>
@@ -296,8 +292,6 @@ export default function CuisinistelyOn() {
               cursor: 'pointer',
               transition: 'all 0.3s ease'
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#d4b882'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = '#c9a96e'; }}
             >
               Tester gratuitement pendant 14 jours
             </button>
@@ -327,8 +321,6 @@ export default function CuisinistelyOn() {
                 cursor: 'pointer',
                 transition: 'all 0.3s ease'
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#ede5dd'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#f9f6f0'; }}
               >
                 <p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e2b22' }}>Logiciel cuisiniste Paris</p>
               </div>
@@ -344,8 +336,6 @@ export default function CuisinistelyOn() {
                 cursor: 'pointer',
                 transition: 'all 0.3s ease'
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#ede5dd'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#f9f6f0'; }}
               >
                 <p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e2b22' }}>Logiciel cuisiniste Marseille</p>
               </div>
@@ -361,8 +351,6 @@ export default function CuisinistelyOn() {
                 cursor: 'pointer',
                 transition: 'all 0.3s ease'
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#ede5dd'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#f9f6f0'; }}
               >
                 <p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e2b22' }}>Logiciel menuisier Lyon</p>
               </div>

@@ -1,21 +1,10 @@
+'use client';
 
-import type { Metadata } from 'next';
-import Nav from '../../../(marketing)/components/Nav';
-import Footer from '../../../(marketing)/components/Footer';
-import ScrollReveal from '../../../(marketing)/components/ScrollReveal';
+import Nav from '../../(marketing)/components/Nav';
+import Footer from '../../(marketing)/components/Footer';
+import ScrollReveal from '../../(marketing)/components/ScrollReveal';
 import Link from 'next/link';
 import { Calendar, Clock, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
-
-export const metadata: Metadata = {
-  title: 'E-facture obligatoire 2026 : tout ce que les artisans doivent savoir',
-  description: 'La facturation électronique devient obligatoire en 2026. Calendrier, obligations, solutions de conformité. Ce que cuisinistes et menuisiers doivent faire maintenant.',
-  alternates: { canonical: 'https://avra.fr/blog/e-facture-2026' },
-  openGraph: {
-    title: 'E-facture obligatoire 2026 : tout ce que les artisans doivent savoir',
-    description: 'La facturation électronique devient obligatoire en 2026. Calendrier, obligations, solutions de conformité.',
-    url: 'https://avra.fr/blog/e-facture-2026',
-  },
-};
 
 export default function EFacture2026() {
   return (
@@ -174,9 +163,9 @@ export default function EFacture2026() {
 
       <Footer />
 
-      <script type="application/ld+json">{JSON.stringify({ '@context': 'https://schema.org', '@type': 'BlogPosting', headline: 'E-facture obligatoire 2026 : tout ce que les artisans doivent savoir', description: 'La facturation électronique devient obligatoire en 2026. Calendrier, obligations, solutions de conformité.', author: { '@type': 'Organization', name: 'AVRA' }, datePublished: '2026-04-12', dateModified: '2026-04-12' })}</script>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON.stringify({ '@context': 'https://schema.org', '@type': 'BlogPosting', headline: 'E-facture obligatoire 2026 : tout ce que les artisans doivent savoir', description: 'La facturation électronique devient obligatoire en 2026. Calendrier, obligations, solutions de conformité.', author: { '@type': 'Organization', name: 'AVRA' }, datePublished: '2026-04-12', dateModified: '2026-04-12' })) }} />
 
-      <script type="application/ld+json">{JSON.stringify({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: [{ '@type': 'Question', name: 'Suis-je concerné si je suis auto-entrepreneur ?', acceptedAnswer: { '@type': 'Answer', text: 'Si vous êtes en régime micro-fiscal, non (exemption). Sinon, oui. Vérifiez votre statut auprès de l\'URSSAF.' } }, { '@type': 'Question', name: 'Quelles sont les pénalités en cas de non-conformité ?', acceptedAnswer: { '@type': 'Answer', text: 'De 100 à 500€ par facture non-conforme. Mieux vaut ne pas prendre le risque. Mettez-vous en conformité maintenant.' } }] })}</script>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON.stringify({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: [{ '@type': 'Question', name: 'Suis-je concerné si je suis auto-entrepreneur ?', acceptedAnswer: { '@type': 'Answer', text: 'Si vous êtes en régime micro-fiscal, non (exemption). Sinon, oui. Vérifiez votre statut auprès de l\'URSSAF.' } }, { '@type': 'Question', name: 'Quelles sont les pénalités en cas de non-conformité ?', acceptedAnswer: { '@type': 'Answer', text: 'De 100 à 500€ par facture non-conforme. Mieux vaut ne pas prendre le risque. Mettez-vous en conformité maintenant.' } }] })) }} />
     </>
   );
 }

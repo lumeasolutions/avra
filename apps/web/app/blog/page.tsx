@@ -117,7 +117,7 @@ export default function BlogPage() {
 
       <Footer />
 
-      <script type="application/ld+json">{JSON.stringify({ '@context': 'https://schema.org', '@type': 'Blog', name: 'Blog AVRA', description: 'Blog des professionnels de l\'agencement intérieur', url: 'https://avra.fr/blog' })}</script>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'Blog', name: 'Blog AVRA', description: "Blog des professionnels de l'agencement intérieur", url: 'https://avra.fr/blog' }) }} />
 
       <style>{`
         .container { max-width: 1200px; margin: 0 auto; }
