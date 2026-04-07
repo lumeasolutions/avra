@@ -219,9 +219,9 @@ body {
 
 
 /* ===== Sidebar styles (moved from Sidebar.tsx) ===== */
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* NOTE: scoped to app pages only (those that have a .sidebar) */
 
-body {
+body:has(.sidebar) {
 
 font-family: 'Segoe UI', Arial, sans-serif;
 

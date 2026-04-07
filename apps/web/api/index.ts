@@ -21,7 +21,7 @@ async function bootstrapServer(): Promise<Express> {
   if (cachedServer) return cachedServer;
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { AppModule } = require('../../api/src/app.module');
+  const { AppModule } = require('../../api/dist/app.module');
 
   const expressApp = express();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
@@ -62,7 +62,7 @@ async function bootstrapServer(): Promise<Express> {
   });
 
   // Healthcheck endpoint (same as standalone bootstrap)
-  app.getHttpAdapter().get('/health', (_req, res) => {
+  app.getHttpAdapter().get('/api/v1/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
