@@ -134,7 +134,7 @@ export default function Nav() {
             >Connexion</button>
           </Link>
 
-          <Link href="/register" style={{ textDecoration: 'none' }}>
+          <Link href="/demo" style={{ textDecoration: 'none' }}>
             <button style={{
               fontSize: '0.875rem',
               fontWeight: 700,
@@ -159,7 +159,7 @@ export default function Nav() {
               (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
               (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(201,169,110,0.35)';
             }}
-            >Essai gratuit 14 jours</button>
+            >Demander une démo</button>
           </Link>
 
         </div>
@@ -212,9 +212,9 @@ export default function Nav() {
                   Connexion
                 </button>
               </Link>
-              <Link href="/register" onClick={() => setMenuOpen(false)}>
+              <Link href="/demo" onClick={() => setMenuOpen(false)}>
                 <button style={{ width: '100%', padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #e8c97a, #C9A96E)', color: '#0e1810', fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer' }}>
-                  Essai gratuit 14 jours
+                  Demander une démo
                 </button>
               </Link>
             </div>
