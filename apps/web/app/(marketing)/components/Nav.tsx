@@ -51,27 +51,15 @@ export default function Nav() {
         {/* ══ LOGO GAUCHE ══ */}
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           {/* Logo chouette — vraie image dans cercle fond sombre */}
-          <div style={{ position: 'relative', width: '38px', height: '38px', flexShrink: 0 }}>
-            <div style={{
-              position: 'absolute', inset: '-3px', borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(201,169,110,0.25) 0%, transparent 70%)',
-              animation: 'navOwlGlow 3s ease-in-out infinite',
-            }} />
-            <div style={{
-              width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden',
-              background: '#0a110c', position: 'relative', zIndex: 1,
-              border: '1px solid rgba(201,169,110,0.3)',
-              boxShadow: '0 2px 10px rgba(201,169,110,0.2)',
-            }}>
-              <Image
-                src="/logochouette4.png"
-                alt="AVRA Logo"
-                fill
-                priority
-                style={{ objectFit: 'contain', padding: 3 }}
-              />
-              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, rgba(10,17,12,0.5) 0%, rgba(10,17,12,0.15) 45%, transparent 60%, rgba(10,17,12,0.5) 100%)', pointerEvents: 'none', zIndex: 2 }} />
-            </div>
+          <div style={{ position: 'relative', width: '44px', height: '44px', flexShrink: 0 }}>
+            <Image
+              src="/logochouette4.png"
+              alt="AVRA Logo"
+              fill
+              priority
+              sizes="44px"
+              style={{ objectFit: 'contain', filter: 'brightness(0.9) saturate(0.85)' }}
+            />
           </div>
 
           {/* Texte AVRA */}
