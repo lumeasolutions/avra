@@ -84,7 +84,7 @@ export default function PortailMenuisierPage() {
 
         <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0F2540' }}>📋 DOSSIERS EN COURS</h3>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0F2540' }}>📋 DOSSIERS EN COURS</h3>
             <Link href="/dossiers" style={{ fontSize: 11, color: '#7B4F2E', fontWeight: 600, textDecoration: 'none' }}>Voir tous →</Link>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
@@ -97,7 +97,7 @@ export default function PortailMenuisierPage() {
 
         <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0F2540' }}>✅ DOSSIERS SIGNÉS</h3>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0F2540' }}>✅ DOSSIERS SIGNÉS</h3>
             <Link href="/dossiers-signes" style={{ fontSize: 11, color: '#7B4F2E', fontWeight: 600, textDecoration: 'none' }}>Voir tous →</Link>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
@@ -112,7 +112,7 @@ export default function PortailMenuisierPage() {
       {/* PLANNING */}
       <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0F2540' }}>📅 PLANNING</h3>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0F2540' }}>📅 PLANNING</h3>
           <Link href="/planning" style={{ fontSize: 11, color: '#7B4F2E', fontWeight: 600, textDecoration: 'none' }}>Planning détaillé →</Link>
         </div>
 

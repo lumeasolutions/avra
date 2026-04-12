@@ -73,7 +73,7 @@ export default function PortailCuisinistePage() {
         {/* DOSSIERS EN COURS */}
         <div className="bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="m-0 text-[15px] font-bold text-[#0F2540]">📋 DOSSIERS EN COURS</h3>
+            <h3 className="m-0 text-[17px] font-bold text-[#0F2540]">📋 DOSSIERS EN COURS</h3>
             <Link href="/dossiers" className="text-[12px] text-[#2E7D32] font-semibold no-underline">Voir tous →</Link>
           </div>
           <div className="flex flex-col gap-[10px]">
@@ -87,7 +87,7 @@ export default function PortailCuisinistePage() {
         {/* DOSSIERS SIGNÉS */}
         <div className="bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="m-0 text-[15px] font-bold text-[#0F2540]">✅ DOSSIERS SIGNÉS</h3>
+            <h3 className="m-0 text-[17px] font-bold text-[#0F2540]">✅ DOSSIERS SIGNÉS</h3>
             <Link href="/dossiers-signes" className="text-[12px] text-[#2E7D32] font-semibold no-underline">Voir tous →</Link>
           </div>
           <div className="flex flex-col gap-[10px]">
@@ -101,7 +101,7 @@ export default function PortailCuisinistePage() {
 
       {/* PLANNING */}
       <div className="bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] mb-7">
-        <h3 className="m-0 mb-4 text-[15px] font-bold text-[#0F2540]">📅 PLANNING</h3>
+        <h3 className="m-0 mb-4 text-[17px] font-bold text-[#0F2540]">📅 PLANNING</h3>
 
         {/* Grille de planning */}
         <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(7, 1fr)', gap: 0, fontSize: 12, overflowX: 'auto' }}>
