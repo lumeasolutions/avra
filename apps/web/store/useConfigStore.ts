@@ -75,6 +75,39 @@ export interface UserMember {
   active: boolean;
 }
 
+export interface IAConfig {
+  // Général
+  assistantActif: boolean;
+  personnalite: 'professionnel' | 'amical' | 'concis';
+  promptSysteme: string;
+  contextMetier: string;
+
+  // Accès aux données
+  accesDossiers: boolean;
+  accesFacturation: boolean;
+  accesPlanning: boolean;
+  accesStock: boolean;
+  accesStats: boolean;
+  accesIntervenants: boolean;
+  accesAdminDocs: boolean;
+
+  // Actions autorisées
+  actionNavigation: boolean;
+  actionCreerDossier: boolean;
+  actionCreerDevis: boolean;
+  actionCreerFacture: boolean;
+  actionEnvoyerRelance: boolean;
+  actionModifierPlanning: boolean;
+
+  // Comportement
+  suggestionsAuto: boolean;
+  voixActive: boolean;
+  notificationsProactives: boolean;
+  nombreMessagesHistorique: number;
+  temperature: number;
+  longueurMaxReponse: 'courte' | 'normale' | 'detaillee';
+}
+
 // Données initiales
 const INITIAL_PREFERENCES: PreferencesConfig = {
   langue: 'fr',
@@ -137,6 +170,35 @@ const INITIAL_RELANCE: RelanceConfig = {
   messageRetard: 'Bonjour {client}, nous constatons que votre règlement de {montant}€ est en retard. Merci de régulariser rapidement.',
 };
 
+const INITIAL_IA: IAConfig = {
+  assistantActif: true,
+  personnalite: 'professionnel',
+  promptSysteme: 'Tu es AVRA, un assistant spécialisé pour les professionnels de la cuisine et de l\'agencement intérieur. Tu aides à gérer les dossiers clients, la facturation et le planning. Réponds toujours en français, de manière professionnelle et concise.',
+  contextMetier: 'Cuisines sur mesure, salles de bain, dressings, agencement intérieur',
+
+  accesDossiers: true,
+  accesFacturation: true,
+  accesPlanning: true,
+  accesStock: true,
+  accesStats: true,
+  accesIntervenants: true,
+  accesAdminDocs: false,
+
+  actionNavigation: true,
+  actionCreerDossier: true,
+  actionCreerDevis: false,
+  actionCreerFacture: false,
+  actionEnvoyerRelance: false,
+  actionModifierPlanning: false,
+
+  suggestionsAuto: true,
+  voixActive: false,
+  notificationsProactives: true,
+  nombreMessagesHistorique: 20,
+  temperature: 0.7,
+  longueurMaxReponse: 'normale',
+};
+
 // Membres — vides. L'owner du workspace est ajouté dynamiquement à la connexion.
 const INITIAL_MEMBERS: UserMember[] = [];
 
@@ -154,6 +216,7 @@ interface ConfigState {
   societe: Societe;
   relanceConfig: RelanceConfig;
   members: UserMember[];
+  iaConfig: IAConfig;
 
   // Actions
   updateSociete: (data: Partial<Societe>) => void;
@@ -162,6 +225,7 @@ interface ConfigState {
   updateNumerotation: (data: Partial<NumerotationConfig>) => void;
   updateFacturationConfig: (data: Partial<FacturationConfig>) => void;
   updateNotifConfig: (data: Partial<NotifConfig>) => void;
+  updateIAConfig: (data: Partial<IAConfig>) => void;
 
   // Members actions
   addMember: (member: Omit<UserMember, 'id'>) => void;
@@ -183,6 +247,7 @@ export const useConfigStore = create<ConfigState>()(
       societe: INITIAL_SOCIETE,
       relanceConfig: INITIAL_RELANCE,
       members: INITIAL_MEMBERS,
+      iaConfig: INITIAL_IA,
 
       updateSociete: (data) => {
         set(s => ({ societe: { ...s.societe, ...data } }));
@@ -206,6 +271,10 @@ export const useConfigStore = create<ConfigState>()(
 
       updateNotifConfig: (data) => {
         set(s => ({ notifConfig: { ...s.notifConfig, ...data } }));
+      },
+
+      updateIAConfig: (data) => {
+        set(s => ({ iaConfig: { ...s.iaConfig, ...data } }));
       },
 
       addMember: (member) => {
@@ -233,6 +302,7 @@ export const useConfigStore = create<ConfigState>()(
         societe: INITIAL_SOCIETE,
         relanceConfig: INITIAL_RELANCE,
         members: INITIAL_MEMBERS,
+        iaConfig: INITIAL_IA,
       }),
     }),
     { name: 'avra-config-store' }

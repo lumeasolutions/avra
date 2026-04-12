@@ -123,29 +123,42 @@ export class IaController {
       });
 
       // Configurer la réponse SSE
+      const allowedOrigin = process.env.WEB_URL ?? 'http://localhost:3002';
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+      res.setHeader('Vary', 'Origin');
 
       // Streamer les chunks
       stream.on('data', (chunk) => {
+        if (!res.headersSent) return; // headers pas encore envoyés = anomalie
         res.write(`data: ${JSON.stringify({ content: chunk.toString() })}\n\n`);
       });
 
       stream.on('end', () => {
+        if (res.writableEnded) return;
         res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
         res.end();
       });
 
       stream.on('error', (error) => {
         this.logger.error('Chat stream error:', error);
+        if (res.writableEnded) return;
         res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
         res.end();
       });
     } catch (error) {
       this.logger.error('Chat endpoint error:', error);
-      res.status(500).json({ error: (error as Error).message });
+      // Si headers SSE déjà envoyés, on ne peut plus faire de .json() — on ferme proprement
+      if (res.headersSent) {
+        if (!res.writableEnded) {
+          res.write(`data: ${JSON.stringify({ error: (error as Error).message })}\n\n`);
+          res.end();
+        }
+      } else {
+        res.status(500).json({ error: (error as Error).message });
+      }
     }
   }
 
@@ -270,16 +283,19 @@ Haute qualité, détails réalistes, perspective professionnelle.`;
     },
   ) {
     try {
-      const prompt = `Modifie cette cuisine avec les couleurs suivantes:
-- Façades: ${body.facadeHex} (${body.facadeFinish})
-- Poignées: ${body.poigneeHex} (${body.handleMaterial || 'standard'})
-- Plan de travail: ${body.planHex} (${body.countertopMaterial || 'standard'})
-- Éclairage: ${body.lightingStyle}
-Conserve les proportions, modifie uniquement les couleurs et finitions.`;
+      const prompt = `Professional interior photography of a French kitchen with the following color scheme:
+- Cabinet fronts: ${body.facadeHex} (${body.facadeFinish} finish)
+- Handles: ${body.handleMaterial || body.poigneeHex}
+- Countertop: ${body.countertopMaterial || body.planHex}
+- Lighting: ${body.lightingStyle}
+Preserve proportions and layout, modify only colors and finishes. Photorealistic, 8K, Canon EOS R5.`;
 
-      // Note: Sans image source, on génère une image complète
-      // Le frontend doit passer une sourceImageUrl en paramètre pour un vrai img2img
-      const result = await this.ia.generateRealisticRender(prompt);
+      // Le coloriste génère une image complète avec les couleurs spécifiées
+      // Pour un vrai img2img, passer sourceImageUrl dans le body
+      const sourceImageUrl = (body as any).sourceImageUrl;
+      const result = sourceImageUrl
+        ? await this.ia.colorizeImage(sourceImageUrl, prompt)
+        : await this.ia.generateRealisticRender(prompt);
       return result;
     } catch (error) {
       this.logger.error('Colorize error:', error);

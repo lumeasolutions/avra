@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { useFacturationStore, type Devis, type LigneDocument } from '@/store';
+import { useFacturationStore, useDossierStore, type Devis, type LigneDocument } from '@/store';
 import { calcLignes } from '../lib/utils';
 import { LignesEditor } from './LignesEditor';
 

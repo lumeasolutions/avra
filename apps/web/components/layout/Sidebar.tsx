@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+
 import { useDossierStore, useFacturationStore, useUIStore } from '@/store';
 import { AssistantPanel } from './AssistantPanel';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -45,13 +46,17 @@ export function Sidebar() {
 
       
 
-      <linearGradient id="sidebarGrad" x1="0" y1="0" x2="1" y2="1">
+      <linearGradient id="sidebarGrad" x1="0" y1="0" x2="0" y2="1">
 
-      <stop offset="0%" stopColor="#567060"/>
+      <stop offset="0%" stopColor="#1a2a1e"/>
 
-      <stop offset="40%" stopColor="#4A6358"/>
+      <stop offset="25%" stopColor="#2a3f30"/>
 
-      <stop offset="100%" stopColor="#334840"/>
+      <stop offset="55%" stopColor="#384f3d"/>
+
+      <stop offset="80%" stopColor="#2a3f30"/>
+
+      <stop offset="100%" stopColor="#1a2a1e"/>
 
       </linearGradient>
 
@@ -59,7 +64,7 @@ export function Sidebar() {
 
       <clipPath id="sidebarClip">
 
-      <path d="M 0,0 L 390,0 C 390,0 250,225 250,450 C 250,675 390,900 390,900 L 0,900 Z"/>
+      <path d="M 0,0 L 390,0 L 390,900 L 0,900 Z"/>
 
       </clipPath>
 
@@ -163,149 +168,62 @@ export function Sidebar() {
 
       
 
-      <image href="/images/sidebar-1.jpeg"
-
-      x="0" y="0" width="400" height="900"
-
-      preserveAspectRatio="xMidYMid slice"
-
-      clipPath="url(#sidebarClip)"/>
-
-      
-
-      <path d="
-
-      M 0,0
-
-      L 390,0
-
-      C 390,0 250,225 250,450
-
-      C 250,675 390,900 390,900
-
-      L 0,900
-
-      Z
-
-      " fill="rgba(0,0,0,0.08)"/>
-
-      
-
-      <path d="
-
-      M 0,0
-
-      L 390,0
-
-      C 390,0 250,225 250,450
-
-      C 250,675 390,900 390,900
-
-      L 0,900
-
-      Z
-
-      " fill="url(#sidebarGrad)" filter="url(#grain)" opacity="0.18"/>
-
-      
-
-      <path d="
-
-      M 0,0
-
-      L 390,0
-
-      C 390,0 250,225 250,450
-
-      C 250,675 390,900 390,900
-
-      L 0,900
-
-      Z
-
-      " fill="url(#softLight)"/>
-
-      
-
-      <path d="
-
-      M 0,0
-
-      L 390,0
-
-      C 390,0 250,225 250,450
-
-      C 250,675 390,900 390,900
-
-      L 0,900
-
-      Z
-
-      " fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth="10" filter="url(#innerShadow)"/>
-
-      
-
-      <path d="
-
-      M 0,0
-
-      L 390,0
-
-      C 390,0 250,225 250,450
-
-      C 250,675 390,900 390,900
-
-      L 0,900
-
-      Z
-
-      " fill="url(#edgeShadow)" opacity="0.7"/>
-
-      
-
-      <path d="
-
-      M 0,0
-
-      L 390,0
-
-      C 390,0 250,225 250,450
-
-      C 250,675 390,900 390,900
-
-      L 0,900
-
-      Z
-
-      " fill="url(#topShadow)" opacity="0.6"/>
-
-      
-
-      <path d="
-
-      M 0,0
-
-      L 390,0
-
-      C 390,0 250,225 250,450
-
-      C 250,675 390,900 390,900
-
-      L 0,900
-
-      Z
-
-      " fill="url(#bottomShadow)" opacity="0.6"/>
+      {/* Fond droit */}
+      <path d="M 0,0 L 265,0 L 265,900 L 0,900 Z" fill="url(#sidebarGrad)"/>
+
+      {/* Lumière douce */}
+      <path d="M 0,0 L 265,0 L 265,900 L 0,900 Z" fill="url(#softLight)"/>
 
       </svg>
 
       
 
+      {/* Bouton paramètres — roue en haut à gauche */}
+      <Link href="/parametres" style={{
+        position: 'absolute', top: 14, left: 14, zIndex: 20,
+        width: 34, height: 34, borderRadius: '50%',
+        background: 'rgba(255,255,255,0.10)',
+        border: '1px solid rgba(255,255,255,0.18)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backdropFilter: 'blur(4px)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+      }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="1.8" width={16} height={16}>
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </Link>
+
+      {/* Bouton historique — sous paramètres */}
+      <Link href="/historique" style={{
+        position: 'absolute', top: 54, left: 14, zIndex: 20,
+        width: 34, height: 34, borderRadius: '50%',
+        background: 'rgba(255,255,255,0.10)',
+        border: '1px solid rgba(255,255,255,0.18)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backdropFilter: 'blur(4px)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+      }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="1.8" width={16} height={16}>
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        {alertCount > 0 && (
+          <span style={{
+            position: 'absolute', top: -3, right: -3,
+            background: '#C0392B', color: 'white',
+            fontSize: 8, fontWeight: 800,
+            width: 14, height: 14, borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>{alertCount}</span>
+        )}
+      </Link>
+
       <div className="sidebar-logo">
 
       <div style={{background: "transparent", boxShadow: "none", width: "220px", height: "220px"}}>
 
-      <Image src="/logo-sidebar.png"
+      <Image src="/logosidebar3.png"
 
       width={220}
 
@@ -313,7 +231,7 @@ export function Sidebar() {
 
       priority
 
-      style={{width: "220px", height: "220px", objectFit: "contain"}}
+      style={{width: "220px", height: "220px", objectFit: "cover", borderRadius: "16px"}}
 
       alt="AVRA Logo"/>
 
@@ -349,10 +267,17 @@ export function Sidebar() {
           </Link>
         )}
         <Link
+          href="/dashboard"
+          className={`menu-item ${pathname === '/dashboard' ? 'active' : ''}`}
+        >
+          <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+          Tableau de bord
+        </Link>
+        <Link
           href="/dossiers"
           className={`menu-item ${pathname === '/dossiers' ? 'active' : ''}`}
         >
-          <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           Dossiers en cours
           {urgentCount > 0 && <span className="badge">{urgentCount}</span>}
         </Link>
@@ -417,13 +342,6 @@ export function Sidebar() {
           {factuBadge > 0 && <span className="badge">{factuBadge}</span>}
         </Link>
         <Link
-          href="/epaiement"
-          className={`menu-item ${pathname === '/epaiement' ? 'active' : ''}`}
-        >
-          <svg viewBox="0 0 24 24" fill="none"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>
-          E Paiement
-        </Link>
-        <Link
           href="/signature"
           className={`menu-item ${pathname === '/signature' ? 'active' : ''}`}
         >
@@ -436,21 +354,6 @@ export function Sidebar() {
         >
           <svg viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Intervenants
-        </Link>
-        <Link
-          href="/historique"
-          className={`menu-item ${pathname === '/historique' ? 'active' : ''}`}
-        >
-          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          Historique
-          {alertCount > 0 && <span className="badge">{alertCount}</span>}
-        </Link>
-        <Link
-          href="/parametres"
-          className={`menu-item ${pathname === '/parametres' ? 'active' : ''}`}
-        >
-          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 4.93 19.07"/><path d="M19.07 4.93l-7.07 7.07"/></svg>
-          Paramètres
         </Link>
       </nav>
     </div>

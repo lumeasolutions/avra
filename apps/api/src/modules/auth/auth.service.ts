@@ -132,12 +132,7 @@ export class AuthService {
       where: { id: userId },
     });
 
-    if (user?.refreshTokenExpiresAt) {
-      // Revoke the refresh token in blacklist
-      const dummyToken = 'revoked'; // In practice, the actual token would be passed from controller
-      this.tokenRotation.revokeToken(dummyToken, user.refreshTokenExpiresAt);
-    }
-
+    // Invalider le refresh token en base (protection principale contre la réutilisation)
     return this.prisma.user.update({
       where: { id: userId },
       data: { refreshToken: null, refreshTokenExpiresAt: null },

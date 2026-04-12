@@ -5,7 +5,8 @@ import { useEffect, useState, useMemo } from 'react';
 import {
   FolderOpen, FolderCheck, AlertTriangle, TrendingUp,
   ShoppingCart, CalendarCog, Users, Bell, BarChart3, ChevronRight,
-  Clock, CheckSquare, FileWarning, Package,
+  Clock, CheckSquare, FileWarning, Package, BadgeCheck, Target,
+  Circle,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useDossierStore, useFacturationStore, useHistoryStore, useIntervenantStore, usePlanningStore } from '@/store';
@@ -23,6 +24,8 @@ export default function DashboardPage() {
   const storeDevis         = useFacturationStore(s => s.devis);
   const storeInvoices      = useFacturationStore(s => s.invoices);
   const storeSignes        = useDossierStore(s => s.dossiersSignes);
+  const storeDossiers      = useDossierStore(s => s.dossiers);
+  const storeDatesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
   const storeLogs          = useHistoryStore(s => s.historyLogs);
   const storePlanningEvents = usePlanningStore(s => s.planningEvents);
 
@@ -227,6 +230,122 @@ export default function DashboardPage() {
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Vue d'ensemble — Dossiers en cours + Signés */}
+      <div className="grid gap-4 lg:grid-cols-2">
+
+        {/* Dossiers en cours */}
+        <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-md overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#304035]/5">
+            <div className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5 text-[#304035]" />
+              <span className="font-bold text-[#304035]">Dossiers en cours</span>
+              <span className="inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-[#304035] text-white text-[10px] font-bold px-1.5">
+                {storeDossiers.length}
+              </span>
+            </div>
+            <Link href="/dossiers" className="text-xs font-semibold text-[#a67749] hover:underline">Voir tout →</Link>
+          </div>
+          {storeDossiers.length === 0 ? (
+            <div className="px-6 py-8 text-center text-sm text-[#304035]/40">Aucun dossier en cours</div>
+          ) : (
+            <div className="divide-y divide-[#304035]/5">
+              {/* Stats par statut */}
+              <div className="grid grid-cols-4 divide-x divide-[#304035]/5 border-b border-[#304035]/5">
+                {[
+                  { label: 'Urgent', color: '#ef4444', count: storeDossiers.filter(d => d.status === 'URGENT').length },
+                  { label: 'En cours', color: '#f97316', count: storeDossiers.filter(d => d.status === 'EN COURS').length },
+                  { label: 'Finition', color: '#10b981', count: storeDossiers.filter(d => d.status === 'FINITION').length },
+                  { label: 'À valider', color: '#4ade80', count: storeDossiers.filter(d => d.status === 'A VALIDER').length },
+                ].map(s => (
+                  <div key={s.label} className="px-3 py-2 text-center">
+                    <div className="text-base font-bold" style={{ color: s.color }}>{s.count}</div>
+                    <div className="text-[10px] text-[#304035]/40 font-medium">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Liste compacte */}
+              {storeDossiers.slice(0, 6).map(d => {
+                const statusColor: Record<string, string> = {
+                  'URGENT': '#ef4444', 'EN COURS': '#f97316', 'FINITION': '#10b981', 'A VALIDER': '#4ade80',
+                };
+                return (
+                  <Link key={d.id} href={`/dossiers/${d.id}`}
+                    className="flex items-center gap-3 px-6 py-2.5 hover:bg-[#f5eee8]/40 transition-colors group">
+                    <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: statusColor[d.status] ?? '#304035' }} />
+                    <span className="font-semibold text-[#304035] text-sm flex-1 group-hover:text-[#a67749] transition-colors truncate">
+                      {d.name} {d.firstName ?? ''}
+                    </span>
+                    <span className="text-[10px] text-[#304035]/40 shrink-0">{d.createdAt}</span>
+                    <ChevronRight className="h-3.5 w-3.5 text-[#304035]/20 shrink-0 group-hover:text-[#304035]/60" />
+                  </Link>
+                );
+              })}
+              {storeDossiers.length > 6 && (
+                <div className="px-6 py-2 text-center">
+                  <Link href="/dossiers" className="text-xs text-[#a67749] font-semibold hover:underline">
+                    +{storeDossiers.length - 6} autres dossiers
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Dossiers signés */}
+        <div className="rounded-2xl bg-white border border-emerald-100 shadow-md overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-emerald-50">
+            <div className="flex items-center gap-2">
+              <FolderCheck className="h-5 w-5 text-emerald-600" />
+              <span className="font-bold text-[#304035]">Dossiers signés</span>
+              <span className="inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold px-1.5">
+                {storeSignes.length}
+              </span>
+            </div>
+            <Link href="/dossiers-signes" className="text-xs font-semibold text-[#a67749] hover:underline">Voir tout →</Link>
+          </div>
+          {storeSignes.length === 0 ? (
+            <div className="px-6 py-8 text-center text-sm text-[#304035]/40">Aucun dossier signé</div>
+          ) : (
+            <div className="divide-y divide-[#304035]/5">
+              {storeSignes.slice(0, 7).map(d => {
+                const saved = storeDatesButoiresSignes[d.id] ?? {};
+                const datesCount = Object.keys(saved).length;
+                const confsPending = (d.confirmations ?? []).filter(c => !c.validee).length;
+                return (
+                  <Link key={d.id} href={`/dossiers-signes`}
+                    className="flex items-center gap-3 px-6 py-2.5 hover:bg-emerald-50/40 transition-colors group">
+                    <BadgeCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <span className="font-semibold text-[#304035] text-sm flex-1 group-hover:text-[#a67749] transition-colors truncate">
+                      {d.name} {d.firstName ?? ''}
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {datesCount > 0 && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.5">
+                          <Target className="h-2.5 w-2.5" /> {datesCount}
+                        </span>
+                      )}
+                      {confsPending > 0 && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5">
+                          <Package className="h-2.5 w-2.5" /> {confsPending}
+                        </span>
+                      )}
+                    </div>
+                    <ChevronRight className="h-3.5 w-3.5 text-[#304035]/20 shrink-0 group-hover:text-[#304035]/60" />
+                  </Link>
+                );
+              })}
+              {storeSignes.length > 7 && (
+                <div className="px-6 py-2 text-center">
+                  <Link href="/dossiers-signes" className="text-xs text-[#a67749] font-semibold hover:underline">
+                    +{storeSignes.length - 7} autres
+                  </Link>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

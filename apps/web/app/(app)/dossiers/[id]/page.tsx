@@ -126,7 +126,7 @@ export default function DossierDetailPage() {
               <feComposite in="blended" in2="SourceGraphic" operator="in"/>
             </filter>
           </defs>
-          <rect width="1200" height="200" fill="url(#dhGrad)" filter="url(#dhGrain)" opacity="0.97"/>
+          <rect width="1200" height="200" fill="#304035"/>
           {/* Motif cercles décoratifs */}
           <circle cx="950" cy="100" r="180" fill="white" fillOpacity="0.03"/>
           <circle cx="1100" cy="20"  r="120" fill="white" fillOpacity="0.04"/>

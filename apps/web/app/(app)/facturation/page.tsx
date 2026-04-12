@@ -1345,14 +1345,29 @@ function OngletEFacturation() {
   );
 }
 
+// ─── Onglet E Paiement ────────────────────────────────────────────────────────
+
+function OngletEPaiement() {
+  return (
+    <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-sm overflow-hidden">
+      <iframe
+        src="/epaiement"
+        style={{ width: '100%', height: 'calc(100vh - 260px)', border: 'none', display: 'block' }}
+        title="E Paiement"
+      />
+    </div>
+  );
+}
+
 // ─── Page principale ──────────────────────────────────────────────────────────
 
-type TabKey = 'devis' | 'factures' | 'e-facturation';
+type TabKey = 'devis' | 'factures' | 'e-facturation' | 'epaiement';
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'devis',         label: 'Devis',          icon: <FileCheck className="h-4 w-4" /> },
   { key: 'factures',      label: 'Factures',        icon: <FileText className="h-4 w-4" /> },
   { key: 'e-facturation', label: 'E-Facturation',   icon: <Globe className="h-4 w-4" /> },
+  { key: 'epaiement',     label: 'E Paiement',      icon: <CreditCard className="h-4 w-4" /> },
 ];
 
 export default function FacturationPage() {
@@ -1364,6 +1379,7 @@ export default function FacturationPage() {
     devis: devis.length,
     factures: invoices.length,
     'e-facturation': undefined,
+    epaiement: undefined,
   };
 
   return (
@@ -1405,6 +1421,7 @@ export default function FacturationPage() {
       {activeTab === 'devis'         && <OngletDevis />}
       {activeTab === 'factures'      && <OngletFactures />}
       {activeTab === 'e-facturation' && <OngletEFacturation />}
+      {activeTab === 'epaiement'     && <OngletEPaiement />}
     </div>
   );
 }

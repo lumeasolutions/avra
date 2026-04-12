@@ -1,8 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { DocumentKind } from '../../prisma-enums';
+import { DocumentKind, FileMimeCategory } from '../../prisma-enums';
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
+import * as path from 'path';
+import { randomUUID } from 'crypto';
 import { PathTraversalGuard } from '../../common/security/path-traversal.guard';
+
+const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'uploads');
+
+const ADMIN_ALLOWED_MIMES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain', 'text/csv',
+]);
 
 @Injectable()
 export class DocumentsService {
@@ -84,6 +97,95 @@ export class DocumentsService {
         },
       },
     });
+  }
+
+  /* ── ADMIN DOCS ── */
+
+  async findAdminDocs(workspaceId: string, category?: string) {
+    const where: any = { workspaceId, projectId: null };
+    if (category && category !== 'all') where.folderId = category;
+
+    const data = await this.prisma.document.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        kind: true,
+        createdAt: true,
+        folderId: true,
+        storedFile: {
+          select: {
+            id: true,
+            originalName: true,
+            mimeType: true,
+            mimeCategory: true,
+            sizeBytes: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return data;
+  }
+
+  async uploadAdminDoc(
+    workspaceId: string,
+    userId: string,
+    file: { originalname: string; mimetype: string; size: number; buffer: Buffer },
+    category: string,
+    title?: string,
+  ) {
+    if (!ADMIN_ALLOWED_MIMES.has(file.mimetype)) {
+      throw new BadRequestException(`Type de fichier non autorisé : ${file.mimetype}`);
+    }
+
+    const ext = path.extname(file.originalname) || '.bin';
+    const storageKey = `workspaces/${workspaceId}/admin/${randomUUID()}${ext}`;
+    const dir = path.join(UPLOAD_DIR, path.dirname(storageKey));
+    const fullPath = path.join(UPLOAD_DIR, storageKey);
+
+    fsSync.mkdirSync(dir, { recursive: true });
+    fsSync.writeFileSync(fullPath, file.buffer);
+
+    const mimeCategory = file.mimetype.startsWith('image/')
+      ? FileMimeCategory.IMAGE
+      : file.mimetype === 'application/pdf'
+      ? FileMimeCategory.PDF
+      : FileMimeCategory.DOCUMENT;
+
+    const stored = await this.prisma.storedFile.create({
+      data: {
+        workspaceId, uploadedById: userId, storageKey,
+        originalName: file.originalname, mimeType: file.mimetype,
+        mimeCategory, extension: ext.slice(1), sizeBytes: file.size,
+      },
+    });
+
+    const doc = await this.prisma.document.create({
+      data: {
+        workspaceId, storedFileId: stored.id, createdById: userId,
+        projectId: null,
+        folderId: category !== 'all' ? category : null,
+        title: title || file.originalname,
+        kind: DocumentKind.CONTRAT,
+      },
+      select: {
+        id: true, title: true, kind: true, folderId: true, createdAt: true,
+        storedFile: { select: { id: true, originalName: true, mimeType: true, mimeCategory: true, sizeBytes: true } },
+      },
+    });
+    return doc;
+  }
+
+  async downloadAdminDoc(workspaceId: string, id: string) {
+    const doc = await this.prisma.document.findFirst({
+      where: { id, workspaceId, projectId: null },
+      include: { storedFile: true },
+    });
+    if (!doc?.storedFile) throw new NotFoundException('Document introuvable');
+    PathTraversalGuard.validateStorageKey(doc.storedFile.storageKey);
+    const filePath = path.join(UPLOAD_DIR, doc.storedFile.storageKey);
+    return { filePath, originalName: doc.storedFile.originalName, mimeType: doc.storedFile.mimeType };
   }
 
   async remove(workspaceId: string, id: string) {

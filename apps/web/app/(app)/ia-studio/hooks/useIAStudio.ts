@@ -26,6 +26,10 @@ export function useIAStudio() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params),
       });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Erreur serveur' }));
+        throw new Error(err.error ?? `Erreur ${response.status}`);
+      }
       const data = await response.json();
       if (data.imageUrl) {
         setGeneratedImage(data.imageUrl);

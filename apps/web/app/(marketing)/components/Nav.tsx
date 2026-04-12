@@ -12,7 +12,7 @@ export default function Nav() {
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll);
-    return () => () => window.removeEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   const navLinks = [
@@ -64,13 +64,13 @@ export default function Nav() {
               boxShadow: '0 2px 10px rgba(201,169,110,0.2)',
             }}>
               <Image
-                src="/images/avra-owl.webp"
+                src="/logochouette4.png"
                 alt="AVRA Logo"
                 fill
                 priority
-                style={{ objectFit: 'cover', objectPosition: 'center 10%', transform: 'scale(1.15)' }}
+                style={{ objectFit: 'contain', padding: 3 }}
               />
-              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 45%, rgba(10,17,12,0.5) 100%)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, rgba(10,17,12,0.5) 0%, rgba(10,17,12,0.15) 45%, transparent 60%, rgba(10,17,12,0.5) 100%)', pointerEvents: 'none', zIndex: 2 }} />
             </div>
           </div>
 
@@ -151,7 +151,7 @@ export default function Nav() {
               fontSize: '0.875rem',
               fontWeight: 700,
               color: '#0e1810',
-              padding: '10px 22px',
+              padding: '10px 18px',
               borderRadius: '10px',
               border: 'none',
               background: 'linear-gradient(135deg, #e8c97a, #C9A96E)',
@@ -160,6 +160,8 @@ export default function Nav() {
               minHeight: '40px',
               boxShadow: '0 4px 16px rgba(201,169,110,0.35)',
               letterSpacing: '0.01em',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
             onMouseEnter={e => {
               (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
@@ -172,43 +174,6 @@ export default function Nav() {
             >Essai gratuit 14 jours</button>
           </Link>
 
-          {/* ── Séparateur ── */}
-          <div style={{ width: '1px', height: '28px', background: 'rgba(201,169,110,0.2)', marginLeft: '4px' }} />
-
-            {/* ── Chouette WaoW à l'extrême droite ── vraie image ── */}
-          <div style={{ position: 'relative', marginLeft: '4px', cursor: 'pointer', flexShrink: 0 }}
-            title="AVRA — Logiciel N°1 de l'agencement"
-          >
-            {/* Ring doré tournant */}
-            <div style={{
-              position: 'absolute', inset: '-5px', borderRadius: '50%',
-              border: '1.5px solid rgba(201,169,110,0.45)',
-              animation: 'owlRing 4s linear infinite',
-            }} />
-            {/* Halo glow pulsant */}
-            <div style={{
-              position: 'absolute', inset: '-12px', borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(201,169,110,0.2) 0%, transparent 70%)',
-              animation: 'navOwlGlow 3s ease-in-out infinite',
-            }} />
-            {/* Image vraie chouette dans cercle fond sombre */}
-            <div style={{
-              width: '46px', height: '46px',
-              borderRadius: '50%', overflow: 'hidden',
-              background: '#0a110c',
-              position: 'relative', zIndex: 1,
-              animation: 'navOwlFloat 4s ease-in-out infinite',
-              boxShadow: '0 2px 16px rgba(201,169,110,0.3)',
-            }}>
-              <Image
-                src="/images/avra-owl.webp"
-                alt="AVRA Mascotte"
-                fill
-                style={{ objectFit: 'cover', objectPosition: 'center 10%', transform: 'scale(1.15)' }}
-              />
-              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 50%, rgba(10,17,12,0.6) 100%)', pointerEvents: 'none' }} />
-            </div>
-          </div>
         </div>
 
         {/* ══ HAMBURGER MOBILE ══ */}

@@ -9,6 +9,14 @@ interface ChatMessage {
 
 type AIProvider = 'claude' | 'mock';
 
+const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_VERSION = '2023-06-01';
+
+// Codes d'erreur qui méritent un retry
+const RETRYABLE_STATUS = new Set([429, 500, 529]);
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1500;
+
 @Injectable()
 export class QwenService {
   private readonly logger = new Logger(QwenService.name);
@@ -20,18 +28,18 @@ export class QwenService {
   constructor() {
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
-    if (anthropicKey) {
+    if (anthropicKey && anthropicKey.startsWith('sk-ant-')) {
       this.provider = 'claude';
-      this.model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+      this.model = process.env.ANTHROPIC_MODEL || 'claude-opus-4-6';
       this.apiKey = anthropicKey;
       this.enabled = true;
-      this.logger.log(`Claude AI service initialized (${this.model})`);
+      this.logger.log(`✅ Claude AI service initialized (${this.model})`);
     } else {
       this.provider = 'mock';
       this.model = 'mock';
       this.apiKey = null;
       this.enabled = false;
-      this.logger.warn('AI service disabled (mock mode) - configure ANTHROPIC_API_KEY');
+      this.logger.warn('⚠️  AI service disabled (mock mode) — configure ANTHROPIC_API_KEY');
     }
   }
 
@@ -47,7 +55,40 @@ export class QwenService {
   }
 
   /**
-   * Chat streaming via Anthropic Messages API (native, not OpenAI-compatible)
+   * Appel fetch avec retry automatique sur erreurs transitoires (429, 500, 529)
+   */
+  private async fetchWithRetry(url: string, options: RequestInit, attempt = 0): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000); // 30s timeout
+
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (RETRYABLE_STATUS.has(response.status) && attempt < MAX_RETRIES) {
+        const retryAfter = parseInt(response.headers.get('retry-after') || '0', 10) || RETRY_DELAY_MS;
+        this.logger.warn(`Claude API ${response.status} — retry ${attempt + 1}/${MAX_RETRIES} in ${retryAfter}ms`);
+        await new Promise(r => setTimeout(r, retryAfter));
+        return this.fetchWithRetry(url, options, attempt + 1);
+      }
+
+      return response;
+    } catch (err: any) {
+      clearTimeout(timeout);
+      if (err?.name === 'AbortError') {
+        throw new Error('Claude API timeout (30s)');
+      }
+      if (attempt < MAX_RETRIES) {
+        this.logger.warn(`Claude API network error — retry ${attempt + 1}/${MAX_RETRIES}: ${err.message}`);
+        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+        return this.fetchWithRetry(url, options, attempt + 1);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Chat streaming via Anthropic Messages API (SSE)
    */
   async chatStream(
     messages: ChatMessage[],
@@ -67,21 +108,20 @@ export class QwenService {
     try {
       const systemPrompt = this.getSystemPrompt(context);
 
-      // Filter out system messages — Anthropic uses a separate `system` field
       const apiMessages = messages
         .filter(m => m.role !== 'system')
         .map(m => ({ role: m.role, content: m.content }));
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await this.fetchWithRetry(ANTHROPIC_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01',
+          'anthropic-version': ANTHROPIC_VERSION,
         },
         body: JSON.stringify({
           model: this.model,
-          max_tokens: 1024,
+          max_tokens: 2048,
           system: systemPrompt,
           messages: apiMessages,
           stream: true,
@@ -94,7 +134,6 @@ export class QwenService {
         return this.mockChatStream(messages);
       }
 
-      // Parse SSE stream from Anthropic with proper line buffering
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       const logger = this.logger;
@@ -112,7 +151,7 @@ export class QwenService {
 
               sseBuffer += decoder.decode(value, { stream: true });
               const lines = sseBuffer.split('\n');
-              sseBuffer = lines.pop() || ''; // Keep incomplete last line
+              sseBuffer = lines.pop() || '';
 
               for (const line of lines) {
                 const trimmed = line.trim();
@@ -124,18 +163,21 @@ export class QwenService {
                 }
                 try {
                   const event = JSON.parse(jsonStr);
-                  // Anthropic stream events:
-                  // content_block_delta → delta.text
                   if (event.type === 'content_block_delta' && event.delta?.text) {
                     this.push(event.delta.text);
                   }
-                  // message_stop → end of stream
                   if (event.type === 'message_stop') {
                     this.push(null);
                     return;
                   }
+                  // Gérer les erreurs dans le stream
+                  if (event.type === 'error') {
+                    logger.error(`Claude stream error: ${JSON.stringify(event.error)}`);
+                    this.push(null);
+                    return;
+                  }
                 } catch {
-                  // skip unparseable lines
+                  // ignorer les lignes non-JSON
                 }
               }
             }
@@ -173,16 +215,16 @@ export class QwenService {
         .filter(m => m.role !== 'system')
         .map(m => ({ role: m.role, content: m.content }));
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await this.fetchWithRetry(ANTHROPIC_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01',
+          'anthropic-version': ANTHROPIC_VERSION,
         },
         body: JSON.stringify({
           model: this.model,
-          max_tokens: 1024,
+          max_tokens: 2048,
           system: systemPrompt,
           messages: apiMessages,
         }),
@@ -249,7 +291,7 @@ export class QwenService {
     let mockResponse = 'Je suis en mode simulation. Configurez ANTHROPIC_API_KEY pour activer le vrai mode IA.';
 
     if (userMsg.includes('urgent') || userMsg.includes('priorit')) {
-      mockResponse = '[Mock] Vous avez 2 dossiers urgents. Je recommande de les traiter en priorite.';
+      mockResponse = '[Mock] Vous avez 2 dossiers urgents. Je recommande de les traiter en priorité.';
     } else if (userMsg.includes('facture') || userMsg.includes('retard')) {
       mockResponse = '[Mock] 1 facture est en retard. Veuillez relancer le client.';
     } else if (userMsg.includes('bonjour') || userMsg.includes('salut')) {
@@ -270,7 +312,7 @@ export class QwenService {
     const userMsg = messages[messages.length - 1]?.content.toLowerCase() || '';
     if (userMsg.includes('urgent')) return '[Mock] 2 dossiers urgents.';
     if (userMsg.includes('facture')) return '[Mock] 1 facture en retard.';
-    return '[Mock] Mode simulation. Configurez ANTHROPIC_API_KEY pour le mode reel.';
+    return '[Mock] Mode simulation. Configurez ANTHROPIC_API_KEY pour le mode réel.';
   }
 
   isEnabled(): boolean {

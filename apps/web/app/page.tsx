@@ -323,14 +323,14 @@ export default function HomePage() {
                 background: '#1a2a1e',
               }}>
                 <Image
-                  src="/images/avra-owl.webp"
+                  src="/logochouette4.png"
                   alt="AVRA Mascotte — Logiciel N°1 agencement"
                   fill
                   priority
-                  style={{ objectFit: 'cover', objectPosition: 'center top', transform: 'scale(1.1)' }}
+                  style={{ objectFit: 'contain', padding: 8 }}
                 />
-                {/* Overlay radial pour fondre les bords */}
-                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 55%, rgba(26,42,30,0.7) 100%)', pointerEvents: 'none' }} />
+                {/* Overlay: assombrit le centre (face blanche) + bords */}
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, rgba(10,17,12,0.55) 0%, rgba(10,17,12,0.2) 45%, transparent 65%, rgba(26,42,30,0.7) 100%)', pointerEvents: 'none', zIndex: 2 }} />
               </div>
             </div>
 

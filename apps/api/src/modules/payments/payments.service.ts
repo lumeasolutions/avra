@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CreatePaymentDto } from './dto/create-payment.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -67,7 +68,7 @@ export class PaymentsService {
     return { data, total, page, pageSize };
   }
 
-  async create(workspaceId: string, dto: any) {
+  async create(workspaceId: string, dto: CreatePaymentDto) {
     return this.prisma.paymentRequest.create({
       data: { ...dto, workspaceId },
       select: {

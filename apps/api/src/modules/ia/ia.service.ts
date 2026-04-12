@@ -79,9 +79,14 @@ export class IaService {
     const ext = path.extname(file.originalname) || '.bin';
     const storageKey = `workspaces/${workspaceId}/ia/${randomUUID()}${ext}`;
     const dir = path.join(UPLOAD_DIR, path.dirname(storageKey));
-    fs.mkdirSync(dir, { recursive: true });
     const fullPath = path.join(UPLOAD_DIR, storageKey);
-    fs.writeFileSync(fullPath, file.buffer);
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(fullPath, file.buffer);
+    } catch (fsError) {
+      this.logger.error('Filesystem write error:', fsError);
+      throw new BadRequestException('Impossible d\'écrire le fichier sur le serveur. Vérifiez les permissions ou l\'espace disque.');
+    }
 
     const mimeCategory = file.mimetype.startsWith('image/') ? FileMimeCategory.IMAGE : FileMimeCategory.OTHER;
     const stored = await this.prisma.storedFile.create({

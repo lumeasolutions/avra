@@ -60,7 +60,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <style>{`
+      <style suppressHydrationWarning>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { overflow: hidden; }
         @media (max-width: 900px) {
@@ -276,12 +276,12 @@ export default function LoginPage() {
                 margin: '0 auto',
               }}>
                 <Image
-                  src="/images/avra-owl.webp"
+                  src="/logochouette4.png"
                   alt="AVRA"
                   fill
-                  style={{ objectFit: 'cover', objectPosition: 'center 10%', transform: 'scale(1.1)' }}
+                  style={{ objectFit: 'contain', padding: 6 }}
                 />
-                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 50%, rgba(10,17,12,0.5) 100%)' }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, rgba(10,17,12,0.55) 0%, rgba(10,17,12,0.2) 45%, transparent 65%, rgba(10,17,12,0.5) 100%)', zIndex: 2 }} />
               </div>
             </div>
 

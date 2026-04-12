@@ -6,9 +6,11 @@ import {
   FolderCheck, Search, X, ChevronRight, TrendingUp, BadgeCheck,
   Calendar, LayoutGrid, List, ArrowUpRight, Package, CheckCircle2,
   Clock, AlertTriangle, Plus, Trash2, Check, BarChart3, Target,
+  ExternalLink,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useDossierStore, useFacturationStore, type ConfirmationFournisseur, type CommandeType } from '@/store';
+import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 
@@ -38,6 +40,11 @@ function formatDate(dateStr: string) {
       return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
     }
   }
+  // Try ISO format (yyyy-mm-dd from date input)
+  const iso = new Date(dateStr);
+  if (!isNaN(iso.getTime())) {
+    return iso.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
   return dateStr;
 }
 
@@ -45,28 +52,75 @@ function formatMontant(n: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 }
 
+// ─── Config dates butoires par métier ──────────────────────────────────────
+
+type DateButoiresItem = {
+  id: string;
+  label: string;
+  showDate?: boolean;
+  isAccess?: boolean;
+  accessHref?: string;
+};
+
+const DATES_BUTOIRES_BY_PROFESSION: Record<string, DateButoiresItem[]> = {
+  architecte: [
+    { id: 'permis-construire',   label: 'PERMIS DE CONSTRUIRE', showDate: true },
+    { id: 'dce',                 label: 'DCE', showDate: true },
+    { id: 'marche-signatures',   label: 'MARCHÉ / SIGNATURES', showDate: true },
+    { id: 'suivi-chantier',      label: 'SUIVI DE CHANTIER', showDate: true },
+    { id: 'commandes-fournisseurs', label: 'COMMANDES FOURNISSEURS', isAccess: true, accessHref: '/dossiers-signes' },
+    { id: 'confirmations-achats',   label: "CONFIRMATIONS / FACTURES D'ACHATS", isAccess: true, accessHref: '/dossiers-signes' },
+    { id: 'livraisons',             label: 'LIVRAISONS', isAccess: true, accessHref: '/dossiers-signes' },
+  ],
+  menuisier: [
+    { id: 'releve-mesures',      label: 'RELEVÉ SUR MESURE', showDate: true },
+    { id: 'debit-materiaux',     label: 'DÉBIT / LISTE MATÉRIAUX', showDate: true },
+    { id: 'fiche-pose',          label: 'FICHE DE POSE', showDate: true },
+    { id: 'commandes-fournisseurs', label: 'COMMANDES FOURNISSEURS', isAccess: true, accessHref: '/dossiers-signes' },
+    { id: 'fabrication',            label: 'FABRICATION', isAccess: true, accessHref: '/planning' },
+    { id: 'livraisons',             label: 'LIVRAISONS', isAccess: true, accessHref: '/dossiers-signes' },
+  ],
+  cuisiniste: [
+    { id: 'releve-definitif',    label: 'RELEVÉ DÉFINITIF', showDate: true },
+    { id: 'plans-techniques',    label: 'PLANS TECHNIQUES', showDate: true },
+    { id: 'fiche-pose',          label: 'FICHE DE POSE', showDate: true },
+    { id: 'commandes',              label: 'COMMANDES', isAccess: true, accessHref: '/dossiers-signes' },
+    { id: 'confirmations-achats',   label: "CONFIRMATIONS / FACTURES D'ACHATS", isAccess: true, accessHref: '/dossiers-signes' },
+    { id: 'livraisons',             label: 'LIVRAISONS', isAccess: true, accessHref: '/dossiers-signes' },
+  ],
+  default: [
+    { id: 'suivi-chantier',      label: 'SUIVI DE CHANTIER', showDate: true },
+    { id: 'releve-mesures',      label: 'RELEVÉ DE MESURES', showDate: true },
+    { id: 'plan-technique',      label: 'PLAN TECHNIQUE', showDate: true },
+    { id: 'fiche-pose',          label: 'FICHE DE POSE', showDate: true },
+    { id: 'permis-construire',   label: 'PERMIS DE CONSTRUIRE', showDate: true },
+    { id: 'commandes',              label: 'COMMANDES', isAccess: true, accessHref: '/dossiers-signes' },
+    { id: 'livraisons',             label: 'LIVRAISONS', isAccess: true, accessHref: '/dossiers-signes' },
+  ],
+};
+
 // ─── Sous-composant : Modal dates butoires ──────────────────────────────────
 
 type DateButoiresData = {
   [key: string]: string;
 };
 
-const DATES_BUTOIRES_ITEMS = [
-  { id: 'suivi-chantier', label: 'SUIVI DE CHANTIER', showDate: true },
-  { id: 'releve-mesures', label: 'RELEVE DE MESURES', showDate: true },
-  { id: 'plan-technique', label: 'PLAN TECHNIQUE', showDate: true },
-  { id: 'commandes', label: 'COMMANDES', showDate: false, isAccess: true },
-  { id: 'livraison', label: 'LIVRAISON', showDate: false, isAccess: true },
-  { id: 'fiche-pose', label: 'FICHE DE POSE', showDate: true },
-  { id: 'permis-construire', label: 'PERMIS DE CONSTRUIRE', showDate: true },
-  { id: 'sav', label: 'SAV', showDate: true },
-];
+function DateButoiresModal({ dossierId, onClose, profession }: { dossierId: string; onClose: () => void; profession: string | null }) {
+  const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
+  const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
+  const saved = datesButoiresSignes[dossierId] ?? {};
 
-function DateButoiresModal({ dossierId, onClose }: { dossierId: string; onClose: () => void }) {
-  const [dates, setDates] = useState<DateButoiresData>({});
+  const [dates, setDates] = useState<DateButoiresData>(saved);
+
+  const items = DATES_BUTOIRES_BY_PROFESSION[profession ?? 'default'] ?? DATES_BUTOIRES_BY_PROFESSION.default;
 
   const handleDateChange = (id: string, value: string) => {
     setDates(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleSave = () => {
+    setDatesButoiresSignes(dossierId, dates);
+    onClose();
   };
 
   return (
@@ -127,63 +181,134 @@ function DateButoiresModal({ dossierId, onClose }: { dossierId: string; onClose:
         </div>
 
         {/* Content */}
-        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {DATES_BUTOIRES_ITEMS.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                padding: '1rem',
-                border: '1px solid rgba(48, 64, 53, 0.1)',
-                borderRadius: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <label style={{
-                fontSize: '0.875rem',
-                fontWeight: '700',
-                color: '#304035',
-                flex: 1,
-              }}>
-                {item.label}
-              </label>
-              {item.isAccess ? (
-                <button
-                  style={{
-                    padding: '0.5rem 1rem',
-                    borderRadius: '0.5rem',
-                    backgroundColor: '#304035',
-                    color: 'white',
-                    border: 'none',
-                    fontSize: '0.75rem',
+        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {/* Section dates butoires */}
+          <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(48,64,53,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.25rem' }}>
+            Dates butoires
+          </p>
+          {items.filter(i => i.showDate).map((item) => {
+            const hasSaved = !!saved[item.id];
+            return (
+              <div
+                key={item.id}
+                style={{
+                  padding: '0.875rem 1rem',
+                  border: `1px solid ${hasSaved ? 'rgba(16,185,129,0.3)' : 'rgba(48, 64, 53, 0.1)'}`,
+                  borderRadius: '0.875rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: hasSaved ? 'rgba(16,185,129,0.04)' : 'transparent',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                  {hasSaved && <CheckCircle2 style={{ width: '1rem', height: '1rem', color: '#10b981', flexShrink: 0 }} />}
+                  <label style={{
+                    fontSize: '0.875rem',
                     fontWeight: '700',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(48, 64, 53, 0.9)')}
-                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#304035')}
-                >
-                  ACCEDER
-                </button>
-              ) : item.showDate ? (
+                    color: hasSaved ? '#10b981' : '#304035',
+                  }}>
+                    {item.label}
+                  </label>
+                </div>
                 <input
                   type="date"
                   value={dates[item.id] || ''}
                   onChange={e => handleDateChange(item.id, e.target.value)}
                   style={{
-                    padding: '0.5rem 0.75rem',
+                    padding: '0.4rem 0.6rem',
                     border: '1px solid rgba(48, 64, 53, 0.15)',
                     borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
+                    fontSize: '0.8rem',
                     color: '#304035',
                     fontFamily: 'inherit',
                     cursor: 'pointer',
+                    backgroundColor: 'white',
                   }}
                 />
-              ) : null}
+              </div>
+            );
+          })}
+
+          {/* Section ACCÉDER */}
+          {items.some(i => i.isAccess) && (
+            <>
+              <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(48,64,53,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '0.5rem', marginBottom: '0.25rem' }}>
+                Accès rapide
+              </p>
+              {items.filter(i => i.isAccess).map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    padding: '0.875rem 1rem',
+                    border: '1px solid rgba(48, 64, 53, 0.1)',
+                    borderRadius: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <label style={{ fontSize: '0.875rem', fontWeight: '700', color: '#304035', flex: 1 }}>
+                    {item.label}
+                  </label>
+                  <Link
+                    href={item.accessHref ?? '/dossiers-signes'}
+                    onClick={onClose}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.375rem',
+                      padding: '0.4rem 0.875rem',
+                      borderRadius: '0.5rem',
+                      backgroundColor: '#304035',
+                      color: 'white',
+                      border: 'none',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    ACCÉDER <ExternalLink style={{ width: '0.75rem', height: '0.75rem' }} />
+                  </Link>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Section SAV — disponible pour tous les métiers */}
+          <div style={{ marginTop: '0.75rem', padding: '1rem', border: '1px solid rgba(120,80,180,0.2)', borderRadius: '0.875rem', backgroundColor: 'rgba(120,80,180,0.03)' }}>
+            <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(120,80,180,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
+              SAV — Suivi après vente
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+              {/* Date butoire SAV */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#304035', flex: 1 }}>
+                  DATE BUTOIRE SAV
+                </label>
+                <input
+                  type="date"
+                  value={dates['sav-date'] || ''}
+                  onChange={e => handleDateChange('sav-date', e.target.value)}
+                  style={{ padding: '0.4rem 0.6rem', border: '1px solid rgba(48,64,53,0.15)', borderRadius: '0.5rem', fontSize: '0.8rem', color: '#304035', fontFamily: 'inherit', cursor: 'pointer', backgroundColor: 'white' }}
+                />
+              </div>
+              {/* Commande et confirmation SAV */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#304035', flex: 1 }}>
+                  COMMANDE & CONFIRMATION SAV
+                </label>
+                <Link
+                  href="/dossiers-signes"
+                  onClick={handleSave}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', borderRadius: '0.5rem', backgroundColor: 'rgba(120,80,180,0.12)', color: 'rgba(120,80,180,0.9)', border: '1px solid rgba(120,80,180,0.2)', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textDecoration: 'none' }}
+                >
+                  ACCÉDER <ExternalLink style={{ width: '0.75rem', height: '0.75rem' }} />
+                </Link>
+              </div>
             </div>
-          ))}
+          </div>
         </div>
 
         {/* Footer */}
@@ -219,9 +344,9 @@ function DateButoiresModal({ dossierId, onClose }: { dossierId: string; onClose:
             Annuler
           </button>
           <button
-            onClick={onClose}
+            onClick={handleSave}
             style={{
-              padding: '0.5rem 1rem',
+              padding: '0.5rem 1.25rem',
               borderRadius: '0.5rem',
               backgroundColor: '#304035',
               color: 'white',
@@ -234,7 +359,7 @@ function DateButoiresModal({ dossierId, onClose }: { dossierId: string; onClose:
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(48, 64, 53, 0.9)')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#304035')}
           >
-            Enregistrer
+            Enregistrer les dates
           </button>
         </div>
       </div>
@@ -244,20 +369,29 @@ function DateButoiresModal({ dossierId, onClose }: { dossierId: string; onClose:
 
 // ─── Sous-composant : Modal tableau de bord ──────────────────────────────────
 
-function TableauDeBordModal({ dossierId, onClose }: { dossierId: string; onClose: () => void }) {
-  const [completion] = useState<{ [key: string]: boolean }>({
-    'suivi-chantier': Math.random() > 0.5,
-    'releve-mesures': Math.random() > 0.5,
-    'plan-technique': Math.random() > 0.5,
-    'commandes': Math.random() > 0.5,
-    'livraison': Math.random() > 0.5,
-    'fiche-pose': Math.random() > 0.5,
-    'permis-construire': Math.random() > 0.5,
-    'sav': Math.random() > 0.5,
-  });
+function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: string; onClose: () => void; profession: string | null }) {
+  const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
+  const dossier = useDossierStore(s => s.dossiersSignes.find(d => d.id === dossierId));
+  const saved = datesButoiresSignes[dossierId] ?? {};
 
-  const completedCount = Object.values(completion).filter(Boolean).length;
-  const totalCount = Object.keys(completion).length;
+  const items = DATES_BUTOIRES_BY_PROFESSION[profession ?? 'default'] ?? DATES_BUTOIRES_BY_PROFESSION.default;
+  const dateItems = items.filter(i => i.showDate);
+  const today = new Date();
+
+  // Pour chaque date butoire, calculer l'état (à venir, passée, non définie)
+  const completedCount = dateItems.filter(i => saved[i.id]).length;
+  const totalCount = dateItems.length;
+
+  const getDateStatus = (id: string) => {
+    const val = saved[id];
+    if (!val) return 'none';
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return 'none';
+    if (d < today) return 'past';
+    const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff <= 7) return 'urgent';
+    return 'ok';
+  };
 
   return (
     <div style={{
@@ -346,58 +480,92 @@ function TableauDeBordModal({ dossierId, onClose }: { dossierId: string; onClose
             </div>
           </div>
 
+          {/* Dossier info */}
+          {dossier && (
+            <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', backgroundColor: 'rgba(48,64,53,0.04)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <BadgeCheck style={{ width: '1.25rem', height: '1.25rem', color: '#10b981', flexShrink: 0 }} />
+              <div>
+                <p style={{ fontSize: '0.9rem', fontWeight: '700', color: '#304035' }}>{dossier.name} {dossier.firstName ?? ''}</p>
+                <p style={{ fontSize: '0.75rem', color: 'rgba(48,64,53,0.5)' }}>Signé le {formatDate(dossier.signedDate)}</p>
+              </div>
+            </div>
+          )}
+
           {/* Status Items */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {DATES_BUTOIRES_ITEMS.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  padding: '1rem',
-                  border: '1px solid rgba(48, 64, 53, 0.1)',
-                  borderRadius: '1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '1rem',
-                }}
-              >
-                <div style={{
-                  width: '1.5rem',
-                  height: '1.5rem',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  ...(completion[item.id]
-                    ? {
-                        backgroundColor: '#2d9d78',
-                      }
-                    : {
-                        backgroundColor: '#ec4444',
-                      }),
-                }}>
-                  {completion[item.id] ? (
-                    <Check style={{ width: '1rem', height: '1rem', color: 'white' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {dateItems.map((item) => {
+              const status = getDateStatus(item.id);
+              const val = saved[item.id];
+              const dotColor = status === 'ok' ? '#10b981' : status === 'urgent' ? '#f97316' : status === 'past' ? '#6b7280' : '#e5e7eb';
+              const bgColor = status === 'ok' ? 'rgba(16,185,129,0.06)' : status === 'urgent' ? 'rgba(249,115,22,0.06)' : 'transparent';
+              const borderColor = status === 'ok' ? 'rgba(16,185,129,0.2)' : status === 'urgent' ? 'rgba(249,115,22,0.2)' : 'rgba(48,64,53,0.08)';
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    padding: '0.75rem 1rem',
+                    border: `1px solid ${borderColor}`,
+                    borderRadius: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    backgroundColor: bgColor,
+                  }}
+                >
+                  <div style={{
+                    width: '0.625rem',
+                    height: '0.625rem',
+                    borderRadius: '50%',
+                    backgroundColor: dotColor,
+                    flexShrink: 0,
+                  }} />
+                  <span style={{ flex: 1, fontSize: '0.8rem', fontWeight: '700', color: '#304035' }}>
+                    {item.label}
+                  </span>
+                  {val ? (
+                    <span style={{ fontSize: '0.75rem', fontWeight: '600', color: status === 'urgent' ? '#f97316' : status === 'past' ? '#6b7280' : '#10b981' }}>
+                      {status === 'past' ? 'Passée · ' : status === 'urgent' ? 'Urgent · ' : ''}{formatDate(val)}
+                    </span>
                   ) : (
-                    <div style={{
-                      width: '0.5rem',
-                      height: '0.5rem',
-                      borderRadius: '50%',
-                      backgroundColor: 'white',
-                    }} />
+                    <span style={{ fontSize: '0.75rem', color: 'rgba(48,64,53,0.3)', fontStyle: 'italic' }}>Non définie</span>
                   )}
                 </div>
-                <span style={{
-                  flex: 1,
-                  fontSize: '0.875rem',
-                  fontWeight: '700',
-                  color: '#304035',
-                }}>
-                  {item.label}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
+
+          {/* SAV */}
+          {saved['sav-date'] && (
+            <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', border: '1px solid rgba(120,80,180,0.2)', borderRadius: '0.75rem', backgroundColor: 'rgba(120,80,180,0.03)' }}>
+              <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(120,80,180,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.375rem' }}>SAV</p>
+              <p style={{ fontSize: '0.8rem', fontWeight: '600', color: '#304035' }}>
+                {formatDate(saved['sav-date'])}
+              </p>
+            </div>
+          )}
+
+          {/* Confirmations summary */}
+          {(dossier?.confirmations?.length ?? 0) > 0 && (
+            <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', backgroundColor: 'rgba(48,64,53,0.04)', borderRadius: '0.75rem' }}>
+              <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(48,64,53,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
+                Confirmations fournisseurs
+              </p>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '1.25rem', fontWeight: '800', color: '#10b981' }}>{dossier?.confirmations?.filter(c => c.validee && c.type === 'STANDARD').length ?? 0}</p>
+                  <p style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: '600' }}>Validées</p>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '1.25rem', fontWeight: '800', color: '#f59e0b' }}>{dossier?.confirmations?.filter(c => !c.validee).length ?? 0}</p>
+                  <p style={{ fontSize: '0.65rem', color: '#f59e0b', fontWeight: '600' }}>En attente</p>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '1.25rem', fontWeight: '800', color: '#304035' }}>{dossier?.confirmations?.length ?? 0}</p>
+                  <p style={{ fontSize: '0.65rem', color: 'rgba(48,64,53,0.5)', fontWeight: '600' }}>Total</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -587,7 +755,9 @@ function ConfirmationsPanel({ dossierId, confirmations = [] }: { dossierId: stri
 export default function DossiersSignesPage() {
   const router = useRouter();
   const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
   const invoices = useFacturationStore(s => s.invoices);
+  const profession = useAuthStore(s => s.profession);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'montant'>('date');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -747,18 +917,32 @@ export default function DossiersSignesPage() {
               {filtered.map((d, i) => {
                 const [c1, c2] = avatarColor(d.name);
                 const initials = `${d.name.charAt(0)}${d.firstName ? d.firstName.charAt(0) : ''}`.toUpperCase();
+                const datesCount = Object.keys(datesButoiresSignes[d.id] ?? {}).length;
+                const itemsForPro = DATES_BUTOIRES_BY_PROFESSION[profession ?? 'default'] ?? DATES_BUTOIRES_BY_PROFESSION.default;
+                const totalDates = itemsForPro.filter(it => it.showDate).length;
                 return (
                   <div key={d.id} className="signe-card group" style={{ animationDelay: `${i * 40}ms` }}>
                     <div className="relative bg-white rounded-2xl border border-emerald-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                       <div className="h-1.5 w-full" style={{ background: `linear-gradient(to right, ${c1}, ${c2})` }} />
                       <div className="p-4">
                         <div className="flex items-start gap-3 mb-3">
-                          <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
-                            {initials}
+                          <div className="relative">
+                            <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
+                              {initials}
+                            </div>
+                            {/* Badge signé */}
+                            <div className="absolute -bottom-1.5 -right-1.5 flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 border-2 border-white shadow-sm">
+                              <Check className="h-2.5 w-2.5 text-white" />
+                            </div>
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-[#304035] text-sm truncate">{d.name} {d.firstName ?? ''}</p>
-                            <p className="text-xs text-emerald-600 font-bold">SIGNÉ LE {formatDate(d.signedDate).toUpperCase()}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                                <BadgeCheck className="h-2.5 w-2.5" /> SIGNÉ
+                              </span>
+                              <span className="text-[10px] text-[#304035]/40">{formatDate(d.signedDate)}</span>
+                            </div>
                             <p className="text-xs text-[#304035]/45 truncate mt-0.5">{d.address || d.siteAddress || '—'}</p>
                           </div>
                           <Link href={`/dossiers/${d.id}`}>
@@ -772,6 +956,16 @@ export default function DossiersSignesPage() {
                           </div>
                         </div>
                         {/* Indicateur confirmations */}
+                        {/* Progression dates butoires */}
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] text-[#304035]/50 font-semibold">Dates butoires</span>
+                            <span className="text-[10px] font-bold text-emerald-600">{datesCount}/{totalDates}</span>
+                          </div>
+                          <div className="h-1 bg-[#304035]/8 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${totalDates > 0 ? (datesCount / totalDates) * 100 : 0}%` }} />
+                          </div>
+                        </div>
                         {(d.confirmations?.length ?? 0) > 0 && (
                           <div className="mb-3 flex items-center gap-1.5 text-[10px] text-[#304035]/50">
                             <Package className="h-3 w-3" />
@@ -781,52 +975,18 @@ export default function DossiersSignesPage() {
                         {/* Buttons */}
                         <div className="flex gap-2">
                           <button
-                            onClick={() => {
-                              setModalDossierId(d.id);
-                              setOpenModalType('dates');
-                            }}
-                            style={{
-                              flex: 1,
-                              padding: '0.5rem 0.75rem',
-                              borderRadius: '0.75rem',
-                              backgroundColor: '#304035',
-                              color: 'white',
-                              border: 'none',
-                              fontSize: '0.75rem',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              transition: 'background-color 0.2s',
-                            }}
+                            onClick={() => { setModalDossierId(d.id); setOpenModalType('dates'); }}
+                            style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '0.75rem', backgroundColor: '#304035', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: 'background-color 0.2s' }}
                             onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(48, 64, 53, 0.9)')}
                             onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#304035')}
                           >
                             DATES BUTOIRES
                           </button>
                           <button
-                            onClick={() => {
-                              setModalDossierId(d.id);
-                              setOpenModalType('tableau');
-                            }}
-                            style={{
-                              flex: 1,
-                              padding: '0.5rem 0.75rem',
-                              borderRadius: '0.75rem',
-                              backgroundColor: 'white',
-                              color: '#304035',
-                              border: '1px solid rgba(48, 64, 53, 0.2)',
-                              fontSize: '0.75rem',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s',
-                            }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.backgroundColor = 'rgba(48, 64, 53, 0.05)';
-                              e.currentTarget.style.borderColor = 'rgba(48, 64, 53, 0.3)';
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.backgroundColor = 'white';
-                              e.currentTarget.style.borderColor = 'rgba(48, 64, 53, 0.2)';
-                            }}
+                            onClick={() => { setModalDossierId(d.id); setOpenModalType('tableau'); }}
+                            style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '0.75rem', backgroundColor: 'white', color: '#304035', border: '1px solid rgba(48, 64, 53, 0.2)', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' }}
+                            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(48, 64, 53, 0.05)'; e.currentTarget.style.borderColor = 'rgba(48, 64, 53, 0.3)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.borderColor = 'rgba(48, 64, 53, 0.2)'; }}
                           >
                             TABLEAU DE BORD
                           </button>
@@ -843,22 +1003,35 @@ export default function DossiersSignesPage() {
               <div className="h-1 w-full bg-gradient-to-r from-emerald-400 to-transparent" />
               {filtered.map((d, i) => {
                 const [c1, c2] = avatarColor(d.name);
+                const datesCountList = Object.keys(datesButoiresSignes[d.id] ?? {}).length;
+                const itemsForProList = DATES_BUTOIRES_BY_PROFESSION[profession ?? 'default'] ?? DATES_BUTOIRES_BY_PROFESSION.default;
+                const totalDateslist = itemsForProList.filter(it => it.showDate).length;
                 return (
                   <div key={d.id}>
                     <div
                       className={cn('flex items-center gap-4 px-4 py-3 hover:bg-[#f5eee8]/30 transition-colors', i < filtered.length - 1 && 'border-b border-[#304035]/5')}
                     >
-                      <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
-                        {`${d.name.charAt(0)}${d.firstName ? d.firstName.charAt(0) : ''}`.toUpperCase()}
+                      <div className="relative shrink-0">
+                        <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white text-xs font-bold" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
+                          {`${d.name.charAt(0)}${d.firstName ? d.firstName.charAt(0) : ''}`.toUpperCase()}
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 border-2 border-white">
+                          <Check className="h-2 w-2 text-white" />
+                        </div>
                       </div>
                       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}>
-                        <p className="font-bold text-[#304035] text-sm">{d.name} {d.firstName ?? ''}</p>
-                        <p className="text-xs text-emerald-600 font-bold">SIGNÉ LE {formatDate(d.signedDate).toUpperCase()}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-[#304035] text-sm">{d.name} {d.firstName ?? ''}</p>
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.5">
+                            <BadgeCheck className="h-2 w-2" /> SIGNÉ
+                          </span>
+                        </div>
                         <p className="text-xs text-[#304035]/40 truncate mt-0.5">{d.address || '—'}</p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-xs text-[#304035]/40">{formatDate(d.signedDate)}</p>
                         <p className="text-sm font-black text-emerald-600">{d.montantHT > 0 ? formatMontant(d.montantHT) : '—'}</p>
+                        <span className="text-[10px] text-[#304035]/35">{datesCountList}/{totalDateslist} dates</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         {(d.confirmations?.length ?? 0) > 0 && (
@@ -984,19 +1157,15 @@ export default function DossiersSignesPage() {
       {openModalType === 'dates' && modalDossierId && (
         <DateButoiresModal
           dossierId={modalDossierId}
-          onClose={() => {
-            setOpenModalType(null);
-            setModalDossierId(null);
-          }}
+          profession={profession}
+          onClose={() => { setOpenModalType(null); setModalDossierId(null); }}
         />
       )}
       {openModalType === 'tableau' && modalDossierId && (
         <TableauDeBordModal
           dossierId={modalDossierId}
-          onClose={() => {
-            setOpenModalType(null);
-            setModalDossierId(null);
-          }}
+          profession={profession}
+          onClose={() => { setOpenModalType(null); setModalDossierId(null); }}
         />
       )}
     </div>

@@ -227,14 +227,14 @@ export default function ComparatifCuisiniste() {
             <p style={{ color: '#6b7c70', marginBottom: '16px' }}>
               Essai gratuit 14 jours. Aucune carte de crédit requise.
             </p>
-            <a href="/register"><button style={{ padding: '12px 32px', background: '#1e2b22', color: '#f9f6f0', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }} onMouseEnter={(e) => e.currentTarget.style.background = '#253029'} onMouseLeave={(e) => e.currentTarget.style.background = '#1e2b22'}>Démarrer l'essai gratuit</button></a>
+            <Link href="/register" style={{ display: 'inline-block', padding: '12px 32px', background: '#1e2b22', color: '#f9f6f0', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, textDecoration: 'none', transition: 'background 0.2s' }} onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = '#253029'} onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = '#1e2b22'}>Démarrer l'essai gratuit</Link>
           </div>
         </div>
       </div>
 
       <Footer />
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON.stringify({ '@context': 'https://schema.org', '@type': 'BlogPosting', headline: 'Meilleur logiciel cuisiniste 2026 : top 7 comparatif complet', description: 'Comparatif détaillé des 7 meilleurs logiciels pour cuisinistes en 2026.', author: { '@type': 'Organization', name: 'AVRA' }, datePublished: '2026-04-15', dateModified: '2026-04-15' })) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'BlogPosting', headline: 'Meilleur logiciel cuisiniste 2026 : top 7 comparatif complet', description: 'Comparatif détaillé des 7 meilleurs logiciels pour cuisinistes en 2026.', author: { '@type': 'Organization', name: 'AVRA' }, datePublished: '2026-04-15', dateModified: '2026-04-15' }) }} />
 
       <style>{`
         table { background: white; }

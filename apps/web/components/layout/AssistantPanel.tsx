@@ -1,12 +1,108 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { X, Send, AlertTriangle, XCircle, Clock, Info, ChevronDown, Mic, MicOff } from 'lucide-react';
 import { useDossierStore, useFacturationStore, useUIStore } from '@/store';
 import Link from 'next/link';
 
-const OWL_B64 = "/images/assistant-panel-1.png";
+// ── Rendu Markdown léger ──────────────────────────────────────────────────────
+
+function renderInline(text: string, baseColor: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+  const patterns: { regex: RegExp; render: (match: string) => React.ReactNode }[] = [
+    { regex: /\*\*(.+?)\*\*/,  render: m => <strong key={key++} style={{ fontWeight: 700 }}>{m}</strong> },
+    { regex: /__(.+?)__/,      render: m => <strong key={key++} style={{ fontWeight: 700 }}>{m}</strong> },
+    { regex: /\*(.+?)\*/,      render: m => <em key={key++}>{m}</em> },
+    { regex: /_(.+?)_/,        render: m => <em key={key++}>{m}</em> },
+    { regex: /`(.+?)`/,        render: m => <code key={key++} style={{ background:'rgba(0,0,0,0.08)', borderRadius:3, padding:'1px 4px', fontFamily:'monospace', fontSize:11 }}>{m}</code> },
+  ];
+  while (remaining.length > 0) {
+    let best: { index: number; length: number; node: React.ReactNode } | null = null;
+    for (const { regex, render } of patterns) {
+      const m = remaining.match(regex);
+      if (m && m.index !== undefined) {
+        if (!best || m.index < best.index) best = { index: m.index, length: m[0].length, node: render(m[1]) };
+      }
+    }
+    if (!best) { parts.push(remaining); break; }
+    if (best.index > 0) parts.push(remaining.slice(0, best.index));
+    parts.push(best.node);
+    remaining = remaining.slice(best.index + best.length);
+  }
+  return <React.Fragment>{parts}</React.Fragment>;
+}
+
+function renderMarkdown(text: string, isUser: boolean): React.ReactNode {
+  const color = isUser ? 'rgba(255,255,255,0.95)' : '#2C3529';
+  const blocks = text.split(/\n{2,}/);
+
+  return blocks.map((block, bi) => {
+    const trimmed = block.trim();
+    if (!trimmed) return null;
+
+    // Heading
+    const hMatch = trimmed.match(/^#{1,3}\s+(.+)$/);
+    if (hMatch) return (
+      <p key={bi} style={{ fontWeight: 700, fontSize: 12.5, marginTop: bi > 0 ? 6 : 0, marginBottom: 2, color }}>
+        {renderInline(hMatch[1], color)}
+      </p>
+    );
+
+    // Separator
+    if (/^[-*]{3,}$/.test(trimmed)) return <hr key={bi} style={{ border:'none', borderTop:`1px solid ${isUser ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`, margin:'4px 0' }} />;
+
+    // List (unordered or ordered)
+    const lines = trimmed.split('\n');
+    const isUL = lines.every(l => /^[-*+]\s/.test(l.trim()));
+    const isOL = lines.every(l => /^\d+[.)]\s/.test(l.trim()));
+
+    if (isUL) return (
+      <ul key={bi} style={{ margin: bi > 0 ? '5px 0 0 0' : '0', paddingLeft: 16, listStyleType:'disc', color }}>
+        {lines.map((l, j) => (
+          <li key={j} style={{ marginBottom: 1, lineHeight: 1.5, fontSize: 12 }}>
+            {renderInline(l.trim().replace(/^[-*+]\s+/, ''), color)}
+          </li>
+        ))}
+      </ul>
+    );
+
+    if (isOL) return (
+      <ol key={bi} style={{ margin: bi > 0 ? '5px 0 0 0' : '0', paddingLeft: 16, color }}>
+        {lines.map((l, j) => (
+          <li key={j} style={{ marginBottom: 1, lineHeight: 1.5, fontSize: 12 }}>
+            {renderInline(l.trim().replace(/^\d+[.)]\s+/, ''), color)}
+          </li>
+        ))}
+      </ol>
+    );
+
+    // Mixed or regular paragraph (line by line)
+    return (
+      <p key={bi} style={{ margin: bi > 0 ? '5px 0 0 0' : '0', lineHeight: 1.55, color }}>
+        {lines.map((line, li) => {
+          const t = line.trim();
+          const isBullet = /^[-*+]\s/.test(t) || /^\d+[.)]\s/.test(t);
+          return (
+            <React.Fragment key={li}>
+              {li > 0 && (isBullet ? null : <br />)}
+              {isBullet ? (
+                <span style={{ display:'block', paddingLeft:10, position:'relative' }}>
+                  <span style={{ position:'absolute', left:0, top:'0.5em', width:4, height:4, borderRadius:'50%', background: isUser ? 'rgba(255,255,255,0.7)' : '#4A6358', display:'inline-block' }}/>
+                  {renderInline(t.replace(/^[-*+]\s+/, '').replace(/^\d+[.)]\s+/, ''), color)}
+                </span>
+              ) : renderInline(t, color)}
+            </React.Fragment>
+          );
+        })}
+      </p>
+    );
+  });
+}
+
+const OWL_B64 = "/logochouette4.png";
 const TEXTURE_B64 = "/images/assistant-panel-2.jpeg";
 
 function AlertIconComp({ severity }: { severity: string }) {
@@ -72,6 +168,7 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
         @keyframes apSlide  { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
         @keyframes apMsgIn  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes apOpen   { from{opacity:0;transform:translateY(20px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+        @keyframes apPulseRing { 0%,100%{transform:scale(1);opacity:0.6} 50%{transform:scale(1.08);opacity:1} }
         @keyframes apTyping { 0%,60%,100%{transform:translateY(0);opacity:.4} 30%{transform:translateY(-5px);opacity:1} }
         .ap-float { animation: apFloat 3.5s ease-in-out infinite; }
         .ap-blink { animation: apBlink 2s ease-in-out infinite; }
@@ -89,82 +186,110 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
 
 
       {/* Panneau — permanent (sidebar) ou flottant */}
-      <div className={permanent ? "relative w-full h-screen z-40 overflow-hidden bg-[#F4F1ED] shadow-[-4px_0_24px_rgba(0,0,0,0.10)] flex flex-col" : "fixed bottom-6 right-6 w-[300px] max-h-[580px] z-40 rounded-[28px] overflow-hidden bg-[#F4F1ED] shadow-[0_24px_72px_rgba(0,0,0,0.22),0_8px_24px_rgba(0,0,0,0.14),0_0_0_1px_rgba(255,255,255,0.45)_inset] flex flex-col animate-[apOpen_0.25s_cubic-bezier(0.34,1.56,0.64,1)_both]"}>
+      <div className={permanent ? "relative w-full h-full z-40 overflow-hidden flex flex-col" : "fixed bottom-6 right-6 w-[300px] max-h-[580px] z-40 rounded-[28px] overflow-hidden shadow-[0_24px_72px_rgba(0,0,0,0.22),0_8px_24px_rgba(0,0,0,0.14)] flex flex-col animate-[apOpen_0.25s_cubic-bezier(0.34,1.56,0.64,1)_both]"}
+        style={{ background: '#F5F2EE' }}>
 
-        {/* ── HEADER SVG ── */}
-        <div className="relative h-[200px] flex-shrink-0 overflow-hidden">
-          <svg viewBox="0 0 300 210" preserveAspectRatio="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="absolute top-0 left-0 w-full h-full"
-          >
+        {/* Chouette filigrane — au centre du panneau */}
+        <div style={{
+          position: 'absolute', top: '55%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 0, pointerEvents: 'none',
+          width: 390, height: 390,
+        }}>
+          <Image src="/logochouette4.png" alt="" width={390} height={390}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.09 }}/>
+        </div>
+
+
+        {/* ── HEADER ── */}
+        <div className="relative flex-shrink-0" style={{ height: 130, background: '#F5F2EE' }}>
+          {/* Blob vert organique */}
+          <svg viewBox="0 0 300 130" preserveAspectRatio="none"
+            className="absolute inset-0 w-full h-full">
             <defs>
-              <linearGradient id="apGrad" x1="0" y1="0" x2="0.8" y2="1">
-                <stop offset="0%"  stopColor="#567060"/>
-                <stop offset="40%" stopColor="#4A6358"/>
-                <stop offset="100%" stopColor="#334840"/>
+              <linearGradient id="apBlobGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#5a7868"/>
+                <stop offset="100%" stopColor="#3d5449"/>
               </linearGradient>
-              <clipPath id="apClip">
-                <path d="M 0,0 L 300,0 L 300,160 C 250,175 200,185 150,185 C 100,185 50,175 0,160 Z"/>
-              </clipPath>
-              <filter id="apGrain" x="0%" y="0%" width="100%" height="100%" colorInterpolationFilters="sRGB">
-                <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="4" stitchTiles="stitch" result="noise"/>
-                <feColorMatrix type="saturate" values="0" in="noise" result="gray"/>
-                <feBlend in="SourceGraphic" in2="gray" mode="overlay" result="blended"/>
-                <feComposite in="blended" in2="SourceGraphic" operator="in"/>
-              </filter>
-              <radialGradient id="apSoftLight" cx="22%" cy="18%" r="65%">
-                <stop offset="0%"   stopColor="rgba(255,255,255,0.13)"/>
+              <radialGradient id="apBlobLight" cx="25%" cy="20%" r="60%">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.18)"/>
                 <stop offset="100%" stopColor="rgba(255,255,255,0)"/>
               </radialGradient>
-              <linearGradient id="apBottomFade" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="65%"  stopColor="rgba(0,0,0,0)"/>
-                <stop offset="100%" stopColor="rgba(0,0,0,0.18)"/>
-              </linearGradient>
             </defs>
-            {/* 1. Texture JPEG */}
-            <image href={TEXTURE_B64} x="0" y="0" width="300" height="210"
-              preserveAspectRatio="xMidYMid slice" clipPath="url(#apClip)"/>
-            {/* 2. Gradient vert + grain */}
-            <path d="M 0,0 L 300,0 L 300,160 C 250,175 200,185 150,185 C 100,185 50,175 0,160 Z"
-              fill="url(#apGrad)" filter="url(#apGrain)" opacity="0.82"/>
-            {/* 3. Lumière */}
-            <path d="M 0,0 L 300,0 L 300,160 C 250,175 200,185 150,185 C 100,185 50,175 0,160 Z"
-              fill="url(#apSoftLight)"/>
-            {/* 4. Ombre bas */}
-            <path d="M 0,0 L 300,0 L 300,160 C 250,175 200,185 150,185 C 100,185 50,175 0,160 Z"
-              fill="url(#apBottomFade)"/>
-            {/* 5. Ombre sous courbe */}
-            <path d="M 0,160 C 50,175 100,185 150,185 C 200,185 250,175 300,160 L 300,168 C 250,183 200,193 150,193 C 100,193 50,183 0,168 Z"
-              fill="rgba(0,0,0,0.08)"/>
+            {/* Forme organique principale */}
+            <path d="M 0,0 L 300,0 L 300,78 C 255,98 205,112 155,110 C 105,108 50,96 0,80 Z"
+              fill="url(#apBlobGrad)"/>
+            {/* Lumière sur le blob */}
+            <path d="M 0,0 L 300,0 L 300,78 C 255,98 205,112 155,110 C 105,108 50,96 0,80 Z"
+              fill="url(#apBlobLight)"/>
+            {/* Ombre douce sous le blob */}
+            <path d="M 0,80 C 50,96 105,108 155,110 C 205,112 255,98 300,78 L 300,84 C 255,104 205,118 155,116 C 105,114 50,102 0,86 Z"
+              fill="rgba(0,0,0,0.07)"/>
           </svg>
 
-          {/* Bouton fermer — masqué en mode permanent */}
+          {/* Bouton fermer */}
           {!permanent && <button onClick={onClose} className="absolute top-3 right-3 z-[3] w-7 h-7 rounded-full bg-[rgba(0,0,0,0.20)] border-none cursor-pointer flex items-center justify-center text-[rgba(255,255,255,0.8)]">
             <ChevronDown className="h-4 w-4"/>
           </button>}
 
-          {/* Contenu header */}
-          <div className="relative z-[2] flex flex-col items-center pt-6 gap-2">
-            <div className="ap-float w-[76px] h-[76px] rounded-full bg-[rgba(255,255,255,0.10)] border-2 border-[rgba(255,255,255,0.20)] flex items-center justify-center shadow-[0_6px_24px_rgba(0,0,0,0.30)]">
-              <Image src={OWL_B64} alt="AVRA" width={50} height={50} loading="lazy" className="w-[50px] h-[50px] object-contain" style={{ filter:'drop-shadow(0 2px 8px rgba(0,0,0,0.35))' }}/>
+          {/* Chouette + titre */}
+          <div className="absolute z-[2] flex items-center gap-3" style={{ top: 18, left: 16 }}>
+            <div style={{ position: 'relative', width: 62, height: 62 }}>
+              {/* Anneau doré */}
+              <div style={{
+                position: 'absolute', inset: -4, borderRadius: '50%',
+                border: '1.5px solid rgba(201,169,110,0.55)',
+                animation: 'apPulseRing 3s ease-in-out infinite',
+              }}/>
+              <div className="ap-float" style={{
+                width: '100%', height: '100%', borderRadius: '50%',
+                background: 'transparent',
+                padding: 3,
+                boxShadow: '0 4px 18px rgba(0,0,0,0.35), 0 0 0 1px rgba(201,169,110,0.2)',
+              }}>
+                <Image src={OWL_B64} alt="AVRA" width={56} height={56} loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '50%' }}/>
+              </div>
             </div>
-            <div className="text-[11px] font-bold tracking-[3px] text-[rgba(242,238,228,0.95)] text-center" style={{ textShadow:'0 1px 4px rgba(0,0,0,0.35)' }}>
-              ASSISTANT AVRA
-            </div>
-            <div className="flex items-center gap-[5px] text-[10px] text-[rgba(190,225,205,0.85)] font-medium">
-              <div className="ap-blink w-[7px] h-[7px] rounded-full bg-[#4CAF50]" style={{ boxShadow:'0 0 7px #4CAF50' }}/>
-              En ligne · IA active
+            <div>
+              <div style={{
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.18em',
+                color: 'rgba(210,240,220,0.85)', lineHeight: 1,
+                textTransform: 'uppercase',
+              }}>
+                Assistant
+              </div>
+              <div style={{
+                fontSize: 26, fontWeight: 900, letterSpacing: '0.04em', lineHeight: 1.1,
+                background: 'linear-gradient(135deg, #ffffff 0%, #d4edda 50%, #a8d5b5 100%)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                textShadow: 'none',
+                filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))',
+              }}>
+                AVRA
+              </div>
+              <div className="flex items-center gap-[5px]" style={{ marginTop: 5 }}>
+                <div className="ap-blink w-[6px] h-[6px] rounded-full"
+                  style={{ background: '#4CAF50', boxShadow: '0 0 8px rgba(76,175,80,1)' }}/>
+                <span style={{ color: 'rgba(210,240,220,0.9)', fontSize: 9, fontWeight: 600, letterSpacing: '0.05em' }}>En ligne · IA active</span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* ── TABS ── */}
-        <div className="flex bg-[#EBE8E3] border-b border-[rgba(0,0,0,0.07)] flex-shrink-0">
+        <div className="flex flex-shrink-0" style={{ background: '#F5F2EE', padding: '0 12px', gap: 4 }}>
           {(['alerts','chat'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} className={`flex-1 py-[11px] text-[11px] font-semibold tracking-[0.5px] border-none bg-transparent cursor-pointer transition-all duration-200 ${tab === t ? 'text-[#3D5449] border-b-[2.5px] border-b-[#4A6358]' : 'text-[#9A9590] border-b-[2.5px] border-b-transparent'}`}>
+            <button key={t} onClick={() => setTab(t)} style={{
+              flex: 1, padding: '10px 0', fontSize: 11, fontWeight: 700,
+              border: 'none', background: 'transparent', cursor: 'pointer',
+              color: tab === t ? '#3D5449' : '#A8A29E',
+              borderBottom: tab === t ? '2.5px solid #4A6358' : '2.5px solid transparent',
+              transition: 'all 0.2s', letterSpacing: '0.04em',
+            }}>
               {t === 'alerts' ? (
                 <span>Alertes{activeAlerts.length > 0 &&
-                  <span className="inline-flex items-center justify-center bg-[#C0392B] text-white text-[9px] font-bold w-4 h-4 rounded-full ml-1 align-middle">{activeAlerts.length}</span>
+                  <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', background:'#C0392B', color:'white', fontSize:9, fontWeight:800, width:16, height:16, borderRadius:'50%', marginLeft:5, verticalAlign:'middle' }}>{activeAlerts.length}</span>
                 }</span>
               ) : 'Chat IA'}
             </button>
@@ -173,50 +298,93 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
 
         {/* ── VUE ALERTES ── */}
         {tab === 'alerts' && (
-          <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'transparent', position: 'relative' }}>
             {/* KPIs */}
-            <div className="grid grid-cols-3 gap-[7px] px-[11px] py-[11px] pb-[6px]">
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, padding:'10px 12px 6px' }}>
               {[
-                { val:dossiers.filter(d => d.status==='URGENT').length, label:'Urgents', color:'#D32F2F' },
-                { val:dossiersSignes.length,                             label:'Signés',  color:'#388E3C' },
-                { val:invoices.filter(i => i.statut==='RETARD').length,  label:'Retards', color:'#E07B00' },
-              ].map(({ val, label, color }) => (
-                <div key={label} className="bg-white rounded-[12px] p-[8px_4px] text-center shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-                  <div className="text-[22px] font-bold" style={{ color }}>{val}</div>
-                  <div className="text-[9px] font-semibold text-[#9A9590] uppercase tracking-[0.5px]">{label}</div>
+                { val:dossiers.filter(d => d.status==='URGENT').length, label:'URGENTS', color:'#D32F2F', bg:'#FFF0F0' },
+                { val:dossiersSignes.length,                             label:'SIGNÉS',  color:'#388E3C', bg:'#F0FFF2' },
+                { val:invoices.filter(i => i.statut==='RETARD').length,  label:'RETARDS', color:'#E07B00', bg:'#FFF8F0' },
+              ].map(({ val, label, color, bg }) => (
+                <div key={label} style={{ background:'white', borderRadius:14, padding:'9px 4px', textAlign:'center', boxShadow:'0 2px 8px rgba(0,0,0,0.07)' }}>
+                  <div style={{ fontSize:22, fontWeight:800, color, lineHeight:1 }}>{val}</div>
+                  <div style={{ fontSize:8, fontWeight:700, color:'#9A9590', letterSpacing:'0.05em', marginTop:2 }}>{label}</div>
                 </div>
               ))}
             </div>
             {/* Liste */}
-            <div className="ap-scroll flex-1 overflow-y-auto px-[10px] py-[4px] pb-[8px] flex flex-col gap-[7px]">
+            <div className="ap-scroll flex-1 overflow-y-auto" style={{ padding:'4px 12px 8px', display:'flex', flexDirection:'column', gap:7 }}>
               {activeAlerts.length === 0 ? (
-                <div className="text-center py-6 text-[#388E3C] font-semibold text-[13px]">
+                <div style={{ textAlign:'center', padding:'24px 0', color:'#388E3C', fontWeight:600, fontSize:13 }}>
                   ✅ Tout est en ordre
                 </div>
               ) : activeAlerts.map((alert, i) => (
-                <div key={alert.id} className="ap-slide ap-card bg-white rounded-[14px] py-[10px] px-[11px] flex items-center gap-[9px] shadow-[0_2px_10px_rgba(0,0,0,0.055)]" style={{ animationDelay: i * 0.05 + 's' }}>
-                  <div className="w-[32px] h-[32px] rounded-[10px] flex-shrink-0 flex items-center justify-center" style={{ background: ICON_BG[alert.severity] ?? '#F5F5F5' }}>
-                    <AlertIconComp severity={alert.severity}/>
+                <div key={alert.id} className="ap-slide ap-card" style={{
+                  background:'white', borderRadius:16,
+                  padding:'10px 11px', display:'flex', flexDirection:'column', gap:6,
+                  boxShadow:'0 2px 10px rgba(0,0,0,0.07)',
+                  animationDelay: i * 0.04 + 's',
+                }}>
+                  {/* Ligne principale */}
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <div style={{
+                      width:32, height:32, borderRadius:10, flexShrink:0,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      background: ICON_BG[alert.severity] ?? '#F5F5F5',
+                    }}>
+                      <AlertIconComp severity={alert.severity}/>
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:11.5, color:'#1a1a1a', fontWeight:600, lineHeight:1.35 }}>
+                        {alert.text}
+                      </div>
+                      {alert.category && (
+                        <span style={{ fontSize:9, fontWeight:700, color:'#9A9590', textTransform:'uppercase', letterSpacing:'0.04em' }}>
+                          {alert.category}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
+                      <div style={{ width:7, height:7, borderRadius:'50%', background: DOT_COLOR[alert.severity] ?? '#BDBDBD' }}/>
+                      <button onClick={() => dismissAlert(alert.id)} style={{ border:'none', background:'transparent', cursor:'pointer', color:'#C0BAB2', padding:2, display:'flex', alignItems:'center' }}>
+                        <X className="h-3 w-3"/>
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex-1 text-[11.5px] text-[#2C3529] font-medium leading-[1.4]">
-                    {alert.text}
-                    {alert.dossierId && (
-                      <div><Link href={'/dossiers/'+alert.dossierId} className="text-[10px] text-[#C49A3C] no-underline">Voir →</Link></div>
-                    )}
-                  </div>
-                  <div className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: DOT_COLOR[alert.severity] ?? '#BDBDBD' }}/>
-                  <button onClick={() => dismissAlert(alert.id)} className="border-none bg-transparent cursor-pointer text-[#C0BAB2] p-[2px] flex items-center">
-                    <X className="h-3.5 w-3.5"/>
-                  </button>
+                  {/* Boutons d'action */}
+                  {alert.actions && alert.actions.length > 0 && (
+                    <div style={{ display:'flex', gap:4, flexWrap:'wrap', paddingLeft:40 }}>
+                      {alert.actions.map((act, j) => (
+                        act.href ? (
+                          <Link key={j} href={act.href} style={{
+                            fontSize:10, fontWeight:600, color:'#4A6358', background:'#e8f0ec',
+                            borderRadius:8, padding:'3px 8px', textDecoration:'none',
+                            border:'1px solid rgba(74,99,88,0.15)',
+                            transition:'background 0.15s',
+                          }}>
+                            {act.label}
+                          </Link>
+                        ) : (
+                          <button key={j} style={{
+                            fontSize:10, fontWeight:600, color:'#6b6158', background:'#f5eee8',
+                            borderRadius:8, padding:'3px 8px', border:'1px solid rgba(0,0,0,0.08)',
+                            cursor:'pointer', transition:'background 0.15s',
+                          }}>
+                            {act.label}
+                          </button>
+                        )
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
             {/* Pagination */}
-            <div className="py-[7px] px-[11px] pb-[11px] flex items-center justify-between border-t border-[rgba(0,0,0,0.05)]">
-              <span className="text-[11px] text-[#B0AB9F] font-medium">{activeAlerts.length} / {alerts.length} alertes</span>
-              <div className="flex gap-[5px]">
+            <div style={{ padding:'8px 12px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', borderTop:'1px solid rgba(0,0,0,0.05)' }}>
+              <span style={{ fontSize:11, color:'#B0AB9F', fontWeight:500 }}>{activeAlerts.length} / {alerts.length} alertes</span>
+              <div style={{ display:'flex', gap:5 }}>
                 {['‹','›'].map(btn => (
-                  <button key={btn} className="w-[26px] h-[26px] rounded-full border border-[#D8D3CB] bg-white text-[14px] text-[#4A6358] cursor-pointer flex items-center justify-center">{btn}</button>
+                  <button key={btn} style={{ width:26, height:26, borderRadius:'50%', border:'1px solid #D8D3CB', background:'white', fontSize:14, color:'#4A6358', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>{btn}</button>
                 ))}
               </div>
             </div>
@@ -425,7 +593,9 @@ function ChatView({ owlB64 }: { owlB64: string }) {
               {m.role==='ai' ? <Image src={owlB64} alt="AI" width={18} height={18} loading="lazy" className="w-[18px] h-[18px] object-contain"/> : <span className="text-[11px] font-bold text-white">E</span>}
             </div>
             <div className="max-w-[190px]">
-              <div className={`py-[9px] px-[12px] rounded-[16px] text-[12px] leading-[1.5] shadow-[0_2px_8px_rgba(0,0,0,0.07)]`} style={{ borderBottomLeftRadius:m.role==='ai'?4:16, borderBottomRightRadius:m.role==='user'?4:16, background:m.role==='ai'?'white':'linear-gradient(135deg,#4A6358,#334840)', color:m.role==='ai'?'#2C3529':'rgba(255,255,255,0.95)' }}>{m.text}</div>
+              <div className={`py-[9px] px-[12px] rounded-[16px] text-[12px] leading-[1.5] shadow-[0_2px_8px_rgba(0,0,0,0.07)]`} style={{ borderBottomLeftRadius:m.role==='ai'?4:16, borderBottomRightRadius:m.role==='user'?4:16, background:m.role==='ai'?'white':'linear-gradient(135deg,#4A6358,#334840)', color:m.role==='ai'?'#2C3529':'rgba(255,255,255,0.95)' }}>
+                {renderMarkdown(m.text, m.role === 'user')}
+              </div>
               {/* Boutons de confirmation si l'IA propose une action */}
               {m.role==='ai' && m.action && (
                 <div className="flex gap-[6px] mt-[6px]">

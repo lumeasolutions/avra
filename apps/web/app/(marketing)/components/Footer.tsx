@@ -23,8 +23,8 @@ export default function Footer() {
     ],
     resources: [
       { label: 'Blog', href: '/blog' },
-      { label: 'Guide e-facture 2026', href: '/guide-e-facture' },
-      { label: 'Comparatif logiciels', href: '/comparatif' },
+      { label: 'Guide e-facture 2026', href: '/blog/e-facture-2026' },
+      { label: 'Comparatif logiciels', href: '/blog/logiciel-cuisiniste-comparatif' },
       { label: 'Contact', href: '/contact' },
     ],
     legal: [

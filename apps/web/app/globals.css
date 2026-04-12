@@ -273,15 +273,14 @@ width: 160%;
 
 height: 100%;
 
+pointer-events: none;
+
 z-index: -1;
 
 filter:
-
-drop-shadow(4px 0 12px rgba(0,0,0,0.22))
-
-drop-shadow(0 3px 8px rgba(0,0,0,0.15))
-
-drop-shadow(0 -3px 8px rgba(0,0,0,0.12));
+  drop-shadow(6px 0 18px rgba(0,0,0,0.30))
+  drop-shadow(0 4px 10px rgba(0,0,0,0.18))
+  drop-shadow(0 -4px 10px rgba(0,0,0,0.14));
 
 overflow: visible;
 

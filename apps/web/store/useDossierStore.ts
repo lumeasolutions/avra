@@ -117,6 +117,7 @@ interface DossierState {
   perdreDossier: (id: string, reason: string) => void;
   updateDateButoireSignee: (dossierId: string, label: string, date: string) => void;
   updateDossierSigneDateButoires: (dossierId: string, dateButoires: DossierSigne['dateButoires']) => void;
+  setDatesButoiresSignes: (dossierId: string, dates: Record<string, string>) => void;
   addConfirmation: (dossierId: string, conf: Omit<ConfirmationFournisseur, 'id'>) => void;
   updateConfirmation: (dossierId: string, confId: string, data: Partial<ConfirmationFournisseur>) => void;
   deleteConfirmation: (dossierId: string, confId: string) => void;
@@ -225,6 +226,15 @@ export const useDossierStore = create<DossierState>()(
           dossiersSignes: s.dossiersSignes.map(d =>
             d.id === dossierId ? { ...d, dateButoires } : d
           ),
+        }));
+      },
+
+      setDatesButoiresSignes: (dossierId, dates) => {
+        set(s => ({
+          datesButoiresSignes: {
+            ...s.datesButoiresSignes,
+            [dossierId]: dates,
+          },
         }));
       },
 

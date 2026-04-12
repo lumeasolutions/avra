@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Settings, Building2, Package, FileText, FolderX, Bell,
   ChevronRight, Save, Plus, Trash2, X, Crown, Eye, EyeOff, Check,
   Hash, Banknote, SlidersHorizontal, RefreshCw, Download, Upload,
-  AlertTriangle, Shield, Percent, UserCheck, Users, TrendingUp,
+  AlertTriangle, Shield, Percent, UserCheck, Users, TrendingUp, Sparkles,
+  Bot, Brain, Mic, MessageSquare, Database, Zap,
 } from 'lucide-react';
 import type { Apporteur } from '@/store';
 import { useConfigStore, useDossierStore, useFacturationStore, useHistoryStore, useStockStore } from '@/store';
@@ -27,6 +28,7 @@ const SECTIONS = [
   { id: 'produits',       icon: Package,            label: 'Catalogue Produits',       desc: 'Aperçu du catalogue (gérer dans Stock)' },
   { id: 'perdus',         icon: FolderX,            label: 'Dossiers perdus',          desc: 'Archive des dossiers non signés' },
   { id: 'export',         icon: Download,           label: 'Import / Export',          desc: 'Exporter vos données en CSV/JSON' },
+  { id: 'ia',            icon: Sparkles,           label: 'Intelligence Artificielle', desc: 'Configurer l\'assistant et les modules IA' },
 ];
 
 const ROLE_COLORS: Record<string, string> = {
@@ -133,6 +135,8 @@ export default function ParametresPage() {
   const updateFacturationConfig = useConfigStore(s => s.updateFacturationConfig);
   const notifConfig         = useConfigStore(s => s.notifConfig) ?? { factureRetard: true, devisExpire: true, commandeAttente: true, planningRappel: true, nouveauDossier: false, paiementRecu: true, emailNotif: true, smsNotif: false };
   const updateNotifConfig   = useConfigStore(s => s.updateNotifConfig);
+  const iaConfig            = useConfigStore(s => s.iaConfig);
+  const updateIAConfig      = useConfigStore(s => s.updateIAConfig);
   const apporteurs          = useFacturationStore(s => s.apporteurs) ?? [];
   const addApporteur        = useFacturationStore(s => s.addApporteur);
   const updateApporteur     = useFacturationStore(s => s.updateApporteur);
@@ -158,6 +162,18 @@ export default function ParametresPage() {
   const [showAddApporteur, setShowAddApporteur] = useState(false);
   const [newApporteur, setNewApporteur] = useState<Omit<Apporteur, 'id' | 'dateAjout'>>({ nom: '', email: '', phone: '', tauxCommission: 5, actif: true, notes: '' });
   const [editApporteurId, setEditApporteurId] = useState<string | null>(null);
+  const [iaForm, setIAForm] = useState(iaConfig);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll vers le panneau ouvert
+  useEffect(() => {
+    if (active && panelRef.current) {
+      setTimeout(() => {
+        panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [active]);
 
   const flash = (key: string) => {
     setSavedMap(m => ({ ...m, [key]: true }));
@@ -199,6 +215,9 @@ export default function ParametresPage() {
           </button>
         ))}
       </div>
+
+      {/* Ref pour auto-scroll */}
+      <div ref={panelRef} />
 
       {/* ══════════════════════════════════════════════════════════════════════
           PANEL : COORDONNÉES SOCIÉTÉ
@@ -1107,6 +1126,234 @@ export default function ParametresPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          PANEL : INTELLIGENCE ARTIFICIELLE
+      ══════════════════════════════════════════════════════════════════════ */}
+      {active === 'ia' && iaForm && (
+        <div className="rounded-2xl bg-white shadow-md border border-[#304035]/8 p-6 space-y-6">
+          <h3 className="font-bold text-[#304035] text-base flex items-center gap-2">
+            <Sparkles className="h-5 w-5" /> Intelligence Artificielle — Assistant
+          </h3>
+
+          {/* Activation générale */}
+          <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-[#304035]/5 to-[#304035]/10 border border-[#304035]/12 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#304035]/10">
+                <Bot className="h-5 w-5 text-[#304035]" />
+              </div>
+              <div>
+                <p className="font-bold text-[#304035] text-sm">Activer l'assistant AVRA</p>
+                <p className="text-xs text-[#304035]/50 mt-0.5">L'assistant IA apparaît dans toutes les pages de l'application</p>
+              </div>
+            </div>
+            <Toggle checked={iaForm.assistantActif} onChange={v => setIAForm(f => ({ ...f, assistantActif: v }))} />
+          </div>
+
+          {/* Personnalité */}
+          <div>
+            <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <Brain className="h-3.5 w-3.5" /> Personnalité de l'assistant
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {([
+                { value: 'professionnel', label: 'Professionnel', desc: 'Formel et précis', emoji: '💼' },
+                { value: 'amical',        label: 'Amical',        desc: 'Chaleureux et humain', emoji: '😊' },
+                { value: 'concis',        label: 'Concis',        desc: 'Court et efficace', emoji: '⚡' },
+              ] as const).map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => setIAForm(f => ({ ...f, personnalite: p.value }))}
+                  className={cn(
+                    'rounded-xl border-2 p-4 text-left transition-all',
+                    iaForm.personnalite === p.value
+                      ? 'border-[#304035] bg-[#304035]/5 shadow-sm'
+                      : 'border-[#304035]/12 bg-[#f5eee8]/30 hover:border-[#304035]/30'
+                  )}
+                >
+                  <span className="text-xl">{p.emoji}</span>
+                  <p className={cn('font-bold text-sm mt-2', iaForm.personnalite === p.value ? 'text-[#304035]' : 'text-[#304035]/70')}>{p.label}</p>
+                  <p className="text-xs text-[#304035]/45 mt-0.5">{p.desc}</p>
+                  {iaForm.personnalite === p.value && (
+                    <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-[#304035]/60">
+                      <Check className="h-3 w-3" /> Actif
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Accès aux données */}
+          <div>
+            <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <Database className="h-3.5 w-3.5" /> Accès aux données de votre espace
+            </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+              {[
+                { key: 'accesDossiers'      as const, label: 'Dossiers clients',      desc: 'Dossiers en cours et signés' },
+                { key: 'accesFacturation'    as const, label: 'Facturation',            desc: 'Devis, factures, avoirs' },
+                { key: 'accesPlanning'       as const, label: 'Planning',               desc: 'Agenda et interventions' },
+                { key: 'accesStock'          as const, label: 'Stock & Catalogue',      desc: 'Produits et tarifs' },
+                { key: 'accesStats'          as const, label: 'Statistiques',            desc: 'KPIs et tableaux de bord' },
+                { key: 'accesIntervenants'   as const, label: 'Intervenants',            desc: 'Poseurs et sous-traitants' },
+                { key: 'accesAdminDocs'      as const, label: 'Dossiers administratifs', desc: 'Contrats, assurances, juridique' },
+              ].map(item => (
+                <div key={item.key} className="flex items-center justify-between rounded-xl bg-[#f5eee8]/40 border border-[#304035]/8 px-4 py-2.5">
+                  <div>
+                    <p className="font-semibold text-[#304035] text-sm">{item.label}</p>
+                    <p className="text-xs text-[#304035]/50">{item.desc}</p>
+                  </div>
+                  <Toggle checked={iaForm[item.key]} onChange={v => setIAForm(f => ({ ...f, [item.key]: v }))} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Actions autorisées */}
+          <div>
+            <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <Zap className="h-3.5 w-3.5" /> Actions autorisées
+            </p>
+            <p className="text-xs text-[#304035]/40 mb-3">Définissez ce que l'assistant peut faire de manière autonome quand vous lui demandez.</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+              {[
+                { key: 'actionNavigation'       as const, label: 'Naviguer entre les pages',      safe: true },
+                { key: 'actionCreerDossier'      as const, label: 'Créer un nouveau dossier',      safe: true },
+                { key: 'actionCreerDevis'        as const, label: 'Créer un devis',                 safe: false },
+                { key: 'actionCreerFacture'      as const, label: 'Créer une facture',              safe: false },
+                { key: 'actionEnvoyerRelance'    as const, label: 'Envoyer une relance',            safe: false },
+                { key: 'actionModifierPlanning'  as const, label: 'Modifier le planning',           safe: false },
+              ].map(item => (
+                <div key={item.key} className={cn(
+                  'flex items-center justify-between rounded-xl border px-4 py-2.5',
+                  !item.safe && iaForm[item.key] ? 'bg-amber-50 border-amber-200' : 'bg-[#f5eee8]/40 border-[#304035]/8'
+                )}>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-[#304035] text-sm">{item.label}</p>
+                    {!item.safe && <span className="text-[9px] font-bold text-amber-600 bg-amber-100 rounded px-1.5 py-0.5">Sensible</span>}
+                  </div>
+                  <Toggle checked={iaForm[item.key]} onChange={v => setIAForm(f => ({ ...f, [item.key]: v }))} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Comportement */}
+          <div>
+            <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5" /> Comportement
+            </p>
+            <div className="space-y-2">
+              {[
+                { key: 'suggestionsAuto'          as const, label: 'Suggestions automatiques',    desc: 'Raccourcis contextuels selon la page' },
+                { key: 'voixActive'               as const, label: 'Reconnaissance vocale',       desc: 'Dicter vos messages à la voix' },
+                { key: 'notificationsProactives'   as const, label: 'Notifications proactives',    desc: 'L\'IA vous alerte d\'elle-même sur les urgences' },
+              ].map(item => (
+                <div key={item.key} className="flex items-center justify-between rounded-xl bg-[#f5eee8]/40 border border-[#304035]/8 px-4 py-3">
+                  <div>
+                    <p className="font-semibold text-[#304035] text-sm">{item.label}</p>
+                    <p className="text-xs text-[#304035]/50 mt-0.5">{item.desc}</p>
+                  </div>
+                  <Toggle checked={iaForm[item.key]} onChange={v => setIAForm(f => ({ ...f, [item.key]: v }))} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Réglages avancés */}
+          <div>
+            <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <SlidersHorizontal className="h-3.5 w-3.5" /> Réglages avancés
+            </p>
+            <div className="space-y-4">
+              {/* Température */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-[#304035]/60">Créativité des réponses</label>
+                  <span className="text-xs font-bold text-[#304035]">{Math.round(iaForm.temperature * 100)}%</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] text-[#304035]/40 w-12">Précis</span>
+                  <input type="range" min={0} max={1} step={0.1}
+                    value={iaForm.temperature}
+                    onChange={e => setIAForm(f => ({ ...f, temperature: parseFloat(e.target.value) }))}
+                    className="flex-1 accent-[#304035]" />
+                  <span className="text-[10px] text-[#304035]/40 w-12 text-right">Créatif</span>
+                </div>
+              </div>
+
+              {/* Longueur de réponse */}
+              <div>
+                <label className="block text-xs font-semibold text-[#304035]/60 mb-2">Longueur des réponses</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: 'courte',    label: 'Courte',    desc: '1-2 phrases' },
+                    { value: 'normale',   label: 'Normale',   desc: 'Équilibré' },
+                    { value: 'detaillee', label: 'Détaillée', desc: 'Complète' },
+                  ] as const).map(opt => (
+                    <button key={opt.value}
+                      onClick={() => setIAForm(f => ({ ...f, longueurMaxReponse: opt.value }))}
+                      className={cn(
+                        'rounded-lg border py-2 px-3 text-center transition-all',
+                        iaForm.longueurMaxReponse === opt.value
+                          ? 'border-[#304035] bg-[#304035] text-white'
+                          : 'border-[#304035]/15 bg-[#f5eee8]/30 text-[#304035]/70 hover:border-[#304035]/30'
+                      )}
+                    >
+                      <p className="text-xs font-bold">{opt.label}</p>
+                      <p className={cn('text-[10px] mt-0.5', iaForm.longueurMaxReponse === opt.value ? 'text-white/60' : 'text-[#304035]/40')}>{opt.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mémoire */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-[#304035]/60">Mémoire de conversation</label>
+                  <span className="text-xs font-bold text-[#304035]">{iaForm.nombreMessagesHistorique} msg</span>
+                </div>
+                <input type="range" min={5} max={100} step={5}
+                  value={iaForm.nombreMessagesHistorique}
+                  onChange={e => setIAForm(f => ({ ...f, nombreMessagesHistorique: parseInt(e.target.value) }))}
+                  className="w-full accent-[#304035]" />
+                <p className="text-[10px] text-[#304035]/40 mt-1">Nombre de messages conservés dans le contexte</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Contexte métier */}
+          <div>
+            <label className="block text-[10px] font-bold text-[#304035]/50 mb-1.5 uppercase tracking-widest">Contexte métier</label>
+            <input type="text"
+              value={iaForm.contextMetier}
+              onChange={e => setIAForm(f => ({ ...f, contextMetier: e.target.value }))}
+              placeholder="Ex: Cuisines sur mesure, salles de bain, dressings…"
+              className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/30 px-4 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20 transition-shadow"
+            />
+            <p className="text-xs text-[#304035]/40 mt-1">Spécialités de votre activité — aide l'IA à mieux vous répondre</p>
+          </div>
+
+          {/* Prompt système */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest">Instruction système (prompt)</p>
+              <span className="text-[10px] text-[#304035]/35 bg-[#f5eee8] rounded px-2 py-0.5">{iaForm.promptSysteme.length} caractères</span>
+            </div>
+            <textarea
+              value={iaForm.promptSysteme}
+              onChange={e => setIAForm(f => ({ ...f, promptSysteme: e.target.value }))}
+              rows={4}
+              placeholder="Décrivez le rôle et le comportement souhaité pour votre assistant..."
+              className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/30 px-4 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20 transition-shadow resize-none font-mono"
+            />
+            <p className="text-xs text-[#304035]/40 mt-1">Ce texte définit le comportement de base de l'assistant à chaque conversation.</p>
+          </div>
+
+          <SaveButton saved={!!savedMap['ia']} onClick={() => { updateIAConfig(iaForm); flash('ia'); }} />
         </div>
       )}
     </div>

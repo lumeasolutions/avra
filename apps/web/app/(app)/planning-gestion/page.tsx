@@ -164,133 +164,96 @@ export default function PlanningGestionPage() {
       <PageHeader
         icon={<CalendarCog className="h-7 w-7" />}
         title="Planning gestion"
-        subtitle={getWeekLabel(weekOffset)}
-      />
-
-      {/* ── NAV SEMAINE ── */}
-      <div className="flex items-center gap-3">
-        <div className="relative">
-          <button
-            onClick={() => {
-              const mon = getWeekDates(weekOffset)[0];
-              setPickYear(mon.getFullYear());
-              setPickMonth(mon.getMonth());
-              setShowWeekPicker(v => !v);
-            }}
-            className="flex items-center gap-1.5 rounded-xl border border-[#304035]/15 bg-white px-4 py-2.5 shadow-sm hover:bg-[#f5eee8] transition-all"
-          >
-            <span className="text-sm font-semibold text-[#304035]">{getWeekLabel(weekOffset)}</span>
-            <ChevronDown className="h-3 w-3 text-[#304035]/50" />
-          </button>
-          {showWeekPicker && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowWeekPicker(false)} />
-              <div
-                className="absolute left-0 top-11 z-50 w-72 rounded-2xl bg-white shadow-2xl border border-[#304035]/10 p-4"
-                onClick={e => e.stopPropagation()}
+        actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button onClick={() => setWeekOffset(w => w - 1)}
+              style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <ChevronLeft className="h-4 w-4" style={{ color: 'white' }} />
+            </button>
+            <button onClick={() => setWeekOffset(0)}
+              style={{ padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: weekOffset === 0 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white' }}>
+              Aujourd'hui
+            </button>
+            <button onClick={() => setWeekOffset(w => w + 1)}
+              style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <ChevronRight className="h-4 w-4" style={{ color: 'white' }} />
+            </button>
+            {/* Week picker */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => { const mon = getWeekDates(weekOffset)[0]; setPickYear(mon.getFullYear()); setPickMonth(mon.getMonth()); setShowWeekPicker(v => !v); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)', cursor: 'pointer' }}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <button
-                    onClick={() => { const d = new Date(pickYear, pickMonth - 1); setPickYear(d.getFullYear()); setPickMonth(d.getMonth()); }}
-                    className="p-1.5 rounded-lg hover:bg-[#f5eee8] transition-colors"
-                  >
-                    <ChevronLeft className="h-4 w-4 text-[#304035]" />
-                  </button>
-                  <span className="text-sm font-bold text-[#304035] capitalize">{MONTHS[pickMonth]} {pickYear}</span>
-                  <button
-                    onClick={() => { const d = new Date(pickYear, pickMonth + 1); setPickYear(d.getFullYear()); setPickMonth(d.getMonth()); }}
-                    className="p-1.5 rounded-lg hover:bg-[#f5eee8] transition-colors"
-                  >
-                    <ChevronRight className="h-4 w-4 text-[#304035]" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-7 mb-1">
-                  {['L','M','M','J','V','S','D'].map((d, i) => (
-                    <div key={i} className="text-center text-[10px] font-bold text-[#304035]/40 py-1">{d}</div>
-                  ))}
-                </div>
-                {weekRows.map((row, ri) => {
-                  const monday = row.find(d => d !== null);
-                  if (!monday) return null;
-                  const mon2 = new Date(monday);
-                  mon2.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-                  const baseMon2 = new Date(todayDate);
-                  baseMon2.setDate(todayDate.getDate() - ((todayDate.getDay() + 6) % 7));
-                  const diff2 = Math.round((mon2.getTime() - baseMon2.getTime()) / (7 * 86400000));
-                  const isActive = diff2 === weekOffset;
-                  return (
-                    <button
-                      key={ri}
-                      onClick={() => { setWeekOffset(diff2); setShowWeekPicker(false); }}
-                      className="grid grid-cols-7 w-full rounded-lg mb-0.5 transition-all"
-                      style={{ background: isActive ? '#304035' : 'transparent' }}
-                      onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(48,64,53,0.07)'; }}
-                      onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-                    >
-                      {row.map((d, ci) => (
-                        <div
-                          key={ci}
-                          className="text-center py-1.5 text-xs font-medium"
-                          style={{ color: isActive ? 'rgba(255,255,255,0.9)' : d ? '#304035' : 'transparent' }}
-                        >
-                          {d ? d.getDate() : '·'}
-                        </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>{getWeekLabel(weekOffset)}</span>
+                <ChevronDown className="h-3 w-3" style={{ color: 'rgba(255,255,255,0.6)' }} />
+              </button>
+              {showWeekPicker && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowWeekPicker(false)} />
+                  <div className="absolute left-0 top-full mt-2 z-50 w-72 rounded-2xl bg-white shadow-2xl border border-[#304035]/10 p-4" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between mb-3">
+                      <button onClick={() => { const d = new Date(pickYear, pickMonth - 1); setPickYear(d.getFullYear()); setPickMonth(d.getMonth()); }} className="p-1.5 rounded-lg hover:bg-[#f5eee8] transition-colors">
+                        <ChevronLeft className="h-4 w-4 text-[#304035]" />
+                      </button>
+                      <span className="text-sm font-bold text-[#304035] capitalize">{MONTHS[pickMonth]} {pickYear}</span>
+                      <button onClick={() => { const d = new Date(pickYear, pickMonth + 1); setPickYear(d.getFullYear()); setPickMonth(d.getMonth()); }} className="p-1.5 rounded-lg hover:bg-[#f5eee8] transition-colors">
+                        <ChevronRight className="h-4 w-4 text-[#304035]" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-7 mb-1">
+                      {['L','M','M','J','V','S','D'].map((d, i) => (
+                        <div key={i} className="text-center text-[10px] font-bold text-[#304035]/40 py-1">{d}</div>
                       ))}
-                    </button>
-                  );
-                })}
-                <div className="mt-2 pt-2 border-t border-[#304035]/10">
-                  <button
-                    onClick={() => { setWeekOffset(0); setShowWeekPicker(false); }}
-                    className="w-full text-xs font-semibold text-[#a67749] hover:text-[#304035] transition-colors py-1"
-                  >
-                    Revenir à aujourd'hui
-                  </button>
+                    </div>
+                    {weekRows.map((row, ri) => {
+                      const monday = row.find(d => d !== null);
+                      if (!monday) return null;
+                      const mon2 = new Date(monday);
+                      mon2.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+                      const baseMon2 = new Date(todayDate);
+                      baseMon2.setDate(todayDate.getDate() - ((todayDate.getDay() + 6) % 7));
+                      const diff2 = Math.round((mon2.getTime() - baseMon2.getTime()) / (7 * 86400000));
+                      const isActive = diff2 === weekOffset;
+                      return (
+                        <button key={ri} onClick={() => { setWeekOffset(diff2); setShowWeekPicker(false); }}
+                          className="grid grid-cols-7 w-full rounded-lg mb-0.5 transition-all"
+                          style={{ background: isActive ? '#304035' : 'transparent' }}
+                          onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(48,64,53,0.07)'; }}
+                          onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                        >
+                          {row.map((d, ci) => (
+                            <div key={ci} className="text-center py-1.5 text-xs font-medium" style={{ color: isActive ? 'rgba(255,255,255,0.9)' : d ? '#304035' : 'transparent' }}>
+                              {d ? d.getDate() : '·'}
+                            </div>
+                          ))}
+                        </button>
+                      );
+                    })}
+                    <div className="mt-2 pt-2 border-t border-[#304035]/10">
+                      <button onClick={() => { setWeekOffset(0); setShowWeekPicker(false); }} className="w-full text-xs font-semibold text-[#a67749] hover:text-[#304035] transition-colors py-1">
+                        Revenir à aujourd'hui
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        }
+        extra={
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+            {kpiData.map((k, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: '8px 12px', border: '1px solid rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ color: 'rgba(255,255,255,0.7)' }}>{renderKpiIcon(k.iconKey)}</div>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: 'white', lineHeight: 1 }}>{k.val}</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>{k.label}</div>
                 </div>
               </div>
-            </>
-          )}
-        </div>
-
-        <button
-          onClick={() => setWeekOffset(w => w - 1)}
-          className="p-2.5 rounded-xl border border-[#304035]/15 bg-white shadow-sm hover:bg-[#f5eee8] transition-all"
-        >
-          <ChevronLeft className="h-4 w-4 text-[#304035]" />
-        </button>
-        <button
-          onClick={() => setWeekOffset(w => w + 1)}
-          className="p-2.5 rounded-xl border border-[#304035]/15 bg-white shadow-sm hover:bg-[#f5eee8] transition-all"
-        >
-          <ChevronRight className="h-4 w-4 text-[#304035]" />
-        </button>
-        <button
-          onClick={() => setWeekOffset(0)}
-          className="px-4 py-2.5 rounded-xl border border-[#304035]/15 bg-white shadow-sm hover:bg-[#f5eee8] transition-all text-sm font-semibold text-[#304035]"
-        >
-          Aujourd'hui
-        </button>
-      </div>
-
-      {/* ── KPIs ── */}
-      <div className="grid grid-cols-4 gap-4">
-        {kpiData.map((k, i) => (
-          <div
-            key={i}
-            className={'card-in rounded-2xl bg-gradient-to-br ' + k.bg + ' border border-white/60 p-5 shadow-sm hover:shadow-md transition-all'}
-            style={{ animationDelay: (i * 60) + 'ms' }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="h-9 w-9 rounded-xl flex items-center justify-center shadow-sm" style={{ background: k.color + '22', color: k.color }}>
-                {renderKpiIcon(k.iconKey)}
-              </div>
-            </div>
-            <p className="text-2xl font-bold text-[#304035]">{k.val}</p>
-            <p className="text-xs font-semibold text-[#304035]/60 mt-0.5 leading-tight">{k.label}</p>
-            <p className="text-[10px] text-[#304035]/35 mt-1">{k.sub}</p>
+            ))}
           </div>
-        ))}
-      </div>
+        }
+      />
 
       {/* ── CORPS ── */}
       <div className="flex gap-5">

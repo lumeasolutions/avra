@@ -157,16 +157,16 @@ export default function EFacture2026() {
             <p style={{ color: '#6b7c70', marginBottom: '16px' }}>
               E-facture 2026 déjà intégrée. Essai gratuit 14 jours.
             </p>
-            <a href="/register"><button style={{ padding: '12px 32px', background: '#1e2b22', color: '#f9f6f0', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }} onMouseEnter={(e) => e.currentTarget.style.background = '#253029'} onMouseLeave={(e) => e.currentTarget.style.background = '#1e2b22'}>Démarrer l'essai gratuit</button></a>
+            <Link href="/register" style={{ display: 'inline-block', padding: '12px 32px', background: '#1e2b22', color: '#f9f6f0', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, textDecoration: 'none', transition: 'background 0.2s' }} onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = '#253029'} onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = '#1e2b22'}>Démarrer l'essai gratuit</Link>
           </div>
         </div>
       </div>
 
       <Footer />
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON.stringify({ '@context': 'https://schema.org', '@type': 'BlogPosting', headline: 'E-facture obligatoire 2026 : tout ce que les artisans doivent savoir', description: 'La facturation électronique devient obligatoire en 2026. Calendrier, obligations, solutions de conformité.', author: { '@type': 'Organization', name: 'AVRA' }, datePublished: '2026-04-12', dateModified: '2026-04-12' })) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'BlogPosting', headline: 'E-facture obligatoire 2026 : tout ce que les artisans doivent savoir', description: 'La facturation électronique devient obligatoire en 2026. Calendrier, obligations, solutions de conformité.', author: { '@type': 'Organization', name: 'AVRA' }, datePublished: '2026-04-12', dateModified: '2026-04-12' }) }} />
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON.stringify({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: [{ '@type': 'Question', name: 'Suis-je concerné si je suis auto-entrepreneur ?', acceptedAnswer: { '@type': 'Answer', text: 'Si vous êtes en régime micro-fiscal, non (exemption). Sinon, oui. Vérifiez votre statut auprès de l\'URSSAF.' } }, { '@type': 'Question', name: 'Quelles sont les pénalités en cas de non-conformité ?', acceptedAnswer: { '@type': 'Answer', text: 'De 100 à 500€ par facture non-conforme. Mieux vaut ne pas prendre le risque. Mettez-vous en conformité maintenant.' } }] })) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: [{ '@type': 'Question', name: 'Suis-je concerné si je suis auto-entrepreneur ?', acceptedAnswer: { '@type': 'Answer', text: 'Si vous êtes en régime micro-fiscal, non (exemption). Sinon, oui. Vérifiez votre statut auprès de l\'URSSAF.' } }, { '@type': 'Question', name: 'Quelles sont les pénalités en cas de non-conformité ?', acceptedAnswer: { '@type': 'Answer', text: 'De 100 à 500€ par facture non-conforme. Mieux vaut ne pas prendre le risque. Mettez-vous en conformité maintenant.' } }] }) }} />
     </>
   );
 }
