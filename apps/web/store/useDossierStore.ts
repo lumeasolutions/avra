@@ -51,6 +51,7 @@ export interface ConfirmationFournisseur {
 export interface DossierSigne extends Dossier {
   signedDate: string;
   signedSubfolders: SubFolder[];
+  montant?: number;
   confirmations?: ConfirmationFournisseur[];
   dateButoires?: {
     suiviChantier?: string;
