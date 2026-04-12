@@ -14,7 +14,10 @@ const STATUS_OPTIONS = [
   { value: 'A VALIDER', label: 'À valider', icon: Circle,         color: '#4ade80', bg: '#f0fdf4', border: '#bbf7d0' },
 ];
 
-const TVA_GROUPS = [
+type TvaRate = { value: string; label: string; rate: number | null };
+type TvaGroup = { country: string; rates: TvaRate[] };
+
+const TVA_GROUPS: TvaGroup[] = [
   { country: '🇫🇷 France', rates: [
     { value: 'FR_20',  label: '20%',  rate: 20 },
     { value: 'FR_10',  label: '10%',  rate: 10 },
@@ -165,7 +168,7 @@ const TVA_GROUPS = [
 ];
 
 // Flat lookup map
-const TVA_RATES = TVA_GROUPS.flatMap(g => g.rates);
+const TVA_RATES: TvaRate[] = TVA_GROUPS.flatMap(g => g.rates);
 
 export default function NouveauDossierPage() {
   const router = useRouter();
