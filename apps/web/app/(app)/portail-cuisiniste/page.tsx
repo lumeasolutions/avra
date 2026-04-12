@@ -66,21 +66,6 @@ export default function PortailCuisinistePage() {
         subtitle="Vue d'ensemble de vos dossiers, planning et alertes"
       />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-4 gap-[14px] mb-7">
-        {[
-          { label: 'CA encaissé', value: fmt(stats.ca), color: '#1A3A5C', bg: '#E5EDF5', icon: '💰' },
-          { label: 'Poses urgentes', value: stats.urgents.toString(), color: '#C0392B', bg: '#FFF0F0', icon: '⚠️' },
-          { label: 'En cours de pose', value: stats.enPose.toString(), color: '#E07B00', bg: '#FFF3E0', icon: '🔧' },
-          { label: 'SAV ouverts', value: stats.savOuverts.toString(), color: '#0F2540', bg: '#D5E2EF', icon: '🔔' },
-        ].map(k => (
-          <div key={k.label} className="rounded-[14px] py-4 px-[18px]" style={{ background: k.bg, border: `1px solid ${k.color}22` }}>
-            <div className="text-[20px] mb-1.5">{k.icon}</div>
-            <div className="text-[22px] font-black" style={{ color: k.color }}>{k.value}</div>
-            <div className="text-[11px] text-[#4A6A8A] font-semibold">{k.label}</div>
-          </div>
-        ))}
-      </div>
 
       {/* DOSSIERS EN COURS / DOSSIERS SIGNÉS */}
       <div className="grid grid-cols-2 gap-5 mb-7">

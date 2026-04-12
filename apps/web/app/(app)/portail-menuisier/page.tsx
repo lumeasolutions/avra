@@ -78,26 +78,6 @@ export default function PortailMenuisierPage() {
         subtitle="Vue d'ensemble de vos fabrications, livraisons et planning"
       />
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
-        {[
-          { label: 'CA encaissé', value: fmt(stats.ca), color: '#7B4F2E', bg: '#F5EDE5', icon: '💰' },
-          { label: 'Fabrications en cours', value: stats.fabricationsEnCours.toString(), color: '#E07B00', bg: '#FFF3E0', icon: '🏭' },
-          { label: 'Livraisons prévues', value: stats.livraisonsPrevues.toString(), color: '#2E7D32', bg: '#E8F5E9', icon: '🚚' },
-          { label: 'Chantiers bloqués', value: stats.chantiersBloques.toString(), color: '#C0392B', bg: '#FFF0F0', icon: '⚠️' },
-        ].map(k => (
-          <div key={k.label} style={{
-            background: k.bg, borderRadius: 12, padding: '10px 14px',
-            border: `1px solid ${k.color}22`, display: 'flex', alignItems: 'center', gap: 10,
-          }}>
-            <span style={{ fontSize: 22 }}>{k.icon}</span>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</div>
-              <div style={{ fontSize: 10, color: '#8B6950', fontWeight: 600, marginTop: 2 }}>{k.label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
 
       {/* FABRICATIONS / LIVRAISONS */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>

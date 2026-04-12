@@ -77,26 +77,6 @@ export default function PortailArchitectePage() {
         subtitle="Vue d'ensemble de vos projets d'architecture et planning"
       />
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
-        {[
-          { label: 'CA encaissé', value: fmt(stats.ca), color: '#3D5449', bg: '#EAF0EC', icon: '💰' },
-          { label: 'Projets en cours', value: stats.projetsEnCours.toString(), color: '#E07B00', bg: '#FFF3E0', icon: '📐' },
-          { label: 'DCE en attente', value: stats.dceEnAttente.toString(), color: '#1A3A5C', bg: '#E5EDF5', icon: '📋' },
-          { label: 'Chantiers actifs', value: stats.chantiersActifs.toString(), color: '#2E7D32', bg: '#E8F5E9', icon: '🏗️' },
-        ].map(k => (
-          <div key={k.label} style={{
-            background: k.bg, borderRadius: 12, padding: '10px 14px',
-            border: `1px solid ${k.color}22`, display: 'flex', alignItems: 'center', gap: 10,
-          }}>
-            <span style={{ fontSize: 22 }}>{k.icon}</span>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: k.color, lineHeight: 1 }}>{k.value}</div>
-              <div style={{ fontSize: 10, color: '#6B7B6F', fontWeight: 600, marginTop: 2 }}>{k.label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
 
       {/* PROJETS EN COURS / PROJETS SIGNÉS */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
