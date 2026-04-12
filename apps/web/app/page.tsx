@@ -305,31 +305,16 @@ export default function HomePage() {
           {/* Colonne droite : logo doré + mockup dashboard */}
           <div className="hero-right-col" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '28px' }}>
 
-            {/* Chouette AVRA hero — vraie image + rendu propre */}
-            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {/* Halos concentriques */}
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '280px', height: '280px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.2) 0%, transparent 65%)', animation: 'logoPulse 3s ease-in-out infinite', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '200px', height: '200px', borderRadius: '50%', border: '1px solid rgba(201,169,110,0.3)', animation: 'heroRing1 5s linear infinite', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '240px', height: '240px', borderRadius: '50%', border: '1px dashed rgba(201,169,110,0.15)', animation: 'heroRing2 7s linear infinite', pointerEvents: 'none' }} />
-              {/* Image vraie chouette dans un cercle avec fond identique à la page */}
-              <div style={{
-                position: 'relative', zIndex: 1,
-                width: '210px', height: '210px',
-                borderRadius: '50%',
-                overflow: 'hidden',
-                border: '2px solid rgba(201,169,110,0.75)',
-                boxShadow: '0 0 70px rgba(201,169,110,0.5), 0 0 25px rgba(201,169,110,0.25), 0 20px 60px rgba(0,0,0,0.5)',
-                animation: 'logoFloat 5s ease-in-out infinite',
-                background: '#1a2a1e',
-              }}>
-                <Image
-                  src="/logochouette4.png"
-                  alt="AVRA Mascotte — Logiciel N°1 agencement"
-                  fill
-                  priority
-                  style={{ objectFit: 'contain', padding: 4, filter: 'brightness(1.25) saturate(1.4) contrast(1.05)' }}
-                />
-              </div>
+            {/* Chouette AVRA hero */}
+            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '280px', height: '280px', animation: 'logoFloat 5s ease-in-out infinite' }}>
+              <Image
+                src="/logochouette4.png"
+                alt="AVRA Mascotte — Logiciel N°1 agencement"
+                fill
+                priority
+                sizes="280px"
+                style={{ objectFit: 'contain', filter: 'brightness(0.9) saturate(0.85)' }}
+              />
             </div>
 
           {/* Mockup dashboard */}
