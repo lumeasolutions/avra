@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useDossierStore, useFacturationStore, usePlanningStore } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { usePortailGuard } from '@/hooks/usePortailGuard';
 
 const fmt = (n: number) =>
@@ -31,6 +31,26 @@ export default function PortailArchitectePage() {
   const devis = useFacturationStore(s => s.devis);
   const planningEvents = usePlanningStore(s => s.planningEvents);
   const user = useAuthStore(s => s.user);
+
+  const [filterEnCours, setFilterEnCours] = useState<string|null>(null);
+  const [filterSignes, setFilterSignes] = useState<string|null>(null);
+
+  const STATUS_ORDER: Record<string,number> = { URGENT: 0, 'EN COURS': 1, 'A VALIDER': 2, FINITION: 3 };
+  const byUrgency = (a: {status:string}, b: {status:string}) =>
+    (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+
+  const dossiersFiltered = useMemo(() => {
+    const sorted = [...dossiers].sort(byUrgency);
+    return filterEnCours ? sorted.filter(d => d.status === filterEnCours) : sorted;
+  }, [dossiers, filterEnCours]);
+
+  const dossiersSignesFiltered = useMemo(() => {
+    const sorted = [...dossiersSignes].sort((a,b) => byUrgency(a as any, b as any));
+    return filterSignes ? sorted.filter(d => (d as any).status === filterSignes) : sorted;
+  }, [dossiersSignes, filterSignes]);
+
+  const enCoursStatuses = useMemo(() => [...new Set(dossiers.map(d => d.status))], [dossiers]);
+  const signesStatuses = useMemo(() => [...new Set(dossiersSignes.map(d => (d as any).status))], [dossiersSignes]);
 
   const stats = useMemo(() => {
     const ca = invoices.filter(i => i.statut === 'PAYÉE').reduce((s, i) => s + i.montantHT, 0);
@@ -82,27 +102,55 @@ export default function PortailArchitectePage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
 
         <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0F2540' }}>📋 PROJETS EN COURS</h3>
             <Link href="/dossiers" style={{ fontSize: 11, color: '#3D5449', fontWeight: 600, textDecoration: 'none' }}>Voir tous →</Link>
           </div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+            {['Tous', ...enCoursStatuses].map(s => {
+              const active = s === 'Tous' ? filterEnCours === null : filterEnCours === s;
+              const col = getStatusColor(s);
+              return (
+                <button key={s} onClick={() => setFilterEnCours(s === 'Tous' ? null : (filterEnCours === s ? null : s))}
+                  style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                    background: active ? (s === 'Tous' ? '#0F2540' : col.bg) : '#F0F2F5',
+                    color: active ? (s === 'Tous' ? 'white' : col.text) : '#7A8E9F',
+                    outline: active ? `1.5px solid ${s === 'Tous' ? '#0F2540' : col.text}` : 'none',
+                  }}>{s}</button>
+              );
+            })}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
-            {dossiers.slice(0, 4).map(d => renderDossierItem(d))}
-            {dossiers.length === 0 && (
-              <p style={{ color: '#4A6A8A', fontSize: 12, textAlign: 'center', padding: '12px 0', margin: 0 }}>Aucun projet en cours</p>
+            {dossiersFiltered.slice(0, 8).map(d => renderDossierItem(d))}
+            {dossiersFiltered.length === 0 && (
+              <p style={{ color: '#4A6A8A', fontSize: 12, textAlign: 'center', padding: '12px 0', margin: 0 }}>Aucun projet</p>
             )}
           </div>
         </div>
 
         <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0F2540' }}>✅ PROJETS SIGNÉS</h3>
             <Link href="/dossiers-signes" style={{ fontSize: 11, color: '#3D5449', fontWeight: 600, textDecoration: 'none' }}>Voir tous →</Link>
           </div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+            {['Tous', ...signesStatuses].map(s => {
+              const active = s === 'Tous' ? filterSignes === null : filterSignes === s;
+              const col = getStatusColor(s);
+              return (
+                <button key={s} onClick={() => setFilterSignes(s === 'Tous' ? null : (filterSignes === s ? null : s))}
+                  style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                    background: active ? (s === 'Tous' ? '#0F2540' : col.bg) : '#F0F2F5',
+                    color: active ? (s === 'Tous' ? 'white' : col.text) : '#7A8E9F',
+                    outline: active ? `1.5px solid ${s === 'Tous' ? '#0F2540' : col.text}` : 'none',
+                  }}>{s}</button>
+              );
+            })}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
-            {dossiersSignes.slice(0, 4).map(d => renderDossierItem(d as any))}
-            {dossiersSignes.length === 0 && (
-              <p style={{ color: '#4A6A8A', fontSize: 12, textAlign: 'center', padding: '12px 0', margin: 0 }}>Aucun projet signé</p>
+            {dossiersSignesFiltered.slice(0, 8).map(d => renderDossierItem(d as any))}
+            {dossiersSignesFiltered.length === 0 && (
+              <p style={{ color: '#4A6A8A', fontSize: 12, textAlign: 'center', padding: '12px 0', margin: 0 }}>Aucun projet</p>
             )}
           </div>
         </div>
