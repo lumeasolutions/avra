@@ -206,23 +206,10 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
           </button>}
 
           {/* Chouette + titre */}
-          <div className="absolute z-[2] flex items-center gap-3" style={{ top: 18, left: 16 }}>
-            <div style={{ position: 'relative', width: 62, height: 62 }}>
-              {/* Anneau doré */}
-              <div style={{
-                position: 'absolute', inset: -4, borderRadius: '50%',
-                border: '1.5px solid rgba(201,169,110,0.55)',
-                animation: 'apPulseRing 3s ease-in-out infinite',
-              }}/>
-              <div className="ap-float" style={{
-                width: '100%', height: '100%', borderRadius: '50%',
-                background: 'transparent',
-                padding: 3,
-                boxShadow: '0 4px 18px rgba(0,0,0,0.35), 0 0 0 1px rgba(201,169,110,0.2)',
-              }}>
-                <Image src={OWL_B64} alt="AVRA" width={56} height={56} loading="lazy"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '50%' }}/>
-              </div>
+          <div className="absolute z-[2] flex items-center gap-3" style={{ top: 12, left: 16 }}>
+            <div className="ap-float" style={{ width: 100, height: 100, flexShrink: 0 }}>
+              <Image src={OWL_B64} alt="AVRA" width={100} height={100} loading="lazy"
+                style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }}/>
             </div>
             <div>
               <div style={{
