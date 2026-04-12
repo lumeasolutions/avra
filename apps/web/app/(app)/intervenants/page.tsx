@@ -6,7 +6,7 @@ import {
   X, Edit3, Check, FileText, ArrowUpDown,
   MessageSquare, ExternalLink, HardHat,
 } from 'lucide-react';
-import { useDossierStore, useIntervenantStore } from '@/store';
+import { useDossierStore, useIntervenantStore, type Intervenant } from '@/store';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 
@@ -69,7 +69,7 @@ function FicheIntervenant({
   onClose,
   onDelete,
 }: {
-  intervenant: ReturnType<typeof useIntervenantStore>['intervenants'][number];
+  intervenant: Intervenant;
   onClose: () => void;
   onDelete: () => void;
 }) {

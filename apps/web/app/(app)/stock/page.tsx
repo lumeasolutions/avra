@@ -41,7 +41,7 @@ function calcMargin(purchase: number, sale: number | null): number | null {
   return Math.round(((sale - purchase) / sale) * 100);
 }
 
-function exportToCSV(items: typeof stockItems) {
+function exportToCSV(items: StockItem[]) {
   const headers = ['Fournisseur', 'Modèle', 'Référence', 'Catégorie', 'Matière', 'Quantité', 'Seuil', 'Prix Achat', 'Prix Vente', 'Marge', 'Disponibilité', 'Image URL'];
   const rows = items.map(item => [
     item.supplier,

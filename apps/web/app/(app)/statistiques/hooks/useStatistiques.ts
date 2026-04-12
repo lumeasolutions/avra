@@ -13,7 +13,7 @@ export function useStatistiques() {
   const [selectedDossier, setSelectedDossier] = useState<string | null>(null);
 
   const stats = useMemo(() => {
-    const totalCA = invoices.reduce((sum, inv) => sum + (inv.montant || 0), 0);
+    const totalCA = invoices.reduce((sum, inv) => sum + (inv.montantHT || 0), 0);
     const paidCount = invoices.filter(inv => inv.statut === 'PAYÉE').length;
     const totalDevis = devis.length;
     const acceptedDevis = devis.filter(d => d.statut === 'ACCEPTÉ').length;

@@ -68,17 +68,18 @@ export function useRelanceEngine() {
     // ── 1. Acompte non versé ───────────────────────────────────────────────
     // Dossiers en cours sans acompte après délaiAcompte jours
     dossiers.forEach(d => {
-      if (!d.dateCreation) return;
-      const age = daysBetween(d.dateCreation, now);
+      if (!d.createdAt) return;
+      const age = daysBetween(d.createdAt, now);
       if (age >= relanceConfig.delaiAcompte) {
         // Check if an invoice/payment exists for this dossier
         const hasAcompte = invoices.some(
-          i => i.dossierId === d.id && (i.type === 'ACOMPTE' || i.statut === 'PAYÉ')
+          i => i.dossierId === d.id && (i.type === "Facture d'acompte" || i.statut === 'PAYÉE')
         );
         if (!hasAcompte) {
           const key = `RELANCE-ACOMPTE-${d.id}`;
           fire(key, {
             severity: 'warning',
+            category: 'relance',
             text: `[RELANCE] Acompte non versé — ${d.name} (${age} j)`,
             dossierId: d.id,
           });
@@ -89,11 +90,12 @@ export function useRelanceEngine() {
     // ── 2. Factures en retard ─────────────────────────────────────────────
     invoices.forEach(inv => {
       if (inv.statut !== 'RETARD' && inv.statut !== 'EN ATTENTE') return;
-      const age = inv.dateEcheance ? daysBetween(inv.dateEcheance, now) : 0;
+      const age = (inv as any).dateEcheance ? daysBetween((inv as any).dateEcheance, now) : 0;
       if (age >= relanceConfig.delaiRetard) {
         const key = `RELANCE-RETARD-${inv.id}`;
         fire(key, {
           severity: 'error',
+          category: 'relance',
           text: `[RELANCE] Facture en retard — ${inv.client} (${inv.ref}, ${age} j de retard)`,
           dossierId: inv.dossierId,
         });
@@ -108,6 +110,7 @@ export function useRelanceEngine() {
         const key = `RELANCE-DEVIS-${d.id}`;
         fire(key, {
           severity: 'clock',
+          category: 'relance',
           text: `[RELANCE] Devis sans réponse — ${d.client} (${d.ref}, ${age} j)`,
           dossierId: d.dossierId,
         });
@@ -118,12 +121,13 @@ export function useRelanceEngine() {
     dossiersSignes.forEach(ds => {
       (ds.confirmations ?? []).forEach(c => {
         if (c.validee) return;
-        if (!c.dateCommande) return;
-        const age = daysBetween(c.dateCommande, now);
+        if (!c.dateButoir) return;
+        const age = daysBetween(c.dateButoir, now);
         if (age >= 7) {
           const key = `RELANCE-CONFIRM-${ds.id}-${c.fournisseur}`;
           fire(key, {
             severity: 'warning',
+            category: 'relance',
             text: `[RELANCE] Confirmation commande attendue — ${c.fournisseur} / ${ds.name} (${age} j)`,
             dossierId: ds.id,
           });
@@ -139,6 +143,7 @@ export function useRelanceEngine() {
         const key = `RELANCE-LIVRAISON-${cmd.id}`;
         fire(key, {
           severity: 'clock',
+          category: 'relance',
           text: `[RELANCE] Livraison attendue — ${cmd.fournisseur ?? 'Fournisseur'} (${age} j après commande)`,
           dossierId: cmd.dossierId,
         });

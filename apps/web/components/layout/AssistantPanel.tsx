@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { X, Send, AlertTriangle, XCircle, Clock, Info, ChevronDown, Mic, MicOff } from 'lucide-react';
 import { useDossierStore, useFacturationStore, useUIStore } from '@/store';
@@ -130,33 +130,6 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
 
   const [tab, setTab] = useState<'alerts'|'chat'>('alerts');
   const activeAlerts  = alerts.filter(a => !a.dismissed);
-
-  // ── Vocal ──────────────────────────────────────────────────
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
-
-  const startVoice = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) { alert('La reconnaissance vocale n\'est pas supportée par ce navigateur.'); return; }
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'fr-FR';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend   = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setMessage(prev => prev + (prev ? ' ' : '') + transcript);
-    };
-    recognitionRef.current = recognition;
-    recognition.start();
-  }, []);
-
-  const stopVoice = useCallback(() => {
-    recognitionRef.current?.stop();
-    setIsListening(false);
-  }, []);
 
   if (!open) return null;
 

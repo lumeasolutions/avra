@@ -65,7 +65,7 @@ export default function NouveauDossierPage() {
       tva: form.tva || undefined,
       tauxTVA: form.tauxTVA || undefined,
       delaiChantier: form.delaiChantier ? parseInt(form.delaiChantier) : undefined,
-      delaiChantierUnit: form.delaiChantier ? form.delaiChantierUnit : undefined,
+      delaiChantierUnit: form.delaiChantier ? (form.delaiChantierUnit as 'days' | 'weeks') : undefined,
     });
     router.push(`/dossiers/${newId}`);
   };

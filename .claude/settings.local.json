@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs -I {} bash -c \"echo '=== {} ===' && head -40 {}\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(powershell.exe -Command ':*)",
+      "Bash(python3 -c \"import sys,json; logs=json.load\\(sys.stdin\\); errors=[l for l in logs if l.get\\('type'\\)=='error']; print\\(json.dumps\\(errors[:5], indent=2\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; logs=json.load\\(sys.stdin\\); print\\(logs[0] if logs else 'empty'\\)\")",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\), indent=2\\)\\)\")",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\),**d.get\\('devDependencies',{}\\)}; print\\('vercel/node:', '@vercel/node' in deps\\)\")",
+      "Bash(node_modules/.bin/npm install:*)",
+      "Bash(pnpm add:*)",
+      "Bash(node_modules/.bin/next build:*)"
+    ]
+  }
+}

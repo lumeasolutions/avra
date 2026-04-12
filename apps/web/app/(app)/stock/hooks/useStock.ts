@@ -15,8 +15,8 @@ export function useStock() {
       const matchesCategory = !selectedCategory || product.category === selectedCategory;
       const matchesSearch =
         !searchQuery ||
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
+        product.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.reference?.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
   }, [stock, selectedCategory, searchQuery]);
@@ -27,7 +27,7 @@ export function useStock() {
 
   const stats = useMemo(() => {
     const lowStock = stock.filter(p => (p.quantity || 0) < (p.minQuantity || 5)).length;
-    const totalValue = stock.reduce((sum, p) => sum + (p.price || 0) * (p.quantity || 0), 0);
+    const totalValue = stock.reduce((sum, p) => sum + (p.purchase || 0) * (p.quantity || 0), 0);
     return { lowStock, totalValue, totalProducts: stock.length };
   }, [stock]);
 

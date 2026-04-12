@@ -112,7 +112,7 @@ interface DossierState {
   datesButoiresSignes: Record<string, Record<string, string>>;
 
   // Actions
-  addDossier: (data: { lastName: string; firstName?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; phone?: string; email?: string }) => string;
+  addDossier: (data: { lastName: string; firstName?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string }) => string;
   updateDossierStatus: (id: string, status: DossierStatus) => void;
   updateDossierNotes: (id: string, notes: string) => void;
   addSubfolder: (dossierId: string, label: string) => void;

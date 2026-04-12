@@ -32,7 +32,7 @@ export default function PortailMenuisierPage() {
   const user = useAuthStore(s => s.user);
 
   const stats = useMemo(() => {
-    const ca = invoices.filter(i => i.statut === 'PAYÉ').reduce((s, i) => s + i.montantHT, 0);
+    const ca = invoices.filter(i => i.statut === 'PAYÉE').reduce((s, i) => s + i.montantHT, 0);
     const fabricationsEnCours = dossiers.filter(d => d.status === 'EN COURS').length;
     const livraisonsPrevues = dossiers.filter(d => d.status === 'FINITION').length;
     const chantiersBloques = dossiers.filter(d => d.status === 'URGENT').length;

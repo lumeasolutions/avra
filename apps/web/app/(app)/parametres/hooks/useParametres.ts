@@ -6,8 +6,6 @@ import { useConfigStore } from '@/store';
 export function useParametres() {
   const societe = useConfigStore(s => s.societe);
   const updateSociete = useConfigStore(s => s.updateSociete);
-  const users = useConfigStore(s => s.users);
-
   const [activeSection, setActiveSection] = useState('general');
   const [isDirty, setIsDirty] = useState(false);
   const [formData, setFormData] = useState(societe || {});
@@ -34,6 +32,5 @@ export function useParametres() {
     handleChange,
     handleSave,
     societe,
-    users,
   };
 }

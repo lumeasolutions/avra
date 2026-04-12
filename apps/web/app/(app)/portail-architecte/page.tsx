@@ -33,7 +33,7 @@ export default function PortailArchitectePage() {
   const user = useAuthStore(s => s.user);
 
   const stats = useMemo(() => {
-    const ca = invoices.filter(i => i.statut === 'PAYÉ').reduce((s, i) => s + i.montantHT, 0);
+    const ca = invoices.filter(i => i.statut === 'PAYÉE').reduce((s, i) => s + i.montantHT, 0);
     const projetsEnCours = dossiers.filter(d => d.status === 'EN COURS').length;
     const dceEnAttente = devis.filter(d => d.statut === 'ENVOYÉ').length;
     const chantiersActifs = dossiers.filter(d => d.status === 'FINITION').length;

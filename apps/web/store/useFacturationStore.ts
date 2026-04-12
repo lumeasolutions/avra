@@ -66,6 +66,7 @@ export interface Devis {
   client: string;
   clientEmail?: string;
   clientAddress?: string;
+  objet?: string;
   lignes: LigneDocument[];
   statut: DevisStatus;
   dateCreation: string;
@@ -115,7 +116,7 @@ interface FacturationState {
 
   // Invoice actions
   addInvoice: (inv: Omit<Invoice, 'id' | 'ref'>) => string;
-  addInvoiceDetail: (detail: Omit<InvoiceDetail, 'id' | 'ref'>) => string;
+  addInvoiceDetail: (detail: Omit<InvoiceDetail, 'id' | 'ref' | 'montantHT'>) => string;
   updateInvoiceStatus: (id: string, statut: InvoiceStatus) => void;
   updateInvoiceDetail: (id: string, data: Partial<InvoiceDetail>) => void;
   deleteInvoice: (id: string) => void;
@@ -279,7 +280,6 @@ export const useFacturationStore = create<FacturationState>()(
           clientAddress: devis.clientAddress,
           date: new Date().toLocaleDateString('fr-FR'),
           dateEcheance: new Date(Date.now() + 30 * 86400000).toLocaleDateString('fr-FR'),
-          montantHT,
           tva: avgTva,
           statut: 'EN ATTENTE',
           type,
