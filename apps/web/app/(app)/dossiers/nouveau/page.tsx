@@ -14,15 +14,158 @@ const STATUS_OPTIONS = [
   { value: 'A VALIDER', label: 'À valider', icon: Circle,         color: '#4ade80', bg: '#f0fdf4', border: '#bbf7d0' },
 ];
 
-const TVA_RATES = [
-  { value: 'FR_20', label: 'France 20%', rate: 20 },
-  { value: 'FR_10', label: 'France 10%', rate: 10 },
-  { value: 'FR_5_5', label: 'France 5.5%', rate: 5.5 },
-  { value: 'LUX_17', label: 'Luxembourg 17%', rate: 17 },
-  { value: 'CH_8_1', label: 'Suisse 8.1%', rate: 8.1 },
-  { value: 'BE_21', label: 'Belgique 21%', rate: 21 },
-  { value: 'AUTRE', label: 'Autre', rate: null },
+const TVA_GROUPS = [
+  { country: '🇫🇷 France', rates: [
+    { value: 'FR_20',  label: '20%',  rate: 20 },
+    { value: 'FR_10',  label: '10%',  rate: 10 },
+    { value: 'FR_5_5', label: '5.5%', rate: 5.5 },
+    { value: 'FR_2_1', label: '2.1%', rate: 2.1 },
+  ]},
+  { country: '🇩🇪 Allemagne', rates: [
+    { value: 'DE_19', label: '19%', rate: 19 },
+    { value: 'DE_7',  label: '7%',  rate: 7 },
+  ]},
+  { country: '🇧🇪 Belgique', rates: [
+    { value: 'BE_21', label: '21%', rate: 21 },
+    { value: 'BE_12', label: '12%', rate: 12 },
+    { value: 'BE_6',  label: '6%',  rate: 6 },
+  ]},
+  { country: '🇱🇺 Luxembourg', rates: [
+    { value: 'LU_17', label: '17%', rate: 17 },
+    { value: 'LU_14', label: '14%', rate: 14 },
+    { value: 'LU_8',  label: '8%',  rate: 8 },
+    { value: 'LU_3',  label: '3%',  rate: 3 },
+  ]},
+  { country: '🇨🇭 Suisse', rates: [
+    { value: 'CH_8_1', label: '8.1%', rate: 8.1 },
+    { value: 'CH_3_8', label: '3.8%', rate: 3.8 },
+    { value: 'CH_2_5', label: '2.5%', rate: 2.5 },
+  ]},
+  { country: '🇮🇹 Italie', rates: [
+    { value: 'IT_22', label: '22%', rate: 22 },
+    { value: 'IT_10', label: '10%', rate: 10 },
+    { value: 'IT_5',  label: '5%',  rate: 5 },
+    { value: 'IT_4',  label: '4%',  rate: 4 },
+  ]},
+  { country: '🇪🇸 Espagne', rates: [
+    { value: 'ES_21', label: '21%', rate: 21 },
+    { value: 'ES_10', label: '10%', rate: 10 },
+    { value: 'ES_4',  label: '4%',  rate: 4 },
+  ]},
+  { country: '🇳🇱 Pays-Bas', rates: [
+    { value: 'NL_21', label: '21%', rate: 21 },
+    { value: 'NL_9',  label: '9%',  rate: 9 },
+  ]},
+  { country: '🇵🇹 Portugal', rates: [
+    { value: 'PT_23', label: '23%', rate: 23 },
+    { value: 'PT_13', label: '13%', rate: 13 },
+    { value: 'PT_6',  label: '6%',  rate: 6 },
+  ]},
+  { country: '🇦🇹 Autriche', rates: [
+    { value: 'AT_20', label: '20%', rate: 20 },
+    { value: 'AT_13', label: '13%', rate: 13 },
+    { value: 'AT_10', label: '10%', rate: 10 },
+  ]},
+  { country: '🇸🇪 Suède', rates: [
+    { value: 'SE_25', label: '25%', rate: 25 },
+    { value: 'SE_12', label: '12%', rate: 12 },
+    { value: 'SE_6',  label: '6%',  rate: 6 },
+  ]},
+  { country: '🇩🇰 Danemark', rates: [
+    { value: 'DK_25', label: '25%', rate: 25 },
+  ]},
+  { country: '🇫🇮 Finlande', rates: [
+    { value: 'FI_24', label: '24%', rate: 24 },
+    { value: 'FI_14', label: '14%', rate: 14 },
+    { value: 'FI_10', label: '10%', rate: 10 },
+  ]},
+  { country: '🇮🇪 Irlande', rates: [
+    { value: 'IE_23',  label: '23%',  rate: 23 },
+    { value: 'IE_13_5',label: '13.5%',rate: 13.5 },
+    { value: 'IE_9',   label: '9%',   rate: 9 },
+  ]},
+  { country: '🇬🇷 Grèce', rates: [
+    { value: 'GR_24', label: '24%', rate: 24 },
+    { value: 'GR_13', label: '13%', rate: 13 },
+    { value: 'GR_6',  label: '6%',  rate: 6 },
+  ]},
+  { country: '🇵🇱 Pologne', rates: [
+    { value: 'PL_23', label: '23%', rate: 23 },
+    { value: 'PL_8',  label: '8%',  rate: 8 },
+    { value: 'PL_5',  label: '5%',  rate: 5 },
+  ]},
+  { country: '🇨🇿 Tchéquie', rates: [
+    { value: 'CZ_21', label: '21%', rate: 21 },
+    { value: 'CZ_15', label: '15%', rate: 15 },
+    { value: 'CZ_10', label: '10%', rate: 10 },
+  ]},
+  { country: '🇭🇺 Hongrie', rates: [
+    { value: 'HU_27', label: '27%', rate: 27 },
+    { value: 'HU_18', label: '18%', rate: 18 },
+    { value: 'HU_5',  label: '5%',  rate: 5 },
+  ]},
+  { country: '🇷🇴 Roumanie', rates: [
+    { value: 'RO_19', label: '19%', rate: 19 },
+    { value: 'RO_9',  label: '9%',  rate: 9 },
+    { value: 'RO_5',  label: '5%',  rate: 5 },
+  ]},
+  { country: '🇧🇬 Bulgarie', rates: [
+    { value: 'BG_20', label: '20%', rate: 20 },
+    { value: 'BG_9',  label: '9%',  rate: 9 },
+  ]},
+  { country: '🇭🇷 Croatie', rates: [
+    { value: 'HR_25', label: '25%', rate: 25 },
+    { value: 'HR_13', label: '13%', rate: 13 },
+    { value: 'HR_5',  label: '5%',  rate: 5 },
+  ]},
+  { country: '🇸🇰 Slovaquie', rates: [
+    { value: 'SK_20', label: '20%', rate: 20 },
+    { value: 'SK_10', label: '10%', rate: 10 },
+  ]},
+  { country: '🇸🇮 Slovénie', rates: [
+    { value: 'SI_22',  label: '22%',  rate: 22 },
+    { value: 'SI_9_5', label: '9.5%', rate: 9.5 },
+  ]},
+  { country: '🇪🇪 Estonie', rates: [
+    { value: 'EE_22', label: '22%', rate: 22 },
+    { value: 'EE_9',  label: '9%',  rate: 9 },
+  ]},
+  { country: '🇱🇻 Lettonie', rates: [
+    { value: 'LV_21', label: '21%', rate: 21 },
+    { value: 'LV_12', label: '12%', rate: 12 },
+    { value: 'LV_5',  label: '5%',  rate: 5 },
+  ]},
+  { country: '🇱🇹 Lituanie', rates: [
+    { value: 'LT_21', label: '21%', rate: 21 },
+    { value: 'LT_9',  label: '9%',  rate: 9 },
+    { value: 'LT_5',  label: '5%',  rate: 5 },
+  ]},
+  { country: '🇨🇾 Chypre', rates: [
+    { value: 'CY_19', label: '19%', rate: 19 },
+    { value: 'CY_9',  label: '9%',  rate: 9 },
+    { value: 'CY_5',  label: '5%',  rate: 5 },
+  ]},
+  { country: '🇲🇹 Malte', rates: [
+    { value: 'MT_18', label: '18%', rate: 18 },
+    { value: 'MT_7',  label: '7%',  rate: 7 },
+    { value: 'MT_5',  label: '5%',  rate: 5 },
+  ]},
+  { country: '🇬🇧 Royaume-Uni', rates: [
+    { value: 'GB_20', label: '20%', rate: 20 },
+    { value: 'GB_5',  label: '5%',  rate: 5 },
+  ]},
+  { country: '🇳🇴 Norvège', rates: [
+    { value: 'NO_25', label: '25%', rate: 25 },
+    { value: 'NO_15', label: '15%', rate: 15 },
+    { value: 'NO_12', label: '12%', rate: 12 },
+  ]},
+  { country: '✏️ Personnalisé', rates: [
+    { value: 'AUTRE', label: 'Taux personnalisé', rate: null },
+  ]},
 ];
+
+// Flat lookup map
+const TVA_RATES = TVA_GROUPS.flatMap(g => g.rates);
 
 export default function NouveauDossierPage() {
   const router = useRouter();
@@ -194,10 +337,12 @@ export default function NouveauDossierPage() {
                     }}
                     className={inputCls}
                   >
-                    {TVA_RATES.map(t => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
-                      </option>
+                    {TVA_GROUPS.map(g => (
+                      <optgroup key={g.country} label={g.country}>
+                        {g.rates.map(t => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>
