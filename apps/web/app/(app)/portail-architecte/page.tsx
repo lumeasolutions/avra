@@ -294,7 +294,7 @@ export default function PortailArchitectePage() {
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#3D5449', marginTop: 4, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: '#0F2540', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.action}</div>
-                  <div style={{ fontSize: 9, color: '#7A8E9F' }}>{log.entity} · {log.timestamp}</div>
+                  <div style={{ fontSize: 9, color: '#7A8E9F' }}>{log.target} · {log.time}</div>
                 </div>
               </div>
             ))}
