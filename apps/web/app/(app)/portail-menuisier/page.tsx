@@ -69,7 +69,7 @@ export default function PortailMenuisierPage() {
   };
 
   return (
-    <div style={{ padding: '16px 20px 16px 0', fontFamily: "'Segoe UI', Arial, sans-serif", display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ padding: '4px 20px 16px 0', fontFamily: "'Segoe UI', Arial, sans-serif", display: 'flex', flexDirection: 'column', height: '100%' }}>
 
       {/* En-tête portail */}
       <PageHeader

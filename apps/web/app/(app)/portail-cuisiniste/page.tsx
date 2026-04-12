@@ -57,7 +57,7 @@ export default function PortailCuisinistePage() {
   };
 
   return (
-    <div className="py-7 pl-6 pr-0" style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}>
+    <div className="pt-1 pb-7 pl-6 pr-0" style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}>
 
       {/* En-tête portail */}
       <PageHeader
