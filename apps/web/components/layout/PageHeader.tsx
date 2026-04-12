@@ -96,8 +96,8 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
             width: 120,
             height: 120,
             objectFit: 'contain',
-            opacity: 0.92,
-            filter: 'brightness(1.35) saturate(1.2) drop-shadow(0 2px 14px rgba(0,0,0,0.35))',
+            opacity: 0.82,
+            filter: 'brightness(1.15) saturate(1.1) drop-shadow(0 2px 14px rgba(0,0,0,0.35))',
           }}
         />
       </div>
