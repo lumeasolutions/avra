@@ -259,19 +259,19 @@ export default function LoginPage() {
             {/* Chouette AVRA */}
             <div style={{ position: 'relative', display: 'inline-block', marginBottom: '32px' }}>
               {/* Rings concentriques */}
-              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '220px', height: '220px', borderRadius: '50%', border: '1px solid rgba(201,169,110,0.2)', animation: 'ringRotate 8s linear infinite' }} />
-              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '180px', height: '180px', borderRadius: '50%', border: '1px dashed rgba(201,169,110,0.12)', animation: 'ringRotateRev 12s linear infinite' }} />
-              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '140px', height: '140px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.15) 0%, transparent 70%)', animation: 'glowPulse 3s ease-in-out infinite', transform: 'translate(-50%,-50%)' }} />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '260px', height: '260px', borderRadius: '50%', border: '1px solid rgba(201,169,110,0.25)', animation: 'ringRotate 8s linear infinite', transform: 'translate(-50%,-50%)' }} />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '210px', height: '210px', borderRadius: '50%', border: '1px dashed rgba(201,169,110,0.15)', animation: 'ringRotateRev 12s linear infinite', transform: 'translate(-50%,-50%)' }} />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '180px', height: '180px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.2) 0%, transparent 70%)', animation: 'glowPulse 3s ease-in-out infinite', transform: 'translate(-50%,-50%)' }} />
 
               {/* Image chouette dans cercle */}
               <div style={{
                 position: 'relative', zIndex: 2,
-                width: '120px', height: '120px',
+                width: '160px', height: '160px',
                 borderRadius: '50%',
                 overflow: 'hidden',
                 background: '#0a110c',
-                border: '2px solid rgba(201,169,110,0.4)',
-                boxShadow: '0 0 40px rgba(201,169,110,0.3), 0 20px 60px rgba(0,0,0,0.6)',
+                border: '2px solid rgba(201,169,110,0.75)',
+                boxShadow: '0 0 60px rgba(201,169,110,0.5), 0 0 20px rgba(201,169,110,0.25), 0 20px 60px rgba(0,0,0,0.6)',
                 animation: 'loginOwlFloat 5s ease-in-out infinite',
                 margin: '0 auto',
               }}>
@@ -279,9 +279,8 @@ export default function LoginPage() {
                   src="/logochouette4.png"
                   alt="AVRA"
                   fill
-                  style={{ objectFit: 'contain', padding: 6 }}
+                  style={{ objectFit: 'contain', padding: 2, filter: 'brightness(1.25) saturate(1.4) contrast(1.05)' }}
                 />
-                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, rgba(10,17,12,0.55) 0%, rgba(10,17,12,0.2) 45%, transparent 65%, rgba(10,17,12,0.5) 100%)', zIndex: 2 }} />
               </div>
             </div>
 

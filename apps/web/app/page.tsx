@@ -314,11 +314,11 @@ export default function HomePage() {
               {/* Image vraie chouette dans un cercle avec fond identique à la page */}
               <div style={{
                 position: 'relative', zIndex: 1,
-                width: '170px', height: '170px',
+                width: '210px', height: '210px',
                 borderRadius: '50%',
                 overflow: 'hidden',
-                border: '2px solid rgba(201,169,110,0.35)',
-                boxShadow: '0 0 40px rgba(201,169,110,0.3), 0 20px 60px rgba(0,0,0,0.5)',
+                border: '2px solid rgba(201,169,110,0.75)',
+                boxShadow: '0 0 70px rgba(201,169,110,0.5), 0 0 25px rgba(201,169,110,0.25), 0 20px 60px rgba(0,0,0,0.5)',
                 animation: 'logoFloat 5s ease-in-out infinite',
                 background: '#1a2a1e',
               }}>
@@ -327,10 +327,8 @@ export default function HomePage() {
                   alt="AVRA Mascotte — Logiciel N°1 agencement"
                   fill
                   priority
-                  style={{ objectFit: 'contain', padding: 8 }}
+                  style={{ objectFit: 'contain', padding: 4, filter: 'brightness(1.25) saturate(1.4) contrast(1.05)' }}
                 />
-                {/* Overlay: assombrit le centre (face blanche) + bords */}
-                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, rgba(10,17,12,0.55) 0%, rgba(10,17,12,0.2) 45%, transparent 65%, rgba(26,42,30,0.7) 100%)', pointerEvents: 'none', zIndex: 2 }} />
               </div>
             </div>
 
