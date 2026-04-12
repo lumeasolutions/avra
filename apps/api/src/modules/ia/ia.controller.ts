@@ -130,9 +130,12 @@ export class IaController {
       res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
       res.setHeader('Vary', 'Origin');
 
+      // Envoyer les headers SSE maintenant (avant les events)
+      res.flushHeaders();
+
       // Streamer les chunks
       stream.on('data', (chunk) => {
-        if (!res.headersSent) return; // headers pas encore envoyés = anomalie
+        if (res.writableEnded) return;
         res.write(`data: ${JSON.stringify({ content: chunk.toString() })}\n\n`);
       });
 

@@ -1,6 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-interface FalImageResult {
+interface FalQueueSubmitResponse {
+  request_id: string;
+  status_url?: string;
+  response_url?: string;
+  cancel_url?: string;
+}
+
+interface FalStatusResponse {
+  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+}
+
+interface FalResultResponse {
   images?: Array<{ url: string }>;
   image?: { url: string };
   url?: string;
@@ -18,15 +29,14 @@ export class FalService {
     this.enabled = !!this.apiKey;
 
     if (this.enabled) {
-      this.logger.log('Fal.ai service initialized (real mode)');
+      this.logger.log('✅ Fal.ai service initialized (real mode)');
     } else {
-      this.logger.warn('Fal.ai service disabled (mock mode - needs FAL_KEY)');
+      this.logger.warn('⚠️  Fal.ai service disabled (mock mode - needs FAL_KEY)');
     }
   }
 
   /**
    * Génère une image photoréaliste via FLUX Pro
-   * Utilisé pour le rendu 3D réaliste de cuisines
    */
   async generateRealisticRender(prompt: string, imageSize: string = 'landscape_16_9'): Promise<string | null> {
     if (!this.enabled) {
@@ -38,9 +48,7 @@ export class FalService {
         prompt,
         image_size: imageSize,
         num_images: 1,
-        sync_mode: false,
       });
-
       return this.extractImageUrl(result);
     } catch (error) {
       this.logger.error('Fal.ai realistic render error:', error);
@@ -49,8 +57,7 @@ export class FalService {
   }
 
   /**
-   * Applique une colorisation/modification avec FLUX via img2img
-   * Utilisé pour le "coloriste" - transforme une image source
+   * Applique une colorisation via FLUX img2img
    */
   async colorizeImage(
     sourceImageUrl: string,
@@ -62,15 +69,12 @@ export class FalService {
     }
 
     try {
-      // FLUX dev supporte img2img via le paramètre image_url
       const result = await this.callFalAPI('fal-ai/flux/dev', {
         prompt,
         image_url: sourceImageUrl,
         image_size: imageSize,
         num_images: 1,
-        sync_mode: false,
       });
-
       return this.extractImageUrl(result);
     } catch (error) {
       this.logger.error('Fal.ai colorize error:', error);
@@ -79,110 +83,102 @@ export class FalService {
   }
 
   /**
-   * Appel bas niveau à l'API Fal via polling
-   * Retourne immédiatement avec une request_id pour polling asynchrone
+   * Appel à l'API Fal via le système de queue asynchrone correct
    */
-  private async callFalAPI(model: string, input: Record<string, any>): Promise<FalImageResult> {
-    if (!this.apiKey) {
-      throw new Error('FAL_KEY not configured');
-    }
+  private async callFalAPI(model: string, input: Record<string, any>): Promise<FalResultResponse> {
+    if (!this.apiKey) throw new Error('FAL_KEY not configured');
 
-    // Lancer la génération (async)
-    const submitRes = await fetch(`https://fal.run/${model}`, {
+    const headers = {
+      Authorization: `Key ${this.apiKey}`,
+      'Content-Type': 'application/json',
+    };
+
+    // 1. Soumettre à la queue — URL correcte : queue.fal.run
+    const submitRes = await fetch(`https://queue.fal.run/${model}`, {
       method: 'POST',
-      headers: {
-        Authorization: `Key ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input,
-        sync_mode: false, // Retour immédiat avec request_id
-      }),
+      headers,
+      body: JSON.stringify({ input }),
     });
 
     if (!submitRes.ok) {
-      const error = await submitRes.text();
-      throw new Error(`Fal API error: ${submitRes.status} - ${error}`);
+      const errText = await submitRes.text().catch(() => '');
+      throw new Error(`Fal submit error: ${submitRes.status} — ${errText}`);
     }
 
-    const data = (await submitRes.json()) as { request_id?: string };
-    const requestId = data.request_id;
+    const submitted = (await submitRes.json()) as FalQueueSubmitResponse;
+    const requestId = submitted.request_id;
 
     if (!requestId) {
-      throw new Error('No request_id returned from Fal API');
+      throw new Error('No request_id returned from Fal queue API');
     }
 
-    // Attendre le résultat avec polling (timeout 2 min)
-    return this.pollFalResult(model, requestId);
+    this.logger.log(`Fal.ai job submitted: ${requestId} (model: ${model})`);
+
+    // 2. Attendre que le job soit COMPLETED
+    const statusUrl = submitted.status_url || `https://queue.fal.run/${model}/requests/${requestId}/status`;
+    const responseUrl = submitted.response_url || `https://queue.fal.run/${model}/requests/${requestId}`;
+
+    await this.waitForCompletion(statusUrl, requestId, headers);
+
+    // 3. Récupérer le résultat
+    const resultRes = await fetch(responseUrl, { headers });
+    if (!resultRes.ok) {
+      const errText = await resultRes.text().catch(() => '');
+      throw new Error(`Fal result error: ${resultRes.status} — ${errText}`);
+    }
+
+    return (await resultRes.json()) as FalResultResponse;
   }
 
   /**
-   * Sonde l'API Fal pour obtenir le résultat d'une génération
+   * Attend que le job passe à COMPLETED (poll sur status_url)
    */
-  private async pollFalResult(
-    model: string,
+  private async waitForCompletion(
+    statusUrl: string,
     requestId: string,
-    maxAttempts: number = 60,
-    delayMs: number = 2000,
-  ): Promise<FalImageResult> {
-    if (!this.apiKey) {
-      throw new Error('FAL_KEY not configured');
-    }
-
+    headers: Record<string, string>,
+    maxAttempts = 60,
+    delayMs = 3000,
+  ): Promise<void> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const statusRes = await fetch(`https://fal.run/${model}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Key ${this.apiKey}`,
-        },
-      });
-
-      if (!statusRes.ok) {
-        await this.delay(delayMs);
-        continue;
-      }
-
-      const result = (await statusRes.json()) as FalImageResult;
-
-      // Vérifier si l'image est prête
-      if (result.images || result.image || result.url) {
-        return result;
-      }
-
-      // Attendre avant la prochaine tentative
       await this.delay(delayMs);
+
+      try {
+        const res = await fetch(statusUrl, { headers });
+        if (!res.ok) {
+          this.logger.warn(`Fal status poll ${attempt + 1}: HTTP ${res.status}`);
+          continue;
+        }
+
+        const status = (await res.json()) as FalStatusResponse;
+        this.logger.log(`Fal.ai ${requestId} status: ${status.status} (attempt ${attempt + 1})`);
+
+        if (status.status === 'COMPLETED') return;
+        if (status.status === 'FAILED') throw new Error(`Fal.ai job ${requestId} failed`);
+        // IN_QUEUE ou IN_PROGRESS → continuer à attendre
+      } catch (err: any) {
+        if (err.message?.includes('failed')) throw err;
+        this.logger.warn(`Fal status poll error: ${err.message}`);
+      }
     }
 
-    throw new Error(`Fal.ai timeout after ${maxAttempts * delayMs}ms for request ${requestId}`);
+    throw new Error(`Fal.ai timeout: job ${requestId} not completed after ${maxAttempts * delayMs / 1000}s`);
   }
 
-  /**
-   * Extrait l'URL d'image depuis différents formats de réponse Fal
-   */
-  private extractImageUrl(result: FalImageResult): string | null {
-    if (result.images && result.images.length > 0) {
-      return result.images[0].url || null;
-    }
-    if (result.image) {
-      return result.image.url || null;
-    }
-    if (result.url) {
-      return result.url;
-    }
+  private extractImageUrl(result: FalResultResponse): string | null {
+    if (result.images?.length) return result.images[0].url || null;
+    if (result.image) return result.image.url || null;
+    if (result.url) return result.url;
     return null;
   }
 
-  /**
-   * Simule une génération d'image (pour développement sans clé API)
-   */
   private mockGenerateImage(prompt: string): string {
-    // URL d'une image placeholder
-    const encodedPrompt = encodeURIComponent(prompt.substring(0, 50));
-    return `https://via.placeholder.com/1280x720?text=${encodedPrompt}`;
+    const encoded = encodeURIComponent(prompt.substring(0, 50));
+    return `https://via.placeholder.com/1280x720/1a2a1e/C9A96E?text=${encoded}`;
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   isEnabled(): boolean {
