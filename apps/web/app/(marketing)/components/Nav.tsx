@@ -51,13 +51,13 @@ export default function Nav() {
         {/* ══ LOGO GAUCHE ══ */}
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           {/* Logo chouette — vraie image dans cercle fond sombre */}
-          <div style={{ position: 'relative', width: '44px', height: '44px', flexShrink: 0 }}>
+          <div style={{ position: 'relative', width: '56px', height: '56px', flexShrink: 0 }}>
             <Image
               src="/logochouette4.png"
               alt="AVRA Logo"
               fill
               priority
-              sizes="44px"
+              sizes="56px"
               style={{ objectFit: 'contain', filter: 'brightness(0.9) saturate(0.85)' }}
             />
           </div>
