@@ -109,7 +109,7 @@ export default function PortailMenuisierPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
             {dossiers.slice(0, 4).map(d => renderDossierItem(d))}
             {dossiers.length === 0 && (
-              <p style={{ color: '#4A6A8A', fontSize: 12, textAlign: 'center', padding: '12px 0', margin: 0 }}>Aucune fabrication en cours</p>
+              <p style={{ color: '#4A6A8A', fontSize: 12, textAlign: 'center', padding: '12px 0', margin: 0 }}>Aucun dossier en cours</p>
             )}
           </div>
         </div>
@@ -122,7 +122,7 @@ export default function PortailMenuisierPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
             {dossiersSignes.slice(0, 4).map(d => renderDossierItem(d as any))}
             {dossiersSignes.length === 0 && (
-              <p style={{ color: '#4A6A8A', fontSize: 12, textAlign: 'center', padding: '12px 0', margin: 0 }}>Aucune livraison effectuée</p>
+              <p style={{ color: '#4A6A8A', fontSize: 12, textAlign: 'center', padding: '12px 0', margin: 0 }}>Aucun dossier signé</p>
             )}
           </div>
         </div>
