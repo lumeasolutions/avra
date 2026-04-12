@@ -313,7 +313,7 @@ export default function HomePage() {
                 fill
                 priority
                 sizes="280px"
-                style={{ objectFit: 'contain', filter: 'brightness(0.9) saturate(0.85)' }}
+                style={{ objectFit: 'contain', filter: 'brightness(1.05) saturate(0.9)' }}
               />
             </div>
 
