@@ -260,19 +260,12 @@ export function Sidebar() {
         {profession && (
           <Link
             href={`/portail-${profession}`}
-            className={`menu-item ${pathname.startsWith('/portail-') ? 'active' : ''}`}
+            className={`menu-item ${pathname.startsWith('/portail-') || pathname === '/dashboard' ? 'active' : ''}`}
           >
-            <span style={{ fontSize: 15 }}>{professionInfo?.emoji ?? '🏠'}</span>
-            Mon portail
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+            Tableau de bord
           </Link>
         )}
-        <Link
-          href="/dashboard"
-          className={`menu-item ${pathname === '/dashboard' ? 'active' : ''}`}
-        >
-          <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
-          Tableau de bord
-        </Link>
         <Link
           href="/dossiers"
           className={`menu-item ${pathname === '/dossiers' ? 'active' : ''}`}

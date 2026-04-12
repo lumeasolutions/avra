@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useDossierStore, useFacturationStore, usePlanningStore } from '@/store';
+import { useDossierStore, useFacturationStore, usePlanningStore, useHistoryStore } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useMemo } from 'react';
 import { usePortailGuard } from '@/hooks/usePortailGuard';
+import { ChevronRight, AlertTriangle, CheckSquare, Bell, FileWarning, Clock, CalendarCog } from 'lucide-react';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
@@ -28,8 +29,30 @@ export default function PortailCuisinistePage() {
   const dossiers = useDossierStore(s => s.dossiers);
   const dossiersSignes = useDossierStore(s => s.dossiersSignes);
   const invoices = useFacturationStore(s => s.invoices);
+  const devis = useFacturationStore(s => s.devis);
   const planningEvents = usePlanningStore(s => s.planningEvents);
+  const storeLogs = useHistoryStore(s => s.historyLogs);
   const user = useAuthStore(s => s.user);
+
+  const recentLogs = storeLogs.slice(0, 6);
+
+  const actionsAFaire = useMemo(() => {
+    const actions: { id: string; type: 'devis'|'facture'|'confirmation'; label: string; detail: string; href: string; priority: 'high'|'medium'|'low' }[] = [];
+    devis.filter(d => d.statut === 'ENVOYÉ').forEach(d => {
+      actions.push({ id: 'dv-'+d.id, type: 'devis', label: `Devis ${d.ref} en attente`, detail: `${d.client} · ${d.dateCreation}`, href: '/facturation', priority: 'medium' });
+    });
+    devis.filter(d => d.signatureStatus === 'EN_ATTENTE_SIGNATURE').forEach(d => {
+      actions.push({ id: 'sg-'+d.id, type: 'devis', label: `Signature en attente — ${d.ref}`, detail: d.client, href: '/facturation', priority: 'high' });
+    });
+    invoices.filter(i => i.statut === 'RETARD').forEach(inv => {
+      actions.push({ id: 'fr-'+inv.id, type: 'facture', label: `Facture en retard — ${inv.ref}`, detail: inv.client, href: '/facturation', priority: 'high' });
+    });
+    dossiersSignes.forEach(d => {
+      const pending = (d.confirmations ?? []).filter(c => !c.validee);
+      if (pending.length > 0) actions.push({ id: 'cf-'+d.id, type: 'confirmation', label: `${pending.length} confirmation(s) en attente`, detail: d.name, href: '/dossiers-signes', priority: 'medium' });
+    });
+    return actions.sort((a, b) => (a.priority === 'high' ? -1 : b.priority === 'high' ? 1 : 0));
+  }, [devis, invoices, dossiersSignes]);
 
   const stats = useMemo(() => {
     const ca = invoices.filter(i => i.statut === 'PAYÉE').reduce((s, i) => s + i.montantHT, 0);
@@ -177,6 +200,102 @@ export default function PortailCuisinistePage() {
             Accéder au planning détaillé →
           </Link>
         </div>
+      </div>
+
+      {/* ── SECTION TABLEAU DE BORD ── */}
+      <div className="flex flex-col gap-[14px]">
+
+        {/* Actions à faire + Urgents */}
+        <div className="grid grid-cols-2 gap-5">
+
+          {/* Actions à faire */}
+          <div className="bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="m-0 text-[15px] font-bold text-[#0F2540] flex items-center gap-2"><CheckSquare size={14} />ACTIONS À FAIRE</h3>
+              <span style={{ fontSize: 10, background: actionsAFaire.length > 0 ? '#FFF0F0' : '#E8F5E9', color: actionsAFaire.length > 0 ? '#C0392B' : '#2E7D32', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>{actionsAFaire.length}</span>
+            </div>
+            <div className="flex flex-col gap-[10px] max-h-[160px] overflow-y-auto">
+              {actionsAFaire.length === 0 && (
+                <p className="text-[#4A6A8A] text-[13px] text-center py-5 m-0">Aucune action en attente ✓</p>
+              )}
+              {actionsAFaire.map(action => (
+                <Link key={action.id} href={action.href} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                  borderRadius: 8, background: action.priority === 'high' ? '#FFF5F5' : '#FAFBFC',
+                  textDecoration: 'none', borderLeft: `3px solid ${action.priority === 'high' ? '#C0392B' : '#E07B00'}`,
+                }}>
+                  {action.priority === 'high' ? <AlertTriangle size={13} color="#C0392B" /> : <Bell size={13} color="#E07B00" />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#0F2540', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{action.label}</div>
+                    <div style={{ fontSize: 9, color: '#7A8E9F' }}>{action.detail}</div>
+                  </div>
+                  <ChevronRight size={12} color="#B0BEC5" />
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Urgents & Alertes */}
+          <div className="bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="m-0 text-[15px] font-bold text-[#0F2540] flex items-center gap-2"><AlertTriangle size={14} />URGENTS & ALERTES</h3>
+            </div>
+            <div className="flex flex-col gap-[10px] max-h-[160px] overflow-y-auto">
+              {dossiers.filter(d => d.status === 'URGENT').length === 0 && invoices.filter(i => i.statut === 'RETARD').length === 0 && (
+                <p className="text-[#4A6A8A] text-[13px] text-center py-5 m-0">Aucune alerte active ✓</p>
+              )}
+              {dossiers.filter(d => d.status === 'URGENT').map(d => (
+                <Link key={d.id} href={`/dossiers/${d.id}`} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                  borderRadius: 8, background: '#FFF5F5', textDecoration: 'none', borderLeft: '3px solid #C0392B',
+                }}>
+                  <FileWarning size={13} color="#C0392B" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#0F2540', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
+                    <div style={{ fontSize: 9, color: '#C0392B', fontWeight: 600 }}>URGENT</div>
+                  </div>
+                  <ChevronRight size={12} color="#B0BEC5" />
+                </Link>
+              ))}
+              {invoices.filter(i => i.statut === 'RETARD').map(inv => (
+                <Link key={inv.id} href="/facturation" style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                  borderRadius: 8, background: '#FFF0F0', textDecoration: 'none', borderLeft: '3px solid #E07B00',
+                }}>
+                  <Clock size={13} color="#E07B00" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#0F2540', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Facture {inv.ref} en retard</div>
+                    <div style={{ fontSize: 9, color: '#7A8E9F' }}>{inv.client}</div>
+                  </div>
+                  <ChevronRight size={12} color="#B0BEC5" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Activité récente */}
+        <div className="bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+          <h3 className="m-0 mb-4 text-[15px] font-bold text-[#0F2540] flex items-center gap-2"><CalendarCog size={14} />ACTIVITÉ RÉCENTE</h3>
+          <div className="grid grid-cols-3 gap-[10px]">
+            {recentLogs.length === 0 && (
+              <p className="text-[#4A6A8A] text-[13px] text-center py-5 m-0 col-span-3">Aucune activité récente</p>
+            )}
+            {recentLogs.map((log, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 10px',
+                borderRadius: 8, background: '#F8FAFB',
+              }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#2E7D32', marginTop: 4, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#0F2540', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.action}</div>
+                  <div style={{ fontSize: 9, color: '#7A8E9F' }}>{log.entity} · {log.timestamp}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
 
     </div>
