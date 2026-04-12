@@ -249,7 +249,7 @@ export default function NouveauDossierPage() {
                 <div className="p-2 bg-[#304035]/8 rounded-xl">
                   <User className="h-4 w-4 text-[#304035]" />
                 </div>
-                <h2 className="text-sm font-bold text-[#304035]">Informations client</h2>
+                <h2 className="text-xl font-bold text-[#304035]">Informations client</h2>
               </div>
               <div className="p-6 grid grid-cols-2 gap-4">
                 <div className="col-span-1">
@@ -277,7 +277,7 @@ export default function NouveauDossierPage() {
                 <div className="p-2 bg-[#304035]/8 rounded-xl">
                   <MapPin className="h-4 w-4 text-[#304035]" />
                 </div>
-                <h2 className="text-sm font-bold text-[#304035]">Adresses</h2>
+                <h2 className="text-xl font-bold text-[#304035]">Adresses</h2>
               </div>
               <div className="p-6 space-y-4">
                 <div className="grid grid-cols-3 gap-4">
@@ -318,7 +318,7 @@ export default function NouveauDossierPage() {
                 <div className="p-2 bg-[#304035]/8 rounded-xl">
                   <Receipt className="h-4 w-4 text-[#304035]" />
                 </div>
-                <h2 className="text-sm font-bold text-[#304035]">Facturation & Chantier</h2>
+                <h2 className="text-xl font-bold text-[#304035]">Facturation & Chantier</h2>
               </div>
               <div className="p-6 space-y-4">
                 {/* Taux de TVA */}
@@ -404,7 +404,7 @@ export default function NouveauDossierPage() {
             {/* Statut */}
             <div className="form-section bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden" style={{ animationDelay: '40ms' }}>
               <div className="px-5 py-4 border-b border-[#304035]/5">
-                <h2 className="text-sm font-bold text-[#304035]">Statut du dossier</h2>
+                <h2 className="text-xl font-bold text-[#304035]">Statut du dossier</h2>
               </div>
               <div className="p-4 space-y-2">
                 {STATUS_OPTIONS.map(opt => {
