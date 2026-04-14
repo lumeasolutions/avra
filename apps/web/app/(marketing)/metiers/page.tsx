@@ -361,95 +361,203 @@ export default function MetiersPage() {
       </section>
 
       {/* ══════════════════════════════════════════
-          ALL 4 MÉTIERS GRID
+          AVANT / APRÈS — RENDU IA PHOTO-RÉALISTE
       ══════════════════════════════════════════ */}
-      <section className="section-pad" style={{ padding: '100px 5%', background: '#fff' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+      <style>{`
+        @keyframes avApresGlow {
+          0%, 100% { box-shadow: 0 0 40px rgba(201,169,110,0.15), 0 0 0 1px rgba(201,169,110,0.2); }
+          50% { box-shadow: 0 0 80px rgba(201,169,110,0.35), 0 0 0 1px rgba(201,169,110,0.5); }
+        }
+        @keyframes avApresShimmer {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        @keyframes avApresFloat {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-6px); }
+        }
+        @keyframes badgePop {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.06); }
+        }
+      `}</style>
+      <section style={{
+        padding: '120px 5%',
+        background: 'linear-gradient(180deg, #07100a 0%, #0d1a10 50%, #060d08 100%)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Ambient glow orbs */}
+        <div style={{ position: 'absolute', top: '10%', left: '15%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '10%', right: '10%', width: '400px', height: '400px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(74,124,89,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+        <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '80px' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
-              background: 'rgba(30,43,34,0.06)', borderRadius: '100px',
-              padding: '6px 18px', marginBottom: '16px',
+              background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.25)',
+              borderRadius: '100px', padding: '6px 18px', marginBottom: '20px',
             }}>
-              <span style={{ color: '#1e2b22', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                4 métiers, 1 seul outil
+              <Sparkles size={13} color="#C9A96E" />
+              <span style={{ color: '#C9A96E', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                IA photo-réaliste intégrée
               </span>
             </div>
-            <h2 style={{ color: '#1e2b22', marginBottom: '14px' }}>
-              Choisissez votre métier
+            <h2 style={{ color: '#fff', fontSize: 'clamp(2rem, 4vw, 3rem)', marginBottom: '16px', lineHeight: 1.15 }}>
+              De la photo brute au{' '}
+              <span style={{
+                background: 'linear-gradient(135deg, #C9A96E 0%, #e8c87a 50%, #C9A96E 100%)',
+                backgroundSize: '200% auto',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                animation: 'avApresShimmer 4s linear infinite',
+              }}>
+                rendu époustouflant
+              </span>
             </h2>
-            <p style={{ color: '#6b7d6f', fontSize: '1rem', maxWidth: '480px', margin: '0 auto' }}>
-              Chaque solution est taillée sur mesure avec des fonctionnalités propres à votre activité.
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '1.05rem', maxWidth: '520px', margin: '0 auto', lineHeight: 1.7 }}>
+              En quelques secondes, l'IA AVRA transforme vos photos en rendus photo-réalistes professionnels. Vos clients voient le résultat final avant même le chantier.
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
-            {metiers.map((m, i) => {
-              const Icon = m.icon;
-              return (
-                <Link key={m.id} href={m.href} style={{ textDecoration: 'none' }}>
-                  <div
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-6px)';
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = `0 20px 56px ${m.color}22`;
-                      (e.currentTarget as HTMLDivElement).style.borderColor = m.colorBorder;
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
-                      (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 16px rgba(30,43,34,0.06)';
-                      (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(30,43,34,0.08)';
-                    }}
-                    style={{
-                      background: '#fff', borderRadius: '20px', padding: '32px',
-                      border: '2px solid rgba(30,43,34,0.08)',
-                      boxShadow: '0 2px 16px rgba(30,43,34,0.06)',
-                      transition: 'all 0.3s ease', cursor: 'pointer',
-                      display: 'flex', flexDirection: 'column', height: '100%',
-                    }}
-                  >
-                    {/* Icon block */}
-                    <div style={{
-                      width: '64px', height: '64px', borderRadius: '18px',
-                      background: m.colorLight, border: `1px solid ${m.colorBorder}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '2rem', marginBottom: '20px',
-                    }}>
-                      {m.emoji}
-                    </div>
+          {/* Before / After comparison */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'stretch' }}>
 
-                    <h3 style={{ color: '#1e2b22', fontSize: '1.2rem', marginBottom: '6px' }}>{m.label}</h3>
-                    <p style={{ color: '#9aab9e', fontSize: '0.82rem', fontWeight: 600, marginBottom: '14px', letterSpacing: '0.02em' }}>
-                      {m.tagline}
-                    </p>
-                    <p style={{ color: '#5a6e5e', fontSize: '0.9rem', lineHeight: 1.7, flex: 1, marginBottom: '24px' }}>
-                      {m.desc}
-                    </p>
+            {/* AVANT */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px', alignSelf: 'flex-start',
+                background: 'rgba(239,83,80,0.12)', border: '1px solid rgba(239,83,80,0.3)',
+                borderRadius: '100px', padding: '6px 16px',
+              }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef5350', boxShadow: '0 0 8px #ef5350' }} />
+                <span style={{ color: '#ef9a9a', fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Avant</span>
+              </div>
+              <div style={{
+                flex: 1,
+                borderRadius: '20px',
+                border: '1.5px solid rgba(255,255,255,0.07)',
+                background: 'rgba(255,255,255,0.03)',
+                overflow: 'hidden',
+                minHeight: '400px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexDirection: 'column', gap: '12px',
+                position: 'relative',
+              }}>
+                {/* Dashed placeholder */}
+                <div style={{
+                  position: 'absolute', inset: '20px',
+                  border: '2px dashed rgba(255,255,255,0.08)',
+                  borderRadius: '14px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexDirection: 'column', gap: '10px',
+                }}>
+                  <div style={{ fontSize: '2.5rem', opacity: 0.2 }}>📸</div>
+                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.82rem', fontWeight: 600 }}>Photo à intégrer</span>
+                </div>
+              </div>
+              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem', textAlign: 'center', margin: 0 }}>
+                La photo brute de l&apos;espace vide
+              </p>
+            </div>
 
-                    {/* Stat */}
-                    <div style={{
-                      padding: '12px 16px', borderRadius: '12px',
-                      background: m.colorLight, marginBottom: '20px',
-                      display: 'flex', alignItems: 'center', gap: '12px',
-                    }}>
-                      <span style={{ color: m.color, fontSize: '1.4rem', fontWeight: 800, fontFamily: 'var(--font-display)' }}>
-                        {m.stat.value}
-                      </span>
-                      <span style={{ color: '#5a6e5e', fontSize: '0.78rem', lineHeight: 1.4 }}>{m.stat.label}</span>
-                    </div>
-
-                    {/* CTA */}
-                    <div style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      color: m.color, fontWeight: 700, fontSize: '0.88rem',
-                    }}>
-                      <span>Voir la solution {m.label}</span>
-                      <ArrowRight size={16} />
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+            {/* APRÈS */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '8px',
+                  background: 'rgba(201,169,110,0.15)', border: '1px solid rgba(201,169,110,0.35)',
+                  borderRadius: '100px', padding: '6px 16px',
+                }}>
+                  <Sparkles size={11} color="#C9A96E" />
+                  <span style={{ color: '#C9A96E', fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Après — IA AVRA</span>
+                </div>
+                <div style={{
+                  background: 'linear-gradient(135deg, #C9A96E, #b8944f)',
+                  borderRadius: '100px', padding: '4px 12px',
+                  fontSize: '0.72rem', fontWeight: 800, color: '#fff',
+                  animation: 'badgePop 2s ease-in-out infinite',
+                }}>
+                  ✨ Quelques secondes
+                </div>
+              </div>
+              <div style={{
+                flex: 1,
+                borderRadius: '20px',
+                border: '1.5px solid rgba(201,169,110,0.3)',
+                background: 'rgba(201,169,110,0.04)',
+                overflow: 'hidden',
+                minHeight: '400px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'relative',
+                animation: 'avApresGlow 3s ease-in-out infinite',
+              }}>
+                {/* Shimmer border overlay */}
+                <div style={{
+                  position: 'absolute', inset: 0, borderRadius: '20px',
+                  background: 'linear-gradient(135deg, transparent 30%, rgba(201,169,110,0.06) 50%, transparent 70%)',
+                  backgroundSize: '200% 200%',
+                  animation: 'avApresShimmer 3s linear infinite',
+                  pointerEvents: 'none',
+                }} />
+                {/* Dashed placeholder */}
+                <div style={{
+                  position: 'absolute', inset: '20px',
+                  border: '2px dashed rgba(201,169,110,0.2)',
+                  borderRadius: '14px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexDirection: 'column', gap: '10px',
+                }}>
+                  <div style={{ fontSize: '2.5rem', opacity: 0.35 }}>🏡</div>
+                  <span style={{ color: 'rgba(201,169,110,0.4)', fontSize: '0.82rem', fontWeight: 600 }}>Rendu IA à intégrer</span>
+                </div>
+              </div>
+              <p style={{ color: 'rgba(201,169,110,0.5)', fontSize: '0.82rem', textAlign: 'center', margin: 0 }}>
+                Le rendu photo-réaliste généré par l&apos;IA AVRA
+              </p>
+            </div>
           </div>
+
+          {/* Bottom stats row */}
+          <div style={{
+            display: 'flex', gap: '0', marginTop: '64px',
+            background: 'rgba(255,255,255,0.03)', borderRadius: '20px',
+            border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden',
+          }}>
+            {[
+              { value: '< 30s', label: 'Temps de génération', icon: '⚡' },
+              { value: '160', label: 'Rendus inclus / mois', icon: '🎨' },
+              { value: '100%', label: 'Intégré dans AVRA', icon: '🔗' },
+            ].map((stat, i) => (
+              <div key={i} style={{
+                flex: 1, padding: '32px 24px', textAlign: 'center',
+                borderRight: i < 2 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+              }}>
+                <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>{stat.icon}</div>
+                <div style={{ color: '#C9A96E', fontSize: '2rem', fontWeight: 800, fontFamily: 'var(--font-display)', lineHeight: 1 }}>
+                  {stat.value}
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem', marginTop: '6px' }}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <div style={{ textAlign: 'center', marginTop: '56px' }}>
+            <Link href="/comment-ca-marche" style={{ textDecoration: 'none' }}>
+              <button style={{
+                display: 'inline-flex', alignItems: 'center', gap: '10px',
+                background: 'linear-gradient(135deg, #C9A96E, #b8944f)',
+                color: '#fff', border: 'none', borderRadius: '14px',
+                padding: '16px 36px', fontSize: '1rem', fontWeight: 700,
+                cursor: 'pointer', boxShadow: '0 12px 40px rgba(201,169,110,0.35)',
+                animation: 'avApresFloat 3s ease-in-out infinite',
+              }}>
+                Voir le rendu IA en action <ArrowRight size={18} />
+              </button>
+            </Link>
+          </div>
+
         </div>
       </section>
 
