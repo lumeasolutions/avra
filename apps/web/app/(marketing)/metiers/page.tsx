@@ -39,10 +39,10 @@ const metiers = [
     colorLight: 'rgba(201,169,110,0.12)',
     colorBorder: 'rgba(201,169,110,0.25)',
     features: [
-      'Suivi des commandes & dossiers en cours',
-      'Rappels intelligents via assistant AVRA',
-      'Rendus IA pour validation visuelle rapide',
-      'Planning pose et suivi de chantier intégré',
+      'Un suivi plus simple des commandes',
+      'Un suivi plus simple des dossiers en cours',
+      'Rendus photo IA intégrés',
+      'E-paiement / E-signature',
     ],
     stat: { value: '+42%', label: 'de CA moyen après 6 mois' },
   },
@@ -308,17 +308,6 @@ export default function MetiersPage() {
                     transition: 'all 0.2s',
                   }}>
                     Découvrir pour {active.label} <ArrowRight size={16} />
-                  </button>
-                </Link>
-                <Link href="/register" style={{ textDecoration: 'none' }}>
-                  <button style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '8px',
-                    background: 'rgba(255,255,255,0.07)',
-                    color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '12px', padding: '14px 26px', fontSize: '0.95rem', fontWeight: 600,
-                    cursor: 'pointer',
-                  }}>
-                    Essai gratuit 14j
                   </button>
                 </Link>
               </div>
