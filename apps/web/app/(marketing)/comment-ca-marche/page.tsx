@@ -574,11 +574,11 @@ export default function CommentCaMarchePage() {
             Prêt à essayer ?
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.05rem', marginBottom: '40px', lineHeight: 1.7 }}>
-            14 jours gratuits, sans carte bancaire. Rejoignez 2 400+ professionnels qui gagnent du temps chaque jour avec AVRA.
+            Rejoignez 2 400+ professionnels qui gagnent du temps chaque jour avec AVRA.
           </p>
 
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '28px' }}>
-            <Link href="/register" style={{ textDecoration: 'none' }}>
+            <Link href="/comment-ca-marche" style={{ textDecoration: 'none' }}>
               <button style={{
                 display: 'inline-flex', alignItems: 'center', gap: '8px',
                 background: 'linear-gradient(135deg, #C9A96E, #b8944f)',
@@ -586,7 +586,7 @@ export default function CommentCaMarchePage() {
                 padding: '16px 32px', fontSize: '1rem', fontWeight: 700,
                 cursor: 'pointer', boxShadow: '0 8px 32px rgba(201,169,110,0.35)',
               }}>
-                Commencer gratuitement <ArrowRight size={18} />
+                Demander une démo <ArrowRight size={18} />
               </button>
             </Link>
             <Link href="mailto:contact@avra.fr" style={{ textDecoration: 'none' }}>
