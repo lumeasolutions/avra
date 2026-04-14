@@ -159,18 +159,38 @@ export default function TarifsClient() {
         </div>
       </section>
 
+      <style>{`
+        @keyframes pricePulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(201,169,110,0.4), 0 24px 80px rgba(201,169,110,0.25); }
+          50% { box-shadow: 0 0 0 12px rgba(201,169,110,0), 0 24px 80px rgba(201,169,110,0.4); }
+        }
+        @keyframes badgeGlow {
+          0%, 100% { box-shadow: 0 4px 20px rgba(201,169,110,0.5); }
+          50% { box-shadow: 0 4px 32px rgba(201,169,110,0.9), 0 0 60px rgba(201,169,110,0.3); }
+        }
+        @keyframes floatCard {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-8px); }
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+      `}</style>
+
       {/* ── PLANS ── */}
       <section
         style={{
-          background: 'linear-gradient(160deg, #0e1810 0%, #1e2b22 40%, #243020 100%)',
-          padding: '80px 5% 100px',
+          background: 'linear-gradient(180deg, #080f09 0%, #0e1810 30%, #152018 60%, #1a2b1e 100%)',
+          padding: '80px 5% 120px',
           position: 'relative',
           overflow: 'hidden',
         }}
       >
-        {/* Glow orbs */}
-        <div style={{ position: 'absolute', top: '-10%', left: '15%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: '-10%', right: '10%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        {/* Glow orbs dramatiques */}
+        <div style={{ position: 'absolute', top: '10%', left: '5%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.12) 0%, transparent 65%)', pointerEvents: 'none', filter: 'blur(40px)' }} />
+        <div style={{ position: 'absolute', bottom: '0%', right: '0%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.09) 0%, transparent 65%)', pointerEvents: 'none', filter: 'blur(40px)' }} />
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 800, height: 300, background: 'radial-gradient(ellipse, rgba(201,169,110,0.05) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
         {/* Toggle */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 56 }}>
@@ -186,130 +206,142 @@ export default function TarifsClient() {
         </div>
 
         {/* Cards */}
-        <div style={{ maxWidth: 1020, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'stretch' }}>
+        <div style={{ maxWidth: 1060, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 20, alignItems: 'start' }}>
 
-          {/* ── Indépendant ── */}
-          <div style={{ position: 'relative', borderRadius: 28, overflow: 'visible' }}>
-            {/* Glow border effect */}
-            <div style={{ position: 'absolute', inset: -2, borderRadius: 30, background: 'linear-gradient(135deg, #c9a96e, #f0d080, #a67749)', zIndex: 0, opacity: 0.8 }} />
-            <div style={{ position: 'relative', zIndex: 1, background: 'linear-gradient(160deg, #ffffff 0%, #faf7f2 100%)', borderRadius: 28, padding: '2.8rem', height: '100%', boxSizing: 'border-box' as const }}>
+          {/* ══════════════════════════════════
+              CARTE INDÉPENDANT — HERO
+          ══════════════════════════════════ */}
+          <div style={{ position: 'relative', animation: 'floatCard 6s ease-in-out infinite' }}>
+            {/* Halo doré derrière la carte */}
+            <div style={{ position: 'absolute', inset: -3, borderRadius: 32, background: 'linear-gradient(135deg, #f0d080, #c9a96e, #8a5c2a, #c9a96e, #f0d080)', backgroundSize: '300% 300%', animation: 'shimmer 4s linear infinite', zIndex: 0 }} />
+            {/* Card body */}
+            <div style={{ position: 'relative', zIndex: 1, background: 'linear-gradient(155deg, #ffffff 0%, #fdf9f3 60%, #f7f0e6 100%)', borderRadius: 30, padding: '3rem 3rem 3rem', overflow: 'hidden' }}>
 
-              {/* Badge */}
-              <div style={{ position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #c9a96e, #a67749)', color: '#fff', borderRadius: 50, padding: '5px 22px', fontSize: '.73rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' as const, whiteSpace: 'nowrap' as const, boxShadow: '0 4px 20px rgba(201,169,110,0.5)', zIndex: 10 }}>
+              {/* Fond décoratif lumière */}
+              <div style={{ position: 'absolute', top: -80, right: -80, width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.18) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+              {/* Badge flottant */}
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg, #c9a96e, #a67749)', color: '#fff', borderRadius: 50, padding: '6px 20px', fontSize: '.73rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' as const, animation: 'badgeGlow 2.5s ease-in-out infinite', marginBottom: '1.6rem' }}>
                 ⭐ Le plus populaire
               </div>
 
-              {/* Plan name */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: '2rem', paddingTop: '0.5rem' }}>
-                <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg, #c9a96e, #a67749)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 20px rgba(201,169,110,0.4)', flexShrink: 0 }}>
-                  <Building2 size={24} style={{ color: '#fff' }} />
+              {/* En-tête plan */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: '1.6rem' }}>
+                <div style={{ width: 60, height: 60, borderRadius: 18, background: 'linear-gradient(135deg, #c9a96e 0%, #8a5c2a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 28px rgba(201,169,110,0.5)', flexShrink: 0 }}>
+                  <Building2 size={28} style={{ color: '#fff' }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#1e2b22', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>Indépendant</div>
-                  <div style={{ fontSize: '.8rem', color: '#8a9a8d', fontWeight: 500 }}>Pour les professionnels du showroom</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#1e2b22', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>Indépendant</div>
+                  <div style={{ fontSize: '.82rem', color: '#8a9a8d', fontWeight: 500, marginTop: 2 }}>1 showroom · 4 utilisateurs</div>
                 </div>
               </div>
 
-              {/* Séparateur */}
-              <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(201,169,110,0.4), transparent)', marginBottom: '1.8rem' }} />
+              {/* Ligne dorée */}
+              <div style={{ height: 2, background: 'linear-gradient(90deg, #c9a96e, #f0d080, #a67749)', borderRadius: 2, marginBottom: '1.8rem', opacity: 0.6 }} />
 
-              {/* Prix */}
-              <div style={{ marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 'clamp(3.5rem, 7vw, 4.5rem)', fontWeight: 900, color: '#1e2b22', fontFamily: 'var(--font-display)', lineHeight: 1, letterSpacing: '-0.03em' }}>
+              {/* Bloc prix */}
+              <div style={{ background: 'linear-gradient(135deg, rgba(201,169,110,0.08), rgba(201,169,110,0.04))', border: '1px solid rgba(201,169,110,0.25)', borderRadius: 20, padding: '1.4rem 1.6rem', marginBottom: '1.8rem' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginBottom: 6 }}>
+                  <span style={{ fontSize: 'clamp(4rem, 8vw, 5.5rem)', fontWeight: 900, color: '#1e2b22', fontFamily: 'var(--font-display)', lineHeight: 1, letterSpacing: '-0.04em' }}>
                     {annual ? '130' : '149'}
                   </span>
-                  <div style={{ paddingBottom: 8 }}>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#c9a96e', lineHeight: 1 }}>€</div>
-                    <div style={{ fontSize: '.78rem', color: '#8a9a8d', fontWeight: 600 }}>/mois</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', paddingBottom: 10, gap: 0 }}>
+                    <span style={{ fontSize: '2rem', fontWeight: 900, color: '#c9a96e', lineHeight: 1 }}>€</span>
+                    <span style={{ fontSize: '.78rem', color: '#8a9a8d', fontWeight: 600, lineHeight: 1.2 }}>/mois</span>
                   </div>
                 </div>
                 {annual ? (
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.3)', borderRadius: 50, padding: '3px 12px', fontSize: '.78rem', fontWeight: 700, color: '#a67749' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,169,110,0.15)', border: '1px solid rgba(201,169,110,0.4)', borderRadius: 50, padding: '4px 14px', fontSize: '.78rem', fontWeight: 700, color: '#a67749' }}>
                     💰 Économisez 228€/an
                   </div>
                 ) : (
-                  <div style={{ fontSize: '.82rem', color: '#8a9a8d' }}>ou <strong style={{ color: '#a67749' }}>130€/mois</strong> en annuel</div>
+                  <div style={{ fontSize: '.82rem', color: '#8a9a8d' }}>
+                    Soit <strong style={{ color: '#a67749' }}>130€/mois</strong> en abonnement annuel
+                  </div>
                 )}
               </div>
 
-              {/* CTA */}
+              {/* CTA principal */}
               <a href="/comment-ca-marche" style={{ textDecoration: 'none', display: 'block', marginBottom: '2rem' }}>
-                <button style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '16px 24px', background: 'linear-gradient(135deg, #c9a96e, #a67749)', color: '#ffffff', border: 'none', borderRadius: 14, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 8px 32px rgba(201,169,110,0.45)', letterSpacing: '0.01em' }}>
+                <button style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '18px 28px', background: 'linear-gradient(135deg, #c9a96e 0%, #b8843a 50%, #a67749 100%)', color: '#fff', border: 'none', borderRadius: 16, fontSize: '1.05rem', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 10px 40px rgba(201,169,110,0.55), 0 2px 8px rgba(0,0,0,0.1)', letterSpacing: '0.01em', animation: 'pricePulse 3s ease-in-out infinite' }}>
                   Demander une démo
-                  <ArrowRight size={18} />
+                  <ArrowRight size={19} />
                 </button>
               </a>
 
-              {/* Tag inclus */}
-              <div style={{ fontSize: '.75rem', fontWeight: 700, color: '#8a9a8d', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '0.9rem' }}>Ce qui est inclus</div>
-
               {/* Features */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              <div style={{ fontSize: '.72rem', fontWeight: 800, color: '#c9a96e', textTransform: 'uppercase' as const, letterSpacing: '0.14em', marginBottom: '1rem' }}>Tout est inclus</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {showroomFeatures.map((f) => (
                   <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(201,169,110,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <CheckCircle size={12} style={{ color: '#c9a96e' }} />
+                    <div style={{ width: 22, height: 22, borderRadius: 8, background: 'linear-gradient(135deg, rgba(201,169,110,0.2), rgba(201,169,110,0.08))', border: '1px solid rgba(201,169,110,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <CheckCircle size={13} style={{ color: '#c9a96e' }} />
                     </div>
-                    <span style={{ fontSize: '.88rem', color: '#304035', fontWeight: 500, lineHeight: 1.4 }}>{f}</span>
+                    <span style={{ fontSize: '.9rem', color: '#2e4030', fontWeight: 500 }}>{f}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* ── Mes équipes ── */}
-          <div style={{ background: 'linear-gradient(160deg, #0e1810 0%, #1a2b1e 100%)', borderRadius: 28, padding: '2.8rem', border: '1px solid rgba(201,169,110,0.2)', boxShadow: '0 24px 80px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden' }}>
-            {/* Pattern décoratif */}
-            <div style={{ position: 'absolute', top: -60, right: -60, width: 200, height: 200, borderRadius: '50%', border: '1px solid rgba(201,169,110,0.08)', pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', top: -100, right: -100, width: 300, height: 300, borderRadius: '50%', border: '1px solid rgba(201,169,110,0.05)', pointerEvents: 'none' }} />
+          {/* ══════════════════════════════════
+              CARTE MES ÉQUIPES
+          ══════════════════════════════════ */}
+          <div style={{ background: 'linear-gradient(155deg, #111d13 0%, #1a2b1e 50%, #0f1a11 100%)', borderRadius: 28, padding: '2.6rem 2.4rem', border: '1px solid rgba(201,169,110,0.18)', boxShadow: '0 32px 100px rgba(0,0,0,0.6)', position: 'relative', overflow: 'hidden' }}>
+            {/* Cercles décoratifs */}
+            <div style={{ position: 'absolute', top: -80, right: -80, width: 260, height: 260, borderRadius: '50%', border: '1px solid rgba(201,169,110,0.07)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', top: -130, right: -130, width: 380, height: 380, borderRadius: '50%', border: '1px solid rgba(201,169,110,0.04)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: -40, left: -40, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-            {/* Plan name */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: '2rem' }}>
-              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Users size={24} style={{ color: '#c9a96e' }} />
+            {/* Badge */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.25)', borderRadius: 50, padding: '5px 16px', fontSize: '.72rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#c9a96e', marginBottom: '1.6rem' }}>
+              🏢 Multi-sites
+            </div>
+
+            {/* En-tête */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: '1.6rem' }}>
+              <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(201,169,110,0.08)', border: '1px solid rgba(201,169,110,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Users size={26} style={{ color: '#c9a96e' }} />
               </div>
               <div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#ffffff', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>Mes équipes</div>
-                <div style={{ fontSize: '.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>Franchises · Groupes · Grandes structures</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fff', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>Mes équipes</div>
+                <div style={{ fontSize: '.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500, marginTop: 2 }}>Franchises · Groupes · Grandes structures</div>
               </div>
             </div>
 
-            {/* Séparateur */}
-            <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(201,169,110,0.25), transparent)', marginBottom: '1.8rem' }} />
+            {/* Ligne */}
+            <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(201,169,110,0.3), transparent)', marginBottom: '1.8rem' }} />
 
             {/* Prix */}
             <div style={{ marginBottom: '2rem' }}>
-              <div style={{ fontSize: 'clamp(2.4rem, 5vw, 3.2rem)', fontWeight: 900, color: '#c9a96e', fontFamily: 'var(--font-display)', lineHeight: 1, letterSpacing: '-0.02em', marginBottom: 8 }}>
+              <div style={{ fontSize: 'clamp(2.8rem, 5.5vw, 3.8rem)', fontWeight: 900, color: '#c9a96e', fontFamily: 'var(--font-display)', lineHeight: 1, letterSpacing: '-0.03em', marginBottom: 10 }}>
                 Sur devis
               </div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.2)', borderRadius: 50, padding: '4px 14px', fontSize: '.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)' }}>
-                Tarif personnalisé selon vos besoins
+              <div style={{ fontSize: '.84rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.6 }}>
+                Tarif personnalisé selon le nombre de showrooms et d&apos;utilisateurs.
               </div>
             </div>
 
             {/* CTA */}
             <a href="/contact" style={{ textDecoration: 'none', display: 'block', marginBottom: '2rem' }}>
-              <button style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '16px 24px', background: 'rgba(201,169,110,0.12)', color: '#c9a96e', border: '1.5px solid rgba(201,169,110,0.4)', borderRadius: 14, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.01em', transition: 'all 0.2s ease' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,169,110,0.2)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,169,110,0.12)'; }}
+              <button style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '17px 24px', background: 'transparent', color: '#c9a96e', border: '1.5px solid rgba(201,169,110,0.45)', borderRadius: 14, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.01em', transition: 'all 0.25s ease' }}
+                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'rgba(201,169,110,0.12)'; el.style.borderColor = 'rgba(201,169,110,0.7)'; el.style.boxShadow = '0 0 24px rgba(201,169,110,0.2)'; }}
+                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'transparent'; el.style.borderColor = 'rgba(201,169,110,0.45)'; el.style.boxShadow = 'none'; }}
               >
                 <Phone size={17} />
                 Nous contacter
               </button>
             </a>
 
-            {/* Tag inclus */}
-            <div style={{ fontSize: '.75rem', fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '0.9rem' }}>Ce qui est inclus</div>
-
             {/* Features */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            <div style={{ fontSize: '.72rem', fontWeight: 800, color: 'rgba(201,169,110,0.6)', textTransform: 'uppercase' as const, letterSpacing: '0.14em', marginBottom: '1rem' }}>Ce qui est inclus</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {enterpriseFeatures.map((f) => (
                 <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(201,169,110,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <CheckCircle size={12} style={{ color: '#c9a96e' }} />
+                  <div style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <CheckCircle size={11} style={{ color: '#c9a96e' }} />
                   </div>
-                  <span style={{ fontSize: '.88rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500, lineHeight: 1.4 }}>{f}</span>
+                  <span style={{ fontSize: '.87rem', color: 'rgba(255,255,255,0.65)', fontWeight: 500 }}>{f}</span>
                 </div>
               ))}
             </div>
