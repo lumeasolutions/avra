@@ -785,11 +785,11 @@ export default function FonctionnalitesPage() {
               <tbody>
                 {[
                   { task: 'Créer un devis', before: '30 min (Excel + mise en page)', after: '2 min (templates automatiques)' },
-                  { task: 'Générer une facture', before: '15 min (saisie manuelle)', after: '30 sec (depuis le devis)' },
+                  { task: 'Générer une facture', before: '15 min (saisie manuelle)', after: '30 sec depuis le module intégré' },
                   { task: 'Planifier une pose', before: '10 min (appels / emails)', after: '2 min (calendrier partagé)' },
                   { task: 'Retrouver un dossier', before: 'Emails + dossiers locaux', after: 'Un clic dans AVRA' },
-                  { task: 'Rendu 3D pour le client', before: '2–3 jours (agence externe)', after: '< 10 secondes (IA)' },
-                  { task: 'Signature client', before: 'Rendez-vous physique', after: 'SMS ou email en 30 sec' },
+                  { task: 'Rendu 3D pour le client', before: '1 heure avec le client', after: '10 secondes par projet' },
+                  { task: 'Signature client', before: 'Rendez-vous physique', after: '30 sec avec signature électronique' },
                 ].map((row, i) => (
                   <tr
                     key={row.task}
