@@ -96,10 +96,10 @@ const metiers = [
     colorLight: 'rgba(192,98,122,0.09)',
     colorBorder: 'rgba(192,98,122,0.25)',
     features: [
-      'Planches tendances & mood boards intégrés',
+      'Suivi de projet et livraisons',
       'Rendus IA photo-réalistes pour vos clients',
       'Devis déco professionnels en quelques clics',
-      'Suivi de projet et portail client visuel',
+      'Suivi des dossiers client et du stock',
     ],
     stat: { value: '×3', label: 'plus vite de la déco au bon de commande' },
   },
