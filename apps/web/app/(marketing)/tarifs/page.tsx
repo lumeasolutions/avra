@@ -2,13 +2,13 @@ import type { Metadata } from 'next';
 import TarifsClient from './TarifsClient';
 
 export const metadata: Metadata = {
-  title: 'Tarifs AVRA — À partir de 49€/mois, essai gratuit 14 jours sans CB',
+  title: 'Tarifs AVRA — 149€/mois tout inclus, sans engagement',
   description:
-    "Tarifs simples et transparents. Solo 49€, Pro 89€, Équipe 149€. 14 jours d'essai gratuit sans carte bancaire. Conforme e-facture 2026.",
+    "Tarif simple et transparent : 149€/mois pour 1 showroom et 4 utilisateurs. Toutes les fonctionnalités incluses. Essai gratuit 14 jours. Plan Entreprise sur devis pour franchises et groupes.",
   alternates: { canonical: 'https://avra.fr/tarifs' },
   openGraph: {
-    title: 'Tarifs AVRA — Transparent & sans engagement',
-    description: "À partir de 49€/mois. 14 jours d'essai gratuit. Conformité e-facture 2026 incluse.",
+    title: 'Tarifs AVRA — 149€/mois tout inclus',
+    description: "1 showroom, 4 utilisateurs, toutes les fonctionnalités. Essai gratuit 14 jours sans CB.",
     url: 'https://avra.fr/tarifs',
   },
 };
