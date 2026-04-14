@@ -127,16 +127,16 @@ export default function HomePage() {
             background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(201,169,110,0.1) 50%, rgba(0,0,0,0.5) 100%)',
             borderBottom: '1px solid rgba(201,169,110,0.28)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '40px',
-            padding: '18px 5%',
+            padding: '28px 5%',
             flexShrink: 0,
           }}
         >
-          <div style={{ position: 'relative', width: 80, height: 80 }}>
-            <Image src="/logosidebar3.png" alt="AVRA Logo" fill sizes="80px" style={{ objectFit: 'contain' }} />
+          <div style={{ position: 'relative', width: 200, height: 200 }}>
+            <Image src="/logosidebar3.png" alt="AVRA Logo" fill sizes="200px" style={{ objectFit: 'contain' }} />
           </div>
-          <div style={{ width: 1, height: 56, background: 'rgba(201,169,110,0.4)' }} />
-          <div style={{ position: 'relative', width: 80, height: 80 }}>
-            <Image src="/logochouette4.png" alt="AVRA Chouette" fill sizes="80px" style={{ objectFit: 'contain' }} />
+          <div style={{ width: 1, height: 140, background: 'rgba(201,169,110,0.4)' }} />
+          <div style={{ position: 'relative', width: 200, height: 200 }}>
+            <Image src="/logochouette4.png" alt="AVRA Chouette" fill sizes="200px" style={{ objectFit: 'contain' }} />
           </div>
         </div>
 
@@ -145,7 +145,7 @@ export default function HomePage() {
           style={{
             maxWidth: 1200,
             margin: '0 auto',
-            padding: '36px 5% 50px',
+            padding: '12px 5% 16px',
             width: '100%',
             position: 'relative',
             zIndex: 1,
@@ -167,7 +167,7 @@ export default function HomePage() {
                 background: 'rgba(201,169,110,.15)',
                 border: '1px solid rgba(201,169,110,.35)',
                 borderRadius: '100px',
-                marginBottom: '2rem',
+                marginBottom: '1rem',
               }}
             >
               <div
@@ -201,7 +201,7 @@ export default function HomePage() {
                 fontWeight: 800,
                 lineHeight: 1.1,
                 letterSpacing: '-0.02em',
-                marginBottom: '1.5rem',
+                marginBottom: '0.9rem',
               }}
             >
               Le logiciel qui{' '}
@@ -223,7 +223,7 @@ export default function HomePage() {
                 color: 'rgba(255,255,255,.82)',
                 fontSize: '1.15rem',
                 lineHeight: 1.7,
-                marginBottom: '2.5rem',
+                marginBottom: '1.4rem',
                 maxWidth: 520,
               }}
             >
@@ -240,7 +240,7 @@ export default function HomePage() {
                 gap: '16px',
                 flexWrap: 'wrap',
                 alignItems: 'center',
-                marginBottom: '3rem',
+                marginBottom: '1.6rem',
               }}
             >
               <Link href="/register">
