@@ -198,8 +198,8 @@ export default function CommentCaMarchePage() {
                 <br />en 5 minutes
               </h1>
 
-              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '1.15rem', maxWidth: '480px', marginBottom: '36px', lineHeight: 1.7 }}>
-                Pas de formation longue, pas de technicien. 5 étapes simples et vous gagnez du temps dès aujourd&apos;hui.
+              <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '1.15rem', maxWidth: '520px', marginBottom: '36px', lineHeight: 1.7 }}>
+                Après une présentation rapide de la plateforme en 20 à 30 minutes, vous pouvez déjà prendre en main AVRA et commencer à travailler immédiatement — sans formation longue ni prise de tête.
               </p>
 
               {/* Time indicators */}
