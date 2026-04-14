@@ -285,127 +285,219 @@ export default function CommentCaMarchePage() {
       </section>
 
       {/* ─── STEPS ─── */}
-      <section id="etapes" style={{ padding: '100px 5%', background: '#fff' }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+      <style>{`
+        @keyframes stepGlow {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.08); }
+        }
+        @keyframes stepSlideIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes stepNumPulse {
+          0%, 100% { opacity: 0.06; }
+          50% { opacity: 0.13; }
+        }
+        @keyframes connectorFill {
+          from { height: 0%; }
+          to { height: 100%; }
+        }
+      `}</style>
+      <section id="etapes" style={{
+        padding: '120px 5%',
+        background: 'linear-gradient(180deg, #080d09 0%, #0e1810 40%, #0a0c0a 100%)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Background glow orb */}
+        <div style={{
+          position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)',
+          width: '900px', height: '600px', borderRadius: '50%',
+          background: `radial-gradient(ellipse, ${steps[activeStep]?.color ?? '#C9A96E'}0d 0%, transparent 70%)`,
+          transition: 'background 0.6s ease',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{ maxWidth: '1060px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
 
           {/* Header */}
-          <div style={{ textAlign: 'center', marginBottom: '70px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '80px' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
-              background: 'rgba(30,43,34,0.06)', borderRadius: '100px',
-              padding: '6px 16px', marginBottom: '16px',
+              background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.25)',
+              borderRadius: '100px', padding: '6px 18px', marginBottom: '20px',
             }}>
-              <span style={{ color: '#1e2b22', fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              <Zap size={13} color="#C9A96E" />
+              <span style={{ color: '#C9A96E', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                 5 étapes simples
               </span>
             </div>
-            <h2 style={{ color: '#1e2b22', marginBottom: '16px' }}>
+            <h2 style={{ color: '#fff', marginBottom: '16px', fontSize: '2.6rem' }}>
               C&apos;est vraiment aussi simple
             </h2>
-            <p style={{ color: '#6b7d6f', fontSize: '1.05rem', maxWidth: '500px', margin: '0 auto' }}>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '1.05rem', maxWidth: '480px', margin: '0 auto', lineHeight: 1.7 }}>
               Chaque étape prend quelques minutes. Pas de formation, pas de technicien requis.
             </p>
           </div>
 
           {/* Step navigator pills */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '56px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '64px', flexWrap: 'wrap' }}>
             {steps.map((step, i) => (
               <button
                 key={i}
                 onClick={() => setActiveStep(i)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px',
-                  padding: '8px 18px', borderRadius: '100px',
-                  background: activeStep === i ? step.color : 'transparent',
-                  color: activeStep === i ? '#fff' : '#6b7d6f',
-                  border: `2px solid ${activeStep === i ? step.color : 'rgba(30,43,34,0.12)'}`,
+                  padding: '10px 20px', borderRadius: '100px',
+                  background: activeStep === i ? step.color : 'rgba(255,255,255,0.04)',
+                  color: activeStep === i ? '#fff' : 'rgba(255,255,255,0.4)',
+                  border: `1.5px solid ${activeStep === i ? step.color : 'rgba(255,255,255,0.1)'}`,
                   fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.25s ease',
+                  boxShadow: activeStep === i ? `0 0 20px ${step.color}55` : 'none',
                 }}
               >
                 <span style={{
-                  width: '22px', height: '22px', borderRadius: '50%',
-                  background: activeStep === i ? 'rgba(255,255,255,0.25)' : step.bg,
+                  width: '24px', height: '24px', borderRadius: '50%',
+                  background: activeStep === i ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.07)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.7rem', fontWeight: 800, color: activeStep === i ? '#fff' : step.color,
+                  fontSize: '0.7rem', fontWeight: 800,
                 }}>
                   {step.num}
                 </span>
-                <span style={{ display: 'none' }}>{step.title}</span>
-                {step.emoji}
+                <span style={{ fontSize: '1rem' }}>{step.emoji}</span>
               </button>
             ))}
           </div>
 
-          {/* Steps list */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Steps — two-column layout on active */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {steps.map((step, i) => {
-              const Icon = step.icon;
               const isActive = activeStep === i;
               return (
                 <div
                   key={i}
                   onClick={() => setActiveStep(i)}
                   style={{
-                    display: 'flex', gap: '28px', alignItems: 'flex-start',
-                    padding: '28px 32px',
-                    background: isActive ? step.bg : '#fafafa',
-                    borderRadius: '20px',
-                    border: `2px solid ${isActive ? step.color : 'transparent'}`,
+                    position: 'relative', overflow: 'hidden',
+                    borderRadius: '24px',
+                    border: `1px solid ${isActive ? step.color + '55' : 'rgba(255,255,255,0.06)'}`,
+                    background: isActive
+                      ? `linear-gradient(135deg, ${step.color}0f 0%, rgba(255,255,255,0.03) 100%)`
+                      : 'rgba(255,255,255,0.025)',
                     cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    boxShadow: isActive ? `0 8px 32px ${step.color}22` : 'none',
+                    transition: 'all 0.4s cubic-bezier(0.4,0,0.2,1)',
+                    boxShadow: isActive ? `0 0 60px ${step.color}1a, inset 0 1px 0 ${step.color}20` : 'none',
                   }}
                 >
-                  {/* Number + icon */}
-                  <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <div style={{
-                      width: '56px', height: '56px', borderRadius: '16px',
-                      background: isActive ? step.color : 'rgba(30,43,34,0.08)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '1.6rem', transition: 'all 0.3s ease',
-                      boxShadow: isActive ? `0 8px 24px ${step.color}44` : 'none',
-                    }}>
-                      {step.emoji}
-                    </div>
-                    <span style={{
-                      fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.08em',
-                      color: isActive ? step.color : 'rgba(30,43,34,0.3)',
-                    }}>
-                      ÉTAPE {step.num}
-                    </span>
+                  {/* Left color bar */}
+                  <div style={{
+                    position: 'absolute', left: 0, top: 0, bottom: 0,
+                    width: isActive ? '4px' : '0px',
+                    background: `linear-gradient(180deg, ${step.color}, ${step.color}66)`,
+                    borderRadius: '24px 0 0 24px',
+                    transition: 'width 0.3s ease',
+                    boxShadow: isActive ? `0 0 16px ${step.color}` : 'none',
+                  }} />
+
+                  {/* Giant background number */}
+                  <div style={{
+                    position: 'absolute', right: '-10px', top: '50%', transform: 'translateY(-50%)',
+                    fontSize: '9rem', fontWeight: 900, color: '#fff',
+                    opacity: isActive ? 0.04 : 0.025,
+                    lineHeight: 1, pointerEvents: 'none', userSelect: 'none',
+                    fontFamily: 'var(--font-display, sans-serif)',
+                    animation: isActive ? 'stepNumPulse 3s ease-in-out infinite' : 'none',
+                    transition: 'opacity 0.4s ease',
+                  }}>
+                    {step.num}
                   </div>
 
-                  {/* Content */}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                      <h3 style={{ fontSize: '1.2rem', color: '#1e2b22', margin: 0 }}>{step.title}</h3>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '5px',
-                        background: isActive ? `${step.color}18` : 'rgba(30,43,34,0.05)',
-                        color: isActive ? step.color : '#6b7d6f',
-                        borderRadius: '100px', padding: '4px 12px',
-                        fontSize: '0.78rem', fontWeight: 700,
+                  <div style={{
+                    padding: isActive ? '36px 40px' : '22px 36px',
+                    transition: 'padding 0.3s ease',
+                    display: 'flex', gap: '28px', alignItems: isActive ? 'flex-start' : 'center',
+                  }}>
+                    {/* Icon */}
+                    <div style={{ flexShrink: 0 }}>
+                      <div style={{
+                        width: isActive ? '72px' : '52px',
+                        height: isActive ? '72px' : '52px',
+                        borderRadius: isActive ? '20px' : '14px',
+                        background: isActive ? step.color : `${step.color}20`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: isActive ? '2rem' : '1.5rem',
+                        transition: 'all 0.4s cubic-bezier(0.4,0,0.2,1)',
+                        boxShadow: isActive ? `0 12px 40px ${step.color}55` : 'none',
+                        animation: isActive ? 'stepGlow 2.5s ease-in-out infinite' : 'none',
                       }}>
-                        <Clock size={12} />
-                        {step.tag}
-                      </span>
-                    </div>
-                    <p style={{ color: '#6b7d6f', fontSize: '0.9rem', margin: '0 0 4px', fontWeight: 500 }}>{step.subtitle}</p>
-
-                    {isActive && (
-                      <div style={{ marginTop: '16px' }}>
-                        <p style={{ color: '#304035', fontSize: '0.95rem', lineHeight: 1.7, marginBottom: '16px' }}>{step.desc}</p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {step.checks.map((check, j) => (
-                            <div key={j} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <CheckCircle size={16} color={step.color} />
-                              <span style={{ fontSize: '0.88rem', color: '#304035', fontWeight: 500 }}>{check}</span>
-                            </div>
-                          ))}
-                        </div>
+                        {step.emoji}
                       </div>
-                    )}
+                      {isActive && (
+                        <div style={{
+                          marginTop: '10px', textAlign: 'center',
+                          fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em',
+                          color: step.color, textTransform: 'uppercase',
+                        }}>
+                          Étape {step.num}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: isActive ? '12px' : '4px' }}>
+                        <h3 style={{
+                          margin: 0,
+                          fontSize: isActive ? '1.45rem' : '1.05rem',
+                          color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
+                          fontWeight: 700,
+                          transition: 'all 0.3s ease',
+                        }}>
+                          {step.title}
+                        </h3>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '5px',
+                          background: isActive ? `${step.color}20` : 'rgba(255,255,255,0.05)',
+                          color: isActive ? step.color : 'rgba(255,255,255,0.3)',
+                          borderRadius: '100px', padding: '4px 14px',
+                          fontSize: '0.75rem', fontWeight: 700,
+                          border: `1px solid ${isActive ? step.color + '40' : 'transparent'}`,
+                          transition: 'all 0.3s ease',
+                        }}>
+                          <Clock size={11} />
+                          {step.tag}
+                        </span>
+                      </div>
+
+                      {!isActive && (
+                        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.88rem', margin: 0 }}>
+                          {step.subtitle}
+                        </p>
+                      )}
+
+                      {isActive && (
+                        <div style={{ animation: 'stepSlideIn 0.35s ease forwards' }}>
+                          <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '1rem', lineHeight: 1.75, marginBottom: '24px' }}>
+                            {step.desc}
+                          </p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {step.checks.map((check, j) => (
+                              <div key={j} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{
+                                  width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0,
+                                  background: `${step.color}20`,
+                                  border: `1.5px solid ${step.color}50`,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                  <CheckCircle size={13} color={step.color} />
+                                </div>
+                                <span style={{ fontSize: '0.92rem', color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>{check}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
