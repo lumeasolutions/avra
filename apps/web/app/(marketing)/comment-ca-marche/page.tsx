@@ -96,8 +96,8 @@ const steps = [
 ];
 
 const guarantees = [
-  { icon: '🎁', title: '14 jours gratuits', desc: 'Accès complet Pro. Sans CB.', color: '#C9A96E' },
-  { icon: '🔓', title: 'Sans engagement', desc: 'Résiliez en 1 clic. 0 frais cachés.', color: '#4A7C59' },
+  { icon: '🎯', title: 'Demander une démo', desc: 'Présentation en 20-30 min, opérationnel immédiatement.', color: '#C9A96E' },
+  { icon: '🔓', title: 'Sans engagement', desc: 'Résiliez en 1 clic. 0 frais cachés. Hormis abonnement annuel.', color: '#4A7C59' },
   { icon: '📦', title: 'Vos données à vous', desc: 'Export CSV/Excel à tout moment.', color: '#1e4d6b' },
   { icon: '🔒', title: 'Sécurisé & fiable', desc: 'Hébergé en France, chiffré TLS.', color: '#7B5EA7' },
 ];
@@ -429,8 +429,8 @@ export default function CommentCaMarchePage() {
               </span>
             </div>
             <h2 style={{ color: '#1e2b22', marginBottom: '12px' }}>Zéro risque, zéro surprise</h2>
-            <p style={{ color: '#6b7d6f', maxWidth: '440px', margin: '0 auto' }}>
-              On ne vous demande rien d&apos;engageant pour démarrer. Essayez, adoptez, ou partez — sans friction.
+            <p style={{ color: '#6b7d6f', maxWidth: '620px', margin: '0 auto', lineHeight: 1.75 }}>
+              Chaque étape du dossier est centralisée, suivie et tracée dans AVRA : commandes, validations, plans techniques, livraisons, SAV. Rien ne se perd, rien n&apos;est oublié. Comme un tableau de bord dans un cockpit, tout est visible au bon moment pour éviter les oublis, les erreurs et les mauvaises surprises.
             </p>
           </div>
 
