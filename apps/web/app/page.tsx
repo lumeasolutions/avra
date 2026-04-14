@@ -936,7 +936,7 @@ export default function HomePage() {
               }}
             >
               {[
-                'Rendus FLUX Pro ultra-réalistes en HD',
+                'Rendus ultra-réalistes en HD',
                 'Chat IA contextuel sur chaque dossier',
                 'Suggestions automatiques de matériaux',
                 'Export HD pour présentations clients',
@@ -1103,7 +1103,7 @@ export default function HomePage() {
               >
                 <Sparkles size={13} style={{ color: '#c9a96e' }} />
                 <span style={{ color: '#c9a96e', fontSize: '.78rem', fontWeight: 600 }}>
-                  Rendu FLUX Pro · HD
+                  Rendu IA · HD
                 </span>
               </div>
             </div>

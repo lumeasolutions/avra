@@ -22,7 +22,7 @@ import Footer from '../components/Footer';
 export const metadata: Metadata = {
   title: 'Fonctionnalités AVRA — ERP complet pour cuisinistes et menuisiers',
   description:
-    'Découvrez les 8 modules AVRA : gestion dossiers, facturation conforme e-facture 2026, IA photo-réalisme FLUX Pro, planning, stock, signature électronique, statistiques et portails partenaires.',
+    'Découvrez les 8 modules AVRA : gestion dossiers, facturation conforme e-facture 2026, IA photo-réalisme IA AVRA, planning, stock, signature électronique, statistiques et portails partenaires.',
   alternates: { canonical: 'https://avra.fr/fonctionnalites' },
   openGraph: {
     title: 'Fonctionnalités AVRA — Gestion complète',
@@ -98,7 +98,7 @@ const features = [
     subtitle: 'Vendez avant de construire',
     desc: "Grâce à l'IA intégrée à AVRA, vos projets 3D deviennent en quelques secondes des rendus réalistes quasi photo. Elle permet aussi de changer instantanément les textures et coloris des façades sur un même projet, sans avoir à tout refaire, pour comparer plusieurs options avec le client et accélérer sa décision.",
     features: [
-      'Rendus FLUX Pro HD',
+      'Rendus IA AVRA HD',
       'Génération en < 10 secondes',
       'Export en haute résolution',
       'Chat IA contextuel',

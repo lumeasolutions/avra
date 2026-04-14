@@ -12,6 +12,9 @@ import {
   Building2,
   Sparkles,
   Phone,
+  TrendingUp,
+  FileText,
+  Award,
 } from 'lucide-react';
 import Nav from '../components/Nav';
 import Footer from '../components/Footer';
@@ -159,286 +162,154 @@ export default function TarifsClient() {
       {/* ── PLANS ── */}
       <section
         style={{
-          background: '#f9f6f0',
-          padding: '80px 5%',
+          background: 'linear-gradient(160deg, #0e1810 0%, #1e2b22 40%, #243020 100%)',
+          padding: '80px 5% 100px',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        {/* Toggle mensuel / annuel */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 48 }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              background: '#e8e2d9',
-              borderRadius: 50,
-              padding: 4,
-              gap: 4,
-            }}
-          >
-            <button
-              onClick={() => setAnnual(false)}
-              style={{
-                padding: '8px 22px',
-                borderRadius: 50,
-                border: 'none',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                fontSize: '.88rem',
-                fontWeight: 700,
-                background: !annual ? '#1e2b22' : 'transparent',
-                color: !annual ? '#ffffff' : '#6b7c70',
-                transition: 'all 0.2s ease',
-              }}
-            >
+        {/* Glow orbs */}
+        <div style={{ position: 'absolute', top: '-10%', left: '15%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-10%', right: '10%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+        {/* Toggle */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 56 }}>
+          <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 50, padding: 5, gap: 4, backdropFilter: 'blur(12px)' }}>
+            <button onClick={() => setAnnual(false)} style={{ padding: '9px 26px', borderRadius: 50, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.88rem', fontWeight: 700, background: !annual ? 'linear-gradient(135deg, #c9a96e, #a67749)' : 'transparent', color: !annual ? '#ffffff' : 'rgba(255,255,255,0.5)', transition: 'all 0.25s ease', boxShadow: !annual ? '0 4px 16px rgba(201,169,110,0.35)' : 'none' }}>
               Mensuel
             </button>
-            <button
-              onClick={() => setAnnual(true)}
-              style={{
-                padding: '8px 22px',
-                borderRadius: 50,
-                border: 'none',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                fontSize: '.88rem',
-                fontWeight: 700,
-                background: annual ? '#1e2b22' : 'transparent',
-                color: annual ? '#ffffff' : '#6b7c70',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
+            <button onClick={() => setAnnual(true)} style={{ padding: '9px 26px', borderRadius: 50, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.88rem', fontWeight: 700, background: annual ? 'linear-gradient(135deg, #c9a96e, #a67749)' : 'transparent', color: annual ? '#ffffff' : 'rgba(255,255,255,0.5)', transition: 'all 0.25s ease', display: 'flex', alignItems: 'center', gap: 8, boxShadow: annual ? '0 4px 16px rgba(201,169,110,0.35)' : 'none' }}>
               Annuel
-              <span
-                style={{
-                  background: 'linear-gradient(135deg, #c9a96e, #a67749)',
-                  color: '#fff',
-                  borderRadius: 50,
-                  padding: '2px 8px',
-                  fontSize: '.72rem',
-                  fontWeight: 700,
-                }}
-              >
-                -13%
-              </span>
+              <span style={{ background: annual ? 'rgba(255,255,255,0.25)' : 'rgba(201,169,110,0.25)', color: annual ? '#fff' : '#c9a96e', borderRadius: 50, padding: '2px 8px', fontSize: '.7rem', fontWeight: 700 }}>-13%</span>
             </button>
           </div>
         </div>
-        <div
-          style={{
-            maxWidth: 960,
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-            gap: 28,
-            alignItems: 'start',
-          }}
-        >
-          {/* ── Plan Showroom ── */}
-          <div
-            style={{
-              background: '#ffffff',
-              borderRadius: 24,
-              padding: '2.5rem',
-              border: '2px solid #c9a96e',
-              boxShadow: '0 12px 48px rgba(201,169,110,0.15)',
-              position: 'relative',
-            }}
-          >
-            {/* Badge populaire */}
-            <div
-              style={{
-                position: 'absolute',
-                top: -14,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: 'linear-gradient(135deg, #c9a96e, #a67749)',
-                color: '#ffffff',
-                borderRadius: 50,
-                padding: '4px 20px',
-                fontSize: '.75rem',
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase' as const,
-                whiteSpace: 'nowrap' as const,
-              }}
-            >
-              ⭐ Le plus populaire
-            </div>
 
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1.5rem', marginTop: '0.5rem' }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 14,
-                  background: 'rgba(201,169,110,0.12)',
-                  border: '1px solid rgba(201,169,110,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Building2 size={22} style={{ color: '#c9a96e' }} />
+        {/* Cards */}
+        <div style={{ maxWidth: 1020, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'stretch' }}>
+
+          {/* ── Indépendant ── */}
+          <div style={{ position: 'relative', borderRadius: 28, overflow: 'visible' }}>
+            {/* Glow border effect */}
+            <div style={{ position: 'absolute', inset: -2, borderRadius: 30, background: 'linear-gradient(135deg, #c9a96e, #f0d080, #a67749)', zIndex: 0, opacity: 0.8 }} />
+            <div style={{ position: 'relative', zIndex: 1, background: 'linear-gradient(160deg, #ffffff 0%, #faf7f2 100%)', borderRadius: 28, padding: '2.8rem', height: '100%', boxSizing: 'border-box' as const }}>
+
+              {/* Badge */}
+              <div style={{ position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #c9a96e, #a67749)', color: '#fff', borderRadius: 50, padding: '5px 22px', fontSize: '.73rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' as const, whiteSpace: 'nowrap' as const, boxShadow: '0 4px 20px rgba(201,169,110,0.5)', zIndex: 10 }}>
+                ⭐ Le plus populaire
               </div>
-              <div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1e2b22', fontFamily: 'var(--font-display)' }}>
-                  Indépendant
+
+              {/* Plan name */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: '2rem', paddingTop: '0.5rem' }}>
+                <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg, #c9a96e, #a67749)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 20px rgba(201,169,110,0.4)', flexShrink: 0 }}>
+                  <Building2 size={24} style={{ color: '#fff' }} />
                 </div>
-                <div style={{ fontSize: '.82rem', color: '#6b7c70' }}>Pour les professionnels indépendants</div>
+                <div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#1e2b22', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>Indépendant</div>
+                  <div style={{ fontSize: '.8rem', color: '#8a9a8d', fontWeight: 500 }}>Pour les professionnels du showroom</div>
+                </div>
               </div>
-            </div>
 
-            {/* Prix */}
-            <div style={{ marginBottom: '1.8rem' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span
-                  style={{
-                    fontSize: 'clamp(3rem, 6vw, 3.8rem)',
-                    fontWeight: 900,
-                    color: '#1e2b22',
-                    fontFamily: 'var(--font-display)',
-                    lineHeight: 1,
-                  }}
-                >
-                  {annual ? '130€' : '149€'}
-                </span>
-                <span style={{ fontSize: '1rem', color: '#6b7c70', fontWeight: 500 }}>/mois</span>
+              {/* Séparateur */}
+              <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(201,169,110,0.4), transparent)', marginBottom: '1.8rem' }} />
+
+              {/* Prix */}
+              <div style={{ marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 'clamp(3.5rem, 7vw, 4.5rem)', fontWeight: 900, color: '#1e2b22', fontFamily: 'var(--font-display)', lineHeight: 1, letterSpacing: '-0.03em' }}>
+                    {annual ? '130' : '149'}
+                  </span>
+                  <div style={{ paddingBottom: 8 }}>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#c9a96e', lineHeight: 1 }}>€</div>
+                    <div style={{ fontSize: '.78rem', color: '#8a9a8d', fontWeight: 600 }}>/mois</div>
+                  </div>
+                </div>
+                {annual ? (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.3)', borderRadius: 50, padding: '3px 12px', fontSize: '.78rem', fontWeight: 700, color: '#a67749' }}>
+                    💰 Économisez 228€/an
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '.82rem', color: '#8a9a8d' }}>ou <strong style={{ color: '#a67749' }}>130€/mois</strong> en annuel</div>
+                )}
               </div>
-              {annual && (
-                <div style={{ fontSize: '.82rem', color: '#c9a96e', fontWeight: 600, marginTop: 2 }}>
-                  soit 1 560€/an · économisez 228€
-                </div>
-              )}
-              <p style={{ fontSize: '.88rem', color: '#6b7c70', marginTop: 6, lineHeight: 1.6 }}>
-                1 showroom · 4 utilisateurs inclus · sans engagement
-              </p>
-            </div>
 
-            {/* CTA */}
-            <a href="/register" style={{ textDecoration: 'none', display: 'block', marginBottom: '2rem' }}>
-              <button
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 10,
-                  padding: '15px 24px',
-                  background: 'linear-gradient(135deg, #c9a96e, #a67749)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: 12,
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  boxShadow: '0 6px 24px rgba(201,169,110,0.35)',
-                }}
-              >
-                Demander une démo
-                <ArrowRight size={18} />
-              </button>
-            </a>
+              {/* CTA */}
+              <a href="/comment-ca-marche" style={{ textDecoration: 'none', display: 'block', marginBottom: '2rem' }}>
+                <button style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '16px 24px', background: 'linear-gradient(135deg, #c9a96e, #a67749)', color: '#ffffff', border: 'none', borderRadius: 14, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 8px 32px rgba(201,169,110,0.45)', letterSpacing: '0.01em' }}>
+                  Demander une démo
+                  <ArrowRight size={18} />
+                </button>
+              </a>
 
-            {/* Features */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {showroomFeatures.map((f) => (
-                <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <CheckCircle size={16} style={{ color: '#c9a96e', flexShrink: 0 }} />
-                  <span style={{ fontSize: '.92rem', color: '#1e2b22', fontWeight: 500 }}>{f}</span>
-                </div>
-              ))}
+              {/* Tag inclus */}
+              <div style={{ fontSize: '.75rem', fontWeight: 700, color: '#8a9a8d', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '0.9rem' }}>Ce qui est inclus</div>
+
+              {/* Features */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {showroomFeatures.map((f) => (
+                  <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(201,169,110,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <CheckCircle size={12} style={{ color: '#c9a96e' }} />
+                    </div>
+                    <span style={{ fontSize: '.88rem', color: '#304035', fontWeight: 500, lineHeight: 1.4 }}>{f}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* ── Plan Entreprise ── */}
-          <div
-            style={{
-              background: '#1e2b22',
-              borderRadius: 24,
-              padding: '2.5rem',
-              border: '2px solid rgba(201,169,110,0.25)',
-              boxShadow: '0 12px 48px rgba(30,43,34,0.2)',
-            }}
-          >
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1.5rem' }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 14,
-                  background: 'rgba(201,169,110,0.15)',
-                  border: '1px solid rgba(201,169,110,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Users size={22} style={{ color: '#c9a96e' }} />
+          {/* ── Mes équipes ── */}
+          <div style={{ background: 'linear-gradient(160deg, #0e1810 0%, #1a2b1e 100%)', borderRadius: 28, padding: '2.8rem', border: '1px solid rgba(201,169,110,0.2)', boxShadow: '0 24px 80px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden' }}>
+            {/* Pattern décoratif */}
+            <div style={{ position: 'absolute', top: -60, right: -60, width: 200, height: 200, borderRadius: '50%', border: '1px solid rgba(201,169,110,0.08)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', top: -100, right: -100, width: 300, height: 300, borderRadius: '50%', border: '1px solid rgba(201,169,110,0.05)', pointerEvents: 'none' }} />
+
+            {/* Plan name */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: '2rem' }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Users size={24} style={{ color: '#c9a96e' }} />
               </div>
               <div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ffffff', fontFamily: 'var(--font-display)' }}>
-                  Mes équipes
-                </div>
-                <div style={{ fontSize: '.82rem', color: 'rgba(255,255,255,0.5)' }}>Franchises · Groupes · Grandes structures</div>
+                <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#ffffff', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>Mes équipes</div>
+                <div style={{ fontSize: '.8rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>Franchises · Groupes · Grandes structures</div>
               </div>
             </div>
 
+            {/* Séparateur */}
+            <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(201,169,110,0.25), transparent)', marginBottom: '1.8rem' }} />
+
             {/* Prix */}
-            <div style={{ marginBottom: '1.8rem' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span
-                  style={{
-                    fontSize: 'clamp(2.2rem, 5vw, 3rem)',
-                    fontWeight: 900,
-                    color: '#c9a96e',
-                    fontFamily: 'var(--font-display)',
-                    lineHeight: 1,
-                  }}
-                >
-                  Sur devis
-                </span>
+            <div style={{ marginBottom: '2rem' }}>
+              <div style={{ fontSize: 'clamp(2.4rem, 5vw, 3.2rem)', fontWeight: 900, color: '#c9a96e', fontFamily: 'var(--font-display)', lineHeight: 1, letterSpacing: '-0.02em', marginBottom: 8 }}>
+                Sur devis
               </div>
-              <p style={{ fontSize: '.88rem', color: 'rgba(255,255,255,0.5)', marginTop: 6, lineHeight: 1.6 }}>
-                Multi-showrooms · Utilisateurs illimités · SLA dédié
-              </p>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.2)', borderRadius: 50, padding: '4px 14px', fontSize: '.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)' }}>
+                Tarif personnalisé selon vos besoins
+              </div>
             </div>
 
             {/* CTA */}
             <a href="/contact" style={{ textDecoration: 'none', display: 'block', marginBottom: '2rem' }}>
-              <button
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 10,
-                  padding: '15px 24px',
-                  background: 'rgba(201,169,110,0.15)',
-                  color: '#c9a96e',
-                  border: '1.5px solid rgba(201,169,110,0.5)',
-                  borderRadius: 12,
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
+              <button style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '16px 24px', background: 'rgba(201,169,110,0.12)', color: '#c9a96e', border: '1.5px solid rgba(201,169,110,0.4)', borderRadius: 14, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.01em', transition: 'all 0.2s ease' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,169,110,0.2)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(201,169,110,0.12)'; }}
               >
                 <Phone size={17} />
                 Nous contacter
               </button>
             </a>
 
+            {/* Tag inclus */}
+            <div style={{ fontSize: '.75rem', fontWeight: 700, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: '0.9rem' }}>Ce qui est inclus</div>
+
             {/* Features */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               {enterpriseFeatures.map((f) => (
                 <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <CheckCircle size={16} style={{ color: '#c9a96e', flexShrink: 0 }} />
-                  <span style={{ fontSize: '.92rem', color: 'rgba(255,255,255,0.82)', fontWeight: 500 }}>{f}</span>
+                  <div style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(201,169,110,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <CheckCircle size={12} style={{ color: '#c9a96e' }} />
+                  </div>
+                  <span style={{ fontSize: '.88rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500, lineHeight: 1.4 }}>{f}</span>
                 </div>
               ))}
             </div>
@@ -446,50 +317,133 @@ export default function TarifsClient() {
         </div>
       </section>
 
-      {/* ── GARANTIES ── */}
-      <section style={{ background: '#ffffff', padding: '60px 5%' }}>
-        <div
-          style={{
-            maxWidth: 960,
-            margin: '0 auto',
+      {/* ── INCLUS PARTOUT ── */}
+      <section
+        style={{
+          background: '#1e2b22',
+          padding: '80px 5%',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Glow décoratif */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'radial-gradient(ellipse at 20% 50%, rgba(201,169,110,0.09) 0%, transparent 55%), radial-gradient(ellipse at 80% 50%, rgba(201,169,110,0.06) 0%, transparent 55%)',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 1100, margin: '0 auto' }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: 'rgba(201,169,110,0.15)', border: '1px solid rgba(201,169,110,0.35)',
+              borderRadius: 50, padding: '5px 18px', marginBottom: '1rem',
+              fontSize: '.76rem', fontWeight: 700, letterSpacing: '0.12em',
+              textTransform: 'uppercase' as const, color: '#c9a96e',
+            }}>
+              <Award size={12} />
+              Inclus partout
+            </div>
+            <h2 style={{
+              color: '#ffffff', fontSize: 'clamp(1.6rem, 3vw, 2.2rem)',
+              fontFamily: 'var(--font-display)', fontWeight: 800, marginBottom: '0.6rem',
+            }}>
+              Quel que soit votre plan
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '.95rem' }}>
+              Ces garanties s&apos;appliquent à tous nos abonnements.
+            </p>
+          </div>
+
+          {/* Cards — ligne de 4 + ligne de 2 centrée */}
+          <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: 24,
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 16,
+            marginBottom: 16,
           }}
-        >
-          {[
-            { icon: Shield, title: 'Sans engagement', desc: 'Résiliation en 1 clic, à tout moment.' },
-            { icon: Zap, title: 'Accès immédiat', desc: "Opérationnel en moins de 5 minutes." },
-            { icon: Sparkles, title: 'Tout inclus', desc: "Aucun module payant en supplément." },
-            { icon: MessageSquare, title: 'Support 7j/7', desc: 'Réponse en moins de 2h en semaine.' },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div
-              key={title}
-              style={{
-                textAlign: 'center',
-                padding: '1.5rem 1rem',
-              }}
-            >
+          className="garanties-top"
+          >
+            {[
+              { icon: MessageSquare, title: 'Support humain', desc: 'Email, chat ou téléphone. Réponse en moins de 2h ouvrées.' },
+              { icon: Zap, title: 'Mises à jour incluses', desc: 'Nouvelles fonctionnalités chaque mois, sans surcoût.' },
+              { icon: Shield, title: 'Sécurité RGPD', desc: 'Hébergement France, chiffrement AES-256, sauvegardes quotidiennes.' },
+              { icon: Award, title: 'Onboarding offert', desc: 'Configuration, import de données et formation à votre rythme.' },
+            ].map(({ icon: Icon, title, desc }) => (
               <div
+                key={title}
                 style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 14,
-                  background: 'rgba(201,169,110,0.1)',
-                  border: '1px solid rgba(201,169,110,0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 1rem',
-                  color: '#c9a96e',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(201,169,110,0.15)',
+                  borderRadius: 20,
+                  padding: '1.75rem 1.5rem',
+                  transition: 'all 0.3s ease',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(201,169,110,0.08)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,169,110,0.4)';
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(201,169,110,0.15)';
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
                 }}
               >
-                <Icon size={20} />
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12,
+                  background: 'rgba(201,169,110,0.15)', border: '1px solid rgba(201,169,110,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: '1rem', color: '#c9a96e',
+                }}>
+                  <Icon size={19} />
+                </div>
+                <div style={{ fontWeight: 700, color: '#ffffff', marginBottom: 6, fontSize: '.95rem' }}>{title}</div>
+                <div style={{ fontSize: '.84rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.65 }}>{desc}</div>
               </div>
-              <div style={{ fontWeight: 700, color: '#1e2b22', marginBottom: 4, fontSize: '.95rem' }}>{title}</div>
-              <div style={{ fontSize: '.85rem', color: '#6b7c70', lineHeight: 1.6 }}>{desc}</div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* Ligne du bas — 2 cards centrées */}
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+            {[
+              { icon: TrendingUp, title: 'Sans engagement', desc: 'Résiliation en 1 clic, quand vous voulez — hormis abonnement annuel.' },
+              { icon: FileText, title: 'E-facture 2026', desc: 'Conformité obligatoire UBL/XML incluse d\'emblée. Module intégré.', highlight: true },
+            ].map(({ icon: Icon, title, desc, highlight }) => (
+              <div
+                key={title}
+                style={{
+                  background: highlight ? 'rgba(201,169,110,0.1)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${highlight ? 'rgba(201,169,110,0.4)' : 'rgba(201,169,110,0.15)'}`,
+                  borderRadius: 20,
+                  padding: '1.75rem 1.5rem',
+                  width: 'calc(25% - 8px)',
+                  transition: 'all 0.3s ease',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(201,169,110,0.12)';
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = highlight ? 'rgba(201,169,110,0.1)' : 'rgba(255,255,255,0.05)';
+                  (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12,
+                  background: 'rgba(201,169,110,0.15)', border: '1px solid rgba(201,169,110,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: '1rem', color: '#c9a96e',
+                }}>
+                  <Icon size={19} />
+                </div>
+                <div style={{ fontWeight: 700, color: '#ffffff', marginBottom: 6, fontSize: '.95rem' }}>{title}</div>
+                <div style={{ fontSize: '.84rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.65 }}>{desc}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
