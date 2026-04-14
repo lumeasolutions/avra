@@ -284,28 +284,6 @@ export default function CommentCaMarchePage() {
         </div>
       </section>
 
-      {/* ─── SOCIAL PROOF BAND ─── */}
-      <div style={{
-        background: '#f8f5ef',
-        borderTop: '1px solid rgba(30,43,34,0.08)',
-        borderBottom: '1px solid rgba(30,43,34,0.08)',
-        padding: '20px 5%',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '48px',
-        flexWrap: 'wrap',
-      }}>
-        {[
-          { icon: <Star size={16} color="#C9A96E" fill="#C9A96E" />, text: '4.9/5 de satisfaction' },
-          { icon: <Clock size={16} color="#4A7C59" />, text: 'Opérationnel en 5 min' },
-          { icon: <Shield size={16} color="#1e4d6b" />, text: 'Sans carte bancaire' },
-          { icon: <CheckCircle size={16} color="#7B5EA7" />, text: '14 jours d\'essai gratuit' },
-        ].map((item, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {item.icon}
-            <span style={{ color: '#304035', fontSize: '0.88rem', fontWeight: 600 }}>{item.text}</span>
-          </div>
-        ))}
-      </div>
-
       {/* ─── STEPS ─── */}
       <section id="etapes" style={{ padding: '100px 5%', background: '#fff' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
