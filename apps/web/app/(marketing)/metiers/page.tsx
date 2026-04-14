@@ -119,7 +119,7 @@ const commonFeatures = [
 const painPoints = [
   { before: 'Devis sur Excel interminables', after: 'Devis pro générés en 5 minutes' },
   { before: 'Paperasse et dossiers éparpillés', after: 'Tout centralisé en un seul endroit' },
-  { before: 'Clients sans nouvelles du chantier', after: 'Portail client avec suivi en direct' },
+  { before: 'Perte de temps sur les 3Ds', after: 'Rendus photo-réalisme IA rapide' },
   { before: 'Factures non conformes 2026', after: 'E-factures automatiques et conformes' },
 ];
 
