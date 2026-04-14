@@ -243,7 +243,7 @@ export default function HomePage() {
                 marginBottom: '1.6rem',
               }}
             >
-              <Link href="/register">
+              <Link href="/comment-ca-marche">
                 <button
                   style={{
                     display: 'inline-flex',
@@ -262,7 +262,7 @@ export default function HomePage() {
                     fontFamily: 'inherit',
                   }}
                 >
-                  Essai gratuit 14 jours
+                  Demander une démo
                   <ArrowRight size={18} />
                 </button>
               </Link>
@@ -294,7 +294,7 @@ export default function HomePage() {
               {[
                 { value: '2 400+', label: 'Professionnels' },
                 { value: '98%', label: 'Satisfaction' },
-                { value: '14 j', label: 'Essai gratuit' },
+                { value: '+40%', label: 'Taux de conversion' },
               ].map(({ value, label }) => (
                 <div key={label}>
                   <div
@@ -1466,7 +1466,7 @@ export default function HomePage() {
               {
                 n: '1',
                 title: 'Créez votre compte',
-                desc: 'Inscription gratuite, configuration en 5 minutes sans carte bancaire.',
+                desc: 'Demandez une démo, configuration en 5 minutes, opérationnel immédiatement.',
                 icon: '📝',
               },
               {
@@ -1894,8 +1894,7 @@ export default function HomePage() {
               margin: '0 auto 3rem',
             }}
           >
-            14 jours d&apos;essai gratuit, sans carte bancaire. Configurez votre compte en 5
-            minutes et rejoignez les 2 400+ professionnels qui font confiance à AVRA.
+            Découvrez comment AVRA peut transformer votre activité. Rejoignez les 2 400+ professionnels qui font confiance à AVRA.
           </p>
 
           <div
@@ -1907,7 +1906,7 @@ export default function HomePage() {
               marginBottom: '2rem',
             }}
           >
-            <Link href="/register">
+            <Link href="/comment-ca-marche">
               <button
                 style={{
                   display: 'inline-flex',
@@ -1925,7 +1924,7 @@ export default function HomePage() {
                   boxShadow: '0 8px 32px rgba(201,169,110,.4)',
                 }}
               >
-                Commencer l&apos;essai gratuit
+                Demander une démo
                 <ArrowRight size={18} />
               </button>
             </Link>
@@ -1962,7 +1961,7 @@ export default function HomePage() {
               flexWrap: 'wrap',
             }}
           >
-            <span>✓ Sans carte bancaire</span>
+            <span>✓ Sans engagement</span>
             <span>✓ Configuration en 5 min</span>
             <span>✓ Support 7j/7 inclus</span>
           </p>

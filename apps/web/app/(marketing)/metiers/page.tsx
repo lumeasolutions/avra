@@ -53,15 +53,15 @@ const metiers = [
     href: '/menuisier',
     label: 'Menuisier',
     tagline: 'Meubles, agencements & sur-mesure',
-    desc: 'Devis sur-mesure au millimètre, gestion des bois et matériaux, suivi de production atelier. AVRA parle votre langue.',
+    desc: "AVRA vous aide à suivre simplement tous vos dossiers en cours, de la fabrication à l'assemblage jusqu'à la pose. Pensé pour les menuisiers, AVRA parle votre langue et s'adapte à votre façon de travailler.",
     color: '#4A7C59',
     colorLight: 'rgba(74,124,89,0.10)',
     colorBorder: 'rgba(74,124,89,0.22)',
     features: [
-      'Calcul automatique des matériaux',
-      'Gestion du stock atelier en temps réel',
-      'Plans de débit et fiche de production',
-      'Devis par module et sur-mesure',
+      'Gestion des dossiers en cours',
+      'Suivi simplifié de la partie fabrication',
+      'Suivi des livraisons sur chantier',
+      'Suivi de la pose des chantiers',
     ],
     stat: { value: '3h', label: 'gagnées par jour en moyenne' },
   },
@@ -514,7 +514,7 @@ export default function MetiersPage() {
               </div>
 
               <div style={{ marginTop: '36px' }}>
-                <Link href="/register" style={{ textDecoration: 'none' }}>
+                <Link href="/comment-ca-marche" style={{ textDecoration: 'none' }}>
                   <button style={{
                     display: 'inline-flex', alignItems: 'center', gap: '8px',
                     background: 'linear-gradient(135deg, #1e2b22, #304035)',
@@ -522,7 +522,7 @@ export default function MetiersPage() {
                     padding: '14px 28px', fontSize: '0.95rem', fontWeight: 700,
                     cursor: 'pointer', boxShadow: '0 8px 24px rgba(30,43,34,0.25)',
                   }}>
-                    Essayer gratuitement <ArrowRight size={16} />
+                    Demander une démo <ArrowRight size={16} />
                   </button>
                 </Link>
               </div>
@@ -666,11 +666,10 @@ export default function MetiersPage() {
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', marginBottom: '44px', lineHeight: 1.7 }}>
             Rejoignez 2 400+ professionnels de l&apos;agencement qui gagnent du temps chaque jour.
-            14 jours gratuits, sans carte bancaire.
           </p>
 
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '32px' }}>
-            <Link href="/register" style={{ textDecoration: 'none' }}>
+            <Link href="/comment-ca-marche" style={{ textDecoration: 'none' }}>
               <button style={{
                 display: 'inline-flex', alignItems: 'center', gap: '8px',
                 background: 'linear-gradient(135deg, #C9A96E, #b8944f)',
@@ -678,7 +677,7 @@ export default function MetiersPage() {
                 padding: '16px 32px', fontSize: '1rem', fontWeight: 700,
                 cursor: 'pointer', boxShadow: '0 8px 32px rgba(201,169,110,0.35)',
               }}>
-                Commencer l&apos;essai gratuit <ArrowRight size={18} />
+                Demander une démo <ArrowRight size={18} />
               </button>
             </Link>
             <Link href="/temoignages" style={{ textDecoration: 'none' }}>
@@ -696,7 +695,7 @@ export default function MetiersPage() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap' }}>
-            {['Sans engagement', '14j gratuits', 'Sans CB', 'Support inclus'].map((item) => (
+            {['Sans engagement', 'Support inclus'].map((item) => (
               <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle size={13} color="#4A7C59" />
                 <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.82rem' }}>{item}</span>

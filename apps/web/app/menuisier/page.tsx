@@ -20,7 +20,7 @@ import '../(marketing)/marketing.css';
 export const metadata: Metadata = {
   title: 'Logiciel menuisier — Devis, planning et facturation pour menuisiers',
   description:
-    'AVRA gère tout pour les menuisiers : devis de menuiserie, suivi de chantier, gestion de stock bois et matériaux, facturation conforme e-facture 2026. Essai 14j.',
+    'AVRA gère tout pour les menuisiers : devis de menuiserie, suivi de chantier, gestion de stock bois et matériaux, facturation conforme e-facture 2026.',
   alternates: { canonical: 'https://avra.fr/menuisier' },
   openGraph: {
     title: 'Logiciel menuisier — AVRA',
@@ -92,8 +92,8 @@ export default function MenuisierPage() {
             Devis, planning de chantier, gestion de stock bois et matériaux, facturation e-facture. Enfin un logiciel
             pensé pour votre réalité.
           </p>
-          <a href="/register">
-            <button className="btn-primary">Commencer l&apos;essai gratuit 14 jours →</button>
+          <a href="/comment-ca-marche">
+            <button className="btn-primary">Demander une démo →</button>
           </a>
         </div>
       </section>
@@ -483,11 +483,11 @@ export default function MenuisierPage() {
                 marginBottom: '2.5rem',
               }}
             >
-              14 jours d&apos;essai gratuit. Pas de carte bancaire. Pas de contrat.
+              Découvrez comment AVRA peut transformer votre activité. Sans engagement.
             </p>
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <a href="/register">
-                <button className="btn-primary">Essai gratuit 14 jours →</button>
+              <a href="/comment-ca-marche">
+                <button className="btn-primary">Demander une démo →</button>
               </a>
               <a href="/comment-ca-marche">
                 <button className="btn-secondary">Voir comment ça marche</button>

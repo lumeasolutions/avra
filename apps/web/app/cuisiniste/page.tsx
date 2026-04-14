@@ -20,7 +20,7 @@ import '../(marketing)/marketing.css';
 export const metadata: Metadata = {
   title: 'Logiciel cuisiniste — Gérez vos projets cuisine de A à Z avec AVRA',
   description:
-    'AVRA est le logiciel pensé pour les cuisinistes : devis sur mesure, plans, commandes fournisseurs, planification des poses, rendus IA FLUX Pro. Essai gratuit 14j.',
+    'AVRA est le logiciel pensé pour les cuisinistes : devis sur mesure, plans, commandes fournisseurs, planification des poses, rendus IA FLUX Pro.',
   alternates: { canonical: 'https://avra.fr/cuisiniste' },
   openGraph: {
     title: 'Logiciel cuisiniste — AVRA',
@@ -92,8 +92,8 @@ export default function CuisinistePage() {
             Devis, plans, commandes fournisseurs, planning de pose et rendus IA. Tout ce dont vous avez besoin pour
             gérer une cuisine de A à Z.
           </p>
-          <a href="/register">
-            <button className="btn-primary">Commencer l&apos;essai gratuit 14 jours →</button>
+          <a href="/comment-ca-marche">
+            <button className="btn-primary">Demander une démo →</button>
           </a>
         </div>
       </section>
@@ -426,11 +426,11 @@ export default function CuisinistePage() {
                 marginBottom: '2.5rem',
               }}
             >
-              14 jours d&apos;essai gratuit. Pas de carte bancaire. Pas de contrat.
+              Découvrez comment AVRA peut transformer votre activité. Sans engagement.
             </p>
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <a href="/register">
-                <button className="btn-primary">Essai gratuit 14 jours →</button>
+              <a href="/comment-ca-marche">
+                <button className="btn-primary">Demander une démo →</button>
               </a>
               <a href="/comment-ca-marche">
                 <button className="btn-secondary">Voir comment ça marche</button>

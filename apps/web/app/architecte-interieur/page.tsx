@@ -20,7 +20,7 @@ import '../(marketing)/marketing.css';
 export const metadata: Metadata = {
   title: 'Logiciel architecte d\'intérieur — Dossiers clients, IA et facturation',
   description:
-    'AVRA pour architectes d\'intérieur : gestion des projets, dossiers clients, rendus IA photo-réalistes FLUX Pro, facturation et signature électronique. Essai 14j.',
+    'AVRA pour architectes d\'intérieur : gestion des projets, dossiers clients, rendus IA photo-réalistes FLUX Pro, facturation et signature électronique.',
   alternates: { canonical: 'https://avra.fr/architecte-interieur' },
   openGraph: {
     title: 'Logiciel architecte d\'intérieur — AVRA',
@@ -93,8 +93,8 @@ export default function ArchitecteInteriorPage() {
             Dossiers clients centralisés, rendus IA photo-réalistes, suivi budgétaire, coordination artisans et
             facturation honoraires. Concentrez-vous sur le design.
           </p>
-          <a href="/register">
-            <button className="btn-primary">Commencer l&apos;essai gratuit 14 jours →</button>
+          <a href="/comment-ca-marche">
+            <button className="btn-primary">Demander une démo →</button>
           </a>
         </div>
       </section>
@@ -484,11 +484,11 @@ export default function ArchitecteInteriorPage() {
                 marginBottom: '2.5rem',
               }}
             >
-              14 jours d&apos;essai gratuit. Pas de carte bancaire. Pas de contrat.
+              Découvrez comment AVRA peut transformer votre activité. Sans engagement.
             </p>
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <a href="/register">
-                <button className="btn-primary">Essai gratuit 14 jours →</button>
+              <a href="/comment-ca-marche">
+                <button className="btn-primary">Demander une démo →</button>
               </a>
               <a href="/comment-ca-marche">
                 <button className="btn-secondary">Voir comment ça marche</button>

@@ -19,7 +19,7 @@ import '../(marketing)/marketing.css';
 export const metadata: Metadata = {
   title: 'Logiciel agenceur — Gestion de projets d\'agencement tout-en-un',
   description:
-    'AVRA pour agenceurs : gestion de projets d\'agencement, coordination fournisseurs, suivi de chantier, devis et facturation. Solution complète. Essai gratuit 14j.',
+    'AVRA pour agenceurs : gestion de projets d\'agencement, coordination fournisseurs, suivi de chantier, devis et facturation. Solution complète.',
   alternates: { canonical: 'https://avra.fr/agenceur' },
   openGraph: {
     title: 'Logiciel agenceur — AVRA',
@@ -92,8 +92,8 @@ export default function AgenceurPage() {
             Gestion multi-sites, coordination fournisseurs, reporting clients professionnels, appels d&apos;offres et
             portail partenaires. Doublez votre capacité.
           </p>
-          <a href="/register">
-            <button className="btn-primary">Commencer l&apos;essai gratuit 14 jours →</button>
+          <a href="/comment-ca-marche">
+            <button className="btn-primary">Demander une démo →</button>
           </a>
         </div>
       </section>
@@ -481,11 +481,11 @@ export default function AgenceurPage() {
                 marginBottom: '2.5rem',
               }}
             >
-              14 jours d&apos;essai gratuit. Pas de carte bancaire. Pas de contrat.
+              Découvrez comment AVRA peut transformer votre activité. Sans engagement.
             </p>
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <a href="/register">
-                <button className="btn-primary">Essai gratuit 14 jours →</button>
+              <a href="/comment-ca-marche">
+                <button className="btn-primary">Demander une démo →</button>
               </a>
               <a href="/comment-ca-marche">
                 <button className="btn-secondary">Voir comment ça marche</button>

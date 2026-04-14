@@ -35,11 +35,11 @@ const steps = [
     icon: UserPlus,
     emoji: '👋',
     title: 'Créez votre compte',
-    subtitle: '30 secondes, sans carte bancaire',
-    desc: 'Entrez votre email, choisissez un mot de passe. C\'est tout. Pas de CB, pas d\'engagement, pas de surprise. Vous êtes dans l\'app immédiatement.',
+    subtitle: '30 secondes pour démarrer',
+    desc: 'Entrez votre email, choisissez un mot de passe. C\'est tout. Pas d\'engagement, pas de surprise. Vous êtes dans l\'app immédiatement.',
     tag: '30 secondes',
     tagColor: '#C9A96E',
-    checks: ['Email + mot de passe uniquement', 'Accès immédiat à toutes les fonctionnalités', 'Aucune information bancaire requise'],
+    checks: ['Email + mot de passe uniquement', 'Accès immédiat à toutes les fonctionnalités', 'Sans engagement'],
   },
   {
     num: '02',
@@ -207,7 +207,7 @@ export default function CommentCaMarchePage() {
                 {[
                   { label: 'Configuration', time: '5 min' },
                   { label: 'Premier devis', time: '< 10 min' },
-                  { label: 'Sans CB', time: '0€' },
+                  { label: 'Sans engagement', time: '0€' },
                 ].map((item) => (
                   <div key={item.label} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span style={{ color: '#C9A96E', fontSize: '1.5rem', fontWeight: 800, fontFamily: 'var(--font-display)' }}>
@@ -221,7 +221,7 @@ export default function CommentCaMarchePage() {
               </div>
 
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <Link href="/register" style={{ textDecoration: 'none' }}>
+                <Link href="/contact" style={{ textDecoration: 'none' }}>
                   <button style={{
                     display: 'inline-flex', alignItems: 'center', gap: '8px',
                     background: 'linear-gradient(135deg, #C9A96E, #b8944f)',
@@ -230,7 +230,7 @@ export default function CommentCaMarchePage() {
                     cursor: 'pointer', boxShadow: '0 8px 24px rgba(201,169,110,0.35)',
                     transition: 'all 0.2s ease',
                   }}>
-                    Essayer gratuitement <ArrowRight size={18} />
+                    Demander une démo <ArrowRight size={18} />
                   </button>
                 </Link>
                 <Link href="#etapes" style={{ textDecoration: 'none' }}>

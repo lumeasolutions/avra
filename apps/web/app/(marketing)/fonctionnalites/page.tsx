@@ -323,12 +323,12 @@ export default function FonctionnalitesPage() {
           </p>
 
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="/register">
+            <a href="/comment-ca-marche">
               <button
                 className="btn-primary"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '1rem', padding: '14px 28px' }}
               >
-                Essai gratuit 14 jours
+                Demander une démo
                 <ArrowRight size={18} />
               </button>
             </a>
@@ -355,8 +355,7 @@ export default function FonctionnalitesPage() {
             }}
           >
             {[
-              { icon: Shield, label: 'Sans carte bancaire' },
-              { icon: Clock, label: '14 jours offerts' },
+              { icon: Shield, label: 'Données sécurisées RGPD' },
               { icon: Zap, label: 'Accès immédiat' },
             ].map(({ icon: Icon, label }) => (
               <div
@@ -876,7 +875,7 @@ export default function FonctionnalitesPage() {
               lineHeight: 1.7,
             }}
           >
-            14 jours d&apos;accès complet à toutes les fonctionnalités Pro, sans engagement.
+            Découvrez comment AVRA peut transformer votre activité, sans engagement.
           </p>
 
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>

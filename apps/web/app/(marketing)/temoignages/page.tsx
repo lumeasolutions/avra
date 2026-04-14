@@ -86,7 +86,7 @@ const stats = [
   { val: '250+', label: 'Bêta testeurs actifs' },
   { val: '94%', label: 'Taux de satisfaction' },
   { val: '6h+', label: 'Gagnées par semaine en moyenne' },
-  { val: '14j', label: 'Essai gratuit sans CB' },
+  { val: '94%', label: 'Satisfaction bêta testeurs' },
 ];
 
 export default function TemoignagesPage() {
@@ -398,8 +398,8 @@ export default function TemoignagesPage() {
               marginBottom: '2rem',
             }}
           >
-            Rejoignez la liste d&apos;attente et obtenez 14 jours d&apos;essai gratuit. En
-            tant que bêta testeur, vous bénéficierez également d&apos;une réduction spéciale
+            Rejoignez la liste d&apos;attente. En
+            tant que bêta testeur, vous bénéficierez d&apos;une réduction spéciale
             à vie et d&apos;un support prioritaire.
           </p>
 
@@ -475,8 +475,7 @@ export default function TemoignagesPage() {
               margin: '0 auto 2.5rem',
             }}
           >
-            14 jours d&apos;essai gratuit, sans carte bancaire. Commencez à transformer votre
-            activité dès aujourd&apos;hui.
+            Découvrez comment AVRA transforme votre activité. Commencez dès aujourd&apos;hui.
           </p>
           <div
             style={{
@@ -486,7 +485,7 @@ export default function TemoignagesPage() {
               flexWrap: 'wrap',
             }}
           >
-            <a href="/register">
+            <a href="/comment-ca-marche">
               <button
                 className="btn-primary"
                 style={{
@@ -495,7 +494,7 @@ export default function TemoignagesPage() {
                   gap: 8,
                 }}
               >
-                Essayer gratuitement
+                Demander une démo
                 <ArrowRight size={18} />
               </button>
             </a>

@@ -6,7 +6,7 @@ import ScrollReveal from '../components/ScrollReveal';
 export const metadata: Metadata = {
   title: "AVRA — ERP + IA pour les professionnels de l'agencement",
   description:
-    "AVRA est l'ERP et assistant IA N°1 pour les cuisinistes, menuisiers, architectes d'intérieur. Gérez vos projets sans friction avec facturation, planning, dossiers et rendus IA. Essai gratuit 14 jours.",
+    "AVRA est l'ERP et assistant IA N°1 pour les cuisinistes, menuisiers, architectes d'intérieur. Gérez vos projets sans friction avec facturation, planning, dossiers et rendus IA.",
   alternates: { canonical: 'https://avra.fr/accueil' },
   openGraph: {
     title: "AVRA — ERP + IA pour les professionnels de l'agencement",
@@ -83,14 +83,14 @@ export default function AccueilPage() {
               tout en une seule app pensée pour les cuisinistes, menuisiers et architectes d&apos;intérieur.
             </p>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '2rem' }}>
-              <a href="/register"><button className="btn-primary">Essai gratuit 14 jours →</button></a>
+              <a href="/comment-ca-marche"><button className="btn-primary">Demander une démo →</button></a>
               <a href="/comment-ca-marche"><button className="btn-secondary">Voir comment ça marche</button></a>
             </div>
             <div style={{ marginTop: '2rem', display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
               {[
                 ['2 400+', 'Professionnels'],
                 ['98%', 'Satisfaction'],
-                ['14 j', 'Essai gratuit'],
+                ['+40%', 'Taux de conversion'],
               ].map(([num, label]) => (
                 <div key={label} style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>{num}</div>
@@ -345,17 +345,16 @@ export default function AccueilPage() {
       <section className="section section-centered" style={{ background: 'linear-gradient(135deg,var(--green-deep),var(--green))' }}>
         <div className="container">
           <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>Prêt à transformer votre activité ?</div>
-          <h2 style={{ color: 'var(--white)', marginBottom: '1.5rem' }}>Commencez gratuitement dès aujourd&apos;hui</h2>
+          <h2 style={{ color: 'var(--white)', marginBottom: '1.5rem' }}>Prêt à transformer votre activité ?</h2>
           <p style={{ color: 'rgba(255,255,255,.75)', maxWidth: 560, margin: '0 auto 2.5rem' }}>
-            14 jours d&apos;essai gratuit, sans carte bancaire. Configurez votre compte en 5 minutes
-            et rejoignez les 2 400+ professionnels qui font confiance à AVRA.
+            Découvrez comment AVRA simplifie votre quotidien. Rejoignez les 2 400+ professionnels qui font confiance à AVRA.
           </p>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="/register"><button className="btn-primary">Commencer l&apos;essai gratuit →</button></a>
+            <a href="/comment-ca-marche"><button className="btn-primary">Demander une démo →</button></a>
             <a href="/tarifs"><button className="btn-secondary">Voir les tarifs</button></a>
           </div>
           <p style={{ marginTop: '1.5rem', fontSize: '.85rem', color: 'rgba(255,255,255,.4)' }}>
-            ✓ Sans carte bancaire &nbsp;&nbsp; ✓ Configuration en 5 min &nbsp;&nbsp; ✓ Support inclus
+            ✓ Sans engagement &nbsp;&nbsp; ✓ Configuration en 5 min &nbsp;&nbsp; ✓ Support inclus
           </p>
         </div>
       </section>

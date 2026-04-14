@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     template: '%s | AVRA',
   },
   description:
-    "AVRA centralise dossiers clients, facturation, planning, stock et IA photo-réalisme en une seule app. Conçu pour cuisinistes, menuisiers et architectes d'intérieur. Essai gratuit 14 jours.",
+    "AVRA centralise dossiers clients, facturation, planning, stock et IA photo-réalisme en une seule app. Conçu pour cuisinistes, menuisiers et architectes d'intérieur.",
   metadataBase: new URL('https://avra.fr'),
   openGraph: {
     siteName: 'AVRA',
