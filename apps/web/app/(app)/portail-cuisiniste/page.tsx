@@ -59,25 +59,36 @@ export default function PortailCuisinistePage() {
     return { ca, urgents, enPose, savOuverts };
   }, [dossiers, dossiersSignes, invoices]);
 
-  // Render a dossier item with status badge
   const renderDossierItem = (d: typeof dossiers[0]) => {
     const colors = getStatusColor(d.status);
     return (
-      <Link key={d.id} href={`/dossiers/${d.id}`} className="flex items-center gap-[10px] py-[10px] px-3 rounded-[10px] bg-[#F8FAFB] no-underline transition-colors duration-200" style={{ borderLeft: `3px solid ${colors.text}` }}>
-        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#2E7D32] to-[#1B5E20] flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+      <Link key={d.id} href={`/dossiers/${d.id}`} style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '7px 10px', borderRadius: 8, background: '#F8FAFB',
+        textDecoration: 'none', borderLeft: `3px solid ${colors.text}`,
+      }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: 6,
+          background: 'linear-gradient(135deg, #2E7D32, #1B5E20)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0,
+        }}>
           {d.name.slice(0, 2).toUpperCase()}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-semibold text-[#0F2540] overflow-hidden text-ellipsis">{d.name}</div>
-          <div className="text-[10px] text-[#7A8E9F] mt-[2px]">{d.firstName ? `${d.firstName} •` : ''} {d.status}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#0F2540', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
+          <div style={{ fontSize: 9, color: '#7A8E9F' }}>{d.firstName ? `${d.firstName} • ` : ''}{d.status}</div>
         </div>
-        <div className="text-[9px] font-bold py-1 px-[10px] rounded-[12px] flex-shrink-0" style={{ background: colors.bg, color: colors.text }}>{d.status}</div>
+        <div style={{
+          fontSize: 8, fontWeight: 700, padding: '3px 8px', borderRadius: 10,
+          background: colors.bg, color: colors.text, flexShrink: 0,
+        }}>{d.status}</div>
       </Link>
     );
   };
 
   return (
-    <div className="pt-0 pb-7 pl-6 pr-0" style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}>
+    <div style={{ padding: '0px 20px 16px 0', fontFamily: "'Segoe UI', Arial, sans-serif", display: 'flex', flexDirection: 'column', height: '100%' }}>
 
       {/* En-tête portail */}
       <PageHeader
@@ -88,15 +99,14 @@ export default function PortailCuisinistePage() {
 
 
       {/* DOSSIERS EN COURS / DOSSIERS SIGNÉS */}
-      <div className="grid grid-cols-2 gap-5 mb-7">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
 
-        {/* DOSSIERS EN COURS */}
-        <div className="bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="m-0 text-[17px] font-bold text-[#0F2540]">📋 DOSSIERS EN COURS</h3>
-            <Link href="/dossiers" className="text-[12px] text-[#2E7D32] font-semibold no-underline">Voir tous →</Link>
+        <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0F2540' }}>📋 DOSSIERS EN COURS</h3>
+            <Link href="/dossiers" style={{ fontSize: 11, color: '#2E7D32', fontWeight: 600, textDecoration: 'none' }}>Voir tous →</Link>
           </div>
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
             {['Tous', ...enCoursStatuses].map(s => {
               const active = s === 'Tous' ? filterEnCours === null : filterEnCours === s;
               const col = getStatusColor(s);
@@ -110,21 +120,20 @@ export default function PortailCuisinistePage() {
               );
             })}
           </div>
-          <div className="flex flex-col gap-[10px] max-h-[160px] overflow-y-auto">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
             {dossiersFiltered.slice(0, 8).map(d => renderDossierItem(d))}
             {dossiersFiltered.length === 0 && (
-              <p className="text-[#4A6A8A] text-[13px] text-center py-5">Aucun dossier</p>
+              <p style={{ color: '#4A6A8A', fontSize: 12, textAlign: 'center', padding: '12px 0', margin: 0 }}>Aucun dossier</p>
             )}
           </div>
         </div>
 
-        {/* DOSSIERS SIGNÉS */}
-        <div className="bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="m-0 text-[17px] font-bold text-[#0F2540]">✅ DOSSIERS SIGNÉS</h3>
-            <Link href="/dossiers-signes" className="text-[12px] text-[#2E7D32] font-semibold no-underline">Voir tous →</Link>
+        <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0F2540' }}>✅ DOSSIERS SIGNÉS</h3>
+            <Link href="/dossiers-signes" style={{ fontSize: 11, color: '#2E7D32', fontWeight: 600, textDecoration: 'none' }}>Voir tous →</Link>
           </div>
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
             {['Tous', ...signesStatuses].map(s => {
               const active = s === 'Tous' ? filterSignes === null : filterSignes === s;
               const col = getStatusColor(s);
@@ -138,60 +147,53 @@ export default function PortailCuisinistePage() {
               );
             })}
           </div>
-          <div className="flex flex-col gap-[10px] max-h-[160px] overflow-y-auto">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
             {dossiersSignesFiltered.slice(0, 8).map(d => renderDossierItem(d as any))}
             {dossiersSignesFiltered.length === 0 && (
-              <p className="text-[#4A6A8A] text-[13px] text-center py-5">Aucun dossier</p>
+              <p style={{ color: '#4A6A8A', fontSize: 12, textAlign: 'center', padding: '12px 0', margin: 0 }}>Aucun dossier</p>
             )}
           </div>
         </div>
       </div>
 
       {/* PLANNING */}
-      <div className="bg-white rounded-2xl p-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] mb-7">
-        <h3 className="m-0 mb-4 text-[17px] font-bold text-[#0F2540]">📅 PLANNING</h3>
+      <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0F2540' }}>📅 PLANNING</h3>
+          <Link href="/planning" style={{ fontSize: 11, color: '#2E7D32', fontWeight: 600, textDecoration: 'none' }}>Planning détaillé →</Link>
+        </div>
 
-        {/* Grille de planning */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(7, 1fr)', gap: 0, fontSize: 12, overflowX: 'auto' }}>
-          {/* Header - Jours */}
-          <div style={{ fontWeight: 700, color: '#0F2540', padding: '8px 4px', borderBottom: '2px solid #E0E6ED' }}></div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(7, 1fr)', gap: 0, fontSize: 11, overflowY: 'auto', flex: 1 }}>
+          <div style={{ fontWeight: 700, color: '#0F2540', padding: '5px 4px', borderBottom: '2px solid #E0E6ED' }}></div>
           {DAYS_OF_WEEK.map(day => (
             <div key={day} style={{
-              fontWeight: 700, color: '#2E7D32', padding: '8px 4px',
-              textAlign: 'center', borderBottom: '2px solid #E0E6ED',
+              fontWeight: 700, color: '#2E7D32', padding: '5px 4px',
+              textAlign: 'center', borderBottom: '2px solid #E0E6ED', fontSize: 11,
             }}>
               {day}
             </div>
           ))}
 
-          {/* Lignes horaires */}
           {HOURS.map(hour => (
-            <div key={`hour-${hour}`} style={{
-              display: 'contents',
-            }}>
+            <div key={`hour-${hour}`} style={{ display: 'contents' }}>
               <div style={{
-                fontSize: 11, fontWeight: 600, color: '#7A8E9F', padding: '8px 4px',
-                borderRight: '1px solid #E0E6ED', textAlign: 'right',
+                fontSize: 10, fontWeight: 600, color: '#7A8E9F', padding: '4px 6px',
+                borderRight: '1px solid #E0E6ED', textAlign: 'right', whiteSpace: 'nowrap',
               }}>
-                {hour}:00
+                {hour}h
               </div>
               {DAYS_OF_WEEK.map((_, dayIdx) => {
-                const eventsForSlot = planningEvents.filter(e => {
-                  const eventDay = e.day - 1; // day: 1-7, we need 0-6
-                  const eventHour = e.startHour;
-                  return eventDay === dayIdx && eventHour === hour;
-                });
-
+                const eventsForSlot = planningEvents.filter(e => (e.day - 1) === dayIdx && e.startHour === hour);
                 return (
                   <div key={`${dayIdx}-${hour}`} style={{
-                    minHeight: '40px', borderRight: '1px solid #E0E6ED',
-                    borderBottom: '1px solid #E0E6ED', padding: '4px',
-                    background: '#FAFBFC', position: 'relative',
+                    minHeight: 26, borderRight: '1px solid #E0E6ED',
+                    borderBottom: '1px solid #F0F4F8', padding: '2px 3px',
+                    background: '#FAFBFC',
                   }}>
                     {eventsForSlot.map(event => (
                       <div key={event.id} style={{
-                        fontSize: 10, fontWeight: 600, padding: '3px 5px',
-                        borderRadius: 4, color: 'white', marginBottom: '2px',
+                        fontSize: 9, fontWeight: 600, padding: '2px 4px',
+                        borderRadius: 3, color: 'white',
                         background: event.color, whiteSpace: 'nowrap', overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}>
@@ -203,12 +205,6 @@ export default function PortailCuisinistePage() {
               })}
             </div>
           ))}
-        </div>
-
-        <div style={{ marginTop: 16, fontSize: 11, color: '#7A8E9F', textAlign: 'right' }}>
-          <Link href="/planning" style={{ color: '#2E7D32', fontWeight: 600, textDecoration: 'none' }}>
-            Accéder au planning détaillé →
-          </Link>
         </div>
       </div>
 
