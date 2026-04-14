@@ -126,17 +126,17 @@ export default function HomePage() {
             position: 'relative', zIndex: 2, width: '100%',
             background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(201,169,110,0.1) 50%, rgba(0,0,0,0.5) 100%)',
             borderBottom: '1px solid rgba(201,169,110,0.28)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '60px',
-            padding: '35px 5%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '40px',
+            padding: '18px 5%',
             flexShrink: 0,
           }}
         >
-          <div style={{ position: 'relative', width: 140, height: 140 }}>
-            <Image src="/logosidebar3.png" alt="AVRA Logo" fill sizes="140px" style={{ objectFit: 'contain' }} />
+          <div style={{ position: 'relative', width: 80, height: 80 }}>
+            <Image src="/logosidebar3.png" alt="AVRA Logo" fill sizes="80px" style={{ objectFit: 'contain' }} />
           </div>
-          <div style={{ width: 1, height: 100, background: 'rgba(201,169,110,0.4)' }} />
-          <div style={{ position: 'relative', width: 140, height: 140 }}>
-            <Image src="/logochouette4.png" alt="AVRA Chouette" fill sizes="140px" style={{ objectFit: 'contain' }} />
+          <div style={{ width: 1, height: 56, background: 'rgba(201,169,110,0.4)' }} />
+          <div style={{ position: 'relative', width: 80, height: 80 }}>
+            <Image src="/logochouette4.png" alt="AVRA Chouette" fill sizes="80px" style={{ objectFit: 'contain' }} />
           </div>
         </div>
 
@@ -145,7 +145,7 @@ export default function HomePage() {
           style={{
             maxWidth: 1200,
             margin: '0 auto',
-            padding: '50px 5% 70px',
+            padding: '36px 5% 50px',
             width: '100%',
             position: 'relative',
             zIndex: 1,
@@ -901,7 +901,7 @@ export default function HomePage() {
                 lineHeight: 1.2,
               }}
             >
-              L&apos;IA qui{' '}
+              Une visualisation{' '}
               <span
                 style={{
                   background: 'linear-gradient(135deg, #c9a96e, #d4b882)',
@@ -910,7 +910,7 @@ export default function HomePage() {
                   backgroundClip: 'text',
                 }}
               >
-                transforme vos projets
+                réaliste, instantanée
               </span>
             </h2>
 
@@ -922,9 +922,9 @@ export default function HomePage() {
                 marginBottom: '2rem',
               }}
             >
-              Décrivez votre projet en quelques mots, et AVRA génère des rendus photo-réalistes en
-              quelques secondes. Présentez des visuels bluffants à vos clients avant même de
-              commencer.
+              AVRA génère des rendus photo-réalistes dès la conception, sans intervention technique.
+              Les modifications de teintes, matériaux ou façades se font rapidement, sans reconstruire le projet.
+              Un gain de temps pour vous, une meilleure projection pour vos clients.
             </p>
 
             <div

@@ -837,104 +837,6 @@ export default function FonctionnalitesPage() {
         </div>
       </section>
 
-      {/* ─── E-FACTURE 2026 BANNER ─── */}
-      <section
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          padding: '80px 5%',
-        }}
-      >
-        {/* Background image */}
-        <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-          <Image
-            src="/images/kitchen-2.webp"
-            alt="Facturation électronique"
-            fill
-            style={{ objectFit: 'cover' }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(135deg, rgba(30,43,34,0.93), rgba(30,43,34,0.85))',
-            }}
-          />
-        </div>
-
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 1,
-            maxWidth: 720,
-            margin: '0 auto',
-            textAlign: 'center',
-          }}
-        >
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              background: 'rgba(201,169,110,0.2)',
-              border: '1px solid rgba(201,169,110,0.5)',
-              borderRadius: 50,
-              padding: '6px 20px',
-              marginBottom: '1.5rem',
-              fontSize: '.76rem',
-              fontWeight: 700,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase' as const,
-              color: 'var(--color-gold)',
-            }}
-          >
-            <Shield size={13} />
-            Conformité légale
-          </div>
-
-          <h2
-            style={{
-              color: 'var(--color-white)',
-              fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)',
-              fontFamily: 'var(--font-display)',
-              marginBottom: '1.2rem',
-            }}
-          >
-            Conforme <span style={{ color: 'var(--color-gold)' }}>e-facture 2026</span>
-          </h2>
-
-          <p
-            style={{
-              color: 'rgba(255,255,255,0.78)',
-              fontSize: '1.05rem',
-              lineHeight: 1.75,
-              marginBottom: '2.5rem',
-              maxWidth: 560,
-              margin: '0 auto 2.5rem',
-            }}
-          >
-            Toutes vos factures sont automatiquement conformes à la norme e-facture obligatoire
-            en 2026. AVRA génère le format structuré UBL/XML requis par l&apos;administration fiscale.
-          </p>
-
-          <a href="/blog/e-facture-2026" style={{ textDecoration: 'none' }}>
-            <button
-              className="btn-primary"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '14px 28px',
-                fontSize: '1rem',
-              }}
-            >
-              <Receipt size={18} />
-              En savoir plus sur l&apos;e-facture
-            </button>
-          </a>
-        </div>
-      </section>
-
       {/* ─── CTA FINAL ─── */}
       <section className="section-pad" style={{
           padding: '100px 5%',
@@ -974,11 +876,11 @@ export default function FonctionnalitesPage() {
               lineHeight: 1.7,
             }}
           >
-            14 jours d&apos;accès complet à toutes les fonctionnalités Pro — sans carte bancaire, sans engagement.
+            14 jours d&apos;accès complet à toutes les fonctionnalités Pro, sans engagement.
           </p>
 
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="/register" style={{ textDecoration: 'none' }}>
+            <a href="/comment-ca-marche" style={{ textDecoration: 'none' }}>
               <button
                 className="btn-primary"
                 style={{
@@ -989,14 +891,26 @@ export default function FonctionnalitesPage() {
                   fontSize: '1rem',
                 }}
               >
-                Commencer l&apos;essai gratuit
+                Demander une démo
                 <ArrowRight size={18} />
               </button>
             </a>
             <a href="/tarifs" style={{ textDecoration: 'none' }}>
               <button
-                className="btn-secondary"
-                style={{ padding: '15px 32px', fontSize: '1rem' }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '15px 32px',
+                  fontSize: '1rem',
+                  background: '#1e2b22',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
               >
                 Comparer les plans
               </button>
@@ -1013,7 +927,7 @@ export default function FonctionnalitesPage() {
               marginTop: '2rem',
             }}
           >
-            {['✓ Sans carte bancaire', '✓ Annulation à tout moment', '✓ Support inclus'].map((item) => (
+            {['✓ Annulation à tout moment', '✓ Support inclus'].map((item) => (
               <span
                 key={item}
                 style={{
