@@ -77,10 +77,10 @@ const metiers = [
     colorLight: 'rgba(123,94,167,0.08)',
     colorBorder: 'rgba(123,94,167,0.22)',
     features: [
-      'Mood boards et présentations clients',
+      'Suivi simplifié des modifications dossiers clients',
       'Coordination multi-artisans intégrée',
-      'Suivi budgétaire du projet en temps réel',
-      'Portail client avec avancement visuel',
+      'Rendus IA réalistes des projets',
+      'Gestion du stock',
     ],
     stat: { value: '94%', label: 'de clients satisfaits rapportés' },
   },
