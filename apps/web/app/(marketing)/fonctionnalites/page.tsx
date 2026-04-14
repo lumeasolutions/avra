@@ -59,8 +59,8 @@ const features = [
     id: 'dossiers',
     icon: FolderOpen,
     title: 'Gestion des dossiers clients',
-    subtitle: 'Centralisez tout sur chaque projet',
-    desc: "Plus aucun document perdu, plus aucun email introuvable. Chaque dossier client regroupe plans, photos, devis, contrats, notes et historique des échanges en un seul endroit.",
+    subtitle: 'Une gestion des dossiers conçue pour votre réalité terrain',
+    desc: "Tous vos dossiers clients sont centralisés, qu'ils soient en cours ou signés. Chaque étape est organisée avec une trame claire et logique, conçue pour suivre vos projets du premier échange jusqu'au SAV. L'assistant AVRA est connecté à l'ensemble de vos dossiers et de votre planning pour vous alerter à chaque étape clé et éviter les oublis.",
     features: [
       'Dossier unifié par client',
       'Historique complet des échanges',
@@ -436,6 +436,7 @@ export default function FonctionnalitesPage() {
             style={{
               background: isEven ? '#ffffff' : '#f9f6f0',
               padding: '100px 5%',
+              scrollMarginTop: '80px',
             }}
           >
             <div

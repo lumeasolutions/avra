@@ -100,22 +100,42 @@ export default function HomePage() {
           background: '#1e2b22',
         }}
       >
-        {/* Image de fond */}
+        {/* Image de fond — logo AVRA */}
         <Image
-          src="/images/home-hero-bg.webp"
-          alt="Cuisine premium agencement intérieur"
+          src="/logosidebar3.png"
+          alt="AVRA background"
           fill
           priority
-          style={{ objectFit: 'cover', opacity: 0.28 }}
+          sizes="100vw"
+          style={{ objectFit: 'cover', objectPosition: 'center', opacity: 0.13 }}
         />
         {/* Overlay gradient */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(135deg, rgba(14,24,16,0.88) 0%, rgba(30,43,34,0.78) 50%, rgba(48,64,53,0.65) 100%)',
+            background: 'linear-gradient(135deg, rgba(14,24,16,0.92) 0%, rgba(30,43,34,0.82) 50%, rgba(48,64,53,0.72) 100%)',
           }}
         />
+
+        {/* ── Bannière logos ── */}
+        <div
+          style={{
+            position: 'absolute', top: 76, left: 0, right: 0, zIndex: 2,
+            background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(201,169,110,0.1) 50%, rgba(0,0,0,0.5) 100%)',
+            borderBottom: '1px solid rgba(201,169,110,0.22)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '48px',
+            padding: '14px 5%',
+          }}
+        >
+          <div style={{ position: 'relative', width: 56, height: 56 }}>
+            <Image src="/logosidebar3.png" alt="AVRA Logo" fill sizes="56px" style={{ objectFit: 'contain' }} />
+          </div>
+          <div style={{ width: 1, height: 40, background: 'rgba(201,169,110,0.35)' }} />
+          <div style={{ position: 'relative', width: 56, height: 56 }}>
+            <Image src="/logochouette4.png" alt="AVRA Chouette" fill sizes="56px" style={{ objectFit: 'contain' }} />
+          </div>
+        </div>
 
         <div
           className="hero-grid"
@@ -525,10 +545,9 @@ export default function HomePage() {
             }}
           >
             {[
-              { label: 'Cuisinistes', icon: '🍳' },
+              { label: 'Cuisinistes / Agenceurs', icon: '🍳' },
               { label: 'Menuisiers', icon: '🪵' },
               { label: "Architectes d'intérieur", icon: '📐' },
-              { label: 'Agenceurs', icon: '🛋️' },
               { label: 'Décorateurs', icon: '🎨' },
             ].map(({ label, icon }) => (
               <div

@@ -39,11 +39,38 @@ export default function AccueilPage() {
 
       {/* ── HERO ── */}
       <section style={{
-        position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center',
+        position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
         paddingTop: '76px', overflow: 'hidden',
-        background: 'linear-gradient(135deg, #1e2b22 0%, #304035 100%)',
+        background: '#1a2820',
       }}>
+        {/* Background logo */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 0,
+          backgroundImage: 'url(/logosidebar3.png)',
+          backgroundSize: 'cover', backgroundPosition: 'center',
+          opacity: 0.18,
+        }} />
+        {/* Overlay gradient pour lisibilité */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 1,
+          background: 'linear-gradient(135deg, rgba(26,40,32,0.85) 0%, rgba(48,64,53,0.7) 100%)',
+        }} />
+
+        {/* ── Bannière logos ── */}
+        <div style={{
+          position: 'relative', zIndex: 2, width: '100%',
+          background: 'linear-gradient(90deg, rgba(0,0,0,0.45) 0%, rgba(201,169,110,0.12) 50%, rgba(0,0,0,0.45) 100%)',
+          borderBottom: '1px solid rgba(201,169,110,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '48px',
+          padding: '18px 5%',
+        }}>
+          <img src="/logosidebar3.png" alt="AVRA Logo" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
+          <div style={{ width: 1, height: 48, background: 'rgba(201,169,110,0.35)' }} />
+          <img src="/logochouette4.png" alt="AVRA Chouette" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
+        </div>
+
         <div className="hero-grid" style={{
+          position: 'relative', zIndex: 2,
           maxWidth: 1200, margin: '0 auto', padding: '60px 5%',
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '60px',
           alignItems: 'center', width: '100%',
