@@ -94,7 +94,9 @@ export default function HomePage() {
           position: 'relative',
           minHeight: '100vh',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
+          justifyContent: 'center',
           paddingTop: '76px',
           overflow: 'hidden',
           background: '#1e2b22',
@@ -121,19 +123,20 @@ export default function HomePage() {
         {/* ── Bannière logos ── */}
         <div
           style={{
-            position: 'absolute', top: 76, left: 0, right: 0, zIndex: 2,
+            position: 'relative', zIndex: 2, width: '100%',
             background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(201,169,110,0.1) 50%, rgba(0,0,0,0.5) 100%)',
-            borderBottom: '1px solid rgba(201,169,110,0.22)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '48px',
-            padding: '14px 5%',
+            borderBottom: '1px solid rgba(201,169,110,0.28)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '60px',
+            padding: '35px 5%',
+            flexShrink: 0,
           }}
         >
-          <div style={{ position: 'relative', width: 56, height: 56 }}>
-            <Image src="/logosidebar3.png" alt="AVRA Logo" fill sizes="56px" style={{ objectFit: 'contain' }} />
+          <div style={{ position: 'relative', width: 140, height: 140 }}>
+            <Image src="/logosidebar3.png" alt="AVRA Logo" fill sizes="140px" style={{ objectFit: 'contain' }} />
           </div>
-          <div style={{ width: 1, height: 40, background: 'rgba(201,169,110,0.35)' }} />
-          <div style={{ position: 'relative', width: 56, height: 56 }}>
-            <Image src="/logochouette4.png" alt="AVRA Chouette" fill sizes="56px" style={{ objectFit: 'contain' }} />
+          <div style={{ width: 1, height: 100, background: 'rgba(201,169,110,0.4)' }} />
+          <div style={{ position: 'relative', width: 140, height: 140 }}>
+            <Image src="/logochouette4.png" alt="AVRA Chouette" fill sizes="140px" style={{ objectFit: 'contain' }} />
           </div>
         </div>
 
@@ -142,7 +145,7 @@ export default function HomePage() {
           style={{
             maxWidth: 1200,
             margin: '0 auto',
-            padding: '80px 5%',
+            padding: '50px 5% 70px',
             width: '100%',
             position: 'relative',
             zIndex: 1,
@@ -1025,7 +1028,7 @@ export default function HomePage() {
                   Assistant IA AVRA
                 </div>
                 <div style={{ color: 'rgba(255,255,255,.35)', fontSize: '.75rem' }}>
-                  Basé sur Claude AI · En ligne
+                  Assistant IA AVRA · En ligne
                 </div>
               </div>
               <div
@@ -1307,7 +1310,7 @@ export default function HomePage() {
               ))}
             </div>
 
-            <Link href="/fonctionnalites#crm">
+            <Link href="/fonctionnalites#epaiement">
               <button
                 style={{
                   display: 'inline-flex',

@@ -77,8 +77,8 @@ const features = [
     id: 'facturation',
     icon: Receipt,
     title: 'Facturation & Devis intelligents',
-    subtitle: 'Du devis à la facture en 2 clics',
-    desc: 'Créez des devis professionnels en quelques secondes depuis vos catalogues produits. Transformez-les en factures, gérez les acomptes et relancez automatiquement les impayés.',
+    subtitle: 'Une facturation électronique intégrée, sans changer vos habitudes',
+    desc: "AVRA s'intègre aux modules de facturation électronique de votre choix. Plus besoin de naviguer entre plusieurs outils : tout est accessible directement depuis vos dossiers. Facturation, e-signature, e-paiement… tout est regroupé sur une seule interface pour une gestion plus fluide et sans perte d'information.",
     features: [
       'Devis en 2 clics',
       'Catalogues produits intégrés',
@@ -96,7 +96,7 @@ const features = [
     icon: Sparkles,
     title: 'IA Studio — Photo-réalisme',
     subtitle: 'Vendez avant de construire',
-    desc: 'Générez des rendus photo-réalistes bluffants en quelques secondes grâce à FLUX Pro. Décrivez votre projet, uploadez vos plans, et obtenez des images HD à montrer à vos clients.',
+    desc: "Grâce à l'IA intégrée à AVRA, vos projets 3D deviennent en quelques secondes des rendus réalistes quasi photo. Elle permet aussi de changer instantanément les textures et coloris des façades sur un même projet, sans avoir à tout refaire, pour comparer plusieurs options avec le client et accélérer sa décision.",
     features: [
       'Rendus FLUX Pro HD',
       'Génération en < 10 secondes',
@@ -113,8 +113,8 @@ const features = [
     id: 'planning',
     icon: Calendar,
     title: 'Planning & Gestion de chantiers',
-    subtitle: 'Planifiez sans effort',
-    desc: "Un calendrier visuel partagé avec toute votre équipe. Planifiez poses, livraisons, RDV clients et interventions SAV. Les conflits d'agenda sont détectés automatiquement.",
+    subtitle: 'Une coordination fluide entre magasin et chantier',
+    desc: "Deux plannings distincts mais connectés : un pour vos rendez-vous et tâches, un pour vos chantiers et artisans. Chaque modification est synchronisée pour éviter les erreurs de planning et assurer un suivi précis de vos projets.",
     features: [
       'Calendrier visuel partagé',
       'Vue par technicien',
@@ -131,8 +131,8 @@ const features = [
     id: 'stock',
     icon: Package,
     title: 'Gestion de stock & fournisseurs',
-    subtitle: 'Ne manquez plus de rien',
-    desc: 'Suivez vos matériaux, composants et commandes en temps réel. Les alertes de rupture sont automatiques. Passez vos commandes fournisseurs directement depuis AVRA.',
+    subtitle: 'Une gestion de stock simple, visuelle et intelligente',
+    desc: "AVRA identifie automatiquement les produits utilisés dans vos devis, déjà vendus ou encore en stock. Tout est connecté à vos dossiers pour une vision claire et immédiate. Un stock facile à suivre, sans complexité.",
     features: [
       'Stock en temps réel',
       'Alertes de rupture',
@@ -149,8 +149,8 @@ const features = [
     id: 'signature',
     icon: PenLine,
     title: 'Signature électronique',
-    subtitle: 'Signez en quelques secondes',
-    desc: 'Envoyez vos devis et contrats par email ou SMS pour signature électronique. Juridiquement valable en France et UE. Vos clients signent depuis leur smartphone.',
+    subtitle: 'Faites signer vos documents sans quitter AVRA',
+    desc: "Depuis un dossier client, vous envoyez vos devis ou contrats en signature électronique via un module intégré. Tout est suivi au même endroit, sans multiplier les outils.",
     features: [
       'Signature juridiquement valable',
       'Envoi par email ou SMS',
@@ -164,20 +164,20 @@ const features = [
     imageAlt: 'Signature électronique devis cuisine',
   },
   {
-    id: 'crm',
-    icon: Users,
-    title: 'Pipeline CRM visuel',
-    subtitle: 'Pilotez votre activité commerciale',
-    desc: "Visualisez tous vos projets en cours d'un coup d'œil avec un pipeline Kanban. De la prospection à la livraison, ne laissez plus aucune opportunité vous échapper.",
+    id: 'epaiement',
+    icon: Receipt,
+    title: 'E-paiement',
+    subtitle: 'Encaissez vos paiements sans quitter AVRA',
+    desc: "Depuis un dossier client, vous déclenchez une demande de paiement en quelques clics via un module intégré. Plus besoin d'utiliser plusieurs outils : tout est lié à votre projet.",
     features: [
-      'Pipeline Kanban visuel',
-      'Étapes personnalisables',
-      'Valeur du pipeline en temps réel',
-      'Relances commerciales',
-      'Statistiques de conversion',
-      'Import CRM existant',
+      'Paiement en ligne intégré',
+      'Demande de paiement en 2 clics',
+      'Lié directement au dossier',
+      'Suivi des encaissements',
+      'Relances automatiques',
+      'Historique des transactions',
     ],
-    badge: 'CRM',
+    badge: 'Inclus',
     image: '/images/interior-apres-2.webp',
     imageAlt: 'CRM pipeline agencement intérieur',
   },
@@ -185,8 +185,8 @@ const features = [
     id: 'stats',
     icon: BarChart3,
     title: 'Tableau de bord & Statistiques',
-    subtitle: 'Pilotez avec les bons indicateurs',
-    desc: 'CA, marge, taux de conversion, délais de paiement, performance par métier... Tous vos KPIs en temps réel dans un dashboard clair et personnalisable.',
+    subtitle: 'Vos intervenants autonomes, vos dossiers mieux suivis',
+    desc: "Avec AVRA, vos artisans accèdent directement aux informations dont ils ont besoin : plans techniques, dossiers, organisation du planning et suivi des SAV. De votre côté, vous centralisez toutes vos demandes via l'espace intervenants : demande de devis, organisation de planning, transmission d'informations… Moins d'appels, moins de messages, plus de fluidité dans vos projets.",
     features: [
       'Dashboard temps réel',
       'CA et marges',
@@ -541,20 +541,6 @@ export default function FonctionnalitesPage() {
                   ))}
                 </div>
 
-                <a href="/register" style={{ textDecoration: 'none' }}>
-                  <button
-                    className="btn-outline"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '12px 24px',
-                    }}
-                  >
-                    Essayer gratuitement
-                    <ArrowRight size={16} />
-                  </button>
-                </a>
               </div>
 
               {/* Image side */}
