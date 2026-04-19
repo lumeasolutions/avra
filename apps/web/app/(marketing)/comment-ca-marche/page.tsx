@@ -301,6 +301,12 @@ export default function CommentCaMarchePage() {
           from { height: 0%; }
           to { height: 100%; }
         }
+        @media (max-width: 768px) {
+          .pwa-grid {
+            grid-template-columns: 1fr !important;
+            gap: 32px !important;
+          }
+        }
       `}</style>
       <section id="etapes" style={{
         padding: '120px 5%',

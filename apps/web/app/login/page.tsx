@@ -165,7 +165,16 @@ export default function LoginPage() {
             padding: 32px 5% 24px !important;
           }
           .login-panel-right {
-            padding: 20px 5% 40px !important;
+            padding: 20px 4% 40px !important;
+          }
+          .login-stats-row {
+            gap: 16px !important;
+          }
+          .login-stats-row > div .stat-value {
+            font-size: 1.4rem !important;
+          }
+          .login-form-card {
+            padding: 32px 24px !important;
           }
         }
 
@@ -305,14 +314,15 @@ export default function LoginPage() {
             </p>
 
             {/* Stats */}
-            <div style={{ display: 'flex', gap: '32px', justifyContent: 'center', marginBottom: '48px' }}>
+            <div className="login-stats-row" style={{ display: 'flex', gap: '32px', justifyContent: 'center', marginBottom: '48px', flexWrap: 'wrap' }}>
               {stats.map((stat, i) => (
                 <div key={i} style={{ textAlign: 'center', animation: `fadeInUp 0.7s ease-out ${0.1 * i + 0.3}s both` }}>
-                  <div style={{
+                  <div className="stat-value" style={{
                     fontFamily: "'Playfair Display', Georgia, serif",
                     fontSize: '1.8rem', fontWeight: 800,
                     background: 'linear-gradient(135deg, #e8c97a, #C9A96E)',
                     WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+                    whiteSpace: 'nowrap',
                   }}>{stat.value}</div>
                   <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', marginTop: '2px', fontWeight: 500 }}>{stat.label}</div>
                 </div>
@@ -359,7 +369,7 @@ export default function LoginPage() {
           <div style={{ position: 'absolute', bottom: '-60px', left: '-60px', width: '280px', height: '280px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(58,125,90,0.07) 0%, transparent 65%)', pointerEvents: 'none' }} />
 
           {/* Card formulaire */}
-          <div style={{
+          <div className="login-form-card" style={{
             width: '100%', maxWidth: '420px',
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.09)',

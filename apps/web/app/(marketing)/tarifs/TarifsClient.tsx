@@ -175,6 +175,31 @@ export default function TarifsClient() {
           0% { background-position: -200% center; }
           100% { background-position: 200% center; }
         }
+        @media (max-width: 768px) {
+          .tarifs-plans-grid {
+            grid-template-columns: 1fr !important;
+            max-width: 480px;
+            margin: 0 auto;
+          }
+          .tarifs-plans-grid > div:first-child {
+            animation: none !important;
+          }
+          .garanties-top {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          .garanties-bottom {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .garanties-bottom > div {
+            width: 100% !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .garanties-top {
+            grid-template-columns: 1fr !important;
+          }
+        }
       `}</style>
 
       {/* ── PLANS ── */}
@@ -205,7 +230,7 @@ export default function TarifsClient() {
         </div>
 
         {/* Cards */}
-        <div style={{ maxWidth: 1060, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 20, alignItems: 'start' }}>
+        <div className="tarifs-plans-grid" style={{ maxWidth: 1060, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.08fr 0.92fr', gap: 20, alignItems: 'start' }}>
 
           {/* ══════════════════════════════════
               CARTE INDÉPENDANT — HERO
@@ -438,7 +463,7 @@ export default function TarifsClient() {
           </div>
 
           {/* Ligne du bas — 2 cards centrées */}
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+          <div className="garanties-bottom" style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
             {[
               { icon: TrendingUp, title: 'Sans engagement', desc: 'Résiliation en 1 clic, quand vous voulez — hormis abonnement annuel.' },
               { icon: FileText, title: 'E-facture 2026', desc: 'Conformité obligatoire UBL/XML incluse d\'emblée. Module intégré.', highlight: true },

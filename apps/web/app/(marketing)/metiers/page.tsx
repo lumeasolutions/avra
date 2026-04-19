@@ -380,6 +380,17 @@ export default function MetiersPage() {
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.06); }
         }
+        @media (max-width: 768px) {
+          .avant-apres-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .avant-apres-grid > div {
+            min-height: auto !important;
+          }
+          .avant-apres-grid .av-card {
+            min-height: 280px !important;
+          }
+        }
       `}</style>
       <section style={{
         padding: '120px 5%',
@@ -421,7 +432,7 @@ export default function MetiersPage() {
           </div>
 
           {/* Before / After comparison */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'stretch' }}>
+          <div className="avant-apres-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'stretch' }}>
 
             {/* AVANT */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -433,7 +444,7 @@ export default function MetiersPage() {
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef5350', boxShadow: '0 0 8px #ef5350' }} />
                 <span style={{ color: '#ef9a9a', fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Avant</span>
               </div>
-              <div style={{
+              <div className="av-card" style={{
                 flex: 1,
                 borderRadius: '20px',
                 border: '1.5px solid rgba(255,255,255,0.07)',
@@ -481,7 +492,7 @@ export default function MetiersPage() {
                   ✨ Quelques secondes
                 </div>
               </div>
-              <div style={{
+              <div className="av-card" style={{
                 flex: 1,
                 borderRadius: '20px',
                 border: '1.5px solid rgba(201,169,110,0.3)',
