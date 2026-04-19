@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
+import PWAInstallButton from '../../components/PWAInstallButton';
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -110,6 +111,7 @@ export default function Nav() {
 
         {/* ══ CTA + CHOUETTE DROITE ══ */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }} className="nav-cta-desktop">
+          <PWAInstallButton variant="nav" />
           <Link href="/login" style={{ textDecoration: 'none' }}>
             <button style={{
               fontSize: '0.875rem',
@@ -207,6 +209,7 @@ export default function Nav() {
               </Link>
             ))}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
+              <PWAInstallButton variant="nav" />
               <Link href="/login" onClick={() => setMenuOpen(false)}>
                 <button style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#fff', fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer' }}>
                   Connexion

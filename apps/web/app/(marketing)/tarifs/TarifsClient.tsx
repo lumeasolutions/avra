@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   CheckCircle,
   ArrowRight,
@@ -69,6 +69,48 @@ const enterpriseFeatures = [
 export default function TarifsClient() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [annual, setAnnual] = useState(false);
+
+  function TarifsInstallBtn() {
+    const [dp, setDp] = useState<any>(null);
+    const [ok, setOk] = useState(false);
+    const [ios, setIos] = useState(false);
+
+    useEffect(() => {
+      setIos(/iphone|ipad|ipod/i.test(navigator.userAgent));
+      if (window.matchMedia('(display-mode: standalone)').matches) { setOk(true); return; }
+      const h = (e: Event) => { e.preventDefault(); setDp(e); };
+      window.addEventListener('beforeinstallprompt', h as EventListener);
+      return () => window.removeEventListener('beforeinstallprompt', h as EventListener);
+    }, []);
+
+    const go = async () => {
+      if (ios) { alert('Sur iPhone : appuyez sur Partager ↑ → "Sur l\'écran d\'accueil" → Ajouter'); return; }
+      if (!dp) return;
+      dp.prompt();
+      const { outcome } = await dp.userChoice;
+      if (outcome === 'accepted') setOk(true);
+      setDp(null);
+    };
+
+    if (ok) return <div style={{ color: '#4A7C59', fontWeight: 600 }}>✓ App installée</div>;
+
+    return (
+      <button onClick={go} style={{
+        flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '10px',
+        fontSize: '0.95rem', fontWeight: 700, color: '#0e1810',
+        padding: '14px 28px', borderRadius: '12px', border: 'none',
+        background: 'linear-gradient(135deg, #e8c97a, #C9A96E)',
+        cursor: 'pointer', boxShadow: '0 4px 24px rgba(201,169,110,0.4)',
+        whiteSpace: 'nowrap', transition: 'all 0.2s ease',
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(201,169,110,0.55)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(201,169,110,0.4)'; }}
+      >
+        <span>📲</span>
+        {ios ? 'Guide installation iPhone' : dp ? 'Installer l\'app' : 'Télécharger l\'app'}
+      </button>
+    );
+  }
 
   return (
     <>
@@ -548,6 +590,35 @@ export default function TarifsClient() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ════════ APP BANNER ════════ */}
+      <section style={{
+        background: 'linear-gradient(135deg, #0a0f0b 0%, #0e1810 100%)',
+        padding: '60px 5%',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'radial-gradient(ellipse at 20% 50%, rgba(201,169,110,0.07) 0%, transparent 60%)', pointerEvents: 'none' }} />
+        <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '32px', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+              <span style={{ fontSize: '1.8rem' }}>📲</span>
+              <h2 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>
+                Disponible sur tous vos appareils
+              </h2>
+            </div>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', maxWidth: '480px', lineHeight: 1.65, margin: 0 }}>
+              iPhone, Android, PC, Mac — installez AVRA en 2 clics depuis votre navigateur. Pas d&apos;App Store requis.
+            </p>
+            <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap' }}>
+              {['🤖 Android', '🍎 iPhone / iPad', '💻 PC / Mac'].map((p, i) => (
+                <span key={i} style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '50px', padding: '4px 12px' }}>{p}</span>
+              ))}
+            </div>
+          </div>
+          <TarifsInstallBtn />
         </div>
       </section>
 

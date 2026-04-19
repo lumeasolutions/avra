@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -48,6 +48,71 @@ export default function HomePage() {
       answer: 'Support 7j/7 inclus : email, chat en ligne, et vidéoconférence. Temps de réponse moyen : 2 heures. Accès à notre base de connaissances complète et webinaires mensuels.',
     },
   ];
+
+  function InstallButtonInline() {
+    const [deferredPrompt, setDeferredPromptLocal] = useState<any>(null);
+    const [installed, setInstalledLocal] = useState(false);
+    const [isIOS, setIsIOSLocal] = useState(false);
+    const [showGuide, setShowGuide] = useState(false);
+
+    useEffect(() => {
+      const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      setIsIOSLocal(ios);
+      if (window.matchMedia('(display-mode: standalone)').matches) { setInstalledLocal(true); return; }
+      const handler = (e: Event) => { e.preventDefault(); setDeferredPromptLocal(e); };
+      window.addEventListener('beforeinstallprompt', handler as EventListener);
+      return () => window.removeEventListener('beforeinstallprompt', handler as EventListener);
+    }, []);
+
+    const handleInstall = async () => {
+      if (isIOS) { setShowGuide(!showGuide); return; }
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') setInstalledLocal(true);
+      setDeferredPromptLocal(null);
+    };
+
+    if (installed) return <div style={{ color: '#4A7C59', fontWeight: 600 }}>✓ Application déjà installée</div>;
+
+    return (
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        <button onClick={handleInstall} style={{
+          display: 'inline-flex', alignItems: 'center', gap: '12px',
+          fontSize: '1.05rem', fontWeight: 700, color: '#0e1810',
+          padding: '16px 36px', borderRadius: '16px', border: 'none',
+          background: 'linear-gradient(135deg, #e8c97a 0%, #C9A96E 100%)',
+          cursor: 'pointer',
+          boxShadow: '0 8px 40px rgba(201,169,110,0.5)',
+          animation: 'installPulse 3s ease-in-out infinite',
+          transition: 'all 0.25s ease',
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 56px rgba(201,169,110,0.65)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 40px rgba(201,169,110,0.5)'; }}
+        >
+          <span style={{ fontSize: '1.3rem' }}>📲</span>
+          {isIOS ? 'Voir comment installer sur iPhone' : deferredPrompt ? 'Installer l\'application gratuitement' : 'Télécharger l\'application'}
+        </button>
+        {showGuide && (
+          <div style={{
+            position: 'absolute', bottom: 'calc(100% + 16px)', left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(14,24,16,0.97)', backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(201,169,110,0.3)', borderRadius: '16px',
+            padding: '20px 24px', width: '280px', zIndex: 200,
+            boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+          }}>
+            <div style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.8 }}>
+              <div style={{ fontWeight: 700, color: '#C9A96E', marginBottom: '10px' }}>📱 Sur iPhone / iPad :</div>
+              <div>1. Appuyez sur <strong style={{ color: '#e8c97a' }}>Partager</strong> ↑ (en bas de Safari)</div>
+              <div>2. Choisissez <strong style={{ color: '#e8c97a' }}>&quot;Sur l&apos;écran d&apos;accueil&quot;</strong></div>
+              <div>3. Appuyez sur <strong style={{ color: '#e8c97a' }}>Ajouter</strong> ✓</div>
+            </div>
+          </div>
+        )}
+        <style>{`@keyframes installPulse { 0%,100%{box-shadow:0 8px 40px rgba(201,169,110,0.5)} 50%{box-shadow:0 8px 60px rgba(201,169,110,0.75)} }`}</style>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -1940,6 +2005,145 @@ export default function HomePage() {
             <span>✓ Support 7j/7 inclus</span>
           </p>
         </div>
+      </section>
+
+      {/* ════════════ INSTALLER L'APP ════════════ */}
+      <section
+        aria-label="Installer l'application AVRA sur mobile ou PC"
+        style={{
+          background: 'linear-gradient(180deg, #060b07 0%, #0e1810 50%, #060b07 100%)',
+          padding: '100px 5% 110px',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Glow orbs */}
+        <div style={{ position: 'absolute', top: '10%', left: '15%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(201,169,110,0.07) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '10%', right: '10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(74,124,89,0.06) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
+
+        <div style={{ maxWidth: '1100px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              background: 'rgba(201,169,110,0.12)', border: '1px solid rgba(201,169,110,0.25)',
+              borderRadius: '50px', padding: '6px 18px', marginBottom: '24px',
+              fontSize: '0.8rem', fontWeight: 600, color: '#C9A96E', letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}>
+              <span>📲</span> Application mobile & desktop
+            </div>
+
+            <h2 style={{
+              fontSize: 'clamp(2rem, 4vw, 3.2rem)', fontWeight: 800,
+              color: '#fff', marginBottom: '16px', lineHeight: 1.15,
+            }}>
+              AVRA dans votre poche —{' '}
+              <span style={{ background: 'linear-gradient(135deg, #e8c97a, #C9A96E)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                sans passer par l&apos;App Store
+              </span>
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '1.1rem', maxWidth: '560px', margin: '0 auto', lineHeight: 1.7 }}>
+              Installez AVRA directement depuis votre navigateur en quelques secondes. Fonctionne sur iPhone, Android, PC et Mac — comme une vraie application native.
+            </p>
+          </div>
+
+          {/* 3 platform cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '56px' }}>
+            {[
+              {
+                icon: '🤖',
+                platform: 'Android',
+                color: '#4A7C59',
+                glow: 'rgba(74,124,89,0.15)',
+                steps: ['Ouvrez Chrome sur avra.fr', 'Cliquez sur "Ajouter à l\'écran d\'accueil"', 'AVRA apparaît comme une app native'],
+                badge: 'Automatique',
+              },
+              {
+                icon: '🍎',
+                platform: 'iPhone / iPad',
+                color: '#C9A96E',
+                glow: 'rgba(201,169,110,0.12)',
+                steps: ['Ouvrez Safari sur avra.fr', 'Appuyez sur le bouton Partager ↑', 'Choisissez "Sur l\'écran d\'accueil"'],
+                badge: '3 clics',
+              },
+              {
+                icon: '💻',
+                platform: 'PC / Mac',
+                color: '#7B5EA7',
+                glow: 'rgba(123,94,167,0.12)',
+                steps: ['Ouvrez Chrome ou Edge', 'Cliquez sur l\'icône ⊕ dans la barre d\'adresse', 'L\'app s\'ouvre sans navigateur'],
+                badge: '1 clic',
+              },
+            ].map((p, i) => (
+              <div key={i} style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: `1px solid ${p.color}22`,
+                borderRadius: '20px',
+                padding: '32px 28px',
+                position: 'relative',
+                overflow: 'hidden',
+                transition: 'transform 0.3s ease, border-color 0.3s ease',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+                (e.currentTarget as HTMLElement).style.borderColor = p.color + '66';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                (e.currentTarget as HTMLElement).style.borderColor = p.color + '22';
+              }}
+              >
+                {/* Glow bg */}
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: `radial-gradient(circle at 30% 30%, ${p.glow} 0%, transparent 60%)`, pointerEvents: 'none' }} />
+
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                    <div style={{ fontSize: '2.5rem' }}>{p.icon}</div>
+                    <span style={{
+                      fontSize: '0.7rem', fontWeight: 700, color: p.color,
+                      background: `${p.color}18`, border: `1px solid ${p.color}33`,
+                      borderRadius: '50px', padding: '4px 10px', letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                    }}>{p.badge}</span>
+                  </div>
+                  <h3 style={{ color: '#fff', fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px' }}>{p.platform}</h3>
+                  <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {p.steps.map((step, si) => (
+                      <li key={si} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: 'rgba(255,255,255,0.65)', fontSize: '0.88rem', lineHeight: 1.5 }}>
+                        <span style={{
+                          flexShrink: 0, width: '22px', height: '22px',
+                          borderRadius: '50%', background: `${p.color}20`,
+                          border: `1px solid ${p.color}40`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.72rem', fontWeight: 700, color: p.color,
+                        }}>{si + 1}</span>
+                        {step}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA central */}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ marginBottom: '24px' }}>
+              <InstallButtonInline />
+            </div>
+            <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.82rem' }}>
+              ✓ Gratuit &nbsp;·&nbsp; ✓ Sans App Store &nbsp;·&nbsp; ✓ Mises à jour automatiques &nbsp;·&nbsp; ✓ Fonctionne hors ligne
+            </p>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes installGlow {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+          }
+        `}</style>
       </section>
 
       <Footer />

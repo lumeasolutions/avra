@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import '../marketing.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ArrowRight,
   CheckCircle,
@@ -128,6 +128,67 @@ const faqs = [
 export default function CommentCaMarchePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [activeStep, setActiveStep] = useState(0);
+
+  function PWAInstallInline() {
+    const [deferredPrompt, setDP] = useState<any>(null);
+    const [installed, setInstalled] = useState(false);
+    const [isIOS, setIsIOS] = useState(false);
+    const [showGuide, setShowGuide] = useState(false);
+
+    useEffect(() => {
+      const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      setIsIOS(ios);
+      if (window.matchMedia('(display-mode: standalone)').matches) { setInstalled(true); return; }
+      const handler = (e: Event) => { e.preventDefault(); setDP(e); };
+      window.addEventListener('beforeinstallprompt', handler as EventListener);
+      return () => window.removeEventListener('beforeinstallprompt', handler as EventListener);
+    }, []);
+
+    const handleInstall = async () => {
+      if (isIOS) { setShowGuide(!showGuide); return; }
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') setInstalled(true);
+      setDP(null);
+    };
+
+    if (installed) return <div style={{ color: '#4A7C59', fontWeight: 600, fontSize: '1rem' }}>✓ Application déjà installée sur cet appareil</div>;
+
+    return (
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        <button onClick={handleInstall} style={{
+          display: 'inline-flex', alignItems: 'center', gap: '12px',
+          fontSize: '1.05rem', fontWeight: 700, color: '#0e1810',
+          padding: '16px 40px', borderRadius: '16px', border: 'none',
+          background: 'linear-gradient(135deg, #e8c97a 0%, #C9A96E 100%)',
+          cursor: 'pointer', boxShadow: '0 8px 40px rgba(201,169,110,0.5)',
+          transition: 'all 0.25s ease',
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 56px rgba(201,169,110,0.65)'; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 40px rgba(201,169,110,0.5)'; }}
+        >
+          <span style={{ fontSize: '1.3rem' }}>📲</span>
+          {isIOS ? 'Voir comment installer sur iPhone' : deferredPrompt ? 'Installer l\'app maintenant — gratuit' : 'Installer l\'application AVRA'}
+        </button>
+        {showGuide && (
+          <div style={{
+            position: 'absolute', bottom: 'calc(100% + 16px)', left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(14,24,16,0.97)', border: '1px solid rgba(201,169,110,0.3)',
+            borderRadius: '16px', padding: '20px 24px', width: '280px', zIndex: 200,
+            boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+          }}>
+            <div style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.8 }}>
+              <div style={{ fontWeight: 700, color: '#C9A96E', marginBottom: '10px' }}>📱 Sur iPhone / iPad :</div>
+              <div>1. Appuyez sur <strong style={{ color: '#e8c97a' }}>Partager</strong> ↑</div>
+              <div>2. Choisissez <strong style={{ color: '#e8c97a' }}>&quot;Sur l&apos;écran d&apos;accueil&quot;</strong></div>
+              <div>3. Appuyez sur <strong style={{ color: '#e8c97a' }}>Ajouter</strong> ✓</div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -606,6 +667,149 @@ export default function CommentCaMarchePage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ════════════ INSTALLER L'APP — section complète ════════════ */}
+      <section
+        aria-label="Installer l'application AVRA PWA sur mobile et ordinateur"
+        style={{
+          background: 'linear-gradient(160deg, #060b07 0%, #0e1810 45%, #080f09 100%)',
+          padding: '96px 5% 100px',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Animated background orbs */}
+        <div style={{ position: 'absolute', top: '-80px', right: '5%', width: '600px', height: '600px', background: 'radial-gradient(circle, rgba(201,169,110,0.06) 0%, transparent 65%)', borderRadius: '50%', pointerEvents: 'none', animation: 'pwaOrb1 8s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', bottom: '-100px', left: '0%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(74,124,89,0.05) 0%, transparent 65%)', borderRadius: '50%', pointerEvents: 'none', animation: 'pwaOrb2 10s ease-in-out infinite' }} />
+
+        <div style={{ maxWidth: '1100px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          {/* Badge + Title */}
+          <div style={{ textAlign: 'center', marginBottom: '72px' }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.22)',
+              borderRadius: '50px', padding: '7px 20px', marginBottom: '28px',
+              fontSize: '0.78rem', fontWeight: 700, color: '#C9A96E',
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+            }}>
+              <span>📲</span> Disponible sur tous vos appareils
+            </div>
+
+            <h2 style={{
+              fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800,
+              color: '#fff', marginBottom: '20px', lineHeight: 1.15,
+            }}>
+              Installez AVRA sur votre{' '}
+              <span style={{ background: 'linear-gradient(135deg, #e8c97a, #C9A96E)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                téléphone ou PC
+              </span>
+              <br />en 30 secondes
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '1.05rem', maxWidth: '580px', margin: '0 auto', lineHeight: 1.75 }}>
+              Pas d&apos;App Store, pas de téléchargement pesant. AVRA est une Progressive Web App (PWA) : installez-la en 2 clics depuis votre navigateur et accédez à toutes vos fonctionnalités même hors ligne.
+            </p>
+          </div>
+
+          {/* Main content: left benefits + right platform steps */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'start', marginBottom: '72px' }} className="pwa-grid">
+            {/* Left — benefits */}
+            <div>
+              <h3 style={{ color: '#C9A96E', fontSize: '1rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '32px' }}>
+                Pourquoi installer l&apos;app ?
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {[
+                  { icon: '⚡', title: 'Ultra rapide', desc: 'L\'app s\'ouvre instantanément, sans temps de chargement. Vos données sont en cache local.' },
+                  { icon: '📵', title: 'Fonctionne hors ligne', desc: 'Consultez vos dossiers et devis même sans connexion internet sur chantier.' },
+                  { icon: '🔔', title: 'Notifications push', desc: 'Recevez les alertes de signature, paiement et messages clients directement sur votre téléphone.' },
+                  { icon: '🖥️', title: 'Comme une app native', desc: 'Plein écran, sans barre de navigateur. Icône sur l\'écran d\'accueil, raccourci bureau.' },
+                  { icon: '🔄', title: 'Toujours à jour', desc: 'Mises à jour automatiques silencieuses. Vous avez toujours la dernière version sans rien faire.' },
+                ].map((b, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                    <div style={{
+                      flexShrink: 0, width: '44px', height: '44px', borderRadius: '12px',
+                      background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.15)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem',
+                    }}>{b.icon}</div>
+                    <div>
+                      <div style={{ color: '#fff', fontWeight: 600, fontSize: '0.92rem', marginBottom: '4px' }}>{b.title}</div>
+                      <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.83rem', lineHeight: 1.6 }}>{b.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right — platform steps */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h3 style={{ color: '#C9A96E', fontSize: '1rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '16px' }}>
+                Installation par appareil
+              </h3>
+              {[
+                {
+                  platform: '🤖 Android (Chrome)',
+                  color: '#4A7C59',
+                  steps: [
+                    'Visitez avra.fr dans Chrome',
+                    'Une bannière apparaît en bas : "Ajouter à l\'écran d\'accueil"',
+                    'Appuyez sur Installer → c\'est fait !',
+                  ],
+                },
+                {
+                  platform: '🍎 iPhone / iPad (Safari)',
+                  color: '#C9A96E',
+                  steps: [
+                    'Ouvrez avra.fr dans Safari',
+                    'Appuyez sur le bouton Partager ↑',
+                    'Choisissez "Sur l\'écran d\'accueil" → Ajouter',
+                  ],
+                },
+                {
+                  platform: '💻 PC / Mac (Chrome ou Edge)',
+                  color: '#7B5EA7',
+                  steps: [
+                    'Ouvrez avra.fr dans Chrome ou Edge',
+                    'Cliquez sur l\'icône ⊕ dans la barre d\'adresse',
+                    'Confirmez l\'installation → fenêtre dédiée',
+                  ],
+                },
+              ].map((p, i) => (
+                <div key={i} style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${p.color}28`,
+                  borderRadius: '16px',
+                  padding: '20px 24px',
+                  borderLeft: `3px solid ${p.color}`,
+                }}>
+                  <div style={{ color: p.color, fontWeight: 700, fontSize: '0.88rem', marginBottom: '12px' }}>{p.platform}</div>
+                  <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {p.steps.map((s, si) => (
+                      <li key={si} style={{ display: 'flex', gap: '10px', color: 'rgba(255,255,255,0.6)', fontSize: '0.83rem', lineHeight: 1.5 }}>
+                        <span style={{ color: p.color, fontWeight: 700, flexShrink: 0 }}>{si + 1}.</span>
+                        {s}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CTA button */}
+          <div style={{ textAlign: 'center' }}>
+            <PWAInstallInline />
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', marginTop: '16px' }}>
+              Compatible Chrome · Edge · Safari · Firefox · 100% gratuit
+            </p>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes pwaOrb1 { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-30px) scale(1.05)} }
+          @keyframes pwaOrb2 { 0%,100%{transform:translateX(0) scale(1)} 50%{transform:translateX(30px) scale(1.08)} }
+          @media(max-width:768px) { .pwa-grid { grid-template-columns: 1fr !important; } }
+        `}</style>
       </section>
 
       {/* ─── SUPPORT ─── */}
