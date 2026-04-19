@@ -1421,7 +1421,7 @@ export default function HomePage() {
               }}
             >
               Opérationnel en{' '}
-              <span style={{ color: '#c9a96e' }}>4 étapes</span>
+              <span style={{ color: '#c9a96e' }}>3 étapes</span>
             </h2>
             <p
               style={{
@@ -1448,12 +1448,6 @@ export default function HomePage() {
                 title: 'Créez votre compte',
                 desc: 'Demandez une démo, configuration en 5 minutes, opérationnel immédiatement.',
                 icon: '📝',
-              },
-              {
-                n: '2',
-                title: 'Importez vos clients',
-                desc: 'Synchronisez vos contacts ou importez-les en masse via CSV.',
-                icon: '👥',
               },
               {
                 n: '3',
