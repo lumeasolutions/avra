@@ -96,10 +96,10 @@ const steps = [
 ];
 
 const guarantees = [
-  { icon: '🎯', title: 'Demander une démo', desc: 'Présentation en 20-30 min, opérationnel immédiatement.', color: '#C9A96E' },
-  { icon: '🔓', title: 'Sans engagement', desc: 'Résiliez en 1 clic. 0 frais cachés. Hormis abonnement annuel.', color: '#4A7C59' },
-  { icon: '📦', title: 'Vos données à vous', desc: 'Export CSV/Excel à tout moment.', color: '#1e4d6b' },
-  { icon: '🔒', title: 'Sécurisé & fiable', desc: 'Hébergé en France, chiffré TLS.', color: '#7B5EA7' },
+  { icon: '⚡', title: 'Opérationnel en 30 min', desc: 'Configuration guidée, données importées, équipe formée. Tout de suite.', color: '#C9A96E' },
+  { icon: '🔓', title: 'Sans engagement', desc: 'Résiliez en 1 clic, à tout moment, sans frais — hormis abonnement annuel.', color: '#4A7C59' },
+  { icon: '📦', title: 'Vos données à vous', desc: 'Export CSV/Excel à tout moment, sans limite ni frais.', color: '#1e4d6b' },
+  { icon: '🔒', title: 'Sécurisé & fiable', desc: 'Hébergé en France, chiffré TLS, conformité RGPD.', color: '#7B5EA7' },
 ];
 
 const faqs = [
@@ -521,7 +521,7 @@ export default function CommentCaMarchePage() {
             </div>
             <h2 style={{ color: '#1e2b22', marginBottom: '12px' }}>Zéro risque, zéro surprise</h2>
             <p style={{ color: '#6b7d6f', maxWidth: '620px', margin: '0 auto', lineHeight: 1.75 }}>
-              Chaque étape du dossier est centralisée, suivie et tracée dans AVRA : commandes, validations, plans techniques, livraisons, SAV. Rien ne se perd, rien n&apos;est oublié. Comme un tableau de bord dans un cockpit, tout est visible au bon moment pour éviter les oublis, les erreurs et les mauvaises surprises.
+              Pas d&apos;engagement, pas de mauvaise surprise. Vous restez maître de votre abonnement, de vos données et de votre rythme — à tout moment.
             </p>
           </div>
 
