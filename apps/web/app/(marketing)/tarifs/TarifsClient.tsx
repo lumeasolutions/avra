@@ -33,10 +33,6 @@ const faqItems = [
     a: "Aucun. Résiliez en 1 clic, à tout moment, sans frais.",
   },
   {
-    q: "Comment fonctionne l'essai gratuit ?",
-    a: "14 jours d'accès complet sans carte bancaire. Aucun prélèvement automatique à l'expiration.",
-  },
-  {
     q: "Qu'inclut le plan Entreprise ?",
     a: "Le plan Entreprise est entièrement personnalisé : plusieurs showrooms, utilisateurs illimités, intégrations sur-mesure, SLA dédié et accompagnement. Contactez-nous pour un devis.",
   },
