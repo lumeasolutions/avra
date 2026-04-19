@@ -41,7 +41,7 @@ export function Sidebar() {
   const close = () => setMobileOpen(false);
 
   const sidebarContent = (
-    <div className="sidebar" style={mobileOpen ? { transform: 'translateX(0)' } : undefined}>
+    <div className={`sidebar${mobileOpen ? " sidebar-open" : ""}`}>
 
       <svg className="sidebar-bg" viewBox="0 0 400 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
 
