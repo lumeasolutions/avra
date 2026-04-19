@@ -108,6 +108,16 @@ export default function AdminDocsPage() {
 
   return (
     <div className="space-y-5">
+      <style>{`
+        @media (max-width: 768px) {
+          .adm-main-layout { flex-direction: column !important; }
+          .adm-sidebar { width: 100% !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 6px !important; }
+          .adm-sidebar > * { flex: 1 1 auto !important; min-width: 120px !important; }
+          .adm-table-wrap { overflow-x: auto; }
+          .adm-table-inner { min-width: 600px; }
+          .adm-cat-summary { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
 
       {/* ── Header ── */}
       <PageHeader
@@ -147,10 +157,10 @@ export default function AdminDocsPage() {
         </div>
       )}
 
-      <div className="flex gap-5">
+      <div className="adm-main-layout flex gap-5">
 
         {/* ── Sidebar catégories ── */}
-        <div className="w-52 shrink-0 space-y-1">
+        <div className="adm-sidebar w-52 shrink-0 space-y-1">
           {CATEGORY_DEFS.map(cat => (
             <button
               key={cat.id}
@@ -294,6 +304,7 @@ export default function AdminDocsPage() {
 
           {!loading && filtered.length > 0 && (
             <div className="rounded-2xl bg-white border border-[#304035]/8 overflow-hidden">
+              <div className="adm-table-wrap"><div className="adm-table-inner">
               <div className="grid grid-cols-[auto_1fr_120px_100px_80px_80px] gap-0 px-4 py-2.5 bg-[#304035]/5 border-b border-[#304035]/8 text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest">
                 <div className="w-8" />
                 <div>Nom</div>
@@ -346,11 +357,11 @@ export default function AdminDocsPage() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div></div>
           )}
 
           {/* Résumé catégories */}
-          <div className="grid grid-cols-5 gap-3">
+          <div className="adm-cat-summary grid grid-cols-5 gap-3">
             {CATEGORY_DEFS.filter(c => c.id !== 'all').map(cat => (
               <button
                 key={cat.id}

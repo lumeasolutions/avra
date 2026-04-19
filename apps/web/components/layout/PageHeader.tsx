@@ -18,6 +18,7 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
 
   return (
     <div
+      className="page-header-root"
       style={{
         background: 'linear-gradient(135deg, #304035 0%, #3d5244 100%)',
         borderRadius: '16px',
@@ -28,10 +29,33 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
         position: 'relative',
       }}
     >
+      <style>{`
+        @media (max-width: 768px) {
+          .page-header-root {
+            padding: 12px 16px !important;
+            border-radius: 12px !important;
+          }
+          .page-header-owl {
+            display: none !important;
+          }
+          .page-header-title {
+            font-size: 18px !important;
+          }
+          .page-header-subtitle {
+            font-size: 12px !important;
+          }
+          .page-header-back-btn {
+            width: 36px !important;
+            height: 36px !important;
+            min-height: 44px !important;
+          }
+        }
+      `}</style>
       {/* Ligne principale: retour + titre + actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         {/* Bouton retour */}
         <button
+          className="page-header-back-btn"
           onClick={() => router.back()}
           style={{
             flexShrink: 0,
@@ -56,11 +80,11 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
 
         {/* Titre */}
         <div style={{ minWidth: 0, flex: '1 1 auto' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#ffffff', margin: 0, letterSpacing: '-0.3px' }}>
+          <h1 className="page-header-title" style={{ fontSize: '22px', fontWeight: 700, color: '#ffffff', margin: 0, letterSpacing: '-0.3px' }}>
             {title}
           </h1>
           {subtitle && (
-            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', margin: '3px 0 0 0' }}>
+            <p className="page-header-subtitle" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', margin: '3px 0 0 0' }}>
               {subtitle}
             </p>
           )}
@@ -68,7 +92,7 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
 
         {/* Actions */}
         {actions && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto', flexWrap: 'wrap' }}>
             {actions}
           </div>
         )}
@@ -82,7 +106,7 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
       )}
 
       {/* Chouette — positionnée en absolute à droite */}
-      <div style={{
+      <div className="page-header-owl" style={{
         position: 'absolute', right: -10, top: '50%',
         transform: 'translateY(-50%)',
         pointerEvents: 'none',

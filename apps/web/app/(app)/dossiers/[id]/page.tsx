@@ -49,7 +49,8 @@ const getIconForType = (type?: string) => {
 };
 
 export default function DossierDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params?.id ?? '';
   const router = useRouter();
 
   const dossiers          = useDossierStore(s => s.dossiers);
@@ -104,6 +105,14 @@ export default function DossierDetailPage() {
 
   return (
     <div className="w-full space-y-0">
+      <style>{`
+        @media (max-width: 768px) {
+          .dos-detail-grid { grid-template-columns: 1fr !important; }
+          .dos-detail-grid > .col-span-2,
+          .dos-detail-grid > .col-span-1 { grid-column: span 1 !important; }
+          .dos-sub-grid-2 { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
 
       {/* ══════════════════════════════════════════
           HEADER WAHOU — fond texturé vert
@@ -224,7 +233,7 @@ export default function DossierDetailPage() {
       {/* ══════════════════════════════════════════
           LAYOUT 2 COLONNES
       ══════════════════════════════════════════ */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="dos-detail-grid grid grid-cols-3 gap-4">
 
         {/* ── COLONNE GAUCHE (2/3) — dossiers & fichiers ── */}
         <div className="col-span-2 col-left space-y-4">
@@ -318,7 +327,7 @@ export default function DossierDetailPage() {
           )}
 
           {/* Actions principales */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="dos-sub-grid-2 grid grid-cols-2 gap-3">
             <button
               onClick={() => setShowDevis(true)}
               className="flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white text-sm transition-all hover:shadow-lg active:scale-95"

@@ -88,7 +88,15 @@ export default function PortailCuisinistePage() {
   };
 
   return (
-    <div style={{ padding: '0px 20px 16px 0', fontFamily: "'Segoe UI', Arial, sans-serif", display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="portail-cui-root" style={{ padding: '0px 20px 16px 0', fontFamily: "'Segoe UI', Arial, sans-serif", display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .portail-cui-root { padding: 0 0 16px 0 !important; padding-top: 64px !important; }
+          .portail-cui-grid-dos { grid-template-columns: 1fr !important; }
+          .portail-cui-planning-wrap { overflow-x: auto; }
+          .portail-cui-planning-grid { min-width: 520px; }
+        }
+      `}</style>
 
       {/* En-tête portail */}
       <PageHeader
@@ -99,7 +107,7 @@ export default function PortailCuisinistePage() {
 
 
       {/* DOSSIERS EN COURS / DOSSIERS SIGNÉS */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div className="portail-cui-grid-dos" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
 
         <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -163,7 +171,8 @@ export default function PortailCuisinistePage() {
           <Link href="/planning" style={{ fontSize: 11, color: '#2E7D32', fontWeight: 600, textDecoration: 'none' }}>Planning détaillé →</Link>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(7, 1fr)', gap: 0, fontSize: 11, overflowY: 'auto', flex: 1 }}>
+        <div className="portail-cui-planning-wrap" style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="portail-cui-planning-grid" style={{ display: 'grid', gridTemplateColumns: 'auto repeat(7, 1fr)', gap: 0, fontSize: 11 }}>
           <div style={{ fontWeight: 700, color: '#0F2540', padding: '5px 4px', borderBottom: '2px solid #E0E6ED' }}></div>
           {DAYS_OF_WEEK.map(day => (
             <div key={day} style={{
@@ -205,6 +214,7 @@ export default function PortailCuisinistePage() {
               })}
             </div>
           ))}
+        </div>
         </div>
       </div>
 

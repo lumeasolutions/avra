@@ -951,7 +951,7 @@ function OngletDevis() {
   return (
     <div className="space-y-5">
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="fact-kpi-3 grid grid-cols-3 gap-4">
         <div className="rounded-2xl bg-white border border-[#304035]/8 p-4 shadow-sm">
           <p className="text-[10px] font-semibold text-[#304035]/50 uppercase tracking-wider">En cours (envoyés)</p>
           <p className="text-2xl font-bold text-[#304035] mt-1">{fmt(totalDevisEnCours)}</p>
@@ -1114,7 +1114,7 @@ function OngletFactures() {
   return (
     <div className="space-y-5">
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="fact-kpi-4 grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-2xl bg-white border border-[#304035]/8 p-4 shadow-sm">
           <p className="text-[10px] font-semibold text-[#304035]/50 uppercase tracking-wider mb-1">CA HT</p>
           <p className="text-xl font-bold text-[#304035]">{fmt(totalHT)}</p>
@@ -1384,6 +1384,17 @@ export default function FacturationPage() {
 
   return (
     <div className="space-y-6">
+      <style>{`
+        @media (max-width: 768px) {
+          .fact-kpi-3 { grid-template-columns: 1fr !important; }
+          .fact-kpi-4 { grid-template-columns: repeat(2, 1fr) !important; }
+          .fact-tab-actions { flex-wrap: wrap !important; gap: 4px !important; }
+          .fact-tab-actions button { font-size: 11px !important; padding: 6px 10px !important; }
+          .fact-search-bar { flex-direction: column !important; }
+          .fact-search-bar > * { width: 100% !important; }
+          .fact-modal { max-width: 100% !important; }
+        }
+      `}</style>
       {/* Header */}
       <PageHeader
         icon={<FileText className="h-7 w-7" />}

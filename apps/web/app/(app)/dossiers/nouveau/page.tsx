@@ -240,8 +240,18 @@ export default function NouveauDossierPage() {
         }
       />
 
+      <style>{`
+        @media (max-width: 768px) {
+          .nou-form-grid { grid-template-columns: 1fr !important; }
+          .nou-form-grid > .col-span-2,
+          .nou-form-grid > .col-span-1 { grid-column: span 1 !important; }
+          .nou-sub-grid-2 { grid-template-columns: 1fr !important; }
+          .nou-sub-grid-3 { grid-template-columns: 1fr !important; }
+          .nou-sub-grid-3 > .col-span-2 { grid-column: span 1 !important; }
+        }
+      `}</style>
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-3 gap-5">
+        <div className="nou-form-grid grid grid-cols-3 gap-5">
 
           {/* ── COL GAUCHE + CENTRE (2/3) ── */}
           <div className="col-span-2 space-y-4">
@@ -254,7 +264,7 @@ export default function NouveauDossierPage() {
                 </div>
                 <h2 className="text-xl font-bold text-[#304035]">Informations client</h2>
               </div>
-              <div className="p-6 grid grid-cols-2 gap-4">
+              <div className="nou-sub-grid-2 p-6 grid grid-cols-2 gap-4">
                 <div className="col-span-1">
                   <label className={labelCls}>Nom <span className="text-red-400 normal-case tracking-normal">*</span></label>
                   <input type="text" value={form.lastName} onChange={set('lastName')} placeholder="Dupont" className={inputCls} autoFocus />
@@ -283,7 +293,7 @@ export default function NouveauDossierPage() {
                 <h2 className="text-xl font-bold text-[#304035]">Adresses</h2>
               </div>
               <div className="p-6 space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="nou-sub-grid-3 grid grid-cols-3 gap-4">
                   <div className="col-span-2">
                     <label className={labelCls}>Adresse du client</label>
                     <input type="text" value={form.address} onChange={set('address')} placeholder="12 rue de la Paix" className={inputCls} />
@@ -372,7 +382,7 @@ export default function NouveauDossierPage() {
                 )}
 
                 {/* Délais chantier */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="nou-sub-grid-2 grid grid-cols-2 gap-4">
                   <div className="col-span-1">
                     <label className={labelCls}>Délai chantier</label>
                     <input

@@ -183,6 +183,13 @@ export default function ParametresPage() {
 
   return (
     <div className="space-y-5">
+      <style>{`
+        @media (max-width: 768px) {
+          .param-kpi-3 { grid-template-columns: 1fr !important; }
+          .param-kpi-2 { grid-template-columns: 1fr !important; }
+          .param-kpi-3-sm { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
       {/* ── Header ── */}
       <PageHeader
         icon={<Settings className="h-7 w-7" />}
@@ -527,7 +534,7 @@ export default function ParametresPage() {
           </h3>
 
           {/* KPIs */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="param-kpi-3 grid grid-cols-3 gap-4">
             <div className="rounded-xl bg-[#304035]/4 border border-[#304035]/8 px-4 py-3">
               <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-1">Apporteurs actifs</p>
               <p className="text-2xl font-bold text-[#304035]">{apporteurs.filter(a => a.actif).length}</p>

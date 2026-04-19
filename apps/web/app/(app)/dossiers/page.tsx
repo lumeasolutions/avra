@@ -128,6 +128,13 @@ export default function DossiersPage() {
 
   return (
     <div className="space-y-6 w-full">
+      <style>{`
+        @media (max-width: 768px) {
+          .dos-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .dos-search-bar { flex-direction: column !important; }
+          .dos-search-bar > * { width: 100% !important; }
+        }
+      `}</style>
       
 
       {/* ── HEADER ── */}
@@ -163,7 +170,7 @@ export default function DossiersPage() {
       />
 
       {/* ── KPI STRIP ── */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="dos-kpi-grid grid grid-cols-4 gap-3">
         {Object.entries(counts).map(([status, count]) => {
           const cfg = STATUS_CONFIG[status];
           const Icon = cfg.Icon;
@@ -194,7 +201,7 @@ export default function DossiersPage() {
       </div>
 
       {/* ── SEARCH + SORT BAR ── */}
-      <div className="flex gap-3 items-center">
+      <div className="dos-search-bar flex gap-3 items-center">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#304035]/35" />
           <input

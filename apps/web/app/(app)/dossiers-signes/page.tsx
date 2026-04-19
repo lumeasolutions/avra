@@ -630,7 +630,7 @@ function ConfirmationsPanel({ dossierId, confirmations = [] }: { dossierId: stri
   return (
     <div className="mt-3 space-y-3">
       {/* Stats rapides */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="sig-stats-grid grid grid-cols-3 gap-2">
         <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-center">
           <p className="text-lg font-black text-emerald-700">{validees.length}</p>
           <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Validées ✓</p>
@@ -806,6 +806,16 @@ export default function DossiersSignesPage() {
 
   return (
     <div className="space-y-5 w-full">
+      <style>{`
+        @media (max-width: 768px) {
+          .sig-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .sig-search-bar { flex-direction: column !important; }
+          .sig-search-bar > * { width: 100% !important; }
+          .sig-tab-bar { flex-wrap: wrap !important; width: 100% !important; }
+          .sig-modal { max-width: 100% !important; margin: 0 !important; border-radius: 16px !important; }
+          .sig-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
       
 
       {/* ── HEADER ── */}
@@ -826,7 +836,7 @@ export default function DossiersSignesPage() {
       />
 
       {/* ── KPI STRIP ── */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="sig-kpi-grid grid grid-cols-4 gap-3">
         <div className="bg-[#304035] rounded-2xl p-4 shadow-md">
           <div className="flex items-start justify-between mb-2">
             <div className="p-1.5 rounded-xl bg-white/10"><TrendingUp className="h-4 w-4 text-white" /></div>
@@ -865,7 +875,7 @@ export default function DossiersSignesPage() {
       </div>
 
       {/* ── ONGLETS ── */}
-      <div className="flex items-center gap-1 bg-white rounded-xl border border-[#304035]/10 p-1 shadow-sm w-fit">
+      <div className="sig-tab-bar flex items-center gap-1 bg-white rounded-xl border border-[#304035]/10 p-1 shadow-sm w-fit">
         <button
           onClick={() => setActiveTab('commandes')}
           className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all', activeTab === 'commandes' ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/50 hover:text-[#304035]')}
@@ -882,7 +892,7 @@ export default function DossiersSignesPage() {
       </div>
 
       {/* ── SEARCH + SORT ── */}
-      <div className="flex gap-3 items-center">
+      <div className="sig-search-bar flex gap-3 items-center">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#304035]/35" />
           <input

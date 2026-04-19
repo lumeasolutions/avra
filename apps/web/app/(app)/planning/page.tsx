@@ -192,6 +192,15 @@ export default function PlanningPage() {
 
   return (
     <div className="w-full space-y-4">
+      <style>{`
+        @media (max-width: 768px) {
+          .plan-kpi-extra { grid-template-columns: repeat(2, 1fr) !important; }
+          .plan-main-layout { flex-direction: column !important; }
+          .plan-side-panel { width: 100% !important; }
+          .plan-cal-wrap { overflow-x: auto; }
+          .plan-cal-inner { min-width: 560px; }
+        }
+      `}</style>
       
 
       {/* ── HEADER avec nav + KPIs intégrés ── */}
@@ -314,7 +323,7 @@ export default function PlanningPage() {
           </div>
         }
         extra={
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          <div className="plan-kpi-extra" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {/* KPI 1 */}
             <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: '8px 12px', border: '1px solid rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', gap: 10 }}>
               <CalendarDays size={16} color="rgba(255,255,255,0.7)" />
@@ -363,11 +372,12 @@ export default function PlanningPage() {
       />
 
       {/* ── MAIN : CALENDRIER + PANNEAU DROIT ── */}
-      <div className="flex gap-4 items-start">
+      <div className="plan-main-layout flex gap-4 items-start">
 
         {/* ── CALENDRIER SEMAINE (70%) ── */}
         <div className="flex-1 bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden" style={{ minWidth: 0 }}>
-
+          <div className="plan-cal-wrap overflow-x-auto">
+          <div className="plan-cal-inner">
           {/* En-têtes des jours */}
           <div className="grid border-b border-[#304035]/8" style={{ gridTemplateColumns: '52px repeat(7, 1fr)' }}>
             <div className="py-3 border-r border-[#304035]/5" />
@@ -491,10 +501,12 @@ export default function PlanningPage() {
               </span>
             ))}
           </div>
+          </div>
+          </div>
         </div>
 
         {/* ── PANNEAU DROIT (30%) ── */}
-        <div className="w-72 flex-shrink-0 space-y-3">
+        <div className="plan-side-panel w-72 flex-shrink-0 space-y-3">
 
           {/* Dossiers actifs cette semaine */}
           <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">

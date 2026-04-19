@@ -234,7 +234,12 @@ export default function AssistantPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)]">
+    <div className="flex flex-col h-[calc(100vh-100px)] assistant-root">
+      <style>{`
+        @media (max-width: 768px) {
+          .assistant-root { height: calc(100vh - 140px) !important; }
+        }
+      `}</style>
       {/* Header */}
       <div className="shrink-0 mb-4">
         <PageHeader

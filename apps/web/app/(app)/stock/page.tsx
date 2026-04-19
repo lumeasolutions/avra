@@ -205,6 +205,14 @@ export default function StockPage() {
 
   return (
     <div className="space-y-6">
+      <style>{`
+        @media (max-width: 768px) {
+          .stk-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .stk-table-wrap { overflow-x: auto; }
+          .stk-table-inner { min-width: 700px; }
+          .stk-card-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
       
 
       {/* ── HEADER ── */}
@@ -252,7 +260,7 @@ export default function StockPage() {
       />
 
       {/* ── KPIs ── */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="stk-kpi-grid grid grid-cols-5 gap-3">
         {kpis.map((k, i) => (
           <div
             key={i}
@@ -392,6 +400,8 @@ export default function StockPage() {
 
         /* ── VUE LISTE ── */
         <div className="card-in rounded-2xl bg-white shadow-md border border-[#304035]/8 overflow-hidden" style={{ animationDelay: '80ms' }}>
+          <div className="stk-table-wrap">
+          <div className="stk-table-inner">
           {/* En-tête colonnes */}
           <div className="grid items-center px-5 py-3 border-b border-[#304035]/8 bg-gradient-to-r from-[#304035]/3 to-transparent"
             style={{ gridTemplateColumns: '2.5rem 3rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem' }}>
@@ -618,12 +628,14 @@ export default function StockPage() {
             </span>
             <span />
           </div>
+          </div>
+          </div>
         </div>
 
       ) : (
 
         /* ── VUE GRILLE ── */
-        <div className="grid grid-cols-3 gap-4">
+        <div className="stk-card-grid grid grid-cols-3 gap-4">
           {filtered.map((item, idx) => {
             const dotCfg = DOT_CONFIG[item.dot];
             const margin = calcMargin(item.purchase, item.sale);

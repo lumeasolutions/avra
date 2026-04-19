@@ -160,6 +160,15 @@ export default function PlanningGestionPage() {
 
   return (
     <div className="space-y-6">
+      <style>{`
+        @media (max-width: 768px) {
+          .pg-kpi-extra { grid-template-columns: repeat(2, 1fr) !important; }
+          .pg-main-layout { flex-direction: column !important; }
+          .pg-side-panel { width: 100% !important; }
+          .pg-cal-wrap { overflow-x: auto; }
+          .pg-cal-inner { min-width: 560px; }
+        }
+      `}</style>
 
       <PageHeader
         icon={<CalendarCog className="h-7 w-7" />}
@@ -241,7 +250,7 @@ export default function PlanningGestionPage() {
           </div>
         }
         extra={
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          <div className="pg-kpi-extra" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {kpiData.map((k, i) => (
               <div key={i} style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 12, padding: '8px 12px', border: '1px solid rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ color: 'rgba(255,255,255,0.7)' }}>{renderKpiIcon(k.iconKey)}</div>
@@ -256,11 +265,12 @@ export default function PlanningGestionPage() {
       />
 
       {/* ── CORPS ── */}
-      <div className="flex gap-5">
+      <div className="pg-main-layout flex gap-5">
 
         {/* ── CALENDRIER ── */}
         <div className="flex-1 rounded-2xl bg-white shadow-lg border border-[#304035]/8 overflow-hidden card-in" style={{ animationDelay: '160ms' }}>
-
+          <div className="pg-cal-wrap">
+          <div className="pg-cal-inner">
           {/* En-tête jours */}
           <div className="grid border-b border-[#304035]/10 bg-gradient-to-r from-[#304035]/3 to-transparent" style={{ gridTemplateColumns: '72px repeat(7, 1fr)' }}>
             <div className="py-4 px-3" />
@@ -352,10 +362,12 @@ export default function PlanningGestionPage() {
               ))}
             </div>
           </div>
+          </div>
+          </div>
         </div>
 
         {/* ── PANNEAU DROIT ── */}
-        <div className="w-64 flex flex-col gap-4">
+        <div className="pg-side-panel w-64 flex flex-col gap-4">
 
           {/* Légende */}
           <div className="card-in rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-4" style={{ animationDelay: '200ms' }}>

@@ -68,6 +68,12 @@ export default function SignaturePage() {
 
   return (
     <div className="space-y-6">
+      <style>{`
+        @media (max-width: 768px) {
+          .sig-table-wrap { overflow-x: auto; }
+          .sig-table-inner { min-width: 600px; }
+        }
+      `}</style>
       <PageHeader
         icon={<PenTool className="h-7 w-7" />}
         title="Signatures électroniques"
@@ -105,7 +111,8 @@ export default function SignaturePage() {
             <p className="text-xs text-[#304035]/30">Envoyez un devis pour signature depuis la page Facturation</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#304035]/5">
+          <div className="sig-table-wrap">
+          <div className="sig-table-inner divide-y divide-[#304035]/5">
             {/* Table header */}
             <div className="px-6 py-3 bg-[#304035]/3 grid grid-cols-12 gap-4 text-xs font-semibold text-[#304035]/40 uppercase tracking-wide">
               <span className="col-span-3">Document</span>
@@ -182,6 +189,7 @@ export default function SignaturePage() {
                 </div>
               );
             })}
+          </div>
           </div>
         )}
       </div>
