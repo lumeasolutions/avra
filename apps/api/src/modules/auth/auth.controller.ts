@@ -107,6 +107,17 @@ export class AuthController {
     return result;
   }
 
+  // ── Mot de passe oublié ─────────────────────────────────────────────────
+  @Public()
+  @SkipCsrf()
+  @Throttle({ auth: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: { email: string }) {
+    // Toujours retourner 200 — ne jamais révéler si l'email existe
+    await this.auth.forgotPassword(dto.email ?? '').catch(() => {});
+    return { ok: true };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@CurrentUser() user: JwtPayload) {

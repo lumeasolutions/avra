@@ -34,6 +34,8 @@ const PUBLIC_PATHS = [
   '/mentions-legales',
   '/confidentialite',
   '/cgv',
+  '/forgot-password',
+  '/reset-password',
 ];
 
 const PORTAIL_PATHS = ['/portail-architecte', '/portail-menuisier', '/portail-cuisiniste'];

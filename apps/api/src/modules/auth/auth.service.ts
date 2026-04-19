@@ -139,6 +139,36 @@ export class AuthService {
     });
   }
 
+  // ── Mot de passe oublié (envoi de lien de réinitialisation) ──────────────
+  async forgotPassword(email: string): Promise<void> {
+    // Par sécurité, on ne révèle jamais si l'email existe ou non
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase(), isActive: true },
+    });
+    if (!user) return; // Silently ignore — don't reveal account existence
+
+    // Génère un token de réinitialisation à usage unique
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 heure
+
+    // Stocke le hash du token (sécurité)
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        refreshToken: hashedToken,           // Réutilise le champ refreshToken temporairement
+        refreshTokenExpiresAt: resetTokenExpiry,
+      },
+    });
+
+    // TODO: envoyer l'email avec le lien /reset-password?token=<resetToken>&id=<user.id>
+    // Pour l'instant on logue le lien (dev uniquement)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[DEV] Reset link: /reset-password?token=${resetToken}&id=${user.id}`);
+    }
+  }
+
   // ✅ TÂCHE 9 — Registration
   async register(dto: RegisterDto) {
     const existing = await this.prisma.user.findUnique({
