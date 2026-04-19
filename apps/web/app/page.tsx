@@ -643,21 +643,21 @@ export default function HomePage() {
               {
                 icon: FolderOpen,
                 title: 'Dossiers clients centralisés',
-                desc: "Toutes les infos, documents, photos et échanges d'un dossier en un seul endroit. Fini les fichiers éparpillés.",
+                desc: "Tous vos dossiers clients, en cours ou signés, sont centralisés dans un suivi clair et logique, avec l'assistant AVRA connecté à votre planning pour vous alerter à chaque étape clé et éviter les oublis.",
                 badge: 'Essentiel',
                 href: '/fonctionnalites#dossiers',
               },
               {
                 icon: Receipt,
                 title: 'Facturation intelligente',
-                desc: 'Devis, acomptes, factures et avoirs générés en 2 clics. Conformes à la réglementation e-facture 2026.',
+                desc: "AVRA intègre le module de facturation électronique de votre choix, pour gérer vos factures directement depuis vos dossiers sans passer d'un outil à l'autre.",
                 badge: 'Populaire',
                 href: '/fonctionnalites#facturation',
               },
               {
                 icon: Sparkles,
                 title: 'IA Photo-réalisme',
-                desc: "Générez des rendus photo-réalistes de cuisines et d'aménagements directement depuis vos plans et descriptions.",
+                desc: "Générez des rendus photos réalistes d'intérieurs directement depuis vos perspectives.",
                 badge: 'IA',
                 href: '/fonctionnalites#ia',
               },
@@ -671,7 +671,7 @@ export default function HomePage() {
               {
                 icon: Package,
                 title: 'Gestion de stock',
-                desc: 'Suivez vos matériaux, composants et commandes fournisseurs. Alertes de rupture automatiques.',
+                desc: "Gérez votre stock de façon simple et visuelle sur AVRA : rouge pour les produits indisponibles, orange pour les ruptures imminentes, vert pour les disponibles, avec alertes automatiques dès qu'un stock devient critique.",
                 badge: 'Pro',
                 href: '/fonctionnalites#stock',
               },
