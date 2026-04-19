@@ -116,10 +116,6 @@ const faqs = [
     a: 'La majorité de nos utilisateurs est opérationnelle en moins de 30 minutes. L\'interface est intuitive, et des tutoriels vidéo sont disponibles pour chaque fonctionnalité.',
   },
   {
-    q: 'Que se passe-t-il après les 14 jours d\'essai ?',
-    a: 'Vous choisissez le plan qui vous convient. Si vous ne souhaitez pas continuer, vos données sont exportables et supprimées sur demande. Aucun prélèvement automatique.',
-  },
-  {
     q: 'Est-ce que ça marche pour mon métier ?',
     a: 'AVRA est conçu spécifiquement pour les cuisinistes, menuisiers, agenceurs et architectes d\'intérieur. Chaque module est adapté aux besoins concrets de votre métier.',
   },
