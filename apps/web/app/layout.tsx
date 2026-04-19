@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { DM_Sans, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { MarketingChatWrapper } from '@/components/layout/MarketingChatWrapper';
+import ServiceWorkerRegistration from '@/app/components/ServiceWorkerRegistration';
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
     template: '%s | AVRA',
   },
   description:
-    "AVRA centralise dossiers clients, facturation, planning, stock et IA photo-réalisme en une seule app. Conçu pour cuisinistes, menuisiers et architectes d'intérieur. Essai gratuit 14 jours.",
+    "AVRA, le logiciel complet avec assistant IA dédié aux pros de l'agencement. Dossiers, devis, facturation, rendus IA et planning — tout en une seule app.",
   keywords: [
     'logiciel agencement',
     'ERP cuisiniste',
@@ -41,10 +42,17 @@ export const metadata: Metadata = {
   publisher: 'AVRA',
   metadataBase: new URL('https://avra-kappa.vercel.app'),
   alternates: { canonical: '/' },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'AVRA',
+    startupImage: '/icons/apple-touch-icon.png',
+  },
   openGraph: {
-    title: "AVRA — Le logiciel N°1 des professionnels de l'agencement",
+    title: "AVRA — Logiciel N°1 des pros de l'agencement",
     description:
-      'Gérez dossiers, facturation, planning et IA depuis une seule app pensée pour votre métier. +2 400 professionnels font confiance à AVRA.',
+      "AVRA, le logiciel complet avec assistant IA dédié aux pros de l'agencement. Dossiers, devis, facturation, rendus IA et planning — tout en une seule app.",
     url: 'https://avra-kappa.vercel.app',
     siteName: 'AVRA',
     locale: 'fr_FR',
@@ -54,7 +62,7 @@ export const metadata: Metadata = {
         url: '/opengraph-image.png',
         width: 1200,
         height: 630,
-        alt: 'AVRA - ERP pour les professionnels de l\'agencement',
+        alt: "AVRA - Logiciel N°1 des professionnels de l'agencement",
       },
     ],
   },
@@ -77,6 +85,24 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+  icons: {
+    icon: [
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    other: [
+      { rel: 'mask-icon', url: '/avra-icon.svg', color: '#1e2b22' },
+    ],
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+    'msapplication-TileColor': '#1e2b22',
+    'msapplication-TileImage': '/icons/icon-144x144.png',
+    'msapplication-config': '/browserconfig.xml',
+  },
   category: 'technology',
 };
 
@@ -84,11 +110,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr">
       <head>
-        <meta name="theme-color" content="#304035" />
+        <meta name="theme-color" content="#1e2b22" />
       </head>
       <body className={`${dmSans.variable} ${playfairDisplay.variable} min-h-screen`} style={{ fontFamily: 'var(--font-dm-sans)' }}>
         {children}
         <MarketingChatWrapper />
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

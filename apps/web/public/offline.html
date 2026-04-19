@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1e2b22" />
+  <title>AVRA — Hors ligne</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background-color: #1e2b22;
+      color: #f5f0e8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 480px;
+      width: 100%;
+    }
+
+    .logo {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      color: #C9A96E;
+      margin-bottom: 48px;
+      text-transform: uppercase;
+    }
+
+    .icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 32px;
+      opacity: 0.6;
+    }
+
+    .icon svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #f5f0e8;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    p {
+      font-size: 0.9375rem;
+      color: rgba(245, 240, 232, 0.6);
+      line-height: 1.6;
+      margin-bottom: 40px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 14px 36px;
+      background-color: #C9A96E;
+      color: #1e2b22;
+      font-size: 0.9375rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .btn:hover {
+      opacity: 0.85;
+    }
+
+    .divider {
+      width: 40px;
+      height: 2px;
+      background: #C9A96E;
+      margin: 0 auto 32px;
+      opacity: 0.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">AVRA</div>
+
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#C9A96E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 1l22 22"/>
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+        <path d="M10.71 5.05A16 16 0 0 1 22.56 9"/>
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <line x1="12" y1="20" x2="12.01" y2="20"/>
+      </svg>
+    </div>
+
+    <div class="divider"></div>
+
+    <h1>Vous êtes hors ligne</h1>
+    <p>Reconnectez-vous à Internet pour accéder à AVRA et gérer vos projets d'agencement.</p>
+
+    <button class="btn" onclick="window.location.reload()">
+      Réessayer
+    </button>
+  </div>
+</body>
+</html>
