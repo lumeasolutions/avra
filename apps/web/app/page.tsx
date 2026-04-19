@@ -1450,13 +1450,13 @@ export default function HomePage() {
                 icon: '📝',
               },
               {
-                n: '3',
+                n: '2',
                 title: 'Lancez vos projets',
                 desc: 'Créez des dossiers, générez des devis et commencez à facturer.',
                 icon: '🚀',
               },
               {
-                n: '4',
+                n: '3',
                 title: 'Évoluez sans limite',
                 desc: 'Ajoutez des utilisateurs, des modules et des intégrations.',
                 icon: '📈',
