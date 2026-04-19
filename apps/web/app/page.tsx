@@ -1285,8 +1285,9 @@ export default function HomePage() {
                 marginBottom: '2rem',
               }}
             >
-              De la première prise de contact à la livraison finale, suivez chaque projet en temps
-              réel. Relances automatiques, rappels et historique complet de chaque client.
+              De la première prise de contact à la livraison finale, l&apos;assistant AVRA suit chaque dossier en temps réel,
+              vous accompagne à chaque étape et vous donne une vision claire de vos statistiques :
+              projets gagnés, perdus, en cours et signés.
             </p>
 
             <div
@@ -1299,9 +1300,9 @@ export default function HomePage() {
             >
               {[
                 'Suivi en temps réel de chaque projet',
-                'Relances automatiques par e-mail',
-                'Historique complet client',
-                'Vue Kanban par étapes de projet',
+                'Suivez vos statistiques en temps réel, d\'un seul coup d\'œil',
+                'Identifiez vos fournisseurs les plus utilisés',
+                'Suivez les ventes et non-ventes de chaque vendeur, de façon claire et instantanée',
               ].map((item) => (
                 <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <Check size={16} style={{ color: '#c9a96e', flexShrink: 0 }} />
@@ -1310,27 +1311,6 @@ export default function HomePage() {
               ))}
             </div>
 
-            <Link href="/fonctionnalites#epaiement">
-              <button
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '13px 24px',
-                  background: 'transparent',
-                  color: '#1e2b22',
-                  border: '2px solid #1e2b22',
-                  borderRadius: '12px',
-                  fontSize: '.95rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                En savoir plus sur le CRM
-                <ArrowRight size={17} />
-              </button>
-            </Link>
           </div>
         </div>
       </section>
