@@ -105,7 +105,7 @@ const guarantees = [
 const faqs = [
   {
     q: 'Dois-je installer quelque chose ?',
-    a: 'Non. AVRA est 100% web, accessible depuis n\'importe quel navigateur sur ordinateur, tablette ou smartphone. Aucune installation requise.',
+    a: 'Aucune installation obligatoire. AVRA fonctionne directement depuis votre navigateur sur PC, tablette ou smartphone. Vous pouvez aussi l\'installer en 2 clics comme une application native (PWA) depuis Chrome, Edge ou Safari — sans passer par l\'App Store.',
   },
   {
     q: 'Puis-je importer mes données existantes ?',
