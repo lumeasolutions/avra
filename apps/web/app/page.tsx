@@ -33,7 +33,7 @@ export default function HomePage() {
     },
     {
       question: 'AVRA est-il adapté pour mon métier ?',
-      answer: "AVRA est conçu pour cuisinistes, menuisiers, architectes d'intérieur et agenceurs. Chaque métier a sa propre interface et workflow. Découvrez les cas d'usage spécifiques dans notre section Métiers.",
+      answer: "AVRA est conçu pour cuisinistes, menuisiers, architectes d'intérieur, agenceurs et décorateurs. Chaque métier a sa propre interface et workflow. Découvrez les cas d'usage spécifiques dans notre section Métiers.",
     },
     {
       question: 'Mes données sont-elles sécurisées ?',
