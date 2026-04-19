@@ -22,71 +22,7 @@ import {
 import './(marketing)/marketing.css';
 import Nav from './(marketing)/components/Nav';
 import Footer from './(marketing)/components/Footer';
-
-function InstallButtonInline() {
-  const [deferredPrompt, setDeferredPromptLocal] = useState<any>(null);
-  const [installed, setInstalledLocal] = useState(false);
-  const [isIOS, setIsIOSLocal] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
-
-  useEffect(() => {
-    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    setIsIOSLocal(ios);
-    if (window.matchMedia('(display-mode: standalone)').matches) { setInstalledLocal(true); return; }
-    const handler = (e: Event) => { e.preventDefault(); setDeferredPromptLocal(e); };
-    window.addEventListener('beforeinstallprompt', handler as EventListener);
-    return () => window.removeEventListener('beforeinstallprompt', handler as EventListener);
-  }, []);
-
-  const handleInstall = async () => {
-    if (isIOS) { setShowGuide(!showGuide); return; }
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') setInstalledLocal(true);
-    setDeferredPromptLocal(null);
-  };
-
-  if (installed) return <div style={{ color: '#4A7C59', fontWeight: 600 }}>✓ Application déjà installée</div>;
-
-  return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
-      <button onClick={handleInstall} style={{
-        display: 'inline-flex', alignItems: 'center', gap: '12px',
-        fontSize: '1.05rem', fontWeight: 700, color: '#0e1810',
-        padding: '16px 36px', borderRadius: '16px', border: 'none',
-        background: 'linear-gradient(135deg, #e8c97a 0%, #C9A96E 100%)',
-        cursor: 'pointer',
-        boxShadow: '0 8px 40px rgba(201,169,110,0.5)',
-        animation: 'installPulse 3s ease-in-out infinite',
-        transition: 'all 0.25s ease',
-      }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 56px rgba(201,169,110,0.65)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 40px rgba(201,169,110,0.5)'; }}
-      >
-        <span style={{ fontSize: '1.3rem' }}>📲</span>
-        {isIOS ? 'Voir comment installer sur iPhone' : deferredPrompt ? "Installer l'application gratuitement" : "Télécharger l'application"}
-      </button>
-      {showGuide && (
-        <div style={{
-          position: 'absolute', bottom: 'calc(100% + 16px)', left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(14,24,16,0.97)', backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(201,169,110,0.3)', borderRadius: '16px',
-          padding: '20px 24px', width: '280px', zIndex: 200,
-          boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
-        }}>
-          <div style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.8 }}>
-            <div style={{ fontWeight: 700, color: '#C9A96E', marginBottom: '10px' }}>📱 Sur iPhone / iPad :</div>
-            <div>1. Appuyez sur <strong style={{ color: '#e8c97a' }}>Partager</strong> ↑ (en bas de Safari)</div>
-            <div>2. Choisissez <strong style={{ color: '#e8c97a' }}>&quot;Sur l&apos;écran d&apos;accueil&quot;</strong></div>
-            <div>3. Appuyez sur <strong style={{ color: '#e8c97a' }}>Ajouter</strong> ✓</div>
-          </div>
-        </div>
-      )}
-      <style>{`@keyframes installPulse { 0%,100%{box-shadow:0 8px 40px rgba(201,169,110,0.5)} 50%{box-shadow:0 8px 60px rgba(201,169,110,0.75)} }`}</style>
-    </div>
-  );
-}
+import { PWAInstallHero } from './(marketing)/components/PWAInstallHero';
 
 export default function HomePage() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
@@ -2130,7 +2066,7 @@ export default function HomePage() {
           {/* CTA central */}
           <div style={{ textAlign: 'center' }}>
             <div style={{ marginBottom: '24px' }}>
-              <InstallButtonInline />
+              <PWAInstallHero />
             </div>
             <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.82rem' }}>
               ✓ Gratuit &nbsp;·&nbsp; ✓ Sans App Store &nbsp;·&nbsp; ✓ Mises à jour automatiques &nbsp;·&nbsp; ✓ Fonctionne hors ligne
