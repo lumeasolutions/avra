@@ -30,7 +30,7 @@ const faqItems = [
   },
   {
     q: "Y a-t-il un engagement ?",
-    a: "Aucun. Résiliez en 1 clic, à tout moment, sans frais.",
+    a: "Aucun. Résiliez en 1 clic, à tout moment, sans frais — sauf abonnement annuel.",
   },
   {
     q: "Qu'inclut le plan Entreprise ?",
