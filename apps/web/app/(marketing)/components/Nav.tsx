@@ -50,32 +50,19 @@ export default function Nav() {
           transition: 'all 0.35s cubic-bezier(0.4,0,0.2,1)',
         }}
       >
-        {/* ══ LOGO GAUCHE ══ */}
-        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          {/* Logo chouette — vraie image dans cercle fond sombre */}
-          <div style={{ position: 'relative', width: '56px', height: '56px', flexShrink: 0 }}>
-            <Image
-              src="/logochouette4.png"
-              alt="AVRA Logo"
-              fill
-              priority
-              sizes="56px"
-              style={{ objectFit: 'contain', filter: 'brightness(1.05) saturate(0.9)' }}
-            />
-          </div>
-
-          {/* Texte AVRA */}
+        {/* ══ LOGO GAUCHE — Texte AVRA doré ══ */}
+        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <span style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: '1.45rem',
+            fontFamily: 'var(--font-display, "Playfair Display", Georgia, serif)',
+            fontSize: '2rem',
             fontWeight: 800,
-            letterSpacing: '0.08em',
-            background: 'linear-gradient(135deg, #e8c97a 0%, #C9A96E 50%, #a07840 100%)',
+            letterSpacing: '0.12em',
+            background: 'linear-gradient(135deg, #f3d98a 0%, #e8c97a 30%, #C9A96E 60%, #a07840 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
-            textShadow: 'none',
-            filter: 'drop-shadow(0 1px 4px rgba(201,169,110,0.3))',
+            filter: 'drop-shadow(0 2px 10px rgba(201,169,110,0.5))',
+            lineHeight: 1,
           }}>AVRA</span>
         </Link>
 
@@ -231,6 +218,10 @@ export default function Nav() {
           0%, 100% { transform: translateY(0px) rotate(-1.5deg) scale(1); }
           33% { transform: translateY(-3px) rotate(0deg) scale(1.02); }
           66% { transform: translateY(-5px) rotate(1.5deg) scale(1.01); }
+        }
+        @keyframes navAvraPulse {
+          0%, 100% { transform: scale(1); box-shadow: 0 2px 10px rgba(201,169,110,0.35); }
+          50% { transform: scale(1.06); box-shadow: 0 4px 22px rgba(201,169,110,0.65); }
         }
         @keyframes navOwlGlow {
           0%, 100% { opacity: 0.5; transform: scale(1); }

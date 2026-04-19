@@ -22,6 +22,7 @@ import {
 import './(marketing)/marketing.css';
 import Nav from './(marketing)/components/Nav';
 import Footer from './(marketing)/components/Footer';
+import HeroLogoBanner from './(marketing)/components/HeroLogoBanner';
 import dynamic from 'next/dynamic';
 const PWAInstallHero = dynamic(() => import('./(marketing)/components/PWAInstallHero').then(m => m.PWAInstallHero), { ssr: false });
 
@@ -122,25 +123,8 @@ export default function HomePage() {
           }}
         />
 
-        {/* ── Bannière logos ── */}
-        <div
-          style={{
-            position: 'relative', zIndex: 2, width: '100%',
-            background: 'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(201,169,110,0.1) 50%, rgba(0,0,0,0.5) 100%)',
-            borderBottom: '1px solid rgba(201,169,110,0.28)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '40px',
-            padding: '28px 5%',
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ position: 'relative', width: 200, height: 200 }}>
-            <Image src="/logosidebar3.png" alt="AVRA Logo" fill sizes="200px" style={{ objectFit: 'contain' }} />
-          </div>
-          <div style={{ width: 1, height: 140, background: 'rgba(201,169,110,0.4)' }} />
-          <div style={{ position: 'relative', width: 200, height: 200 }}>
-            <Image src="/logochouette4.png" alt="AVRA Chouette" fill sizes="200px" style={{ objectFit: 'contain' }} />
-          </div>
-        </div>
+        {/* ── Bannière logos ─ ULTRA WAHOU ── */}
+        <HeroLogoBanner />
 
         <div
           className="hero-grid"
@@ -327,20 +311,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Colonne droite : logo doré + mockup dashboard */}
+          {/* Colonne droite : mockup dashboard */}
           <div className="hero-right-col" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '28px' }}>
-
-            {/* Chouette AVRA hero */}
-            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '280px', height: '280px', animation: 'logoFloat 5s ease-in-out infinite' }}>
-              <Image
-                src="/logochouette4.png"
-                alt="AVRA Mascotte — Logiciel N°1 agencement"
-                fill
-                priority
-                sizes="280px"
-                style={{ objectFit: 'contain', filter: 'brightness(1.05) saturate(0.9)' }}
-              />
-            </div>
 
           {/* Mockup dashboard */}
           <div
