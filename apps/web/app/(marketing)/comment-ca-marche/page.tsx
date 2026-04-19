@@ -645,66 +645,6 @@ export default function CommentCaMarchePage() {
         </div>
       </section>
 
-      {/* ─── CTA FINAL ─── */}
-      <section className="section-pad" style={{
-        padding: '100px 5%',
-        background: 'linear-gradient(160deg, #0e1810 0%, #1e2b22 60%, #2d3e30 100%)',
-        position: 'relative', overflow: 'hidden',
-        textAlign: 'center',
-      }}>
-        <div style={{
-          position: 'absolute', top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '600px', height: '600px', borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(201,169,110,0.12) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-
-        <div style={{ maxWidth: '620px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: '3rem', marginBottom: '20px' }}>🚀</div>
-          <h2 style={{ color: '#fff', marginBottom: '16px', fontSize: '2.2rem' }}>
-            Prêt à essayer ?
-          </h2>
-          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.05rem', marginBottom: '40px', lineHeight: 1.7 }}>
-            Rejoignez 2 400+ professionnels qui gagnent du temps chaque jour avec AVRA.
-          </p>
-
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '28px' }}>
-            <Link href="/comment-ca-marche" style={{ textDecoration: 'none' }}>
-              <button style={{
-                display: 'inline-flex', alignItems: 'center', gap: '8px',
-                background: 'linear-gradient(135deg, #C9A96E, #b8944f)',
-                color: '#fff', border: 'none', borderRadius: '12px',
-                padding: '16px 32px', fontSize: '1rem', fontWeight: 700,
-                cursor: 'pointer', boxShadow: '0 8px 32px rgba(201,169,110,0.35)',
-              }}>
-                Demander une démo <ArrowRight size={18} />
-              </button>
-            </Link>
-            <Link href="mailto:contact@avra.fr" style={{ textDecoration: 'none' }}>
-              <button style={{
-                display: 'inline-flex', alignItems: 'center', gap: '8px',
-                background: 'rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.85)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                borderRadius: '12px', padding: '16px 32px',
-                fontSize: '1rem', fontWeight: 600, cursor: 'pointer',
-              }}>
-                <MessageCircle size={18} /> Contacter l&apos;équipe
-              </button>
-            </Link>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
-            {['Sans engagement', 'Données sécurisées', 'Support inclus'].map((item) => (
-              <div key={item} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle size={14} color="#4A7C59" />
-                <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem' }}>{item}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       <Footer />
     </>
