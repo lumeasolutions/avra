@@ -901,7 +901,7 @@ export default function HomePage() {
                 lineHeight: 1.2,
               }}
             >
-              Une visualisation{' '}
+              IA Rendu photoréalisme{' '}
               <span
                 style={{
                   background: 'linear-gradient(135deg, #c9a96e, #d4b882)',
@@ -910,7 +910,7 @@ export default function HomePage() {
                   backgroundClip: 'text',
                 }}
               >
-                réaliste, instantanée
+                sans effort
               </span>
             </h2>
 
@@ -937,7 +937,7 @@ export default function HomePage() {
             >
               {[
                 'Rendus ultra-réalistes en HD',
-                'Chat IA contextuel sur chaque dossier',
+                'Changez les couleurs des façades en un clic',
                 'Suggestions automatiques de matériaux',
                 'Export HD pour présentations clients',
               ].map((item) => (
