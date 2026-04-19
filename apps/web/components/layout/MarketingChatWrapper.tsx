@@ -7,7 +7,7 @@ import { MarketingChat } from '@/app/(marketing)/components/MarketingChat';
 const APP_PREFIXES = ['/dashboard', '/dossiers', '/facturation', '/planning', '/ia-studio', '/stock', '/parametres', '/portail', '/admin', '/intervenants', '/statistiques', '/commandes'];
 
 export function MarketingChatWrapper() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const isApp = APP_PREFIXES.some(p => pathname.startsWith(p));
   if (isApp) return null;
   return <MarketingChat />;

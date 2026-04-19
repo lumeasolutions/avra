@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import './marketing.css';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: {
     default: "AVRA — Logiciel N°1 des professionnels de l'agencement",

@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og'
 
-export const runtime = 'nodejs'
+export const runtime = 'edge'
 export const alt = 'AVRA - ERP pour les professionnels de l\'agencement'
 export const size = {
   width: 1200,

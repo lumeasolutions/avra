@@ -1,8 +1,22 @@
 import type { Metadata } from 'next';
 import { DM_Sans, Playfair_Display } from 'next/font/google';
 import './globals.css';
-import { MarketingChatWrapper } from '@/components/layout/MarketingChatWrapper';
-import ServiceWorkerRegistration from '@/app/components/ServiceWorkerRegistration';
+import nextDynamic from 'next/dynamic';
+
+// Force all pages to be server-rendered (not statically pre-generated)
+// This prevents the useContext(PathnameContext) SSR error from Next.js error boundaries
+export const dynamic = 'force-dynamic';
+
+
+const MarketingChatWrapper = nextDynamic(
+  () => import('@/components/layout/MarketingChatWrapper').then(m => m.MarketingChatWrapper),
+  { ssr: false }
+);
+
+const ServiceWorkerRegistration = nextDynamic(
+  () => import('@/app/components/ServiceWorkerRegistration'),
+  { ssr: false }
+);
 
 const dmSans = DM_Sans({
   subsets: ['latin'],

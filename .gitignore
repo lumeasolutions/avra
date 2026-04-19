@@ -43,3 +43,6 @@ _tmp_*/
 
 # Prisma generated (rebuilt on deploy)
 apps/api/src/generated/
+
+.vercel
+.env*.local
