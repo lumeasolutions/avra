@@ -227,9 +227,10 @@ export default function HomePage() {
                 maxWidth: 520,
               }}
             >
-              Dossiers clients, facturation conforme e-facture 2026, planning, stock et IA
-              photo-réalisme — tout en une seule app pensée pour les cuisinistes, menuisiers et
-              architectes d&apos;intérieur.
+              AVRA, le logiciel complet avec un assistant spécialisé dédié aux professionnels de l&apos;agencement.
+              Un assistant IA qui suit vos dossiers et votre planning pour éviter les oublis à chaque étape.
+              Et autour, tous les outils essentiels : rendus IA, facturation électronique, signature et paiement en ligne.
+              Une seule plateforme pour piloter vos projets, du premier échange au SAV.
             </p>
 
             {/* CTA buttons */}
