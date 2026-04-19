@@ -494,11 +494,11 @@ export default function LoginPage() {
             {/* Lien inscription */}
             <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem' }}>
               Pas encore de compte ?{' '}
-              <Link href="/register" style={{
+              <Link href="/comment-ca-marche" style={{
                 color: '#C9A96E', fontWeight: 700,
                 textDecoration: 'none', transition: 'color 0.2s',
               }}>
-                Essai gratuit 14 jours →
+                Demander une démo →
               </Link>
             </p>
           </div>
