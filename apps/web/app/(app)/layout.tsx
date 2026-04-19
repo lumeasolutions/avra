@@ -39,9 +39,13 @@ function DataSyncProvider() {
 // Pages où l'assistant est en mode toggle (FAB) au lieu de permanent
 const TOGGLE_PAGES = ['/planning', '/planning-gestion'];
 
+// Pages qui sont elles-mêmes l'assistant — pas de FAB ni de panel
+const NO_ASSISTANT_PAGES = ['/assistant'];
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '';
   const isTogglePage = TOGGLE_PAGES.some(p => pathname === p || pathname.startsWith(p + '/'));
+  const isNoAssistantPage = NO_ASSISTANT_PAGES.some(p => pathname === p || pathname.startsWith(p + '/'));
 
   return (
     <AppGuard>
@@ -67,8 +71,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Pages planning : FAB toggle classique */}
         {isTogglePage && <AssistantFAB />}
 
-        {/* Toutes les autres pages : assistant permanent pleine hauteur à droite (desktop) */}
-        {!isTogglePage && (
+        {/* Toutes les autres pages (sauf /assistant) : panel permanent desktop */}
+        {!isTogglePage && !isNoAssistantPage && (
           <div
             className="assistant-panel-desktop"
             style={{
@@ -95,8 +99,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {/* Mobile : AssistantFAB sur toutes les pages (remplace le panel permanent) */}
-        {!isTogglePage && <AssistantFAB />}
+        {/* Mobile : AssistantFAB sur toutes les pages sauf /assistant */}
+        {!isTogglePage && !isNoAssistantPage && <AssistantFAB />}
       </div>
     </AppGuard>
   );

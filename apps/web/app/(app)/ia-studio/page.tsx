@@ -509,7 +509,7 @@ export default function IaStudioPage() {
         />
 
         {/* ══════════════════════════ TABS SÉLECTEUR */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/* Coloriste */}
           <button onClick={() => setTab('coloriste')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${

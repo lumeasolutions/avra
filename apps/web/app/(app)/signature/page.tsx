@@ -81,7 +81,7 @@ export default function SignaturePage() {
       />
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-2xl bg-white shadow-sm border border-[#304035]/8 p-5">
           <p className="text-xs font-semibold text-[#304035]/50 mb-1">Total</p>
           <p className="text-3xl font-bold text-[#304035]">{documents.length}</p>

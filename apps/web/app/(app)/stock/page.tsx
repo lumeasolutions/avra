@@ -221,7 +221,7 @@ export default function StockPage() {
         title="Stock"
         subtitle={`${stockItems.length} article${stockItems.length > 1 ? 's' : ''}`}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Export button */}
             <button
               onClick={() => exportToCSV(filtered)}

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './marketing.css';
+import { MarketingChatWrapper } from '@/components/layout/MarketingChatWrapper';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       fontFamily: 'var(--font-dm-sans, "DM Sans"), system-ui, sans-serif',
     }}>
       {children}
+      <MarketingChatWrapper />
     </div>
   );
 }

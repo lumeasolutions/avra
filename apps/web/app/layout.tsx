@@ -7,12 +7,6 @@ import nextDynamic from 'next/dynamic';
 // This prevents the useContext(PathnameContext) SSR error from Next.js error boundaries
 export const dynamic = 'force-dynamic';
 
-
-const MarketingChatWrapper = nextDynamic(
-  () => import('@/components/layout/MarketingChatWrapper').then(m => m.MarketingChatWrapper),
-  { ssr: false }
-);
-
 const ServiceWorkerRegistration = nextDynamic(
   () => import('@/app/components/ServiceWorkerRegistration'),
   { ssr: false }
@@ -128,7 +122,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${dmSans.variable} ${playfairDisplay.variable} min-h-screen`} style={{ fontFamily: 'var(--font-dm-sans)' }}>
         {children}
-        <MarketingChatWrapper />
         <ServiceWorkerRegistration />
       </body>
     </html>
