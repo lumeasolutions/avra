@@ -125,7 +125,8 @@ const faqs = [
   },
 ];
 
-import { PWAInstallCCM } from '../components/PWAInstallHero';
+import dynamic from 'next/dynamic';
+const PWAInstallCCM = dynamic(() => import('../components/PWAInstallHero').then(m => m.PWAInstallCCM), { ssr: false });
 
 export default function CommentCaMarchePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);

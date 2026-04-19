@@ -22,7 +22,8 @@ import {
 import './(marketing)/marketing.css';
 import Nav from './(marketing)/components/Nav';
 import Footer from './(marketing)/components/Footer';
-import { PWAInstallHero } from './(marketing)/components/PWAInstallHero';
+import dynamic from 'next/dynamic';
+const PWAInstallHero = dynamic(() => import('./(marketing)/components/PWAInstallHero').then(m => m.PWAInstallHero), { ssr: false });
 
 export default function HomePage() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);

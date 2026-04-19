@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
-import PWAInstallButton from '../../components/PWAInstallButton';
+import dynamic from 'next/dynamic';
+const PWAInstallButton = dynamic(() => import('../../components/PWAInstallButton'), { ssr: false });
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);

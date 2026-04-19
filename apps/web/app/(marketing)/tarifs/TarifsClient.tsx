@@ -66,7 +66,8 @@ const enterpriseFeatures = [
   'Facturation personnalisée',
 ];
 
-import { PWAInstallTarifs } from '../components/PWAInstallHero';
+import dynamic from 'next/dynamic';
+const PWAInstallTarifs = dynamic(() => import('../components/PWAInstallHero').then(m => m.PWAInstallTarifs), { ssr: false });
 
 export default function TarifsClient() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
