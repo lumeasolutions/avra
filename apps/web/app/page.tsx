@@ -29,7 +29,7 @@ export default function HomePage() {
   const faqItems = [
     {
       question: 'Comment démarrer avec AVRA ?',
-      answer: "Créez un compte gratuit, configurez votre profil en 5 minutes, et commencez à gérer vos projets immédiatement. Aucune carte bancaire requise pour les 14 jours d'essai.",
+      answer: "Créez un compte, configurez votre profil en 5 minutes, et commencez à gérer vos projets immédiatement.",
     },
     {
       question: 'AVRA est-il adapté pour mon métier ?',
