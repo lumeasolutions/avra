@@ -95,7 +95,11 @@ export const authApi = {
     }).then(async (res) => {
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: res.statusText }));
-        throw new Error(err.message ?? 'Erreur de connexion');
+        // NestJS validation errors return message as an array — join for display
+        const msg = Array.isArray(err.message)
+          ? err.message.join(', ')
+          : (err.message ?? 'Erreur de connexion');
+        throw new Error(msg);
       }
       return res.json() as Promise<{ user: object }>;
     }),
