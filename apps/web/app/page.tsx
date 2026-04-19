@@ -197,9 +197,9 @@ export default function HomePage() {
               style={{
                 color: '#ffffff',
                 fontFamily: 'var(--font-display)',
-                fontSize: 'clamp(2.4rem, 5vw, 3.8rem)',
+                fontSize: 'clamp(1.5rem, 2.6vw, 2.2rem)',
                 fontWeight: 800,
-                lineHeight: 1.1,
+                lineHeight: 1.15,
                 letterSpacing: '-0.02em',
                 marginBottom: '0.9rem',
               }}
