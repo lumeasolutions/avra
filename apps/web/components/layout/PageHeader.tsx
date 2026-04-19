@@ -39,20 +39,43 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
             display: none !important;
           }
           .page-header-title {
-            font-size: 18px !important;
+            font-size: 17px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
           }
           .page-header-subtitle {
-            font-size: 12px !important;
+            font-size: 11px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
           }
           .page-header-back-btn {
-            width: 36px !important;
-            height: 36px !important;
-            min-height: 44px !important;
+            width: 32px !important;
+            height: 32px !important;
+            min-width: 32px !important;
+            flex-shrink: 0 !important;
+          }
+          .page-header-top-row {
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+          }
+          .page-header-title-block {
+            min-width: 0 !important;
+          }
+          .page-header-actions {
+            width: 100% !important;
+            margin-top: 6px !important;
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+            overflow-x: auto !important;
           }
         }
       `}</style>
+
       {/* Ligne principale: retour + titre + actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="page-header-top-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+
         {/* Bouton retour */}
         <button
           className="page-header-back-btn"
@@ -79,7 +102,7 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
         </button>
 
         {/* Titre */}
-        <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+        <div className="page-header-title-block" style={{ minWidth: 0, flex: '1 1 auto' }}>
           <h1 className="page-header-title" style={{ fontSize: '22px', fontWeight: 700, color: '#ffffff', margin: 0, letterSpacing: '-0.3px' }}>
             {title}
           </h1>
@@ -90,9 +113,9 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
           )}
         </div>
 
-        {/* Actions */}
+        {/* Actions — sur desktop : inline à droite | sur mobile : passe en dessous */}
         {actions && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto', flexWrap: 'wrap' }}>
+          <div className="page-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto' }}>
             {actions}
           </div>
         )}
