@@ -261,6 +261,188 @@ z-index: 10;
 
 overflow: visible;
 
+transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+
+}
+
+/* ── Bouton hamburger mobile ── */
+
+.sidebar-hamburger {
+
+display: none;
+
+position: fixed;
+
+top: 12px;
+
+left: 12px;
+
+z-index: 200;
+
+width: 44px;
+
+height: 44px;
+
+border-radius: 12px;
+
+background: linear-gradient(135deg, #2a3f30, #384f3d);
+
+border: 1px solid rgba(255,255,255,0.15);
+
+color: rgba(255,255,255,0.9);
+
+cursor: pointer;
+
+align-items: center;
+
+justify-content: center;
+
+box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+
+flex-shrink: 0;
+
+}
+
+.hamburger-badge {
+
+position: absolute;
+
+top: -4px;
+
+right: -4px;
+
+background: #C0392B;
+
+color: white;
+
+font-size: 9px;
+
+font-weight: 800;
+
+width: 16px;
+
+height: 16px;
+
+border-radius: 50%;
+
+display: flex;
+
+align-items: center;
+
+justify-content: center;
+
+border: 2px solid #EEEBE6;
+
+}
+
+/* ── Bouton fermer dans sidebar mobile ── */
+
+.sidebar-close-btn {
+
+display: none;
+
+position: absolute;
+
+top: 14px;
+
+right: 14px;
+
+z-index: 30;
+
+width: 34px;
+
+height: 34px;
+
+border-radius: 50%;
+
+background: rgba(255,255,255,0.12);
+
+border: 1px solid rgba(255,255,255,0.2);
+
+cursor: pointer;
+
+align-items: center;
+
+justify-content: center;
+
+}
+
+/* ── Overlay mobile ── */
+
+.sidebar-overlay {
+
+display: none;
+
+position: fixed;
+
+inset: 0;
+
+background: rgba(0,0,0,0.6);
+
+z-index: 150;
+
+backdrop-filter: blur(2px);
+
+}
+
+/* ══════════════════════════════════════
+   MOBILE RESPONSIVE — App layout
+   ══════════════════════════════════════ */
+
+@media (max-width: 900px) {
+
+  /* body override pour mobile */
+  body:has(.sidebar) {
+    height: auto !important;
+    overflow: auto !important;
+  }
+
+  /* Sidebar becomes off-canvas on mobile */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    z-index: 160 !important;
+    transform: translateX(-105%) !important;
+    overflow-y: auto !important;
+    min-width: 300px !important;
+    width: 300px !important;
+  }
+
+  /* When toggled open via inline style */
+  .sidebar[style*="translateX(0)"] {
+    transform: translateX(0) !important;
+    box-shadow: 8px 0 40px rgba(0,0,0,0.5) !important;
+  }
+
+  /* Show hamburger */
+  .sidebar-hamburger {
+    display: flex !important;
+  }
+
+  /* Show close button */
+  .sidebar-close-btn {
+    display: flex !important;
+  }
+
+  /* Show overlay when sidebar open */
+  .sidebar-overlay {
+    display: block !important;
+  }
+
+  /* Assistant panel hidden on mobile (use FAB instead) */
+  .assistant-panel-desktop {
+    display: none !important;
+  }
+
+  /* Main content takes full width */
+  .app-main-content {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    padding-top: 64px !important; /* room for hamburger */
+  }
+
 }
 
 .sidebar-bg {

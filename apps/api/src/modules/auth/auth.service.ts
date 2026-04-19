@@ -139,6 +139,38 @@ export class AuthService {
     });
   }
 
+  // ── Réinitialisation du mot de passe (depuis le lien email) ─────────────
+  async resetPassword(userId: string, token: string, newPassword: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId, isActive: true },
+    });
+    if (!user || !user.refreshToken || !user.refreshTokenExpiresAt) {
+      throw new UnauthorizedException('Lien invalide ou expiré');
+    }
+
+    // Vérifier que le token n'a pas expiré
+    if (new Date() > user.refreshTokenExpiresAt) {
+      throw new UnauthorizedException('Lien de réinitialisation expiré. Demandez un nouveau lien.');
+    }
+
+    // Vérifier le hash du token (constant-time)
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    if (!crypto.timingSafeEqual(Buffer.from(hashedToken), Buffer.from(user.refreshToken))) {
+      throw new UnauthorizedException('Lien invalide ou déjà utilisé');
+    }
+
+    // Mettre à jour le mot de passe et invalider le token
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: hashedPassword,
+        refreshToken: null,
+        refreshTokenExpiresAt: null,
+      },
+    });
+  }
+
   // ── Mot de passe oublié (envoi de lien de réinitialisation) ──────────────
   async forgotPassword(email: string): Promise<void> {
     // Par sécurité, on ne révèle jamais si l'email existe ou non

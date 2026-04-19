@@ -1,6 +1,6 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AppGuard } from '@/components/layout/AppGuard';
 import { usePathname } from 'next/navigation';
@@ -9,13 +9,13 @@ import { useDataSync } from '@/hooks/useDataSync';
 import { useAlertEngine } from '@/hooks/useAlertEngine';
 
 /* Dynamic import pour code splitting */
-const AssistantFAB = dynamic(() => import('@/components/layout/AssistantFAB').then(mod => mod.AssistantFAB), {
+const AssistantFAB = nextDynamic(() => import('@/components/layout/AssistantFAB').then(mod => mod.AssistantFAB), {
   ssr: false,
   loading: () => null,
 });
 
 /* Dynamic import pour code splitting */
-const AssistantPanel = dynamic(() => import('@/components/layout/AssistantPanel').then(mod => mod.AssistantPanel), {
+const AssistantPanel = nextDynamic(() => import('@/components/layout/AssistantPanel').then(mod => mod.AssistantPanel), {
   ssr: false,
   loading: () => null,
 });
@@ -40,7 +40,7 @@ function DataSyncProvider() {
 const TOGGLE_PAGES = ['/planning', '/planning-gestion'];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   const isTogglePage = TOGGLE_PAGES.some(p => pathname === p || pathname.startsWith(p + '/'));
 
   return (
@@ -49,11 +49,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <AlertEngineProvider />
       <DataSyncProvider />
       <div className="flex min-h-screen w-full bg-[#f5eee8]">
-        {/* Sidebar gauche */}
+        {/* Sidebar gauche (inclut le bouton hamburger mobile) */}
         <Sidebar />
         {/* Contenu central */}
         <main
-          className="min-h-screen py-5 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="app-main-content min-h-screen py-5 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           style={{
             flex: '1 1 0%',
             minWidth: 0,
@@ -67,20 +67,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Pages planning : FAB toggle classique */}
         {isTogglePage && <AssistantFAB />}
 
-        {/* Toutes les autres pages : assistant permanent pleine hauteur à droite */}
+        {/* Toutes les autres pages : assistant permanent pleine hauteur à droite (desktop) */}
         {!isTogglePage && (
-          <div style={{
-            width: 310,
-            minWidth: 310,
-            height: '100vh',
-            position: 'sticky',
-            top: 0,
-            right: 0,
-            zIndex: 40,
-            flexShrink: 0,
-            display: 'flex',
-            padding: '14px 14px 14px 0',
-          }}>
+          <div
+            className="assistant-panel-desktop"
+            style={{
+              width: 310,
+              minWidth: 310,
+              height: '100vh',
+              position: 'sticky',
+              top: 0,
+              right: 0,
+              zIndex: 40,
+              flexShrink: 0,
+              display: 'flex',
+              padding: '14px 14px 14px 0',
+            }}
+          >
             <div style={{
               flex: 1,
               borderRadius: 24,
@@ -91,6 +94,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         )}
+
+        {/* Mobile : AssistantFAB sur toutes les pages (remplace le panel permanent) */}
+        {!isTogglePage && <AssistantFAB />}
       </div>
     </AppGuard>
   );
