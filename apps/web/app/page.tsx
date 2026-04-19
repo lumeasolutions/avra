@@ -204,7 +204,7 @@ export default function HomePage() {
                 marginBottom: '0.9rem',
               }}
             >
-              Le logiciel qui{' '}
+              AVRA, le logiciel complet avec un{' '}
               <span
                 style={{
                   background: 'linear-gradient(135deg, #c9a96e, #d4b882)',
@@ -213,9 +213,9 @@ export default function HomePage() {
                   backgroundClip: 'text',
                 }}
               >
-                libère les pros
+                assistant spécialisé
               </span>
-              {' '}de l&apos;agencement
+              {' '}dédié aux professionnels de l&apos;agencement
             </h1>
 
             <p
@@ -227,9 +227,8 @@ export default function HomePage() {
                 maxWidth: 520,
               }}
             >
-              AVRA, le logiciel complet avec un assistant spécialisé dédié aux professionnels de l&apos;agencement.
               Un assistant IA qui suit vos dossiers et votre planning pour éviter les oublis à chaque étape.
-              Et autour, tous les outils essentiels : rendus IA, facturation électronique, signature et paiement en ligne.
+              Tous les outils essentiels : rendus IA, facturation électronique, signature et paiement en ligne.
               Une seule plateforme pour piloter vos projets, du premier échange au SAV.
             </p>
 
