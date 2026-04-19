@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import './marketing.css';
 import { MarketingChatWrapper } from '@/components/layout/MarketingChatWrapper';
 
-export const dynamic = 'force-dynamic';
+// Perf : ISR 1h pour les pages marketing (au lieu de force-dynamic qui re-SSR à chaque requête).
+// Le contenu marketing est quasi-statique, 1h de cache = TTFB ~50ms via le CDN Vercel.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: {

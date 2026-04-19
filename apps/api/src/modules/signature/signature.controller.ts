@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards, Res } from '@nestjs/common';
-import { Response } from 'express';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards, Res, Req, ForbiddenException } from '@nestjs/common';
+import { Request, Response } from 'express';
+import * as crypto from 'crypto';
 import { SignatureService } from './signature.service';
 import { CreateSignatureDto } from './dto/create-signature.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -19,12 +20,37 @@ export class SignatureController {
   ) {}
 
   /**
-   * Webhook endpoint for YouSign events
-   * Placed before other routes to avoid conflicts
+   * Webhook endpoint for YouSign events.
+   *
+   * SÉCURITÉ (SEC-H8) : Vérifie la signature HMAC-SHA256 envoyée par YouSign
+   * dans l'en-tête `X-Yousign-Signature-256` contre `YOUSIGN_WEBHOOK_SECRET`.
+   * Sans ça, n'importe qui sur internet pouvait flipper un `SignatureRequest`
+   * à SIGNED/REFUSED en devinant le `providerRef`.
    */
   @Post('webhook/yousign')
   @Public()
-  async handleYousignWebhook(@Body() body: any, @Res() res: Response) {
+  async handleYousignWebhook(@Req() req: Request, @Body() body: any, @Res() res: Response) {
+    const secret = process.env.YOUSIGN_WEBHOOK_SECRET;
+    // En prod, le secret DOIT être configuré. En dev, on peut bypass si explicitement absent.
+    if (process.env.NODE_ENV === 'production' && !secret) {
+      console.error('[YouSign] YOUSIGN_WEBHOOK_SECRET not configured — rejecting webhook');
+      return res.status(500).json({ received: false });
+    }
+
+    if (secret) {
+      const signature = (req.get('X-Yousign-Signature-256') || req.get('x-yousign-signature-256') || '').replace(/^sha256=/, '');
+      // Le corps est déjà parsé par Nest → on recalcule depuis la représentation JSON canonique.
+      // Pour une vérification 100 % fiable il faut un raw-body middleware — à défaut, on vérifie
+      // sur le JSON ré-sérialisé (stable car YouSign envoie du JSON plat).
+      const rawBody = (req as any).rawBody ? (req as any).rawBody.toString('utf8') : JSON.stringify(body);
+      const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+      const sigBuf = Buffer.from(signature, 'hex');
+      const expBuf = Buffer.from(expected, 'hex');
+      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+        throw new ForbiddenException('Invalid YouSign webhook signature');
+      }
+    }
+
     try {
       const eventType = body?.subscription?.type;
       const yousignRequestId = body?.data?.signature_request?.id;

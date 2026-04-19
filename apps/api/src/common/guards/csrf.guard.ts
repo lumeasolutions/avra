@@ -34,11 +34,16 @@ export class CsrfGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>();
 
-    // Skip CSRF for requests coming from localhost (internal Next.js proxy)
+    // SÉCURITÉ : Le bypass précédent (`isLocalhost = !origin || includes('localhost')`)
+    // permettait à n'importe quel client non-browser (curl, server-to-server)
+    // ou à un Referer contenant "localhost" d'accéder aux endpoints mutants
+    // sans token CSRF. Supprimé. En dev, on ne saute le CSRF que si
+    // NODE_ENV !== 'production' ET la requête vient d'une Origin de dev reconnue.
     const origin = request.get('origin') || '';
-    const referer = request.get('referer') || '';
-    const isLocalhost = origin.includes('localhost') || referer.includes('localhost') || !origin;
-    if (isLocalhost) return true;
+    if (process.env.NODE_ENV !== 'production') {
+      const devOrigins = ['http://localhost:3000', 'http://localhost:3002', 'http://127.0.0.1:3000'];
+      if (origin && devOrigins.includes(origin)) return true;
+    }
 
     // Skip CSRF check for safe methods
     if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {

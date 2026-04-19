@@ -34,6 +34,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       jwtFromRequest: extractJwtFromCookieOrHeader,
       ignoreExpiration: false,
       secretOrKey: config.getOrThrow<string>('JWT_SECRET'),
+      // Pin l'algorithme pour prévenir les attaques de confusion d'algorithme
+      // (JWT "alg: none" ou "alg: RS256" avec le secret utilisé comme clé publique).
+      algorithms: ['HS256'],
       passReqToCallback: false,
     });
   }

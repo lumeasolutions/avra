@@ -4,6 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
@@ -112,7 +113,7 @@ export class AuthController {
   @SkipCsrf()
   @Throttle({ auth: { ttl: 15 * 60 * 1000, limit: 5 } })
   @Post('reset-password')
-  async resetPassword(@Body() dto: { userId: string; token: string; newPassword: string }) {
+  async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.auth.resetPassword(dto.userId, dto.token, dto.newPassword);
     return { ok: true };
   }

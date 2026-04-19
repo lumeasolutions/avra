@@ -736,17 +736,22 @@ function computeAlerts(): RawAlert[] {
 // ── Hook React ───────────────────────────────────────────────────────────────
 
 /**
- * Hook qui fait tourner le moteur d'alertes toutes les 30 secondes.
+ * Hook qui fait tourner le moteur d'alertes.
+ * Perf : recalcul toutes les 2 min + mise en pause quand l'onglet est en arrière-plan
+ * (le calcul est 100% local / client-side, pas besoin d'être agressif).
  * À monter dans le layout principal.
  */
+const POLL_MS = 120_000; // 2 minutes (était 30s — 4× moins de travail)
+
 export function useAlertEngine() {
   const setGeneratedAlerts = useUIStore(s => s.setGeneratedAlerts);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // Premier calcul immédiat
+    let lastRun = 0;
     const run = () => {
       try {
+        lastRun = Date.now();
         const alerts = computeAlerts();
         setGeneratedAlerts(alerts);
       } catch (e) {
@@ -757,12 +762,39 @@ export function useAlertEngine() {
     // Léger délai pour laisser les stores s'hydrater
     const timeout = setTimeout(run, 1000);
 
-    // Recalcul toutes les 30 secondes
-    intervalRef.current = setInterval(run, 30_000);
+    const startInterval = () => {
+      if (intervalRef.current) return;
+      intervalRef.current = setInterval(run, POLL_MS);
+    };
+    const stopInterval = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (typeof document === 'undefined') return;
+      if (document.visibilityState === 'hidden') {
+        stopInterval();
+      } else {
+        // À la reprise : rattrapage si le dernier calcul date de + de POLL_MS
+        if (Date.now() - lastRun > POLL_MS) run();
+        startInterval();
+      }
+    };
+
+    startInterval();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibilityChange);
+    }
 
     return () => {
       clearTimeout(timeout);
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      stopInterval();
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+      }
     };
   }, [setGeneratedAlerts]);
 }

@@ -2,9 +2,16 @@
  * POST /api/ia/chat
  *
  * Proxy vers le backend NestJS /api/ia/chat avec SSE streaming.
+ *
+ * SÉCURITÉ (SEC-H4) : Rate-limit + auth obligatoire — un attaquant qui
+ * pose `logged_in=true` ne peut plus drainer le budget OpenAI/Qwen.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit';
+import { isAuthenticated } from '@/lib/server/auth-guard';
+
+const IA_CHAT_RATE_LIMIT = { limit: 30, windowMs: 60_000 }; // 30 messages / minute / IP
 
 function resolveApiUrl(req: NextRequest): string {
   const raw = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
@@ -17,6 +24,21 @@ function resolveApiUrl(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Auth obligatoire (access_token JWT en prod)
+  if (!isAuthenticated(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Rate limit par IP
+  const ip = getClientIp(req);
+  const rateResult = checkRateLimit(`ia-chat:${ip}`, IA_CHAT_RATE_LIMIT);
+  if (!rateResult.success) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Réessayez dans quelques instants.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil((rateResult.resetAt - Date.now()) / 1000)) } },
+    );
+  }
+
   try {
     const body = await req.json();
 

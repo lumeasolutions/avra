@@ -37,8 +37,8 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com",
       // Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // API fetch : self + backend local + fal.ai
-      `connect-src 'self' http://localhost:3001 https://fal.run https://*.fal.ai wss://fal.run${isProd ? '' : ' ws://localhost:3002'}`,
+      // API fetch : self + fal.ai (+ localhost backend en dev uniquement)
+      `connect-src 'self' https://fal.run https://*.fal.ai wss://fal.run${isProd ? '' : ' http://localhost:3001 ws://localhost:3002'}`,
       // Frames interdites
       "frame-src 'none'",
       "frame-ancestors 'self'",
@@ -52,11 +52,34 @@ const securityHeaders = [
   },
 ];
 
+// Cache long-terme pour les assets statiques (déjà hash par Next) + images publiques
+const longCacheHeaders = [
+  { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+];
+
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@avra/types'],
 
+  // ── Perf : suppression de l'entête X-Powered-By + compression Gzip/Brotli
+  poweredByHeader: false,
+  compress: true,
+  productionBrowserSourceMaps: false,
+
+  // Réduit la taille des bundles pour les gros packages (import granulaire)
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'date-fns',
+      '@radix-ui/react-icons',
+    ],
+  },
+
   images: {
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 31536000,
     remotePatterns: [
       { protocol: 'https', hostname: 'fal.media' },
       { protocol: 'https', hostname: '*.fal.media' },
@@ -71,10 +94,22 @@ const nextConfig = {
         source: '/(.*)',
         headers: securityHeaders,
       },
+      // Cache agressif pour les polices + icônes PWA (déjà versionnées ou rarement modifiées)
+      {
+        source: '/icons/:path*',
+        headers: longCacheHeaders,
+      },
+      {
+        source: '/_next/static/:path*',
+        headers: longCacheHeaders,
+      },
     ];
   },
 
   async rewrites() {
+    // En prod sur Vercel : /api/v1/* est routé par vercel.json vers la Serverless Function NestJS.
+    // En dev : on proxie vers le backend NestJS local sur :3001.
+    if (isProd) return [];
     return [
       {
         source: '/api/v1/:path*',

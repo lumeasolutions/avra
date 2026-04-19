@@ -33,11 +33,47 @@ function getDemoToken(): string | null {
   }
 }
 
+// ── Déduplication du refresh token ──────────────────────────────────────────
+// Plusieurs requêtes 401 simultanées ne doivent déclencher qu'UN seul appel /auth/refresh.
+// De plus, un backoff 5s après échec empêche la boucle serrée qui saturait la Serverless Function.
+let refreshInFlight: Promise<boolean> | null = null;
+let lastRefreshFailedAt = 0;
+const REFRESH_BACKOFF_MS = 5_000;
+
+async function refreshAccessToken(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+  if (Date.now() - lastRefreshFailedAt < REFRESH_BACKOFF_MS) return false;
+
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        lastRefreshFailedAt = Date.now();
+        return false;
+      }
+      return true;
+    } catch {
+      lastRefreshFailedAt = Date.now();
+      return false;
+    } finally {
+      // Libère le verrou après un court moment pour permettre un nouveau refresh en cas de besoin
+      setTimeout(() => { refreshInFlight = null; }, 100);
+    }
+  })();
+
+  return refreshInFlight;
+}
+
 export async function api<T>(
   path: string,
-  options: RequestInit & { token?: string | null } = {},
+  options: RequestInit & { token?: string | null; _retried?: boolean } = {},
 ): Promise<T> {
-  const { token = getDemoToken(), ...init } = options;
+  const { token = getDemoToken(), _retried, ...init } = options;
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -54,26 +90,19 @@ export async function api<T>(
     credentials: 'include', // 🔒 Envoie les cookies HttpOnly automatiquement
   });
 
-  // Handle 401 — essayer de rafraîchir le token
-  if (res.status === 401) {
-    try {
-      const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Le cookie refresh_token est envoyé automatiquement
-        body: JSON.stringify({}),
-      });
-      if (refreshRes.ok) {
-        // Nouveau cookie access_token défini par le serveur — relancer la requête
-        res = await fetch(`${API_BASE}${path}`, {
-          ...init,
-          headers,
-          credentials: 'include',
-        });
-      } else {
-        throw new Error('Unauthorized');
-      }
-    } catch {
+  // Handle 401 — essayer de rafraîchir le token (une seule fois, pas de boucle)
+  if (res.status === 401 && !_retried && !path.startsWith('/auth/')) {
+    const ok = await refreshAccessToken();
+    if (!ok) {
+      throw new Error('Unauthorized');
+    }
+    // Nouveau cookie access_token défini par le serveur — relancer la requête UNE seule fois
+    res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+      credentials: 'include',
+    });
+    if (res.status === 401) {
       throw new Error('Unauthorized');
     }
   }

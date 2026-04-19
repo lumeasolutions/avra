@@ -3,9 +3,10 @@ import { DM_Sans, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import nextDynamic from 'next/dynamic';
 
-// Force all pages to be server-rendered (not statically pre-generated)
-// This prevents the useContext(PathnameContext) SSR error from Next.js error boundaries
-export const dynamic = 'force-dynamic';
+// Perf : on supprime `force-dynamic` pour autoriser la pré-génération statique
+// + ISR par segment (marketing = 1h, app = dynamique via 'use client').
+// Le bug useContext(PathnameContext) de Next.js 14 est neutralisé par
+// `pages/_error.tsx` qui court-circuite le fallback error boundary.
 
 const ServiceWorkerRegistration = nextDynamic(
   () => import('@/app/components/ServiceWorkerRegistration'),

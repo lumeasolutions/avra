@@ -93,11 +93,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // ── Fallback cookie logged_in (dev + prod) ──────────────────────────────
-  // Le cookie logged_in est posé après une vraie connexion via authApi.login
-  const loggedIn = request.cookies.get('logged_in')?.value;
-  if (loggedIn === 'true') {
-    return NextResponse.next();
+  // ── Fallback cookie `logged_in` ────────────────────────────────────────
+  // SÉCURITÉ : Ce cookie est non-HttpOnly et non-signé. Il est donc TRIVIAL
+  // à forger (un attaquant peut simplement `document.cookie = "logged_in=true"`
+  // et accéder aux pages authentifiées). On l'accepte UNIQUEMENT en dev,
+  // pour le mode démo sans backend. En production, un JWT access_token est requis.
+  if (!IS_PRODUCTION) {
+    const loggedIn = request.cookies.get('logged_in')?.value;
+    if (loggedIn === 'true') {
+      return NextResponse.next();
+    }
   }
 
   // Pas authentifié → redirection vers login

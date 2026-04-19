@@ -17,6 +17,11 @@ export default function HeroLogoBanner() {
   const [mounted, setMounted] = useState(false);
   const [blink, setBlink] = useState(false);
 
+  // Perf : throttling du mousemove via requestAnimationFrame pour éviter
+  // ~60 re-renders React par seconde. Une seule maj de state par frame.
+  const rafRef = useRef<number | null>(null);
+  const pendingMouseRef = useRef<{ clientX: number; clientY: number } | null>(null);
+
   useEffect(() => {
     // Trigger scroll-in animation on mount
     const t = setTimeout(() => setMounted(true), 50);
@@ -57,29 +62,29 @@ export default function HeroLogoBanner() {
     return () => clearInterval(iv);
   }, []);
 
-  const handleMouseMove = useCallback((e: MouseEvent<HTMLDivElement>) => {
+  const flushMouseMove = useCallback(() => {
+    rafRef.current = null;
+    const m = pendingMouseRef.current;
+    pendingMouseRef.current = null;
     const el = bannerRef.current;
-    if (!el) return;
+    if (!el || !m) return;
     const rect = el.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+    const mx = m.clientX - rect.left;
+    const my = m.clientY - rect.top;
     // Parallax global : valeur entre -1 et 1
     const nx = (mx / rect.width) * 2 - 1;
     const ny = (my / rect.height) * 2 - 1;
     setTilt({ x: nx, y: ny });
 
-    // Magnetic hover sur chaque logo
+    const radius = 220;
     const lLogo = leftLogoRef.current;
     const rLogo = rightLogoRef.current;
     if (lLogo) {
       const lr = lLogo.getBoundingClientRect();
-      const lcx = lr.left + lr.width / 2;
-      const lcy = lr.top + lr.height / 2;
-      const dx = e.clientX - lcx;
-      const dy = e.clientY - lcy;
+      const dx = m.clientX - (lr.left + lr.width / 2);
+      const dy = m.clientY - (lr.top + lr.height / 2);
       const dist = Math.hypot(dx, dy);
-      const radius = 220;
-      if (dist < radius) {
+      if (dist < radius && dist > 0) {
         const pull = (1 - dist / radius) * 18;
         setMagL({ x: (dx / dist) * pull, y: (dy / dist) * pull });
       } else {
@@ -88,13 +93,10 @@ export default function HeroLogoBanner() {
     }
     if (rLogo) {
       const rr = rLogo.getBoundingClientRect();
-      const rcx = rr.left + rr.width / 2;
-      const rcy = rr.top + rr.height / 2;
-      const dx = e.clientX - rcx;
-      const dy = e.clientY - rcy;
+      const dx = m.clientX - (rr.left + rr.width / 2);
+      const dy = m.clientY - (rr.top + rr.height / 2);
       const dist = Math.hypot(dx, dy);
-      const radius = 220;
-      if (dist < radius) {
+      if (dist < radius && dist > 0) {
         const pull = (1 - dist / radius) * 18;
         setMagR({ x: (dx / dist) * pull, y: (dy / dist) * pull });
       } else {
@@ -103,10 +105,25 @@ export default function HeroLogoBanner() {
     }
   }, []);
 
+  const handleMouseMove = useCallback((e: MouseEvent<HTMLDivElement>) => {
+    pendingMouseRef.current = { clientX: e.clientX, clientY: e.clientY };
+    if (rafRef.current != null) return;
+    rafRef.current = requestAnimationFrame(flushMouseMove);
+  }, [flushMouseMove]);
+
   const handleMouseLeave = useCallback(() => {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    pendingMouseRef.current = null;
     setTilt({ x: 0, y: 0 });
     setMagL({ x: 0, y: 0 });
     setMagR({ x: 0, y: 0 });
+  }, []);
+
+  useEffect(() => () => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
   }, []);
 
   const handleClick = useCallback((e: MouseEvent<HTMLDivElement>) => {
@@ -216,14 +233,14 @@ export default function HeroLogoBanner() {
 
       {/* Particules dorées */}
       <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        {[...Array(24)].map((_, i) => (
+        {[...Array(12)].map((_, i) => (
           <span key={i} style={{
             position: 'absolute',
             width: `${3 + (i % 4)}px`, height: `${3 + (i % 4)}px`,
             borderRadius: '50%',
             background: i % 3 === 0 ? '#ffffff' : '#f3d98a',
             boxShadow: `0 0 ${8 + (i % 3) * 4}px rgba(243,217,138,0.95), 0 0 ${20 + (i % 3) * 6}px rgba(201,169,110,0.7)`,
-            left: `${(i * 4.13) % 100}%`,
+            left: `${(i * 8.13) % 100}%`,
             top: `${(i * 37 + 11) % 100}%`,
             animation: `heroParticle ${3 + (i % 5)}s ease-in-out ${i * 0.18}s infinite`,
             opacity: 0,
@@ -233,14 +250,14 @@ export default function HeroLogoBanner() {
 
       {/* Étincelles scintillantes */}
       <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        {[...Array(8)].map((_, i) => (
+        {[...Array(5)].map((_, i) => (
           <span key={`sp-${i}`} style={{
             position: 'absolute',
             width: '2px', height: '2px',
             background: '#fff',
             borderRadius: '50%',
             boxShadow: '0 0 6px #fff, 0 0 12px #f3d98a, 0 0 20px #C9A96E',
-            left: `${15 + i * 10}%`,
+            left: `${15 + i * 16}%`,
             top: `${(i * 23) % 80}%`,
             animation: `heroTwinkle ${2 + (i % 3)}s ease-in-out ${i * 0.4}s infinite`,
           }} />

@@ -8,6 +8,13 @@ import { RegisterDto } from './dto/register.dto';
 import { TokenRotationService } from './services/token-rotation.service';
 import type { JwtPayload } from '@avra/types';
 
+// Coût bcrypt élevé en 2026 (OWASP recommande ≥12 ; 10 = minimum historique).
+// Chaque +1 double le coût CPU côté serveur pour l'attaquant en cas de fuite DB.
+const BCRYPT_COST = 12;
+// Hash "trappe" utilisé contre un user inexistant pour égaliser le temps
+// de réponse login → anti-énumération (SEC-M4).
+const DUMMY_BCRYPT_HASH = '$2b$12$abcdefghijklmnopqrstuu0K1234567890abcdefghijklmnopqrstuv';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -20,9 +27,13 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase(), isActive: true },
     });
-    if (!user) throw new UnauthorizedException('Identifiants invalides');
-    const ok = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!ok) throw new UnauthorizedException('Identifiants invalides');
+    // Anti-énumération (SEC-M4) : on appelle bcrypt.compare même si l'user
+    // n'existe pas, pour égaliser le temps de réponse entre "inconnu" et
+    // "mot de passe faux". Sans ça, un attaquant peut distinguer les deux cas
+    // par timing (~0 ms vs ~100 ms).
+    const hashToCompare = user?.passwordHash ?? DUMMY_BCRYPT_HASH;
+    const ok = await bcrypt.compare(dto.password, hashToCompare);
+    if (!user || !ok) throw new UnauthorizedException('Identifiants invalides');
 
     const uw = await this.prisma.userWorkspace.findFirst({
       where: { userId: user.id },
@@ -160,7 +171,7 @@ export class AuthService {
     }
 
     // Mettre à jour le mot de passe et invalider le token
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_COST);
     await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -218,7 +229,7 @@ export class AuthService {
       });
 
       // Create user
-      const hashedPassword = await bcrypt.hash(dto.password, 10);
+      const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_COST);
       const refreshTokenPlain = crypto.randomBytes(32).toString('hex');
       const hashedRefresh = await this.tokenRotation.hashRefreshToken(refreshTokenPlain);
 

@@ -102,15 +102,18 @@ export function useDataSync() {
     syncedRef.current = true;
     setSyncing(true);
 
-    Promise.allSettled([
-      syncProjects(),
-      syncEvents(),
-      syncPayments(),
-      syncIntervenants(),
-    ]).then(() => {
-      setSynced(true);
-      setSyncing(false);
-    });
+    // Perf : sync séquentielle — la Serverless Function NestJS est mono-instance
+    // et 4 requêtes parallèles au cold-start saturent le process et provoquent des 500.
+    // Deux vagues de 2 requêtes = meilleur compromis latence/stabilité.
+    (async () => {
+      try {
+        await Promise.allSettled([syncProjects(), syncIntervenants()]);
+        await Promise.allSettled([syncEvents(), syncPayments()]);
+      } finally {
+        setSynced(true);
+        setSyncing(false);
+      }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated, user?.id]);
 
