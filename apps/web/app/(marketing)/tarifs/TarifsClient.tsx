@@ -66,35 +66,33 @@ const enterpriseFeatures = [
   'Facturation personnalisée',
 ];
 
-export default function TarifsClient() {
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [annual, setAnnual] = useState(false);
+function TarifsInstallBtn() {
+  const [dp, setDp] = useState<any>(null);
+  const [ok, setOk] = useState(false);
+  const [ios, setIos] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
-  function TarifsInstallBtn() {
-    const [dp, setDp] = useState<any>(null);
-    const [ok, setOk] = useState(false);
-    const [ios, setIos] = useState(false);
+  useEffect(() => {
+    setIos(/iphone|ipad|ipod/i.test(navigator.userAgent));
+    if (window.matchMedia('(display-mode: standalone)').matches) { setOk(true); return; }
+    const h = (e: Event) => { e.preventDefault(); setDp(e); };
+    window.addEventListener('beforeinstallprompt', h as EventListener);
+    return () => window.removeEventListener('beforeinstallprompt', h as EventListener);
+  }, []);
 
-    useEffect(() => {
-      setIos(/iphone|ipad|ipod/i.test(navigator.userAgent));
-      if (window.matchMedia('(display-mode: standalone)').matches) { setOk(true); return; }
-      const h = (e: Event) => { e.preventDefault(); setDp(e); };
-      window.addEventListener('beforeinstallprompt', h as EventListener);
-      return () => window.removeEventListener('beforeinstallprompt', h as EventListener);
-    }, []);
+  const go = async () => {
+    if (ios) { setShowGuide(!showGuide); return; }
+    if (!dp) return;
+    dp.prompt();
+    const { outcome } = await dp.userChoice;
+    if (outcome === 'accepted') setOk(true);
+    setDp(null);
+  };
 
-    const go = async () => {
-      if (ios) { alert('Sur iPhone : appuyez sur Partager ↑ → "Sur l\'écran d\'accueil" → Ajouter'); return; }
-      if (!dp) return;
-      dp.prompt();
-      const { outcome } = await dp.userChoice;
-      if (outcome === 'accepted') setOk(true);
-      setDp(null);
-    };
+  if (ok) return <div style={{ color: '#4A7C59', fontWeight: 600 }}>✓ App installée</div>;
 
-    if (ok) return <div style={{ color: '#4A7C59', fontWeight: 600 }}>✓ App installée</div>;
-
-    return (
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
       <button onClick={go} style={{
         flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '10px',
         fontSize: '0.95rem', fontWeight: 700, color: '#0e1810',
@@ -107,10 +105,30 @@ export default function TarifsClient() {
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(201,169,110,0.4)'; }}
       >
         <span>📲</span>
-        {ios ? 'Guide installation iPhone' : dp ? 'Installer l\'app' : 'Télécharger l\'app'}
+        {ios ? 'Guide installation iPhone' : dp ? "Installer l'app" : "Télécharger l'app"}
       </button>
-    );
-  }
+      {showGuide && (
+        <div style={{
+          position: 'absolute', bottom: 'calc(100% + 12px)', left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(14,24,16,0.97)', border: '1px solid rgba(201,169,110,0.3)',
+          borderRadius: '14px', padding: '16px 20px', width: '260px', zIndex: 200,
+          boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
+        }}>
+          <div style={{ fontSize: '0.83rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.8 }}>
+            <div style={{ fontWeight: 700, color: '#C9A96E', marginBottom: '8px' }}>📱 Sur iPhone :</div>
+            <div>1. Partager ↑ dans Safari</div>
+            <div>2. &quot;Sur l&apos;écran d&apos;accueil&quot;</div>
+            <div>3. Ajouter ✓</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function TarifsClient() {
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [annual, setAnnual] = useState(false);
 
   return (
     <>
