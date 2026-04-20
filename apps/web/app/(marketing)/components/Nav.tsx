@@ -50,20 +50,16 @@ export default function Nav() {
           transition: 'all 0.35s cubic-bezier(0.4,0,0.2,1)',
         }}
       >
-        {/* ══ LOGO GAUCHE — Texte AVRA doré ══ */}
+        {/* ══ LOGO GAUCHE — Image AVRA ══ */}
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-          <span style={{
-            fontFamily: 'var(--font-display, "Playfair Display", Georgia, serif)',
-            fontSize: '2rem',
-            fontWeight: 800,
-            letterSpacing: '0.12em',
-            background: 'linear-gradient(135deg, #f3d98a 0%, #e8c97a 30%, #C9A96E 60%, #a07840 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            filter: 'drop-shadow(0 2px 10px rgba(201,169,110,0.5))',
-            lineHeight: 1,
-          }}>AVRA</span>
+          <Image
+            src="/nouveaulogoavra.png"
+            alt="AVRA"
+            width={120}
+            height={40}
+            style={{ objectFit: 'contain', display: 'block' }}
+            priority
+          />
         </Link>
 
         {/* ══ LIENS CENTRE ══ */}
