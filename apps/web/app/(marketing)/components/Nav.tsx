@@ -65,7 +65,7 @@ export default function Nav() {
             alt="AVRA"
             width={120}
             height={40}
-            style={{ objectFit: 'contain', display: 'block', marginLeft: '-32px' }}
+            style={{ objectFit: 'contain', display: 'block', marginLeft: '-4px' }}
             priority
           />
         </Link>
