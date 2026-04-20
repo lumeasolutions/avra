@@ -37,7 +37,7 @@ export default function HeroLogoBanner() {
         padding: '0 2%',
         flexShrink: 0,
         overflow: 'hidden',
-        maxHeight: '280px',
+        height: '280px',
       }}
     >
       {/* Logo A circulaire (gauche) */}
@@ -48,7 +48,7 @@ export default function HeroLogoBanner() {
           width: 260,
           height: 260,
           flexShrink: 0,
-          marginRight: '-30px',
+          marginRight: '-70px',
           alignSelf: 'center',
           transition: 'transform 1s ease-out, opacity 1s ease-out',
           transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(-40px,0,0)',
@@ -97,7 +97,7 @@ export default function HeroLogoBanner() {
           width: 260,
           height: 260,
           flexShrink: 0,
-          marginLeft: '-30px',
+          marginLeft: '-70px',
           alignSelf: 'center',
           transition: 'transform 1s ease-out, opacity 1s ease-out',
           transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(40px,0,0)',
