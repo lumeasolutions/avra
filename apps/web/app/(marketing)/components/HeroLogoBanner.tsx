@@ -48,7 +48,7 @@ export default function HeroLogoBanner() {
           width: 200,
           height: 200,
           flexShrink: 0,
-          marginRight: '-70px',
+          marginRight: '-100px',
           alignSelf: 'center',
           transition: 'transform 1s ease-out, opacity 1s ease-out',
           transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(-40px,0,0)',
@@ -56,7 +56,7 @@ export default function HeroLogoBanner() {
           zIndex: 1,
         }}
       >
-        <div style={{ position: 'absolute', inset: 0, animation: 'heroLogoFloat 7s ease-in-out infinite' }}>
+        <div style={{ position: 'absolute', inset: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/nouveaulogoA.png"
@@ -97,7 +97,7 @@ export default function HeroLogoBanner() {
           width: 200,
           height: 200,
           flexShrink: 0,
-          marginLeft: '-70px',
+          marginLeft: '-100px',
           alignSelf: 'center',
           transition: 'transform 1s ease-out, opacity 1s ease-out',
           transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(40px,0,0)',
@@ -105,7 +105,7 @@ export default function HeroLogoBanner() {
           zIndex: 1,
         }}
       >
-        <div style={{ position: 'absolute', inset: 0, animation: 'heroLogoFloat 7s ease-in-out infinite 0.8s' }}>
+        <div style={{ position: 'absolute', inset: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/nouveaulogochouette.png"
