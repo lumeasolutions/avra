@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 
 /**
  * Bannière hero AVRA — version professionnelle et épurée.
@@ -11,12 +10,8 @@ import { useEffect, useState } from 'react';
  * - Animations conservées : entrée en fondu + léger flottement vertical
  */
 export default function HeroLogoBanner() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setMounted(true), 50);
-    return () => clearTimeout(t);
-  }, []);
+  // Logos toujours visibles — pas de flash invisible au chargement
+  const mounted = true;
 
   return (
     <div
