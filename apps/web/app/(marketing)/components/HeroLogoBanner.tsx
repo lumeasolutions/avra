@@ -40,8 +40,8 @@ export default function HeroLogoBanner() {
         className="hero-logo-left"
         style={{
           position: 'relative',
-          width: 200,
-          height: 200,
+          width: 240,
+          height: 240,
           flexShrink: 0,
           marginRight: '-150px',
           alignSelf: 'center',
@@ -66,8 +66,8 @@ export default function HeroLogoBanner() {
         className="hero-logo-center"
         style={{
           position: 'relative',
-          width: 800,
-          height: 340,
+          width: 920,
+          height: 390,
           flexShrink: 0,
           alignSelf: 'center',
           zIndex: 2,
@@ -89,8 +89,8 @@ export default function HeroLogoBanner() {
         className="hero-logo-right"
         style={{
           position: 'relative',
-          width: 200,
-          height: 200,
+          width: 240,
+          height: 240,
           flexShrink: 0,
           marginLeft: '-150px',
           alignSelf: 'center',

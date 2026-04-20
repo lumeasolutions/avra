@@ -50,14 +50,22 @@ export default function Nav() {
           transition: 'all 0.35s cubic-bezier(0.4,0,0.2,1)',
         }}
       >
-        {/* ══ LOGO GAUCHE — Image AVRA ══ */}
-        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+        {/* ══ LOGO GAUCHE — A circulaire + AVRA ══ */}
+        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
+          <Image
+            src="/nouveaulogoA.png"
+            alt="A"
+            width={44}
+            height={44}
+            style={{ objectFit: 'contain', display: 'block' }}
+            priority
+          />
           <Image
             src="/nouveaulogoavra.png"
             alt="AVRA"
             width={120}
             height={40}
-            style={{ objectFit: 'contain', display: 'block' }}
+            style={{ objectFit: 'contain', display: 'block', marginLeft: '-32px' }}
             priority
           />
         </Link>
