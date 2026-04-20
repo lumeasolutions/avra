@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * AVRA PWA Icon Generator
- * Génère toutes les tailles d'icônes PWA depuis logochouette4.png
+ * Génère toutes les tailles d'icônes PWA depuis nouveaulogochouette.png
  * Usage: node scripts/generate-icons.js
  */
 
@@ -17,7 +17,7 @@ async function generateIcons() {
     process.exit(1);
   }
 
-  const sourceImage = path.join(__dirname, '../public/logochouette4.png');
+  const sourceImage = path.join(__dirname, '../public/nouveaulogochouette.png');
   const outputDir = path.join(__dirname, '../public/icons');
 
   if (!fs.existsSync(sourceImage)) {

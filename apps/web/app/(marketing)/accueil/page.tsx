@@ -46,7 +46,7 @@ export default function AccueilPage() {
         {/* Background logo */}
         <div style={{
           position: 'absolute', inset: 0, zIndex: 0,
-          backgroundImage: 'url(/logosidebar3.png)',
+          backgroundImage: 'url(/nouveaulogoA.png)',
           backgroundSize: 'cover', backgroundPosition: 'center',
           opacity: 0.18,
         }} />
@@ -64,9 +64,9 @@ export default function AccueilPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '48px',
           padding: '18px 5%',
         }}>
-          <img src="/logosidebar3.png" alt="AVRA Logo" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
+          <img src="/nouveaulogoA.png" alt="AVRA Logo" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
           <div style={{ width: 1, height: 48, background: 'rgba(201,169,110,0.35)' }} />
-          <img src="/logochouette4.png" alt="AVRA Chouette" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
+          <img src="/nouveaulogochouette.png" alt="AVRA Chouette" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
         </div>
 
         <div className="hero-grid" style={{

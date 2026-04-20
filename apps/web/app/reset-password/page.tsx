@@ -168,7 +168,7 @@ function ResetPasswordForm() {
             <div style={{ position: 'relative', display: 'inline-block', marginBottom: '16px' }}>
               <div style={{ position: 'absolute', top: '50%', left: '50%', width: '120px', height: '120px', borderRadius: '50%', border: '1px solid rgba(201,169,110,0.2)', animation: 'ringRotate 8s linear infinite', transform: 'translate(-50%,-50%)' }} />
               <div style={{ position: 'relative', zIndex: 2, width: '70px', height: '70px', borderRadius: '50%', overflow: 'hidden', background: '#0a110c', border: '2px solid rgba(201,169,110,0.6)', boxShadow: '0 0 40px rgba(201,169,110,0.3)', animation: 'loginOwlFloat 5s ease-in-out infinite', margin: '0 auto' }}>
-                <Image src="/logochouette4.png" alt="AVRA" fill style={{ objectFit: 'contain', padding: 1 }} />
+                <Image src="/nouveaulogochouette.png" alt="AVRA" fill style={{ objectFit: 'contain', padding: 1 }} />
               </div>
             </div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(201,169,110,0.1)', border: '1px solid rgba(201,169,110,0.2)', borderRadius: '20px', padding: '5px 14px' }}>

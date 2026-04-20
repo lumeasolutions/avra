@@ -301,7 +301,7 @@ export default function LoginPage() {
                 margin: '0 auto',
               }}>
                 <Image
-                  src="/logochouette4.png"
+                  src="/nouveaulogochouette.png"
                   alt="AVRA"
                   fill
                   style={{ objectFit: 'contain', padding: 2, filter: 'brightness(1.25) saturate(1.4) contrast(1.05)' }}

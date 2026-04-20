@@ -107,7 +107,7 @@ export default function HomePage() {
       >
         {/* Image de fond — logo AVRA */}
         <Image
-          src="/logosidebar3.png"
+          src="/nouveaulogoA.png"
           alt="AVRA background"
           fill
           priority

@@ -157,7 +157,7 @@ export default function ForgotPasswordPage() {
                 animation: 'loginOwlFloat 5s ease-in-out infinite',
                 margin: '0 auto',
               }}>
-                <Image src="/logochouette4.png" alt="AVRA" fill style={{ objectFit: 'contain', padding: 1 }} />
+                <Image src="/nouveaulogochouette.png" alt="AVRA" fill style={{ objectFit: 'contain', padding: 1 }} />
               </div>
             </div>
 
