@@ -150,8 +150,8 @@ export default function HeroLogoBanner() {
         background: 'linear-gradient(90deg, rgba(10,16,12,0.95) 0%, rgba(48,64,53,0.7) 20%, rgba(201,169,110,0.35) 50%, rgba(48,64,53,0.7) 80%, rgba(10,16,12,0.95) 100%)',
         borderTop: '2px solid transparent',
         borderBottom: '2px solid transparent',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '110px',
-        padding: '18px 5%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '60px',
+        padding: '18px 4%',
         flexShrink: 0,
         overflow: 'hidden',
         boxShadow: '0 20px 100px rgba(201,169,110,0.38), inset 0 0 150px rgba(201,169,110,0.1)',
@@ -289,7 +289,7 @@ export default function HeroLogoBanner() {
             <stop offset="100%" stopColor="#f3d98a" stopOpacity="0" />
           </linearGradient>
         </defs>
-        <line x1="600" y1="150" x2="840" y2="150" stroke="url(#beam-grad)" strokeWidth="2" strokeDasharray="8 14" style={{ animation: 'heroBeamPulse 3s ease-in-out infinite', filter: 'drop-shadow(0 0 8px #f3d98a)' }} />
+        <line x1="250" y1="150" x2="1190" y2="150" stroke="url(#beam-grad)" strokeWidth="2" strokeDasharray="8 14" style={{ animation: 'heroBeamPulse 3s ease-in-out infinite', filter: 'drop-shadow(0 0 8px #f3d98a)' }} />
       </svg>
 
       {/* Ripples au clic */}
@@ -368,10 +368,10 @@ export default function HeroLogoBanner() {
           }} />
           {/* Logo image */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logosidebar3.png" alt="AVRA Logo" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', animation: 'heroLogoShimmer 3s ease-in-out infinite' }} />
+          <img src="/nouveaulogoA.png" alt="AVRA Logo" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', animation: 'heroLogoShimmer 3s ease-in-out infinite' }} />
           {/* Reflet miroir */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logosidebar3.png" alt="" aria-hidden style={{
+          <img src="/nouveaulogoA.png" alt="" aria-hidden style={{
             position: 'absolute', left: 0, top: '100%', width: '100%', height: '60%',
             objectFit: 'contain', objectPosition: 'top',
             transform: 'scaleY(-1)',
@@ -383,23 +383,76 @@ export default function HeroLogoBanner() {
         </div>
       </div>
 
-      {/* Séparateur lumineux + texte flottant */}
-      <div aria-hidden style={{
-        position: 'relative', width: 3, height: 220,
-        background: 'linear-gradient(to bottom, transparent 0%, rgba(201,169,110,0.4) 15%, rgba(243,217,138,1) 50%, rgba(201,169,110,0.4) 85%, transparent 100%)',
-        boxShadow: '0 0 32px rgba(243,217,138,1), 0 0 64px rgba(201,169,110,0.6), 0 0 96px rgba(201,169,110,0.3)',
-        animation: 'heroSepPulse 2.5s ease-in-out infinite',
-        borderRadius: 2,
-        transition: 'transform 1s cubic-bezier(0.4, 0, 0.2, 1)',
-        transform: mounted ? 'scaleY(1)' : 'scaleY(0)',
-      }}>
-        <div aria-hidden style={{
-          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-          width: 18, height: 18, borderRadius: '50%',
-          background: 'radial-gradient(circle, #fff 0%, #f3d98a 30%, transparent 70%)',
-          boxShadow: '0 0 20px #f3d98a, 0 0 40px #C9A96E',
-          animation: 'heroStarPulse 2s ease-in-out infinite',
-        }} />
+      {/* Grand logo AVRA central — la pièce maîtresse */}
+      <div
+        className="hero-logo-center"
+        style={{
+          position: 'relative',
+          width: 620, height: 200,
+          flexShrink: 0,
+          filter: 'drop-shadow(0 24px 60px rgba(201,169,110,0.85)) drop-shadow(0 0 48px rgba(243,217,138,0.7)) drop-shadow(0 0 8px rgba(255,255,255,0.5))',
+          transformStyle: 'preserve-3d',
+          transition: 'transform 0.25s ease-out, opacity 1.1s ease-out',
+          transform: mounted
+            ? `translate3d(0, 0, 0) rotateX(${tiltXDeg * 0.6}deg) rotateY(${tiltYDeg * 0.6}deg)`
+            : 'translate3d(0, 30px, 0) scale(0.85)',
+          opacity: mounted ? 1 : 0,
+        }}
+      >
+        <div style={{ position: 'absolute', inset: 0, animation: 'heroAvraFloat 6s ease-in-out infinite' }}>
+          {/* Halo radial derrière le texte */}
+          <div aria-hidden style={{
+            position: 'absolute', inset: '-40%',
+            background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.18) 0%, rgba(243,217,138,0.45) 15%, rgba(201,169,110,0.35) 35%, rgba(201,169,110,0.15) 55%, transparent 78%)',
+            animation: 'heroLogoGlow 4s ease-in-out infinite',
+            pointerEvents: 'none',
+            filter: 'blur(6px)',
+          }} />
+          {/* Rayons dorés verticaux en arrière-plan */}
+          <div aria-hidden style={{
+            position: 'absolute', inset: '-30%',
+            background: 'conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(243,217,138,0.35) 15deg, transparent 30deg, transparent 60deg, rgba(243,217,138,0.35) 75deg, transparent 90deg, transparent 150deg, rgba(243,217,138,0.35) 165deg, transparent 180deg, transparent 240deg, rgba(243,217,138,0.35) 255deg, transparent 270deg, transparent 330deg, rgba(243,217,138,0.35) 345deg, transparent 360deg)',
+            animation: 'heroRaySpin 22s linear infinite',
+            pointerEvents: 'none',
+            filter: 'blur(8px)',
+            opacity: 0.7,
+            mask: 'radial-gradient(ellipse at center, #000 0%, #000 40%, transparent 75%)',
+            WebkitMask: 'radial-gradient(ellipse at center, #000 0%, #000 40%, transparent 75%)',
+          }} />
+          {/* Image AVRA */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/nouveaulogoavra.png" alt="AVRA" style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain',
+            animation: 'heroLogoShimmer 3s ease-in-out infinite 0.75s',
+          }} />
+          {/* Overlay prisme rainbow subtil sur le texte */}
+          <div aria-hidden style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(100deg, transparent 0%, rgba(255,180,80,0.08) 25%, rgba(255,230,150,0.15) 50%, rgba(180,220,255,0.08) 75%, transparent 100%)',
+            mixBlendMode: 'screen',
+            animation: 'heroBannerSheen 5s ease-in-out infinite',
+            pointerEvents: 'none',
+            maskImage: 'url(/nouveaulogoavra.png)',
+            WebkitMaskImage: 'url(/nouveaulogoavra.png)',
+            maskSize: 'contain',
+            WebkitMaskSize: 'contain',
+            maskRepeat: 'no-repeat',
+            WebkitMaskRepeat: 'no-repeat',
+            maskPosition: 'center',
+            WebkitMaskPosition: 'center',
+          }} />
+          {/* Reflet miroir AVRA */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/nouveaulogoavra.png" alt="" aria-hidden style={{
+            position: 'absolute', left: 0, top: '100%', width: '100%', height: '55%',
+            objectFit: 'contain', objectPosition: 'top',
+            transform: 'scaleY(-1)',
+            opacity: 0.25,
+            filter: 'blur(1.5px)',
+            maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.55), transparent 85%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.55), transparent 85%)',
+          }} />
+        </div>
       </div>
 
       {/* Logo Chouette (droite) */}
@@ -465,7 +518,7 @@ export default function HeroLogoBanner() {
           }} />
           {/* Logo image avec blink overlay */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logochouette4.png" alt="AVRA Chouette" style={{
+          <img src="/nouveaulogochouette.png" alt="AVRA Chouette" style={{
             position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain',
             animation: 'heroLogoShimmer 3s ease-in-out infinite 1.5s',
             transform: blink ? 'scaleY(0.85)' : 'scaleY(1)',
@@ -474,7 +527,7 @@ export default function HeroLogoBanner() {
           }} />
           {/* Reflet miroir */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logochouette4.png" alt="" aria-hidden style={{
+          <img src="/nouveaulogochouette.png" alt="" aria-hidden style={{
             position: 'absolute', left: 0, top: '100%', width: '100%', height: '60%',
             objectFit: 'contain', objectPosition: 'top',
             transform: 'scaleY(-1)',
@@ -494,6 +547,10 @@ export default function HeroLogoBanner() {
         @keyframes heroLogoFloatR {
           0%, 100% { transform: translateY(0) rotate(4deg) scale(1); }
           50% { transform: translateY(-18px) rotate(-4deg) scale(1.06); }
+        }
+        @keyframes heroAvraFloat {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-10px) scale(1.02); }
         }
         @keyframes heroLogoShimmer {
           0%, 100% { filter: brightness(1) saturate(1); }
@@ -583,9 +640,15 @@ export default function HeroLogoBanner() {
           0%, 100% { opacity: 0.1; stroke-dashoffset: 0; }
           50% { opacity: 0.8; stroke-dashoffset: -44; }
         }
+        @media (max-width: 1200px) {
+          .hero-logo-banner { gap: 32px !important; }
+          .hero-logo-center { width: 440px !important; height: 140px !important; }
+          .hero-logo-left, .hero-logo-right { width: 170px !important; height: 170px !important; }
+        }
         @media (max-width: 768px) {
-          .hero-logo-banner { gap: 28px !important; padding: 18px 5% !important; }
-          .hero-logo-left, .hero-logo-right { width: 130px !important; height: 130px !important; }
+          .hero-logo-banner { gap: 14px !important; padding: 14px 3% !important; flex-wrap: nowrap; }
+          .hero-logo-center { width: 240px !important; height: 80px !important; }
+          .hero-logo-left, .hero-logo-right { width: 90px !important; height: 90px !important; }
         }
       `}</style>
     </div>
