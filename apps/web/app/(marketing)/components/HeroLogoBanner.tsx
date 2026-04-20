@@ -33,11 +33,11 @@ export default function HeroLogoBanner() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '16px',
-        padding: '0 4%',
+        gap: '0px',
+        padding: '0 2%',
         flexShrink: 0,
         overflow: 'hidden',
-        maxHeight: '240px',
+        maxHeight: '280px',
       }}
     >
       {/* Logo A circulaire (gauche) */}
@@ -48,9 +48,12 @@ export default function HeroLogoBanner() {
           width: 260,
           height: 260,
           flexShrink: 0,
+          marginRight: '-30px',
+          alignSelf: 'center',
           transition: 'transform 1s ease-out, opacity 1s ease-out',
           transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(-40px,0,0)',
           opacity: mounted ? 1 : 0,
+          zIndex: 1,
         }}
       >
         <div style={{ position: 'absolute', inset: 0, animation: 'heroLogoFloat 7s ease-in-out infinite' }}>
@@ -68,9 +71,11 @@ export default function HeroLogoBanner() {
         className="hero-logo-center"
         style={{
           position: 'relative',
-          width: 980,
-          height: 320,
+          width: 1060,
+          height: 360,
           flexShrink: 0,
+          alignSelf: 'center',
+          zIndex: 2,
           transition: 'transform 1.1s ease-out, opacity 1.1s ease-out',
           transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(0,20px,0)',
           opacity: mounted ? 1 : 0,
@@ -92,9 +97,12 @@ export default function HeroLogoBanner() {
           width: 260,
           height: 260,
           flexShrink: 0,
+          marginLeft: '-30px',
+          alignSelf: 'center',
           transition: 'transform 1s ease-out, opacity 1s ease-out',
           transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(40px,0,0)',
           opacity: mounted ? 1 : 0,
+          zIndex: 1,
         }}
       >
         <div style={{ position: 'absolute', inset: 0, animation: 'heroLogoFloat 7s ease-in-out infinite 0.8s' }}>
