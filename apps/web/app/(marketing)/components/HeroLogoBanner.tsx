@@ -33,7 +33,7 @@ export default function HeroLogoBanner() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '48px',
+        gap: '16px',
         padding: '0 4%',
         flexShrink: 0,
         overflow: 'hidden',
@@ -68,8 +68,8 @@ export default function HeroLogoBanner() {
         className="hero-logo-center"
         style={{
           position: 'relative',
-          width: 860,
-          height: 280,
+          width: 980,
+          height: 320,
           flexShrink: 0,
           transition: 'transform 1.1s ease-out, opacity 1.1s ease-out',
           transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(0,20px,0)',
