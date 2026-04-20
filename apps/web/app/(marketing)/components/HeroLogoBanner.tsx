@@ -33,9 +33,10 @@ export default function HeroLogoBanner() {
         alignItems: 'center',
         justifyContent: 'center',
         gap: '48px',
-        padding: '28px 4%',
+        padding: '0 4%',
         flexShrink: 0,
         overflow: 'hidden',
+        maxHeight: '200px',
       }}
     >
       {/* Logo A circulaire (gauche) */}
