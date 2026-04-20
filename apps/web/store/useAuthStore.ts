@@ -87,7 +87,20 @@ export const useAuthStore = create<AuthState>()(
       name: 'avra-auth',
       partialize: (state) => ({ token: state.token, user: state.user, profession: state.profession }),
       onRehydrateStorage: () => (state) => {
-        if (state) state.setHasHydrated(true);
+        if (!state) return;
+        state.setHasHydrated(true);
+
+        // "Rester connecté" — si l'utilisateur a décoché la case, on vérifie
+        // si la session est toujours active. sessionStorage est effacé à la
+        // fermeture du navigateur/PWA mais survit aux rechargements de page.
+        // Si sessionStorage est vide et avra-remember=false → déconnexion.
+        if (typeof window !== 'undefined') {
+          const remember = localStorage.getItem('avra-remember');
+          const sessionActive = sessionStorage.getItem('avra-session-active');
+          if (remember === 'false' && !sessionActive) {
+            state.logout();
+          }
+        }
       },
     },
   ),

@@ -2,7 +2,7 @@
   "name": "AVRA — Logiciel pro de l'agencement",
   "short_name": "AVRA",
   "description": "AVRA, le logiciel complet avec assistant IA dédié aux professionnels de l'agencement. Dossiers, devis, facturation, rendus IA et planning en une seule app.",
-  "start_url": "/",
+  "start_url": "/login",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

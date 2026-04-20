@@ -23,6 +23,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passFocused, setPassFocused] = useState(false);
+  // "Rester connecté" — coché par défaut, chargé depuis localStorage
+  const [rememberMe, setRememberMe] = useState(true);
+
+  useEffect(() => {
+    // Charger la préférence sauvegardée
+    const saved = localStorage.getItem('avra-remember');
+    if (saved === 'false') setRememberMe(false);
+  }, []);
 
   useEffect(() => {
     if (token) {
@@ -36,6 +44,14 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await authApi.login(email, password);
+      // Sauvegarder la préférence "rester connecté"
+      localStorage.setItem('avra-remember', rememberMe ? 'true' : 'false');
+      if (!rememberMe) {
+        // Session uniquement — marqueur effacé à la fermeture du navigateur
+        sessionStorage.setItem('avra-session-active', '1');
+      } else {
+        sessionStorage.removeItem('avra-session-active');
+      }
       setAuth('', res.user as Parameters<typeof setAuth>[1]);
       window.location.href = getRedirectUrl(profession);
     } catch (err) {
@@ -466,6 +482,37 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Rester connecté */}
+              <label style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                cursor: 'pointer', userSelect: 'none',
+              }}>
+                <div
+                  onClick={() => setRememberMe(!rememberMe)}
+                  style={{
+                    width: '20px', height: '20px', flexShrink: 0,
+                    borderRadius: '6px',
+                    border: `1.5px solid ${rememberMe ? 'rgba(201,169,110,0.8)' : 'rgba(255,255,255,0.2)'}`,
+                    background: rememberMe ? 'linear-gradient(135deg, #C9A96E, #a07840)' : 'rgba(255,255,255,0.04)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.2s ease',
+                    boxShadow: rememberMe ? '0 0 10px rgba(201,169,110,0.3)' : 'none',
+                  }}
+                >
+                  {rememberMe && (
+                    <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                      <path d="M1 4L4 7L10 1" stroke="#0e1810" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+                <span
+                  onClick={() => setRememberMe(!rememberMe)}
+                  style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.87rem', fontWeight: 500 }}
+                >
+                  Rester connecté
+                </span>
+              </label>
 
               {/* Erreur */}
               {error && (
