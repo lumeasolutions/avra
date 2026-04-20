@@ -25,6 +25,7 @@ export default function HeroLogoBanner() {
         position: 'relative',
         zIndex: 2,
         width: '100%',
+        marginTop: '-76px',   // remonte la bannière pour coller sous la navbar fixe (76px = hauteur nav)
         // Fond vert foncé identique à la maquette
         background: '#0f1a14',
         borderTop: '1px solid rgba(201,169,110,0.18)',
