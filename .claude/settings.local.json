@@ -10,7 +10,22 @@
       "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\),**d.get\\('devDependencies',{}\\)}; print\\('vercel/node:', '@vercel/node' in deps\\)\")",
       "Bash(node_modules/.bin/npm install:*)",
       "Bash(pnpm add:*)",
-      "Bash(node_modules/.bin/next build:*)"
+      "Bash(node_modules/.bin/next build:*)",
+      "Bash(git restore:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m 'feat\\(portails\\): remove dashboard sections, restore full planning view:*)",
+      "Bash(git commit -m 'fix\\(portails\\): reduce top padding to bring header closer to top edge:*)",
+      "Bash(git commit -m 'fix\\(portails\\): remove top padding + brighter owl in PageHeader:*)",
+      "Bash(git commit -m 'feat\\(portails\\): remove KPI cards from all portail pages:*)",
+      "Bash(git commit -m 'fix\\(PageHeader\\): tone down owl brightness slightly:*)",
+      "Bash(git commit -m 'feat\\(AssistantPanel\\): bigger owl logo, remove circle ring:*)",
+      "Bash(git commit -m 'feat\\(portails\\): increase section titles to 17px \\(was 13-15px\\):*)",
+      "Bash(git commit -m 'feat\\(portails\\): sort urgent first + status filter chips on dossier sections:*)",
+      "Bash(git commit -m 'feat\\(dossiers\\): full European TVA list grouped by country with optgroup:*)",
+      "Bash(git commit -m 'feat\\(dossiers/nouveau\\): increase section titles from text-sm to text-xl:*)",
+      "Bash(npx vercel:*)"
     ]
   }
 }
