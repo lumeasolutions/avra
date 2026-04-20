@@ -44,8 +44,8 @@ export default function HeroLogoBanner() {
         className="hero-logo-left"
         style={{
           position: 'relative',
-          width: 320,
-          height: 320,
+          width: 260,
+          height: 260,
           flexShrink: 0,
           transition: 'transform 1s ease-out, opacity 1s ease-out',
           transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(-40px,0,0)',
@@ -67,8 +67,8 @@ export default function HeroLogoBanner() {
         className="hero-logo-center"
         style={{
           position: 'relative',
-          width: 720,
-          height: 240,
+          width: 860,
+          height: 280,
           flexShrink: 0,
           transition: 'transform 1.1s ease-out, opacity 1.1s ease-out',
           transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(0,20px,0)',
@@ -88,8 +88,8 @@ export default function HeroLogoBanner() {
         className="hero-logo-right"
         style={{
           position: 'relative',
-          width: 320,
-          height: 320,
+          width: 260,
+          height: 260,
           flexShrink: 0,
           transition: 'transform 1s ease-out, opacity 1s ease-out',
           transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(40px,0,0)',
@@ -113,13 +113,13 @@ export default function HeroLogoBanner() {
         }
         @media (max-width: 1200px) {
           .hero-logo-banner { gap: 24px !important; padding: 20px 3% !important; }
-          .hero-logo-center { width: 520px !important; height: 170px !important; }
-          .hero-logo-left, .hero-logo-right { width: 220px !important; height: 220px !important; }
+          .hero-logo-center { width: 620px !important; height: 200px !important; }
+          .hero-logo-left, .hero-logo-right { width: 180px !important; height: 180px !important; }
         }
         @media (max-width: 768px) {
           .hero-logo-banner { gap: 10px !important; padding: 14px 3% !important; flex-wrap: nowrap; }
-          .hero-logo-center { width: 260px !important; height: 90px !important; }
-          .hero-logo-left, .hero-logo-right { width: 110px !important; height: 110px !important; }
+          .hero-logo-center { width: 300px !important; height: 100px !important; }
+          .hero-logo-left, .hero-logo-right { width: 85px !important; height: 85px !important; }
         }
       `}</style>
     </div>
