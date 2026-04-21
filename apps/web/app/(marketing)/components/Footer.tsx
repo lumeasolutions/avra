@@ -14,6 +14,7 @@ export default function Footer() {
       { label: 'Comment ça marche', href: '/comment-ca-marche' },
       { label: 'Témoignages', href: '/temoignages' },
       { label: 'Démo', href: '/demo' },
+      { label: '🌱 Rejoindre la bêta', href: '/rejoindre' },
     ],
     metiers: [
       { label: 'Cuisiniste', href: '/metiers#cuisiniste' },
@@ -106,7 +107,7 @@ export default function Footer() {
       {/* Footer Bottom */}
       <div className="footer-bottom">
         <span>
-          © {currentYear} AVRA by Luméa — Tous droits réservés · Conforme e-facture 2026
+          © {currentYear} AVRA by Luméa — Tous droits réservés · Conforme e-facture 2026 · Bêta privée, lancement juillet 2026
         </span>
         <div className="footer-bottom-links">
           <Link href="/mentions-legales">Mentions légales</Link>

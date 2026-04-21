@@ -3,13 +3,14 @@ import type { Metadata } from 'next';
 import Nav from '../(marketing)/components/Nav';
 import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
+import BetaBanner from '../(marketing)/components/BetaBanner';
 import Link from 'next/link';
 import { MapPin, Briefcase, TrendingUp, Home, AlertCircle, Layers } from 'lucide-react';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Logiciel menuisier Lyon — ERP menuiserie complet pour Lyon et la région',
-  description: 'AVRA est le logiciel ERP pour menuisiers lyonnais. Devis, planning, stock, facturation e-conformité. Essai gratuit.',
+  description: 'AVRA est le logiciel ERP pour menuisiers lyonnais. Devis, planning, stock, facturation e-conformité. Demandez une démo.',
   alternates: { canonical: 'https://avra.fr/menuisier-lyon' },
   openGraph: {
     title: 'Logiciel menuisier Lyon — ERP menuiserie complet pour Lyon et la région',
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 export default function MenuisierLyon() {
   return (
     <>
+      <BetaBanner />
       <Nav />
       <ScrollReveal />
 
@@ -52,7 +54,7 @@ export default function MenuisierLyon() {
           </p>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '48px' }}>
-            <a href="/register">
+            <a href="/demo">
               <button style={{
                 padding: '14px 32px',
                 background: '#1e2b22',
@@ -65,7 +67,7 @@ export default function MenuisierLyon() {
                 transition: 'all 0.3s ease'
               }}
               >
-                Essai gratuit 14 jours
+                Demander une démo
               </button>
             </a>
             <a href="/fonctionnalites">
@@ -280,7 +282,7 @@ export default function MenuisierLyon() {
             Menuisiers lyonnais, découvrez comment AVRA simplifie votre quotidien.
           </p>
 
-          <a href="/register">
+          <a href="/demo">
             <button style={{
               padding: '16px 40px',
               background: '#c9a96e',
@@ -293,7 +295,7 @@ export default function MenuisierLyon() {
               transition: 'all 0.3s ease'
             }}
             >
-              Tester gratuitement pendant 14 jours
+              Demander une démo
             </button>
           </a>
         </div>

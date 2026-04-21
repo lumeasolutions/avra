@@ -78,7 +78,7 @@ export default async function Image() {
             textAlign: 'center',
           }}
         >
-          Essai gratuit 14 jours
+          Bêta privée · Lancement juillet 2026
         </div>
       </div>
     ),

@@ -23,6 +23,7 @@ import './(marketing)/marketing.css';
 import Nav from './(marketing)/components/Nav';
 import Footer from './(marketing)/components/Footer';
 import HeroLogoBanner from './(marketing)/components/HeroLogoBanner';
+import BetaBanner from './(marketing)/components/BetaBanner';
 import dynamic from 'next/dynamic';
 const PWAInstallHero = dynamic(() => import('./(marketing)/components/PWAInstallHero').then(m => m.PWAInstallHero), { ssr: false });
 
@@ -87,6 +88,7 @@ export default function HomePage() {
         }}
       />
 
+      <BetaBanner />
       <Nav />
 
       {/* ════════════════════════════════════════════════════════════════
@@ -100,7 +102,7 @@ export default function HomePage() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          paddingTop: '76px',
+          paddingTop: '112px', // 36px BetaBanner + 76px Nav
           overflow: 'hidden',
           background: '#1e2b22',
         }}

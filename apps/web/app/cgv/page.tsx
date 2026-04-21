@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Nav from '../(marketing)/components/Nav'
 import Footer from '../(marketing)/components/Footer'
+import BetaBanner from '../(marketing)/components/BetaBanner'
 import '../(marketing)/marketing.css'
 
 export const metadata: Metadata = {
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
 export default function CGVPage() {
   return (
     <>
+      <BetaBanner />
       <Nav />
       <div style={{ background: '#ffffff', color: '#1e2b22', minHeight: '100vh', fontFamily: 'var(--font-dm-sans, "DM Sans"), system-ui, sans-serif' }}>
         <div className="legal-wrap">

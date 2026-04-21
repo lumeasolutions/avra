@@ -3,6 +3,7 @@
 import Nav from '../../(marketing)/components/Nav';
 import Footer from '../../(marketing)/components/Footer';
 import ScrollReveal from '../../(marketing)/components/ScrollReveal';
+import BetaBanner from '../../(marketing)/components/BetaBanner';
 import '../../(marketing)/marketing.css';
 import Link from 'next/link';
 import { Calendar, Clock, ArrowLeft } from 'lucide-react';
@@ -10,6 +11,7 @@ import { Calendar, Clock, ArrowLeft } from 'lucide-react';
 export default function ComparatifCuisiniste() {
   return (
     <>
+      <BetaBanner />
       <Nav />
       <ScrollReveal />
 
@@ -64,7 +66,7 @@ export default function ComparatifCuisiniste() {
               <strong>Faiblesses :</strong> Plus jeune sur le marché, moins de références historiques.
             </p>
             <p style={{ marginBottom: '32px' }}>
-              <strong>Prix :</strong> À partir de 79€/mois. Essai gratuit 14 jours.
+              <strong>Prix :</strong> À partir de 79€/mois. Démo disponible sur demande.
             </p>
 
             <h3 style={{ fontSize: '1.2rem', marginTop: '32px', marginBottom: '12px', color: '#1e2b22' }}>2. Extrabat</h3>
@@ -223,11 +225,11 @@ export default function ComparatifCuisiniste() {
           </div>
 
           <div style={{ padding: '32px', background: '#f9f6f0', borderRadius: '12px', marginTop: '60px', textAlign: 'center' }}>
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px', color: '#1e2b22' }}>Prêt à tester AVRA ?</h3>
+            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px', color: '#1e2b22' }}>Prêt à découvrir AVRA ?</h3>
             <p style={{ color: '#6b7c70', marginBottom: '16px' }}>
-              Essai gratuit 14 jours. Aucune carte de crédit requise.
+              Démo personnalisée avec notre équipe. Lancement public juillet 2026.
             </p>
-            <Link href="/register" style={{ display: 'inline-block', padding: '12px 32px', background: '#1e2b22', color: '#f9f6f0', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, textDecoration: 'none', transition: 'background 0.2s' }} onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = '#253029'} onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = '#1e2b22'}>Démarrer l'essai gratuit</Link>
+            <Link href="/demo" style={{ display: 'inline-block', padding: '12px 32px', background: '#1e2b22', color: '#f9f6f0', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, textDecoration: 'none', transition: 'background 0.2s' }} onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = '#253029'} onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = '#1e2b22'}>Demander une démo</Link>
           </div>
         </div>
       </div>

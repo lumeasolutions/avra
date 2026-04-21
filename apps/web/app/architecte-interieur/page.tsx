@@ -15,6 +15,7 @@ import {
 import Nav from '../(marketing)/components/Nav';
 import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
+import BetaBanner from '../(marketing)/components/BetaBanner';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
@@ -34,6 +35,7 @@ export default function ArchitecteInteriorPage() {
 
   return (
     <>
+      <BetaBanner />
       <Nav />
       <ScrollReveal />
 

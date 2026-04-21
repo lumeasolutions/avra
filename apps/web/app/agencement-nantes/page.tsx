@@ -3,13 +3,14 @@ import type { Metadata } from 'next';
 import Nav from '../(marketing)/components/Nav';
 import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
+import BetaBanner from '../(marketing)/components/BetaBanner';
 import Link from 'next/link';
 import { MapPin, Building2, Zap, DollarSign, Users, Shield } from 'lucide-react';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Logiciel agencement Nantes — Gérez vos projets en Pays de la Loire',
-  description: 'AVRA aide les agenceurs nantais à piloter leurs chantiers, budgets clients et facturation. E-facture 2026 intégrée. Essai gratuit.',
+  description: 'AVRA aide les agenceurs nantais à piloter leurs chantiers, budgets clients et facturation. E-facture 2026 intégrée. Demandez une démo.',
   alternates: { canonical: 'https://avra.fr/agencement-nantes' },
   openGraph: {
     title: 'Logiciel agencement Nantes — Gérez vos projets en Pays de la Loire',
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 export default function AgencementNantes() {
   return (
     <>
+      <BetaBanner />
       <Nav />
       <ScrollReveal />
 
@@ -41,7 +43,7 @@ export default function AgencementNantes() {
           </p>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-            <a href="/register"><button style={{ padding: '14px 32px', background: '#1e2b22', color: '#f9f6f0', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Essai gratuit 14 jours</button></a>
+            <a href="/demo"><button style={{ padding: '14px 32px', background: '#1e2b22', color: '#f9f6f0', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Demander une démo</button></a>
             <a href="/fonctionnalites"><button style={{ padding: '14px 32px', background: 'transparent', color: '#1e2b22', border: '2px solid #1e2b22', borderRadius: '8px', cursor: 'pointer' }}>Voir fonctionnalités</button></a>
           </div>
         </div>
@@ -127,7 +129,7 @@ export default function AgencementNantes() {
           <p style={{ fontSize: '1.2rem', color: 'rgba(249,246,240,0.85)', marginBottom: '32px', maxWidth: '700px', marginLeft: 'auto', marginRight: 'auto' }}>
             Les agenceurs nantais doublent leur capacité projets avec AVRA.
           </p>
-          <a href="/register"><button style={{ padding: '16px 40px', background: '#c9a96e', color: '#1e2b22', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>Démarrer l'essai gratuit</button></a>
+          <a href="/demo"><button style={{ padding: '16px 40px', background: '#c9a96e', color: '#1e2b22', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>Demander une démo</button></a>
         </div>
       </section>
 

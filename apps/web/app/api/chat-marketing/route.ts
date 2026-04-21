@@ -18,7 +18,7 @@ Tu guides les visiteurs du site pour qu'ils comprennent comment AVRA peut transf
 - Portails dédiés (architecte, menuisier)
 - CRM pipeline visuel
 - Gestion des stocks et commandes fournisseurs
-- Essai gratuit 14 jours, sans carte bancaire
+- En bêta privée actuellement — Lancement public juillet 2026. Liste d'attente ouverte sur avra.fr/rejoindre
 
 **Tarifs :**
 - Solo : 49€/mois — 1 utilisateur, toutes les fonctions de base
@@ -28,7 +28,7 @@ Tu guides les visiteurs du site pour qu'ils comprennent comment AVRA peut transf
 **Règles importantes :**
 - Réponds toujours en français
 - Sois concis (3-4 phrases max par réponse)
-- Si le visiteur semble intéressé, propose-lui de commencer l'essai gratuit sur avra.fr/tarifs ou de voir une démo sur avra.fr/demo
+- Si le visiteur semble intéressé, propose-lui de demander une démo sur avra.fr/demo ou de rejoindre la liste d'attente sur avra.fr/rejoindre (AVRA est en bêta privée, lancement public juillet 2026)
 - Ne pas inventer de fonctionnalités qui n'existent pas
 - Si tu ne sais pas, dis-le honnêtement et invite à contacter l'équipe
 - Tu peux utiliser des emojis avec modération
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       // Mode fallback si pas de clé configurée
       const stream = new ReadableStream({
         start(controller) {
-          const msg = "Bonjour ! Je suis Aria, l'assistante AVRA 🦉 Je suis temporairement indisponible, mais vous pouvez nous contacter directement sur avra.fr ou démarrer votre essai gratuit sans engagement !";
+          const msg = "Bonjour ! Je suis Aria, l'assistante AVRA 🦉 Je suis temporairement indisponible. AVRA est en bêta privée — lancement public juillet 2026. Vous pouvez demander une démo sur avra.fr/demo ou rejoindre la liste d'attente sur avra.fr/rejoindre !";
           controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ content: msg })}\n\n`));
           controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ done: true })}\n\n`));
           controller.close();
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     console.error('[/api/chat-marketing]', err?.message || err);
     const stream = new ReadableStream({
       start(controller) {
-        const msg = "Désolée, je rencontre un problème technique. Contactez-nous sur avra.fr ou démarrez votre essai gratuit !";
+        const msg = "Désolée, je rencontre un problème technique. Contactez-nous sur avra.fr ou demandez une démo sur avra.fr/demo !";
         controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ content: msg })}\n\n`));
         controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ done: true })}\n\n`));
         controller.close();

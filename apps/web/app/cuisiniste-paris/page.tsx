@@ -3,17 +3,18 @@ import type { Metadata } from 'next';
 import Nav from '../(marketing)/components/Nav';
 import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
+import BetaBanner from '../(marketing)/components/BetaBanner';
 import Link from 'next/link';
 import { MapPin, ChefHat, Zap, BarChart3, Users, Shield } from 'lucide-react';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Logiciel cuisiniste Paris — ERP & IA pour cuisinistes en Île-de-France',
-  description: 'AVRA est le logiciel N°1 pour les cuisinistes parisiens. Gérez vos dossiers, devis, planning et générez des rendus IA en 10s. Essai gratuit 14j.',
+  description: 'AVRA est le logiciel N°1 pour les cuisinistes parisiens. Gérez vos dossiers, devis, planning et générez des rendus IA en 10s. Demandez une démo.',
   alternates: { canonical: 'https://avra.fr/cuisiniste-paris' },
   openGraph: {
     title: 'Logiciel cuisiniste Paris — ERP & IA pour cuisinistes en Île-de-France',
-    description: 'AVRA est le logiciel N°1 pour les cuisinistes parisiens. Gérez vos dossiers, devis, planning et générez des rendus IA en 10s. Essai gratuit 14j.',
+    description: 'AVRA est le logiciel N°1 pour les cuisinistes parisiens. Gérez vos dossiers, devis, planning et générez des rendus IA en 10s. Demandez une démo.',
     url: 'https://avra.fr/cuisiniste-paris',
   },
 };
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 export default function CuisinisteParis() {
   return (
     <>
+      <BetaBanner />
       <Nav />
       <ScrollReveal />
 
@@ -52,7 +54,7 @@ export default function CuisinisteParis() {
           </p>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '48px' }}>
-            <a href="/register">
+            <a href="/demo">
               <button style={{
                 padding: '14px 32px',
                 background: '#1e2b22',
@@ -65,7 +67,7 @@ export default function CuisinisteParis() {
                 transition: 'all 0.3s ease'
               }}
               >
-                Essai gratuit 14 jours
+                Demander une démo
               </button>
             </a>
             <a href="/fonctionnalites">
@@ -280,7 +282,7 @@ export default function CuisinisteParis() {
             Rejoignez les 500+ cuisinistes, menuisiers et architectes d'intérieur qui font confiance à AVRA.
           </p>
 
-          <a href="/register">
+          <a href="/demo">
             <button style={{
               padding: '16px 40px',
               background: '#c9a96e',
@@ -293,7 +295,7 @@ export default function CuisinisteParis() {
               transition: 'all 0.3s ease'
             }}
             >
-              Démarrer mon essai gratuit
+              Demander une démo
             </button>
           </a>
         </div>

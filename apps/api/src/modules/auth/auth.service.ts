@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -6,7 +6,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { TokenRotationService } from './services/token-rotation.service';
+import { isEmailAllowed, isBetaGateEnabled } from '../../common/security/beta-gate';
 import type { JwtPayload } from '@avra/types';
+
+// Message renvoyé quand le bêta gate bloque un utilisateur.
+const BETA_GATE_MESSAGE =
+  "AVRA est en bêta privée. L'accès n'est pas encore ouvert publiquement. Inscrivez-vous sur la liste d'attente pour être notifié au lancement.";
 
 // Coût bcrypt élevé en 2026 (OWASP recommande ≥12 ; 10 = minimum historique).
 // Chaque +1 double le coût CPU côté serveur pour l'attaquant en cas de fuite DB.
@@ -34,6 +39,13 @@ export class AuthService {
     const hashToCompare = user?.passwordHash ?? DUMMY_BCRYPT_HASH;
     const ok = await bcrypt.compare(dto.password, hashToCompare);
     if (!user || !ok) throw new UnauthorizedException('Identifiants invalides');
+
+    // 🌱 Bêta gate — bloque les connexions non whitelistées pendant la bêta privée.
+    // On vérifie APRÈS le check du mot de passe pour ne pas fuiter l'info
+    // "cet email existe mais n'est pas whitelisté" à un attaquant.
+    if (isBetaGateEnabled() && !isEmailAllowed(user.email)) {
+      throw new ForbiddenException(BETA_GATE_MESSAGE);
+    }
 
     const uw = await this.prisma.userWorkspace.findFirst({
       where: { userId: user.id },
@@ -214,6 +226,11 @@ export class AuthService {
 
   // ✅ TÂCHE 9 — Registration
   async register(dto: RegisterDto) {
+    // 🌱 Bêta gate — bloque toute création de compte publique pendant la bêta privée.
+    if (isBetaGateEnabled() && !isEmailAllowed(dto.email)) {
+      throw new ForbiddenException(BETA_GATE_MESSAGE);
+    }
+
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() },
     });

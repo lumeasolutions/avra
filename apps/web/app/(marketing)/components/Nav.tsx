@@ -29,7 +29,7 @@ export default function Nav() {
       <nav
         style={{
           position: 'fixed',
-          top: 0, left: 0, right: 0,
+          top: '36px', left: 0, right: 0, // 36px pour laisser la place au BetaBanner
           zIndex: 100,
           display: 'flex',
           alignItems: 'center',
@@ -178,7 +178,7 @@ export default function Nav() {
       {/* ══ MOBILE MENU ══ */}
       {menuOpen && (
         <div style={{
-          position: 'fixed', top: '72px', left: 0, right: 0, bottom: 0,
+          position: 'fixed', top: '108px', left: 0, right: 0, bottom: 0, // 36 (banner) + 72 (nav)
           background: 'rgba(0,0,0,0.6)', zIndex: 99,
           backdropFilter: 'blur(4px)',
         }} onClick={() => setMenuOpen(false)}>

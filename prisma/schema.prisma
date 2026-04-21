@@ -888,3 +888,47 @@ model AutomationRule {
 
   @@index([workspaceId])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WAITLIST (Bêta privée — lancement juillet 2026)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Waitlist {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  firstName  String?
+  lastName   String?
+  company    String?
+  metier     String?  // architecte | cuisiniste | menuisier | agenceur | autre
+  message    String?
+  source     String?  // utm_source / referrer / page
+  ipAddress  String?
+  userAgent  String?
+  notified   Boolean  @default(false) // email de confirmation envoyé
+  invitedAt  DateTime? // si on invite à rejoindre la bêta
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([metier])
+}
+
+model DemoRequest {
+  id         String   @id @default(cuid())
+  email      String
+  firstName  String?
+  lastName   String?
+  company    String?
+  phone      String?
+  metier     String?
+  message    String?
+  source     String?
+  ipAddress  String?
+  userAgent  String?
+  contacted  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([email])
+}

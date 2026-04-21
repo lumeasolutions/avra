@@ -44,26 +44,43 @@ export default function NotFound() {
           color: 'rgba(255,255,255,0.5)',
           fontSize: '1rem',
           marginBottom: '36px',
-          maxWidth: '400px',
+          maxWidth: '420px',
         }}
       >
-        La page que vous recherchez n&apos;existe pas ou a été déplacée.
+        La page que vous recherchez n&apos;existe pas ou a été déplacée. AVRA est en bêta privée — lancement public en juillet 2026.
       </p>
-      <Link
-        href="/"
-        style={{
-          padding: '12px 32px',
-          background: 'linear-gradient(135deg, #e8c97a, #C9A96E)',
-          color: '#0e1810',
-          fontWeight: 700,
-          borderRadius: '12px',
-          textDecoration: 'none',
-          fontSize: '0.95rem',
-          boxShadow: '0 8px 24px rgba(201,169,110,0.35)',
-        }}
-      >
-        Retour à l&apos;accueil
-      </Link>
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <Link
+          href="/"
+          style={{
+            padding: '12px 28px',
+            background: 'linear-gradient(135deg, #e8c97a, #C9A96E)',
+            color: '#0e1810',
+            fontWeight: 700,
+            borderRadius: '12px',
+            textDecoration: 'none',
+            fontSize: '0.95rem',
+            boxShadow: '0 8px 24px rgba(201,169,110,0.35)',
+          }}
+        >
+          Retour à l&apos;accueil
+        </Link>
+        <Link
+          href="/rejoindre"
+          style={{
+            padding: '12px 28px',
+            background: 'transparent',
+            color: '#e8c97a',
+            fontWeight: 700,
+            borderRadius: '12px',
+            textDecoration: 'none',
+            fontSize: '0.95rem',
+            border: '1px solid rgba(232,201,122,0.4)',
+          }}
+        >
+          🌱 Rejoindre la bêta
+        </Link>
+      </div>
     </div>
   );
 }

@@ -3,13 +3,14 @@ import type { Metadata } from 'next';
 import Nav from '../(marketing)/components/Nav';
 import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
+import BetaBanner from '../(marketing)/components/BetaBanner';
 import Link from 'next/link';
 import { MapPin, FileText, Clock, Hammer, BarChart3, CheckCircle } from 'lucide-react';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Logiciel menuisier Paris — Devis, planning et facturation pour menuisiers parisiens',
-  description: 'AVRA aide les menuisiers parisiens à gérer devis, planning de chantier, facturation et conformité e-facture 2026. Essai gratuit.',
+  description: 'AVRA aide les menuisiers parisiens à gérer devis, planning de chantier, facturation et conformité e-facture 2026. Demandez une démo.',
   alternates: { canonical: 'https://avra.fr/menuisier-paris' },
   openGraph: {
     title: 'Logiciel menuisier Paris — Devis, planning et facturation pour menuisiers parisiens',
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 export default function MenuisierParis() {
   return (
     <>
+      <BetaBanner />
       <Nav />
       <ScrollReveal />
 
@@ -52,7 +54,7 @@ export default function MenuisierParis() {
           </p>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '48px' }}>
-            <a href="/register">
+            <a href="/demo">
               <button style={{
                 padding: '14px 32px',
                 background: '#1e2b22',
@@ -65,7 +67,7 @@ export default function MenuisierParis() {
                 transition: 'all 0.3s ease'
               }}
               >
-                Essai gratuit 14 jours
+                Demander une démo
               </button>
             </a>
             <a href="/fonctionnalites">
@@ -280,7 +282,7 @@ export default function MenuisierParis() {
             Les menuisiers parisiens gagnent 6h par semaine en moyenne avec AVRA.
           </p>
 
-          <a href="/register">
+          <a href="/demo">
             <button style={{
               padding: '16px 40px',
               background: '#c9a96e',
@@ -293,7 +295,7 @@ export default function MenuisierParis() {
               transition: 'all 0.3s ease'
             }}
             >
-              Démarrer mon essai gratuit
+              Demander une démo
             </button>
           </a>
         </div>

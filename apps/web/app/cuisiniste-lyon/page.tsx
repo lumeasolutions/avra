@@ -3,13 +3,14 @@ import type { Metadata } from 'next';
 import Nav from '../(marketing)/components/Nav';
 import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
+import BetaBanner from '../(marketing)/components/BetaBanner';
 import Link from 'next/link';
 import { MapPin, Lightbulb, Zap, BarChart3, TrendingUp, Settings } from 'lucide-react';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Logiciel cuisiniste Lyon — Solution complète pour cuisinistes à Lyon',
-  description: 'AVRA vous permet de gérer vos cuisines à Lyon de la conception à la facturation. Devis, planning, rendus IA et e-facture 2026. Essai gratuit 14j.',
+  description: 'AVRA vous permet de gérer vos cuisines à Lyon de la conception à la facturation. Devis, planning, rendus IA et e-facture 2026. Demandez une démo.',
   alternates: { canonical: 'https://avra.fr/cuisiniste-lyon' },
   openGraph: {
     title: 'Logiciel cuisiniste Lyon — Solution complète pour cuisinistes à Lyon',
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 export default function CuisinistelyOn() {
   return (
     <>
+      <BetaBanner />
       <Nav />
       <ScrollReveal />
 
@@ -52,7 +54,7 @@ export default function CuisinistelyOn() {
           </p>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '48px' }}>
-            <a href="/register">
+            <a href="/demo">
               <button style={{
                 padding: '14px 32px',
                 background: '#1e2b22',
@@ -65,7 +67,7 @@ export default function CuisinistelyOn() {
                 transition: 'all 0.3s ease'
               }}
               >
-                Essai gratuit 14 jours
+                Demander une démo
               </button>
             </a>
             <a href="/fonctionnalites">
@@ -281,7 +283,7 @@ export default function CuisinistelyOn() {
             Les cuisinistes lyonnais gagnent en moyenne 8 heures par semaine en temps administratif avec AVRA.
           </p>
 
-          <a href="/register">
+          <a href="/demo">
             <button style={{
               padding: '16px 40px',
               background: '#c9a96e',
@@ -294,7 +296,7 @@ export default function CuisinistelyOn() {
               transition: 'all 0.3s ease'
             }}
             >
-              Tester gratuitement pendant 14 jours
+              Demander une démo
             </button>
           </a>
         </div>

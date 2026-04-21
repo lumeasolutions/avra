@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Nav from '../(marketing)/components/Nav';
 import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
+import BetaBanner from '../(marketing)/components/BetaBanner';
 import BlogArticleCard from './BlogArticleCard';
 import NewsletterForm from './NewsletterForm';
 import '../(marketing)/marketing.css';
@@ -40,6 +41,7 @@ const articles = [
 export default function BlogPage() {
   return (
     <>
+      <BetaBanner />
       <Nav />
       <ScrollReveal />
 

@@ -3,13 +3,14 @@ import type { Metadata } from 'next';
 import Nav from '../(marketing)/components/Nav';
 import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
+import BetaBanner from '../(marketing)/components/BetaBanner';
 import Link from 'next/link';
 import { MapPin, Palette, Zap, Users, TrendingUp, Award } from 'lucide-react';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Logiciel cuisiniste Marseille — Gérez vos projets cuisine en PACA',
-  description: 'AVRA simplifie la gestion de vos cuisines à Marseille. Devis, planning, rendus IA et facturation e-conformité. Essai gratuit 14 jours.',
+  description: 'AVRA simplifie la gestion de vos cuisines à Marseille. Devis, planning, rendus IA et facturation e-conformité. Demandez une démo.',
   alternates: { canonical: 'https://avra.fr/cuisiniste-marseille' },
   openGraph: {
     title: 'Logiciel cuisiniste Marseille — Gérez vos projets cuisine en PACA',
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 export default function CuisinisteMarseille() {
   return (
     <>
+      <BetaBanner />
       <Nav />
       <ScrollReveal />
 
@@ -52,7 +54,7 @@ export default function CuisinisteMarseille() {
           </p>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '48px' }}>
-            <a href="/register">
+            <a href="/demo">
               <button style={{
                 padding: '14px 32px',
                 background: '#1e2b22',
@@ -65,7 +67,7 @@ export default function CuisinisteMarseille() {
                 transition: 'all 0.3s ease'
               }}
               >
-                Essai gratuit 14 jours
+                Demander une démo
               </button>
             </a>
             <a href="/fonctionnalites">
@@ -280,7 +282,7 @@ export default function CuisinisteMarseille() {
             Rejoignez les leaders de l'agencement marseillais qui ont choisi AVRA.
           </p>
 
-          <a href="/register">
+          <a href="/demo">
             <button style={{
               padding: '16px 40px',
               background: '#c9a96e',
@@ -293,7 +295,7 @@ export default function CuisinisteMarseille() {
               transition: 'all 0.3s ease'
             }}
             >
-              Commencer mon essai gratuit
+              Demander une démo
             </button>
           </a>
         </div>

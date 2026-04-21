@@ -3,13 +3,14 @@ import type { Metadata } from 'next';
 import Nav from '../(marketing)/components/Nav';
 import Footer from '../(marketing)/components/Footer';
 import ScrollReveal from '../(marketing)/components/ScrollReveal';
+import BetaBanner from '../(marketing)/components/BetaBanner';
 import Link from 'next/link';
 import { MapPin, Briefcase, Zap, BarChart3, Users, Shield } from 'lucide-react';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Logiciel menuisier Bordeaux — Solution complète pour menuisiers en Gironde',
-  description: 'AVRA aide les menuisiers bordelais à gérer leurs devis, planning, stock et facturation. Conforme e-facture 2026. Essai gratuit.',
+  description: 'AVRA aide les menuisiers bordelais à gérer leurs devis, planning, stock et facturation. Conforme e-facture 2026. Demandez une démo.',
   alternates: { canonical: 'https://avra.fr/menuisier-bordeaux' },
   openGraph: {
     title: 'Logiciel menuisier Bordeaux — Solution complète pour menuisiers en Gironde',
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 export default function MenuisierBordeaux() {
   return (
     <>
+      <BetaBanner />
       <Nav />
       <ScrollReveal />
 
@@ -49,7 +51,7 @@ export default function MenuisierBordeaux() {
           </p>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-            <a href="/register"><button style={{ padding: '14px 32px', background: '#1e2b22', color: '#f9f6f0', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Essai gratuit 14 jours</button></a>
+            <a href="/demo"><button style={{ padding: '14px 32px', background: '#1e2b22', color: '#f9f6f0', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Demander une démo</button></a>
             <a href="/fonctionnalites"><button style={{ padding: '14px 32px', background: 'transparent', color: '#1e2b22', border: '2px solid #1e2b22', borderRadius: '8px', cursor: 'pointer' }}>Voir fonctionnalités</button></a>
           </div>
         </div>
@@ -148,7 +150,7 @@ export default function MenuisierBordeaux() {
             Rejoignez les menuisiers bordelais qui gagnent du temps et de l'argent avec AVRA.
           </p>
 
-          <a href="/register"><button style={{ padding: '16px 40px', background: '#c9a96e', color: '#1e2b22', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>Démarrer l'essai gratuit</button></a>
+          <a href="/demo"><button style={{ padding: '16px 40px', background: '#c9a96e', color: '#1e2b22', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>Demander une démo</button></a>
         </div>
       </section>
 

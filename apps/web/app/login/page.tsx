@@ -548,14 +548,14 @@ export default function LoginPage() {
               <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
             </div>
 
-            {/* Lien inscription */}
+            {/* Lien liste d'attente (bêta privée) */}
             <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: '0.88rem' }}>
-              Pas encore de compte ?{' '}
-              <Link href="/comment-ca-marche" style={{
+              Pas encore partenaire bêta ?{' '}
+              <Link href="/rejoindre" style={{
                 color: '#C9A96E', fontWeight: 700,
                 textDecoration: 'none', transition: 'color 0.2s',
               }}>
-                Demander une démo →
+                Rejoindre la liste d&apos;attente →
               </Link>
             </p>
           </div>

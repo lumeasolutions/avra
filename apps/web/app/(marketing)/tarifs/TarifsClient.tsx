@@ -21,6 +21,10 @@ import Footer from '../components/Footer';
 
 const faqItems = [
   {
+    q: "AVRA est-il disponible immédiatement ?",
+    a: "AVRA est actuellement en bêta privée. Le lancement public est prévu pour juillet 2026. En attendant, vous pouvez demander une démo pour découvrir le produit et rejoindre la liste d'attente pour être prioritaire au lancement.",
+  },
+  {
     q: "Qu'est-ce qu'un showroom ?",
     a: "Un showroom correspond à un point de vente ou un magasin. Le plan Showroom inclut 1 espace distinct avec ses dossiers, son planning et ses 4 utilisateurs.",
   },
@@ -285,11 +289,16 @@ export default function TarifsClient() {
                 )}
               </div>
 
-              {/* CTA principal */}
-              <a href="/comment-ca-marche" style={{ textDecoration: 'none', display: 'block', marginBottom: '2rem' }}>
+              {/* CTA principal — Bêta privée, redirige vers /demo */}
+              <a href="/demo" style={{ textDecoration: 'none', display: 'block', marginBottom: '1rem' }}>
                 <button style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '18px 28px', background: 'linear-gradient(135deg, #c9a96e 0%, #b8843a 50%, #a67749 100%)', color: '#fff', border: 'none', borderRadius: 16, fontSize: '1.05rem', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 10px 40px rgba(201,169,110,0.55), 0 2px 8px rgba(0,0,0,0.1)', letterSpacing: '0.01em', animation: 'pricePulse 3s ease-in-out infinite' }}>
                   Demander une démo
                   <ArrowRight size={19} />
+                </button>
+              </a>
+              <a href="/rejoindre" style={{ textDecoration: 'none', display: 'block', marginBottom: '2rem' }}>
+                <button style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 20px', background: 'transparent', color: '#8a5c2a', border: '1px solid rgba(201,169,110,0.35)', borderRadius: 12, fontSize: '0.88rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  🌱 Rejoindre la liste d&apos;attente (lancement juillet 2026)
                 </button>
               </a>
 

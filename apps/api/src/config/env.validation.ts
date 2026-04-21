@@ -63,6 +63,13 @@ export class EnvironmentVariables {
 
   @IsString()
   STRIPE_SECRET_KEY?: string;
+
+  // 🌱 Bêta privée — whitelist d'emails autorisés à se connecter / s'inscrire
+  @IsString()
+  BETA_GATE_ENABLED?: string;
+
+  @IsString()
+  BETA_ADMIN_EMAILS?: string;
 }
 
 export function validate(config: Record<string, any>) {

@@ -3,6 +3,7 @@
 import Nav from '../../(marketing)/components/Nav';
 import Footer from '../../(marketing)/components/Footer';
 import ScrollReveal from '../../(marketing)/components/ScrollReveal';
+import BetaBanner from '../../(marketing)/components/BetaBanner';
 import '../../(marketing)/marketing.css';
 import Link from 'next/link';
 import { Calendar, Clock, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
@@ -10,6 +11,7 @@ import { Calendar, Clock, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-rea
 export default function EFacture2026() {
   return (
     <>
+      <BetaBanner />
       <Nav />
       <ScrollReveal />
 
@@ -155,9 +157,9 @@ export default function EFacture2026() {
           <div style={{ padding: '32px', background: '#f9f6f0', borderRadius: '12px', marginTop: '60px', textAlign: 'center' }}>
             <h3 style={{ fontSize: '1.3rem', marginBottom: '12px', color: '#1e2b22' }}>Soyez conforme dès maintenant avec AVRA</h3>
             <p style={{ color: '#6b7c70', marginBottom: '16px' }}>
-              E-facture 2026 déjà intégrée. Essai gratuit 14 jours.
+              E-facture 2026 déjà intégrée. Lancement juillet 2026.
             </p>
-            <Link href="/register" style={{ display: 'inline-block', padding: '12px 32px', background: '#1e2b22', color: '#f9f6f0', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, textDecoration: 'none', transition: 'background 0.2s' }} onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = '#253029'} onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = '#1e2b22'}>Démarrer l'essai gratuit</Link>
+            <Link href="/demo" style={{ display: 'inline-block', padding: '12px 32px', background: '#1e2b22', color: '#f9f6f0', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, textDecoration: 'none', transition: 'background 0.2s' }} onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = '#253029'} onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = '#1e2b22'}>Demander une démo</Link>
           </div>
         </div>
       </div>

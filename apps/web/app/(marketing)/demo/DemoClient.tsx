@@ -214,7 +214,7 @@ export default function DemoClient() {
             <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 40, textAlign: 'center', color: '#1e2b22' }}>Questions fréquemment posées</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {[
-                { q: "C'est payant ?", a: "Non, la démo est entièrement gratuite et sans engagement. Vous pouvez ensuite bénéficier d'un essai gratuit de 14 jours avec accès complet à tous les services." },
+                { q: "C'est payant ?", a: "Non, la démo est entièrement gratuite et sans engagement. AVRA est en bêta privée : après la démo, vous pouvez être invité à rejoindre les early adopters ou être ajouté à la liste d'attente pour le lancement public en juillet 2026." },
                 { q: "Je dois me préparer ?", a: "Pas du tout ! La démo est pensée pour être accessible à tous. Préparez simplement une liste de vos besoins spécifiques si possible, pour une discussion plus personnalisée." },
                 { q: "Quel format ? Appel vidéo ?", a: "Oui, la démo se fait par appel vidéo ou téléphonique selon votre préférence. Nous vous enverrons un lien de réunion avant la séance." },
               ].map(({ q, a }) => (
