@@ -29,16 +29,16 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      // Scripts : self + unsafe-inline pour Next.js hydration + unsafe-eval en dev pour HMR/Fast Refresh
-      `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
+      // Scripts : self + unsafe-inline pour Next.js hydration + Plausible analytics + unsafe-eval en dev
+      `script-src 'self' 'unsafe-inline' https://plausible.io${isProd ? '' : " 'unsafe-eval'"}`,
       // Styles : self + unsafe-inline pour Tailwind
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Images : self + data: (pour logos base64) + blob: (pour canvas/génération IA) + fal.ai CDN
       "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com",
       // Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // API fetch : self + fal.ai (+ localhost backend en dev uniquement)
-      `connect-src 'self' https://fal.run https://*.fal.ai wss://fal.run${isProd ? '' : ' http://localhost:3001 ws://localhost:3002'}`,
+      // API fetch : self + fal.ai + Sentry + Plausible (+ localhost en dev)
+      `connect-src 'self' https://fal.run https://*.fal.ai wss://fal.run https://*.sentry.io https://sentry.io https://plausible.io${isProd ? '' : ' http://localhost:3001 ws://localhost:3002'}`,
       // Frames interdites
       "frame-src 'none'",
       "frame-ancestors 'self'",
