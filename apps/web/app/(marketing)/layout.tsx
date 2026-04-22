@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './marketing.css';
 import { MarketingChatWrapper } from '@/components/layout/MarketingChatWrapper';
 import BetaBanner from './components/BetaBanner';
@@ -33,6 +34,13 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       fontFamily: 'var(--font-dm-sans, "DM Sans"), system-ui, sans-serif',
       paddingTop: '36px', // espace pour le BetaBanner fixé en haut
     }}>
+      {/* Plausible Analytics — RGPD-friendly, sans cookies */}
+      <Script
+        defer
+        data-domain="avra.fr"
+        src="https://plausible.io/js/script.js"
+        strategy="afterInteractive"
+      />
       <BetaBanner />
       {children}
       <MarketingChatWrapper />
