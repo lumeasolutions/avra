@@ -120,4 +120,27 @@ const nextConfig = {
 
 };
 
-module.exports = nextConfig;
+// ── Sentry wrapper ───────────────────────────────────────────────────────────
+// `withSentryConfig` injecte la config Sentry automatiquement en prod.
+// Désactivé si SENTRY_AUTH_TOKEN est absent (évite les builds qui échouent en dev).
+const { withSentryConfig } = require('@sentry/nextjs');
+
+const sentryWebpackPluginOptions = {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // Ne tente pas d'uploader les sourcemaps si pas de token
+  disableServerWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
+  disableClientWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
+};
+
+const sentryOptions = {
+  hideSourceMaps: true,
+  widenClientFileUpload: true,
+  tunnelRoute: '/monitoring',
+  disableLogger: true,
+};
+
+module.exports = process.env.SENTRY_DSN
+  ? withSentryConfig(nextConfig, sentryWebpackPluginOptions, sentryOptions)
+  : nextConfig;

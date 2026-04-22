@@ -10,6 +10,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/server/prisma';
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit';
+import {
+  sendDemoRequestConfirmation,
+  sendAdminNotification,
+} from '@/lib/server/email';
 
 export const runtime = 'nodejs';
 
@@ -74,6 +78,28 @@ export async function POST(req: NextRequest) {
         userAgent,
       },
     });
+
+    // Envoi des emails en parallèle (non-bloquant)
+    void Promise.all([
+      sendDemoRequestConfirmation({
+        email,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        company: company || null,
+        phone: phone || null,
+        metier: metier || null,
+        message: message || null,
+      }),
+      sendAdminNotification('demo', {
+        email,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        company: company || null,
+        phone: phone || null,
+        metier: metier || null,
+        message: message || null,
+      }),
+    ]);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {

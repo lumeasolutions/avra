@@ -12,6 +12,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/server/prisma';
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit';
+import {
+  sendWaitlistConfirmation,
+  sendAdminNotification,
+} from '@/lib/server/email';
 
 export const runtime = 'nodejs';
 
@@ -85,6 +89,24 @@ export async function POST(req: NextRequest) {
         ...(message ? { message } : {}),
       },
     });
+
+    // Envoi des emails en parallèle (non-bloquant : les erreurs sont avalées dans les helpers)
+    void Promise.all([
+      sendWaitlistConfirmation({
+        email: rawEmail,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        company: company || null,
+        metier: metier || null,
+      }),
+      sendAdminNotification('waitlist', {
+        email: rawEmail,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        company: company || null,
+        metier: metier || null,
+      }),
+    ]);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {

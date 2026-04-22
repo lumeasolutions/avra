@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './marketing.css';
 import { MarketingChatWrapper } from '@/components/layout/MarketingChatWrapper';
 import BetaBanner from './components/BetaBanner';
+import CookieBanner from './components/CookieBanner';
 
 // Perf : ISR 1h pour les pages marketing (au lieu de force-dynamic qui re-SSR à chaque requête).
 // Le contenu marketing est quasi-statique, 1h de cache = TTFB ~50ms via le CDN Vercel.
@@ -35,6 +36,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       <BetaBanner />
       {children}
       <MarketingChatWrapper />
+      <CookieBanner />
     </div>
   );
 }
