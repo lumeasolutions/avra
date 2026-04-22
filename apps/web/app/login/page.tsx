@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/useAuthStore';
 import { authApi } from '@/lib/api';
-import { Eye, EyeOff, ArrowRight, Star, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Sparkles, Zap, Shield, Layers } from 'lucide-react';
 
 function getRedirectUrl(profession: string | null) {
   if (!profession) return '/portal-select';
@@ -61,17 +61,11 @@ export default function LoginPage() {
     }
   };
 
-  const stats = [
-    { value: '2 400+', label: 'Professionnels actifs' },
-    { value: '98%', label: 'Satisfaction client' },
-    { value: '3h', label: 'Gagnées par jour' },
-  ];
-
-  const features = [
-    'Devis & facturation e-facture 2026',
-    'IA photo-réalisme intégrée',
-    'Planning & gestion d\'équipe',
-    'CRM pipeline visuel',
+  const pillars = [
+    { icon: Sparkles, title: 'IA intégrée', desc: 'Rendus photo-réalistes, assistant contextuel' },
+    { icon: Layers, title: 'Tout-en-un', desc: 'Dossiers, devis, planning, signature, paiement' },
+    { icon: Zap, title: 'E-facture 2026', desc: 'Conformité réglementaire native' },
+    { icon: Shield, title: 'Données en France', desc: 'Hébergement souverain, RGPD strict' },
   ];
 
   return (
@@ -279,24 +273,46 @@ export default function LoginPage() {
           <div style={{ position: 'absolute', bottom: '10%', right: '10%', width: '300px', height: '300px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(58,125,90,0.12) 0%, transparent 65%)', animation: 'glowPulse 7s ease-in-out infinite 2s', transform: 'translate(50%,50%)' }} />
 
           {/* Contenu principal */}
-          <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: '480px', animation: 'fadeInUp 0.7s ease-out' }}>
+          <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: '520px', animation: 'fadeInUp 0.7s ease-out' }}>
+
+            {/* Badge bêta privée */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              background: 'rgba(201,169,110,0.1)',
+              border: '1px solid rgba(201,169,110,0.3)',
+              borderRadius: '30px', padding: '6px 16px',
+              marginBottom: '28px',
+              backdropFilter: 'blur(8px)',
+            }}>
+              <span style={{
+                width: '6px', height: '6px', borderRadius: '50%',
+                background: '#C9A96E',
+                boxShadow: '0 0 10px #C9A96E',
+                animation: 'glowPulse 2s ease-in-out infinite',
+                position: 'relative',
+                transform: 'none',
+              }} />
+              <span style={{ color: '#C9A96E', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                Bêta privée · Lancement juillet 2026
+              </span>
+            </div>
 
             {/* Chouette AVRA */}
-            <div style={{ position: 'relative', display: 'inline-block', marginBottom: '32px' }}>
+            <div style={{ position: 'relative', display: 'inline-block', marginBottom: '28px' }}>
               {/* Rings concentriques */}
-              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '260px', height: '260px', borderRadius: '50%', border: '1px solid rgba(201,169,110,0.25)', animation: 'ringRotate 8s linear infinite', transform: 'translate(-50%,-50%)' }} />
-              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '210px', height: '210px', borderRadius: '50%', border: '1px dashed rgba(201,169,110,0.15)', animation: 'ringRotateRev 12s linear infinite', transform: 'translate(-50%,-50%)' }} />
-              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '180px', height: '180px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.2) 0%, transparent 70%)', animation: 'glowPulse 3s ease-in-out infinite', transform: 'translate(-50%,-50%)' }} />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '300px', height: '300px', borderRadius: '50%', border: '1px solid rgba(201,169,110,0.2)', animation: 'ringRotate 10s linear infinite', transform: 'translate(-50%,-50%)' }} />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '240px', height: '240px', borderRadius: '50%', border: '1px dashed rgba(201,169,110,0.18)', animation: 'ringRotateRev 14s linear infinite', transform: 'translate(-50%,-50%)' }} />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '210px', height: '210px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.25) 0%, transparent 70%)', animation: 'glowPulse 3s ease-in-out infinite', transform: 'translate(-50%,-50%)' }} />
 
               {/* Image chouette dans cercle */}
               <div style={{
                 position: 'relative', zIndex: 2,
-                width: '160px', height: '160px',
+                width: '170px', height: '170px',
                 borderRadius: '50%',
                 overflow: 'hidden',
                 background: '#0a110c',
                 border: '2px solid rgba(201,169,110,0.75)',
-                boxShadow: '0 0 60px rgba(201,169,110,0.5), 0 0 20px rgba(201,169,110,0.25), 0 20px 60px rgba(0,0,0,0.6)',
+                boxShadow: '0 0 80px rgba(201,169,110,0.55), 0 0 24px rgba(201,169,110,0.25), 0 20px 60px rgba(0,0,0,0.6)',
                 animation: 'loginOwlFloat 5s ease-in-out infinite',
                 margin: '0 auto',
               }}>
@@ -304,74 +320,88 @@ export default function LoginPage() {
                   src="/nouveaulogochouette.png"
                   alt="AVRA"
                   fill
-                  style={{ objectFit: 'contain', padding: 2, filter: 'brightness(1.25) saturate(1.4) contrast(1.05)' }}
+                  style={{ objectFit: 'contain', padding: 2, filter: 'brightness(1.2) saturate(1.3) contrast(1.05)' }}
                 />
               </div>
             </div>
 
             {/* Titre AVRA */}
-            <div style={{ marginBottom: '8px' }}>
+            <div style={{ marginBottom: '12px' }}>
               <span style={{
                 fontFamily: "'Playfair Display', Georgia, serif",
-                fontSize: '3rem',
+                fontSize: '3.4rem',
                 fontWeight: 800,
-                letterSpacing: '0.1em',
-                background: 'linear-gradient(135deg, #f0d98a 0%, #C9A96E 50%, #a07840 100%)',
+                letterSpacing: '0.12em',
+                background: 'linear-gradient(135deg, #ffe7a3 0%, #f5d67a 25%, #e8c97a 50%, #f0d98a 75%, #ffe7a3 100%)',
                 backgroundSize: '200% auto',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
                 animation: 'shimmer 4s linear infinite',
                 display: 'block',
+                textShadow: '0 0 40px rgba(240,217,138,0.3)',
               }}>AVRA</span>
             </div>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.9rem', marginBottom: '48px', letterSpacing: '0.05em' }}>
-              Le logiciel N°1 des pros de l'agencement
+
+            {/* Tagline impactante */}
+            <h2 style={{
+              color: '#fff', fontSize: '1.35rem', fontWeight: 600,
+              lineHeight: 1.4, marginBottom: '10px',
+              fontFamily: "'Playfair Display', Georgia, serif",
+              animation: 'fadeInUp 0.7s ease-out 0.2s both',
+            }}>
+              L'ERP nouvelle génération des<br />
+              <span style={{
+                background: 'linear-gradient(135deg, #e8c97a, #C9A96E)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+              }}>pros de l'agencement</span>
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.92rem', marginBottom: '44px', lineHeight: 1.6, letterSpacing: '0.01em', animation: 'fadeInUp 0.7s ease-out 0.3s both' }}>
+              Une plateforme unique · pilotée par l'IA · pensée pour cuisinistes, menuisiers, architectes et agenceurs.
             </p>
 
-            {/* Stats */}
-            <div className="login-stats-row" style={{ display: 'flex', gap: '32px', justifyContent: 'center', marginBottom: '48px', flexWrap: 'wrap' }}>
-              {stats.map((stat, i) => (
-                <div key={i} style={{ textAlign: 'center', animation: `fadeInUp 0.7s ease-out ${0.1 * i + 0.3}s both` }}>
-                  <div className="stat-value" style={{
-                    fontFamily: "'Playfair Display', Georgia, serif",
-                    fontSize: '1.8rem', fontWeight: 800,
-                    background: 'linear-gradient(135deg, #e8c97a, #C9A96E)',
-                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-                    whiteSpace: 'nowrap',
-                  }}>{stat.value}</div>
-                  <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.75rem', marginTop: '2px', fontWeight: 500 }}>{stat.label}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Features list */}
-            <div className="login-left-features" style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
-              {features.map((feat, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', animation: `fadeInUp 0.6s ease-out ${0.15 * i + 0.5}s both` }}>
-                  <CheckCircle size={16} style={{ color: '#C9A96E', flexShrink: 0 }} />
-                  <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.88rem', fontWeight: 500 }}>{feat}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Témoignage */}
-            <div className="login-left-testimonial" style={{
-              marginTop: '40px',
-              padding: '20px 24px',
-              background: 'rgba(201,169,110,0.06)',
-              border: '1px solid rgba(201,169,110,0.15)',
-              borderRadius: '16px',
-              textAlign: 'left',
-              animation: 'fadeInUp 0.7s ease-out 0.8s both',
-            }}>
-              <div style={{ display: 'flex', gap: '3px', marginBottom: '10px' }}>
-                {[...Array(5)].map((_, i) => <Star key={i} size={13} fill="#C9A96E" color="#C9A96E" />)}
-              </div>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', fontStyle: 'italic', lineHeight: 1.6, marginBottom: '10px' }}>
-                &ldquo;AVRA m'a fait gagner 3h par jour. Je ne reviendrai jamais en arrière.&rdquo;
-              </p>
-              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Sophie L. — Cuisiniste, Lyon</div>
+            {/* Piliers produit (pas de stats fake) */}
+            <div className="login-left-features" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', textAlign: 'left' }}>
+              {pillars.map((p, i) => {
+                const Icon = p.icon;
+                return (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '12px',
+                    padding: '14px 16px',
+                    background: 'rgba(201,169,110,0.04)',
+                    border: '1px solid rgba(201,169,110,0.12)',
+                    borderRadius: '14px',
+                    animation: `fadeInUp 0.6s ease-out ${0.15 * i + 0.5}s both`,
+                    transition: 'all 0.25s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(201,169,110,0.08)';
+                    e.currentTarget.style.borderColor = 'rgba(201,169,110,0.28)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(201,169,110,0.04)';
+                    e.currentTarget.style.borderColor = 'rgba(201,169,110,0.12)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                  >
+                    <div style={{
+                      flexShrink: 0,
+                      width: '34px', height: '34px',
+                      borderRadius: '10px',
+                      background: 'linear-gradient(135deg, rgba(201,169,110,0.18), rgba(160,120,64,0.1))',
+                      border: '1px solid rgba(201,169,110,0.22)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Icon size={16} style={{ color: '#e8c97a' }} />
+                    </div>
+                    <div>
+                      <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 700, marginBottom: '2px', letterSpacing: '0.01em' }}>{p.title}</div>
+                      <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', lineHeight: 1.45 }}>{p.desc}</div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

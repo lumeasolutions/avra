@@ -53,6 +53,7 @@ const showroomFeatures = [
   'Planning & gestion de chantiers',
   'Gestion de stock',
   'E-paiement intégré',
+  'E-signature intégrée',
   'Tableau de bord & statistiques',
   'Support 7j/7 inclus',
 ];

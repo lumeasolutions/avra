@@ -116,14 +116,23 @@ export default function HeroLogoBanner() {
           50% { transform: translateY(-8px); }
         }
         @media (max-width: 1200px) {
-          .hero-logo-banner { gap: 24px !important; padding: 20px 3% !important; }
-          .hero-logo-center { width: 620px !important; height: 200px !important; }
-          .hero-logo-left, .hero-logo-right { width: 180px !important; height: 180px !important; }
+          .hero-logo-banner { gap: 24px !important; padding: 20px 3% !important; height: 260px !important; }
+          .hero-logo-center { width: 520px !important; height: 180px !important; }
+          .hero-logo-left, .hero-logo-right { width: 160px !important; height: 160px !important; margin-left: -100px !important; margin-right: -100px !important; }
+          .hero-logo-left { margin-right: -100px !important; margin-left: 0 !important; }
+          .hero-logo-right { margin-left: -100px !important; margin-right: 0 !important; }
         }
         @media (max-width: 768px) {
-          .hero-logo-banner { gap: 10px !important; padding: 14px 3% !important; flex-wrap: nowrap; }
-          .hero-logo-center { width: 300px !important; height: 100px !important; }
-          .hero-logo-left, .hero-logo-right { width: 85px !important; height: 85px !important; }
+          .hero-logo-banner { gap: 0 !important; padding: 24px 4% !important; height: 180px !important; margin-top: 0 !important; flex-wrap: nowrap; }
+          .hero-logo-center { width: 260px !important; height: 90px !important; }
+          .hero-logo-left { width: 80px !important; height: 80px !important; margin-right: -30px !important; margin-left: 0 !important; }
+          .hero-logo-right { width: 80px !important; height: 80px !important; margin-left: -30px !important; margin-right: 0 !important; }
+        }
+        @media (max-width: 480px) {
+          .hero-logo-banner { padding: 20px 4% !important; height: 150px !important; }
+          .hero-logo-center { width: 200px !important; height: 72px !important; }
+          .hero-logo-left { width: 64px !important; height: 64px !important; margin-right: -20px !important; }
+          .hero-logo-right { width: 64px !important; height: 64px !important; margin-left: -20px !important; }
         }
       `}</style>
     </div>
