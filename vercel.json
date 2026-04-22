@@ -1,7 +1,19 @@
 {
-  "version": 2,
-  "buildCommand": "pnpm exec prisma migrate deploy --schema=./prisma/schema.prisma && pnpm --filter @avra/web build",
-  "outputDirectory": "apps/web/.next",
-  "installCommand": "pnpm install",
-  "framework": "nextjs"
+    "version": 2,
+    "buildCommand": "pnpm exec prisma migrate deploy --schema=./prisma/schema.prisma && pnpm --filter @avra/web build",
+    "outputDirectory": "apps/web/.next",
+    "installCommand": "pnpm install",
+    "framework": "nextjs",
+    "functions": {
+          "apps/web/api/index.ts": {
+                  "memory": 1024,
+                  "maxDuration": 30
+          }
+    },
+    "rewrites": [
+          {
+                  "source": "/api/v1/:path*",
+                  "destination": "/api/index"
+          }
+    ]
 }
