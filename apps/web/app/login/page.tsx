@@ -115,6 +115,49 @@ export default function LoginPage() {
           0%, 100% { box-shadow: 0 0 0 0 rgba(201,169,110,0); }
           50% { box-shadow: 0 0 0 3px rgba(201,169,110,0.15); }
         }
+        @keyframes auroraSweep {
+          0%   { transform: translate(-50%,-50%) rotate(0deg); opacity: 0.55; }
+          50%  { opacity: 0.9; }
+          100% { transform: translate(-50%,-50%) rotate(360deg); opacity: 0.55; }
+        }
+        @keyframes satelliteOrbit {
+          from { transform: rotate(0deg) translateX(var(--orbit-r, 150px)) rotate(0deg); }
+          to   { transform: rotate(360deg) translateX(var(--orbit-r, 150px)) rotate(-360deg); }
+        }
+        @keyframes satelliteOrbitRev {
+          from { transform: rotate(0deg) translateX(var(--orbit-r, 150px)) rotate(0deg); }
+          to   { transform: rotate(-360deg) translateX(var(--orbit-r, 150px)) rotate(360deg); }
+        }
+        @keyframes tiltBreath {
+          0%,100% { transform: perspective(900px) rotateX(0deg) rotateY(0deg); }
+          50%    { transform: perspective(900px) rotateX(2deg) rotateY(-2deg); }
+        }
+        @keyframes pillarGradient {
+          0%,100% { background-position: 0% 50%; }
+          50%    { background-position: 100% 50%; }
+        }
+        .pillar-card {
+          position: relative;
+          overflow: hidden;
+          border-radius: 14px;
+          padding: 14px 16px;
+          background:
+            linear-gradient(rgba(10,17,13,0.85), rgba(10,17,13,0.85)) padding-box,
+            linear-gradient(120deg, rgba(201,169,110,0.55), rgba(232,201,122,0.15), rgba(58,125,90,0.5), rgba(201,169,110,0.55)) border-box;
+          background-size: 100% 100%, 300% 100%;
+          border: 1px solid transparent;
+          animation: pillarGradient 8s ease-in-out infinite;
+          transition: transform 0.35s cubic-bezier(.2,.8,.2,1), box-shadow 0.35s ease;
+        }
+        .pillar-card::before {
+          content: '';
+          position: absolute; inset: 0;
+          background: radial-gradient(circle at var(--mx,50%) var(--my,0%), rgba(232,201,122,0.18), transparent 55%);
+          opacity: 0; transition: opacity 0.35s ease;
+          pointer-events: none;
+        }
+        .pillar-card:hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(0,0,0,0.45), 0 0 0 1px rgba(232,201,122,0.35); }
+        .pillar-card:hover::before { opacity: 1; }
 
         /* ── Mobile responsive ── */
         .login-wrapper {
@@ -298,11 +341,28 @@ export default function LoginPage() {
             </div>
 
             {/* Chouette AVRA */}
-            <div style={{ position: 'relative', display: 'inline-block', marginBottom: '28px' }}>
+            <div style={{ position: 'relative', display: 'inline-block', marginBottom: '28px', animation: 'tiltBreath 9s ease-in-out infinite' }}>
+              {/* Aurora sweep — halo conique rotatif */}
+              <div style={{
+                position: 'absolute', top: '50%', left: '50%', width: '360px', height: '360px', borderRadius: '50%',
+                background: 'conic-gradient(from 0deg, transparent 0deg, rgba(232,201,122,0.35) 45deg, transparent 120deg, rgba(58,125,90,0.25) 220deg, transparent 300deg)',
+                filter: 'blur(22px)',
+                animation: 'auroraSweep 16s linear infinite',
+                transform: 'translate(-50%,-50%)',
+                zIndex: 0,
+                pointerEvents: 'none',
+              }} />
               {/* Rings concentriques */}
-              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '300px', height: '300px', borderRadius: '50%', border: '1px solid rgba(201,169,110,0.2)', animation: 'ringRotate 10s linear infinite', transform: 'translate(-50%,-50%)' }} />
-              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '240px', height: '240px', borderRadius: '50%', border: '1px dashed rgba(201,169,110,0.18)', animation: 'ringRotateRev 14s linear infinite', transform: 'translate(-50%,-50%)' }} />
-              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '210px', height: '210px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.25) 0%, transparent 70%)', animation: 'glowPulse 3s ease-in-out infinite', transform: 'translate(-50%,-50%)' }} />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '320px', height: '320px', borderRadius: '50%', border: '1px solid rgba(201,169,110,0.22)', animation: 'ringRotate 10s linear infinite', transform: 'translate(-50%,-50%)' }} />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '260px', height: '260px', borderRadius: '50%', border: '1px dashed rgba(201,169,110,0.2)', animation: 'ringRotateRev 14s linear infinite', transform: 'translate(-50%,-50%)' }} />
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: '210px', height: '210px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.28) 0%, transparent 70%)', animation: 'glowPulse 3s ease-in-out infinite', transform: 'translate(-50%,-50%)' }} />
+
+              {/* Satellites orbitaux (points dorés qui tournent) */}
+              <div style={{ position: 'absolute', top: '50%', left: '50%', width: 0, height: 0, transform: 'translate(-50%,-50%)', zIndex: 1, pointerEvents: 'none' }}>
+                <div style={{ position: 'absolute', width: '8px', height: '8px', borderRadius: '50%', background: '#f0d98a', boxShadow: '0 0 14px rgba(240,217,138,0.9)', top: '-4px', left: '-4px', ['--orbit-r' as string]: '160px', animation: 'satelliteOrbit 11s linear infinite' } as React.CSSProperties} />
+                <div style={{ position: 'absolute', width: '5px', height: '5px', borderRadius: '50%', background: '#e8c97a', boxShadow: '0 0 10px rgba(232,201,122,0.8)', top: '-2.5px', left: '-2.5px', ['--orbit-r' as string]: '130px', animation: 'satelliteOrbitRev 9s linear infinite' } as React.CSSProperties} />
+                <div style={{ position: 'absolute', width: '4px', height: '4px', borderRadius: '50%', background: '#ffe7a3', boxShadow: '0 0 8px rgba(255,231,163,0.85)', top: '-2px', left: '-2px', ['--orbit-r' as string]: '185px', animation: 'satelliteOrbit 17s linear infinite' } as React.CSSProperties} />
+              </div>
 
               {/* Image chouette dans cercle */}
               <div style={{
@@ -320,7 +380,7 @@ export default function LoginPage() {
                   src="/nouveaulogochouette.png"
                   alt="AVRA"
                   fill
-                  style={{ objectFit: 'contain', padding: 2, filter: 'brightness(1.2) saturate(1.3) contrast(1.05)' }}
+                  style={{ objectFit: 'contain', padding: 2 }}
                 />
               </div>
             </div>
@@ -365,39 +425,30 @@ export default function LoginPage() {
               {pillars.map((p, i) => {
                 const Icon = p.icon;
                 return (
-                  <div key={i} style={{
+                  <div key={i} className="pillar-card" style={{
                     display: 'flex', alignItems: 'flex-start', gap: '12px',
-                    padding: '14px 16px',
-                    background: 'rgba(201,169,110,0.04)',
-                    border: '1px solid rgba(201,169,110,0.12)',
-                    borderRadius: '14px',
-                    animation: `fadeInUp 0.6s ease-out ${0.15 * i + 0.5}s both`,
-                    transition: 'all 0.25s ease',
+                    animation: `fadeInUp 0.6s ease-out ${0.15 * i + 0.5}s both, pillarGradient 8s ease-in-out infinite`,
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(201,169,110,0.08)';
-                    e.currentTarget.style.borderColor = 'rgba(201,169,110,0.28)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(201,169,110,0.04)';
-                    e.currentTarget.style.borderColor = 'rgba(201,169,110,0.12)';
-                    e.currentTarget.style.transform = 'translateY(0)';
+                  onMouseMove={(e) => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    e.currentTarget.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+                    e.currentTarget.style.setProperty('--my', `${((e.clientY - r.top) / r.height) * 100}%`);
                   }}
                   >
                     <div style={{
-                      flexShrink: 0,
-                      width: '34px', height: '34px',
-                      borderRadius: '10px',
-                      background: 'linear-gradient(135deg, rgba(201,169,110,0.18), rgba(160,120,64,0.1))',
-                      border: '1px solid rgba(201,169,110,0.22)',
+                      flexShrink: 0, position: 'relative',
+                      width: '38px', height: '38px',
+                      borderRadius: '11px',
+                      background: 'linear-gradient(135deg, rgba(232,201,122,0.28), rgba(160,120,64,0.12))',
+                      border: '1px solid rgba(232,201,122,0.35)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: 'inset 0 0 12px rgba(232,201,122,0.2), 0 4px 14px rgba(0,0,0,0.35)',
                     }}>
-                      <Icon size={16} style={{ color: '#e8c97a' }} />
+                      <Icon size={17} style={{ color: '#ffe7a3', filter: 'drop-shadow(0 0 6px rgba(232,201,122,0.7))' }} />
                     </div>
                     <div>
-                      <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 700, marginBottom: '2px', letterSpacing: '0.01em' }}>{p.title}</div>
-                      <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', lineHeight: 1.45 }}>{p.desc}</div>
+                      <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 700, marginBottom: '3px', letterSpacing: '0.01em' }}>{p.title}</div>
+                      <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.74rem', lineHeight: 1.45 }}>{p.desc}</div>
                     </div>
                   </div>
                 );
