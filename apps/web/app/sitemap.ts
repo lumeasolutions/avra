@@ -41,6 +41,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
     // ── Blog ─────────────────────────────────────────────────────────
     url('/blog', { changeFrequency: 'weekly', priority: 0.8 }),
+    url('/blog/e-facture-2026', { changeFrequency: 'monthly', priority: 0.75 }),
+    url('/blog/logiciel-cuisiniste-comparatif', { changeFrequency: 'monthly', priority: 0.75 }),
 
     // ── Pages métiers ────────────────────────────────────────────────
     url('/metiers', { changeFrequency: 'monthly', priority: 0.85 }),
