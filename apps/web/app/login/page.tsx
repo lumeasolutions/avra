@@ -319,12 +319,12 @@ export default function LoginPage() {
           <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: '520px', animation: 'fadeInUp 0.7s ease-out' }}>
 
             {/* Badge bêta privée */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '28px' }}>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
               background: 'rgba(201,169,110,0.1)',
               border: '1px solid rgba(201,169,110,0.3)',
               borderRadius: '30px', padding: '6px 16px',
-              marginBottom: '28px',
               backdropFilter: 'blur(8px)',
             }}>
               <span style={{
@@ -339,9 +339,11 @@ export default function LoginPage() {
                 Bêta privée · Lancement juillet 2026
               </span>
             </div>
+            </div>
 
             {/* Chouette AVRA */}
-            <div style={{ position: 'relative', display: 'inline-block', marginBottom: '28px', animation: 'tiltBreath 9s ease-in-out infinite' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '28px' }}>
+            <div style={{ position: 'relative', display: 'inline-block', animation: 'tiltBreath 9s ease-in-out infinite' }}>
               {/* Aurora sweep — halo conique rotatif */}
               <div style={{
                 position: 'absolute', top: '50%', left: '50%', width: '360px', height: '360px', borderRadius: '50%',
@@ -383,6 +385,7 @@ export default function LoginPage() {
                   style={{ objectFit: 'contain', padding: 2 }}
                 />
               </div>
+            </div>
             </div>
 
             {/* Titre AVRA */}
