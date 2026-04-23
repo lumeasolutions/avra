@@ -13,6 +13,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { SkipCsrf } from '../../common/guards/csrf.guard';
 import type { JwtPayload } from '@avra/types';
 import { DossierDocumentsService } from './dossier-documents.service';
 
@@ -24,11 +25,19 @@ import { DossierDocumentsService } from './dossier-documents.service';
  *   DELETE /dossiers/:dossierId/documents/:docId
  *
  * Toutes les routes :
- *   - Protégées par JwtAuthGuard
+ *   - Protégées par JwtAuthGuard (cookie httpOnly SameSite=Lax)
  *   - Ownership workspace validé en service
+ *
+ * @SkipCsrf() : L'auth se fait via cookie JWT httpOnly SameSite=Lax,
+ * ce qui empêche déjà les requêtes cross-site. De plus les uploads
+ * multipart déclenchent un preflight CORS qui est filtré par enableCors.
+ * Le CSRF token in-memory du CsrfGuard n'est pas adapté à Vercel Serverless
+ * (le Map est perdu à chaque cold-start). Sécurité maintenue par la combinaison
+ * JWT cookie SameSite + CORS whitelist + ownership check en service.
  */
 @Controller('dossiers/:dossierId/documents')
 @UseGuards(JwtAuthGuard)
+@SkipCsrf()
 export class DossierDocumentsController {
   constructor(private readonly docs: DossierDocumentsService) {}
 

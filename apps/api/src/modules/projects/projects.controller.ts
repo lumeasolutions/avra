@@ -9,11 +9,19 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { SkipCsrf } from '../../common/guards/csrf.guard';
 import type { JwtPayload } from '@avra/types';
 import { ProjectLifecycleStatus, TradeType } from '../../prisma-enums';
 
+/**
+ * @SkipCsrf() au niveau controller : l'auth se fait via cookie JWT httpOnly
+ * SameSite=Lax (empêche les POST cross-site) + CORS whitelist restrictive
+ * + RolesGuard. Le CSRF token in-memory du CsrfGuard n'est pas adapté
+ * à Vercel Serverless (Map perdu à chaque cold-start).
+ */
 @Controller('projects')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@SkipCsrf()
 export class ProjectsController {
   constructor(
     private readonly projects: ProjectsService,
