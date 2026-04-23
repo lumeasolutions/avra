@@ -61,6 +61,7 @@ export default function DossierDetailPage() {
   const signerDossier     = useDossierStore(s => s.signerDossier);
   const updateDossierStatus = useDossierStore(s => s.updateDossierStatus);
   const addSubfolder      = useDossierStore(s => s.addSubfolder);
+  const toggleSubfolderValidated = useDossierStore(s => s.toggleSubfolderValidated);
   const addInvoice        = useFacturationStore(s => s.addInvoice);
 
   const [showDevis,     setShowDevis]     = useState(false);
@@ -261,8 +262,9 @@ export default function DossierDetailPage() {
                 // (aucun document présent). Dès qu'un document est ajouté,
                 // l'alerte disparaît automatiquement.
                 const isEmpty = !sf.documents || sf.documents.length === 0;
+                const isValidated = !!sf.validated;
                 return (
-                <button key={i}
+                <div key={i}
                   className="subfolder-row flex w-full items-center gap-4 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749]"
                 >
                   <div className="p-2 bg-[#304035]/5 rounded-xl text-[#a67749]/70 shrink-0">
@@ -272,14 +274,41 @@ export default function DossierDetailPage() {
                     <span className="font-semibold text-[#304035] text-sm block truncate">{sf.label}</span>
                     {sf.date && <span className="text-xs text-[#304035]/40 mt-0.5 block">{sf.date}</span>}
                   </div>
-                  {isEmpty && (
+
+                  {/* Badge "Vide" si aucun document — masqué si validé */}
+                  {isEmpty && !isValidated && (
                     <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 border border-orange-200 shrink-0" title="Ce sous-dossier est vide">
                       <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
                       <span className="text-xs font-bold text-orange-600">Vide</span>
                     </div>
                   )}
+
+                  {/* Bouton Valider / Pastille verte validée */}
+                  {isValidated ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleSubfolderValidated(dossier.id, sf.label); }}
+                      className="flex items-center gap-1.5 shrink-0 transition-all hover:scale-105"
+                      title="Cliquer pour annuler la validation"
+                    >
+                      <span className="flex items-center justify-center h-6 w-6 rounded-full bg-green-500 shadow-[0_0_0_3px_rgba(34,197,94,0.18)]">
+                        <CheckCircle className="h-4 w-4 text-white" strokeWidth={3} />
+                      </span>
+                      <span className="text-xs font-bold text-green-600">Validé</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleSubfolderValidated(dossier.id, sf.label); }}
+                      className="px-3 py-1.5 rounded-lg bg-[#304035] text-white text-xs font-bold shrink-0 transition-all hover:bg-[#a67749] hover:shadow-md"
+                      title="Marquer ce sous-dossier comme validé"
+                    >
+                      Valider
+                    </button>
+                  )}
+
                   <ChevronRight className="sf-arrow h-4 w-4 text-[#304035]/25 shrink-0" />
-                </button>
+                </div>
                 );
               })}
               {dossier.subfolders.length === 0 && (

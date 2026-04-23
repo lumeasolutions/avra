@@ -19,6 +19,8 @@ export interface SubFolder {
   icon?: string;
   /** IDs ou noms des documents présents dans le sous-dossier. */
   documents?: string[];
+  /** Sous-dossier marqué comme validé par l'utilisateur. */
+  validated?: boolean;
 }
 
 export interface Dossier {
@@ -125,6 +127,7 @@ interface DossierState {
   updateDossierStatus: (id: string, status: DossierStatus) => void;
   updateDossierNotes: (id: string, notes: string) => void;
   addSubfolder: (dossierId: string, label: string) => void;
+  toggleSubfolderValidated: (dossierId: string, label: string) => void;
   signerDossier: (id: string) => void;
   perdreDossier: (id: string, reason: string) => void;
   updateDateButoireSignee: (dossierId: string, label: string, date: string) => void;
@@ -189,6 +192,25 @@ export const useDossierStore = create<DossierState>()(
           set(s => ({
             dossiersSignes: s.dossiersSignes.map(d =>
               d.id === dossierId ? { ...d, signedSubfolders: [...d.signedSubfolders, { label, date }] } : d
+            ),
+          }));
+        }
+      },
+
+      toggleSubfolderValidated: (dossierId, label) => {
+        const toggle = (sf: SubFolder): SubFolder =>
+          sf.label === label ? { ...sf, validated: !sf.validated } : sf;
+        const inDossiers = get().dossiers.some(d => d.id === dossierId);
+        if (inDossiers) {
+          set(s => ({
+            dossiers: s.dossiers.map(d =>
+              d.id === dossierId ? { ...d, subfolders: d.subfolders.map(toggle) } : d
+            ),
+          }));
+        } else {
+          set(s => ({
+            dossiersSignes: s.dossiersSignes.map(d =>
+              d.id === dossierId ? { ...d, signedSubfolders: d.signedSubfolders.map(toggle) } : d
             ),
           }));
         }
