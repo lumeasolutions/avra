@@ -11,8 +11,14 @@ export type DossierStatus = 'URGENT' | 'EN COURS' | 'FINITION' | 'A VALIDER';
 export interface SubFolder {
   label: string;
   date?: string;
+  /**
+   * Alerte manuelle (backward-compat). L'alerte est désormais
+   * dérivée dynamiquement de `documents.length === 0` au rendu.
+   */
   alert?: boolean;
   icon?: string;
+  /** IDs ou noms des documents présents dans le sous-dossier. */
+  documents?: string[];
 }
 
 export interface Dossier {
@@ -80,7 +86,7 @@ const DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'RELEVE DE MESURES' },
   { label: 'PROJET VERSION 1 – APS' },
   { label: 'PROJET VERSION 2' },
-  { label: 'PROJET VERSION 3 – APD', alert: true },
+  { label: 'PROJET VERSION 3 – APD' },
 ];
 
 const SIGNED_SUBFOLDERS: SubFolder[] = [

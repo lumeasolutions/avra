@@ -256,7 +256,12 @@ export default function DossierDetailPage() {
               </button>
             </div>
             <div className="divide-y divide-[#304035]/5">
-              {dossier.subfolders.map((sf, i) => (
+              {dossier.subfolders.map((sf, i) => {
+                // Alerte dynamique : uniquement si le sous-dossier est vide
+                // (aucun document présent). Dès qu'un document est ajouté,
+                // l'alerte disparaît automatiquement.
+                const isEmpty = !sf.documents || sf.documents.length === 0;
+                return (
                 <button key={i}
                   className="subfolder-row flex w-full items-center gap-4 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749]"
                 >
@@ -267,15 +272,16 @@ export default function DossierDetailPage() {
                     <span className="font-semibold text-[#304035] text-sm block truncate">{sf.label}</span>
                     {sf.date && <span className="text-xs text-[#304035]/40 mt-0.5 block">{sf.date}</span>}
                   </div>
-                  {sf.alert && (
-                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 border border-orange-200 shrink-0">
+                  {isEmpty && (
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-50 border border-orange-200 shrink-0" title="Ce sous-dossier est vide">
                       <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
-                      <span className="text-xs font-bold text-orange-600">Alerte</span>
+                      <span className="text-xs font-bold text-orange-600">Vide</span>
                     </div>
                   )}
                   <ChevronRight className="sf-arrow h-4 w-4 text-[#304035]/25 shrink-0" />
                 </button>
-              ))}
+                );
+              })}
               {dossier.subfolders.length === 0 && (
                 <div className="px-5 py-10 text-center text-[#304035]/40 text-sm">
                   Aucun fichier — commencez par créer un devis
