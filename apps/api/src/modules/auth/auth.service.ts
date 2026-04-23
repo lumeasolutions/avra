@@ -98,7 +98,18 @@ export class AuthService {
       include: { user: true, workspace: true },
     });
     if (!uw?.user?.isActive) return null;
-    return { ...uw.user, role: uw.role, workspaceId: uw.workspaceId, workspace: uw.workspace };
+    // NOTE: on expose `sub` en plus de `id` pour rester compatible avec le
+    // JwtPayload attendu par les controllers (ex: user.sub dans /projects,
+    // /events, /ia, /dossier-documents, etc.). Sans cet alias, Prisma reçoit
+    // `ownerId: undefined` / `createdById: undefined` et lève une validation
+    // error sur les champs FK non-nullables.
+    return {
+      ...uw.user,
+      sub: uw.user.id,
+      role: uw.role,
+      workspaceId: uw.workspaceId,
+      workspace: uw.workspace,
+    };
   }
 
   // ✅ TÂCHE 8 — Refresh Token with Rotation

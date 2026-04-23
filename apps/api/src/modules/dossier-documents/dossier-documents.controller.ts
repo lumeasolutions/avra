@@ -51,7 +51,11 @@ export class DossierDocumentsController {
   ) {
     if (!file) throw new BadRequestException('Fichier manquant');
     if (!subfolderLabel) throw new BadRequestException('subfolderLabel requis');
-    return this.docs.upload(user.workspaceId, user.sub, dossierId, subfolderLabel, file);
+    // NOTE : JwtStrategy.validateUser retourne un User enrichi (id, email, role, workspaceId)
+    // PAS le JwtPayload brut. user.id = uw.user.id, et user.sub est undefined.
+    // Le type JwtPayload annoté est approximatif : on pioche sub OU id selon ce qui existe.
+    const userId = (user as any).id ?? (user as any).sub;
+    return this.docs.upload(user.workspaceId, userId, dossierId, subfolderLabel, file);
   }
 
   @Get()
