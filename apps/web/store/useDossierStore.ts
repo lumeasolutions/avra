@@ -8,6 +8,24 @@ import { persist } from 'zustand/middleware';
 // Types (extraits du store global)
 export type DossierStatus = 'URGENT' | 'EN COURS' | 'FINITION' | 'A VALIDER';
 
+/**
+ * Document stocké dans un sous-dossier.
+ * Les documents hérités des anciennes versions peuvent être
+ * de simples chaînes (nom seul) — on accepte donc `string | DocumentFile`.
+ */
+export interface DocumentFile {
+  name: string;
+  /** MIME type (ex: "image/png", "application/pdf") */
+  type?: string;
+  /** Taille en octets */
+  size?: number;
+  /** Contenu base64 data URL (pour preview / download). */
+  dataUrl?: string;
+  addedAt?: string;
+}
+
+export type SubFolderDocument = DocumentFile | string;
+
 export interface SubFolder {
   label: string;
   date?: string;
@@ -17,8 +35,8 @@ export interface SubFolder {
    */
   alert?: boolean;
   icon?: string;
-  /** IDs ou noms des documents présents dans le sous-dossier. */
-  documents?: string[];
+  /** Documents présents dans le sous-dossier (objets avec dataUrl, ou chaînes legacy). */
+  documents?: SubFolderDocument[];
   /** Sous-dossier marqué comme validé par l'utilisateur. */
   validated?: boolean;
 }
@@ -128,7 +146,7 @@ interface DossierState {
   updateDossierNotes: (id: string, notes: string) => void;
   addSubfolder: (dossierId: string, label: string) => void;
   toggleSubfolderValidated: (dossierId: string, label: string) => void;
-  addDocumentToSubfolder: (dossierId: string, label: string, docName: string) => void;
+  addDocumentToSubfolder: (dossierId: string, label: string, doc: SubFolderDocument) => void;
   removeDocumentFromSubfolder: (dossierId: string, label: string, docName: string) => void;
   /**
    * Complète un dossier existant avec les sous-dossiers par défaut manquants
@@ -224,11 +242,15 @@ export const useDossierStore = create<DossierState>()(
         }
       },
 
-      addDocumentToSubfolder: (dossierId, label, docName) => {
+      addDocumentToSubfolder: (dossierId, label, doc) => {
         const today = new Date().toLocaleDateString('fr-FR');
+        const normalized: SubFolderDocument =
+          typeof doc === 'string'
+            ? { name: doc, addedAt: today }
+            : { ...doc, addedAt: doc.addedAt ?? today };
         const addDoc = (sf: SubFolder): SubFolder =>
           sf.label === label
-            ? { ...sf, documents: [...(sf.documents ?? []), docName], date: today }
+            ? { ...sf, documents: [...(sf.documents ?? []), normalized], date: today }
             : sf;
         const inDossiers = get().dossiers.some(d => d.id === dossierId);
         if (inDossiers) {
@@ -265,9 +287,10 @@ export const useDossierStore = create<DossierState>()(
 
       removeDocumentFromSubfolder: (dossierId, label, docName) => {
         const today = new Date().toLocaleDateString('fr-FR');
+        const docNameOf = (d: SubFolderDocument) => typeof d === 'string' ? d : d.name;
         const rmDoc = (sf: SubFolder): SubFolder =>
           sf.label === label
-            ? { ...sf, documents: (sf.documents ?? []).filter(d => d !== docName), date: today }
+            ? { ...sf, documents: (sf.documents ?? []).filter(d => docNameOf(d) !== docName), date: today }
             : sf;
         const inDossiers = get().dossiers.some(d => d.id === dossierId);
         if (inDossiers) {

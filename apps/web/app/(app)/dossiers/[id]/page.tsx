@@ -7,9 +7,42 @@ import {
   FolderOpen, FileText, ImageIcon, Ruler, CheckCircle, ArrowLeft,
   GitCompare, AlertTriangle, Plus, ChevronRight, Tag, Phone, Mail,
   MapPin, Calendar, Receipt, FileCheck, StickyNote, Pencil, X,
-  Clock, Circle, TrendingUp, Zap
+  Clock, Circle, TrendingUp, Zap, Eye, Download
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
+import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
+
+/** Normalise un document (string legacy ou objet) pour affichage. */
+const normalizeDoc = (d: SubFolderDocument): DocumentFile =>
+  typeof d === 'string' ? { name: d } : d;
+
+/** Formate une taille (o, Ko, Mo). */
+const formatSize = (bytes?: number): string => {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} Mo`;
+};
+
+/** Lit un File en base64 data URL (Promise). */
+const readAsDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+/** Déclenche le téléchargement d'un document depuis son dataUrl. */
+const downloadDoc = (doc: DocumentFile) => {
+  if (!doc.dataUrl) return;
+  const a = document.createElement('a');
+  a.href = doc.dataUrl;
+  a.download = doc.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
 
 /* ── CONFIG STATUT ── */
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; border: string; glow: string; dot: string; Icon: React.ElementType }> = {
@@ -79,6 +112,8 @@ export default function DossierDetailPage() {
   // Modal "documents dans le sous-dossier"
   const [openedSubfolder, setOpenedSubfolder] = useState<string | null>(null);
   const [newDocName, setNewDocName] = useState('');
+  // Document en cours de prévisualisation (plein écran)
+  const [previewDoc, setPreviewDoc] = useState<DocumentFile | null>(null);
   const [devisObjet,    setDevisObjet]    = useState('');
   const [devisMontant,  setDevisMontant]  = useState('');
   const [devisTva,      setDevisTva]      = useState('20');
@@ -575,17 +610,31 @@ export default function DossierDetailPage() {
       {openedSubfolder && (() => {
         const sf = dossier.subfolders.find(s => s.label === openedSubfolder);
         if (!sf) return null;
-        const docs = sf.documents ?? [];
+        const docs = (sf.documents ?? []).map(normalizeDoc);
         const handleAddDoc = () => {
           const name = newDocName.trim();
           if (!name) return;
-          addDocumentToSubfolder(id, openedSubfolder, name);
+          addDocumentToSubfolder(id, openedSubfolder, { name });
           setNewDocName('');
         };
-        const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
           const files = e.target.files;
           if (!files) return;
-          Array.from(files).forEach(f => addDocumentToSubfolder(id, openedSubfolder, f.name));
+          const arr = Array.from(files);
+          for (const f of arr) {
+            try {
+              const dataUrl = await readAsDataUrl(f);
+              addDocumentToSubfolder(id, openedSubfolder, {
+                name: f.name,
+                type: f.type,
+                size: f.size,
+                dataUrl,
+              });
+            } catch {
+              // Fallback : on stocke au moins le nom si la lecture échoue
+              addDocumentToSubfolder(id, openedSubfolder, { name: f.name, type: f.type, size: f.size });
+            }
+          }
           e.target.value = '';
         };
         return (
@@ -609,19 +658,59 @@ export default function DossierDetailPage() {
                   <div className="px-4 py-8 text-center text-[#304035]/40 text-sm">
                     Aucun document dans ce sous-dossier
                   </div>
-                ) : docs.map((doc, i) => (
-                  <div key={i} className="flex items-center gap-3 px-4 py-3">
-                    <FileText className="h-4 w-4 text-[#a67749] shrink-0" />
-                    <span className="flex-1 text-sm text-[#304035] truncate">{doc}</span>
-                    <button
-                      onClick={() => removeDocumentFromSubfolder(id, openedSubfolder, doc)}
-                      className="p-1.5 rounded-lg text-[#304035]/40 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      aria-label="Supprimer"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
+                ) : docs.map((doc, i) => {
+                  const canPreview = !!doc.dataUrl;
+                  const isImg = doc.type?.startsWith('image/');
+                  return (
+                    <div key={i} className="flex items-center gap-3 px-4 py-3">
+                      {isImg && doc.dataUrl ? (
+                        <div className="h-9 w-9 rounded-lg overflow-hidden bg-[#304035]/5 shrink-0 border border-[#304035]/10">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={doc.dataUrl} alt={doc.name} className="h-full w-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="h-9 w-9 rounded-lg bg-[#304035]/5 shrink-0 flex items-center justify-center">
+                          <FileText className="h-4 w-4 text-[#a67749]" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <span className="block text-sm text-[#304035] truncate font-medium">{doc.name}</span>
+                        {(doc.size || doc.type) && (
+                          <span className="block text-[11px] text-[#304035]/40 truncate">
+                            {formatSize(doc.size)}{doc.size && doc.type ? ' · ' : ''}{doc.type ?? ''}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => canPreview && setPreviewDoc(doc)}
+                        disabled={!canPreview}
+                        title={canPreview ? 'Aperçu' : 'Aperçu indisponible (document hérité sans contenu)'}
+                        className="p-1.5 rounded-lg text-[#304035]/50 hover:text-[#304035] hover:bg-[#304035]/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        aria-label="Aperçu"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => canPreview && downloadDoc(doc)}
+                        disabled={!canPreview}
+                        title={canPreview ? 'Télécharger' : 'Téléchargement indisponible'}
+                        className="p-1.5 rounded-lg text-[#304035]/50 hover:text-[#a67749] hover:bg-[#a67749]/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        aria-label="Télécharger"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => removeDocumentFromSubfolder(id, openedSubfolder, doc.name)}
+                        className="p-1.5 rounded-lg text-[#304035]/40 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        aria-label="Supprimer"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Upload fichier */}
@@ -655,6 +744,68 @@ export default function DossierDetailPage() {
           </div>
         );
       })()}
+
+      {/* ══ MODAL : Aperçu plein écran d'un document ══ */}
+      {previewDoc && previewDoc.dataUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onClick={() => setPreviewDoc(null)}
+        >
+          <div
+            className="relative w-full max-w-5xl max-h-[92vh] flex flex-col bg-white rounded-2xl overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[#304035]/10 bg-[#304035]/[0.02]">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-[#304035] truncate">{previewDoc.name}</p>
+                <p className="text-[11px] text-[#304035]/50">
+                  {formatSize(previewDoc.size)}{previewDoc.size && previewDoc.type ? ' · ' : ''}{previewDoc.type ?? ''}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => downloadDoc(previewDoc)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#a67749] text-white text-xs font-bold hover:bg-[#304035] transition-colors"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Télécharger
+                </button>
+                <button
+                  onClick={() => setPreviewDoc(null)}
+                  className="p-2 rounded-lg hover:bg-[#304035]/5 transition-colors"
+                  aria-label="Fermer"
+                >
+                  <X className="h-5 w-5 text-[#304035]/60" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto bg-[#304035]/[0.03] flex items-center justify-center p-4">
+              {previewDoc.type?.startsWith('image/') ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={previewDoc.dataUrl} alt={previewDoc.name} className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-md" />
+              ) : previewDoc.type === 'application/pdf' ? (
+                <iframe src={previewDoc.dataUrl} title={previewDoc.name} className="w-full h-[80vh] rounded-lg bg-white" />
+              ) : previewDoc.type?.startsWith('text/') ? (
+                <iframe src={previewDoc.dataUrl} title={previewDoc.name} className="w-full h-[80vh] rounded-lg bg-white" />
+              ) : (
+                <div className="text-center py-12 px-6">
+                  <FileText className="h-16 w-16 text-[#304035]/20 mx-auto mb-4" />
+                  <p className="text-sm text-[#304035]/60 mb-4">
+                    Aperçu non disponible pour ce type de fichier.
+                  </p>
+                  <button
+                    onClick={() => downloadDoc(previewDoc)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#304035] text-white text-sm font-bold hover:bg-[#a67749] transition-colors"
+                  >
+                    <Download className="h-4 w-4" />
+                    Télécharger le fichier
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddFolder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
