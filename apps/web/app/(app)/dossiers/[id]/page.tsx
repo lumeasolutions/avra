@@ -62,12 +62,17 @@ export default function DossierDetailPage() {
   const updateDossierStatus = useDossierStore(s => s.updateDossierStatus);
   const addSubfolder      = useDossierStore(s => s.addSubfolder);
   const toggleSubfolderValidated = useDossierStore(s => s.toggleSubfolderValidated);
+  const addDocumentToSubfolder = useDossierStore(s => s.addDocumentToSubfolder);
+  const removeDocumentFromSubfolder = useDossierStore(s => s.removeDocumentFromSubfolder);
   const addInvoice        = useFacturationStore(s => s.addInvoice);
 
   const [showDevis,     setShowDevis]     = useState(false);
   const [showStatus,    setShowStatus]    = useState(false);
   const [showAddFolder, setShowAddFolder] = useState(false);
   const [newFolderLabel, setNewFolderLabel] = useState('');
+  // Modal "documents dans le sous-dossier"
+  const [openedSubfolder, setOpenedSubfolder] = useState<string | null>(null);
+  const [newDocName, setNewDocName] = useState('');
   const [devisObjet,    setDevisObjet]    = useState('');
   const [devisMontant,  setDevisMontant]  = useState('');
   const [devisTva,      setDevisTva]      = useState('20');
@@ -263,16 +268,25 @@ export default function DossierDetailPage() {
                 // l'alerte disparaît automatiquement.
                 const isEmpty = !sf.documents || sf.documents.length === 0;
                 const isValidated = !!sf.validated;
+                const docsCount = sf.documents?.length ?? 0;
+                // Date affichée : dernière modif du sous-dossier, sinon date de création du dossier
+                const displayDate = sf.date ?? dossier.createdAt;
                 return (
                 <div key={i}
-                  className="subfolder-row flex w-full items-center gap-4 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749]"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setOpenedSubfolder(sf.label)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); } }}
+                  className="subfolder-row flex w-full items-center gap-4 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749] hover:bg-[#304035]/[0.02] cursor-pointer"
                 >
                   <div className="p-2 bg-[#304035]/5 rounded-xl text-[#a67749]/70 shrink-0">
                     {getIconForType(sf.icon)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="font-semibold text-[#304035] text-sm block truncate">{sf.label}</span>
-                    {sf.date && <span className="text-xs text-[#304035]/40 mt-0.5 block">{sf.date}</span>}
+                    <span className="text-xs text-[#304035]/50 mt-0.5 block">
+                      Modifié le {displayDate} · {docsCount} document{docsCount > 1 ? 's' : ''}
+                    </span>
                   </div>
 
                   {/* Badge "Vide" si aucun document — masqué si validé */}
@@ -551,6 +565,91 @@ export default function DossierDetailPage() {
       )}
 
       {/* ══ MODAL : Ajout dossier ══ */}
+      {/* ══ MODAL : Documents d'un sous-dossier ══ */}
+      {openedSubfolder && (() => {
+        const sf = dossier.subfolders.find(s => s.label === openedSubfolder);
+        if (!sf) return null;
+        const docs = sf.documents ?? [];
+        const handleAddDoc = () => {
+          const name = newDocName.trim();
+          if (!name) return;
+          addDocumentToSubfolder(id, openedSubfolder, name);
+          setNewDocName('');
+        };
+        const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+          const files = e.target.files;
+          if (!files) return;
+          Array.from(files).forEach(f => addDocumentToSubfolder(id, openedSubfolder, f.name));
+          e.target.value = '';
+        };
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={() => setOpenedSubfolder(null)}>
+            <div className="w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10" onClick={e => e.stopPropagation()}>
+              <div className="flex items-start justify-between mb-5">
+                <div>
+                  <h3 className="text-xl font-bold text-[#304035]">{sf.label}</h3>
+                  <p className="text-xs text-[#304035]/50 mt-1">
+                    {docs.length} document{docs.length > 1 ? 's' : ''}{sf.date ? ` · Modifié le ${sf.date}` : ''}
+                  </p>
+                </div>
+                <button onClick={() => setOpenedSubfolder(null)} className="p-2 rounded-lg hover:bg-[#304035]/5 transition-colors" aria-label="Fermer">
+                  <X className="h-5 w-5 text-[#304035]/60" />
+                </button>
+              </div>
+
+              {/* Liste des documents */}
+              <div className="rounded-xl border border-[#304035]/10 divide-y divide-[#304035]/5 mb-5 max-h-72 overflow-y-auto">
+                {docs.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-[#304035]/40 text-sm">
+                    Aucun document dans ce sous-dossier
+                  </div>
+                ) : docs.map((doc, i) => (
+                  <div key={i} className="flex items-center gap-3 px-4 py-3">
+                    <FileText className="h-4 w-4 text-[#a67749] shrink-0" />
+                    <span className="flex-1 text-sm text-[#304035] truncate">{doc}</span>
+                    <button
+                      onClick={() => removeDocumentFromSubfolder(id, openedSubfolder, doc)}
+                      className="p-1.5 rounded-lg text-[#304035]/40 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      aria-label="Supprimer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Upload fichier */}
+              <label className="block mb-3">
+                <span className="sr-only">Téléverser un fichier</span>
+                <input type="file" multiple onChange={handleFileInput} className="hidden" id={`sf-file-${sf.label}`} />
+                <label htmlFor={`sf-file-${sf.label}`} className="flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed border-[#304035]/20 py-3 text-sm font-medium text-[#304035]/70 hover:border-[#a67749] hover:bg-[#a67749]/5 hover:text-[#a67749] cursor-pointer transition-all">
+                  <Plus className="h-4 w-4" />
+                  Téléverser un ou plusieurs fichiers
+                </label>
+              </label>
+
+              {/* Ajouter manuellement */}
+              <div className="flex gap-2">
+                <input
+                  value={newDocName}
+                  onChange={e => setNewDocName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddDoc()}
+                  placeholder="Nom du document (ex: devis_client.pdf)"
+                  className="flex-1 rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
+                />
+                <button
+                  onClick={handleAddDoc}
+                  disabled={!newDocName.trim()}
+                  className="rounded-xl bg-[#304035] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#a67749] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Ajouter
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {showAddFolder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10">

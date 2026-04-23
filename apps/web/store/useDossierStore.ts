@@ -128,6 +128,8 @@ interface DossierState {
   updateDossierNotes: (id: string, notes: string) => void;
   addSubfolder: (dossierId: string, label: string) => void;
   toggleSubfolderValidated: (dossierId: string, label: string) => void;
+  addDocumentToSubfolder: (dossierId: string, label: string, docName: string) => void;
+  removeDocumentFromSubfolder: (dossierId: string, label: string, docName: string) => void;
   signerDossier: (id: string) => void;
   perdreDossier: (id: string, reason: string) => void;
   updateDateButoireSignee: (dossierId: string, label: string, date: string) => void;
@@ -198,8 +200,9 @@ export const useDossierStore = create<DossierState>()(
       },
 
       toggleSubfolderValidated: (dossierId, label) => {
+        const today = new Date().toLocaleDateString('fr-FR');
         const toggle = (sf: SubFolder): SubFolder =>
-          sf.label === label ? { ...sf, validated: !sf.validated } : sf;
+          sf.label === label ? { ...sf, validated: !sf.validated, date: today } : sf;
         const inDossiers = get().dossiers.some(d => d.id === dossierId);
         if (inDossiers) {
           set(s => ({
@@ -211,6 +214,50 @@ export const useDossierStore = create<DossierState>()(
           set(s => ({
             dossiersSignes: s.dossiersSignes.map(d =>
               d.id === dossierId ? { ...d, signedSubfolders: d.signedSubfolders.map(toggle) } : d
+            ),
+          }));
+        }
+      },
+
+      addDocumentToSubfolder: (dossierId, label, docName) => {
+        const today = new Date().toLocaleDateString('fr-FR');
+        const addDoc = (sf: SubFolder): SubFolder =>
+          sf.label === label
+            ? { ...sf, documents: [...(sf.documents ?? []), docName], date: today }
+            : sf;
+        const inDossiers = get().dossiers.some(d => d.id === dossierId);
+        if (inDossiers) {
+          set(s => ({
+            dossiers: s.dossiers.map(d =>
+              d.id === dossierId ? { ...d, subfolders: d.subfolders.map(addDoc) } : d
+            ),
+          }));
+        } else {
+          set(s => ({
+            dossiersSignes: s.dossiersSignes.map(d =>
+              d.id === dossierId ? { ...d, signedSubfolders: d.signedSubfolders.map(addDoc) } : d
+            ),
+          }));
+        }
+      },
+
+      removeDocumentFromSubfolder: (dossierId, label, docName) => {
+        const today = new Date().toLocaleDateString('fr-FR');
+        const rmDoc = (sf: SubFolder): SubFolder =>
+          sf.label === label
+            ? { ...sf, documents: (sf.documents ?? []).filter(d => d !== docName), date: today }
+            : sf;
+        const inDossiers = get().dossiers.some(d => d.id === dossierId);
+        if (inDossiers) {
+          set(s => ({
+            dossiers: s.dossiers.map(d =>
+              d.id === dossierId ? { ...d, subfolders: d.subfolders.map(rmDoc) } : d
+            ),
+          }));
+        } else {
+          set(s => ({
+            dossiersSignes: s.dossiersSignes.map(d =>
+              d.id === dossierId ? { ...d, signedSubfolders: d.signedSubfolders.map(rmDoc) } : d
             ),
           }));
         }
