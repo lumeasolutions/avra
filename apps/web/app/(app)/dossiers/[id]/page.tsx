@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
+import { getSupabase, DOSSIER_BUCKET, supabaseConfigured } from '@/lib/supabase';
 
 /** Normalise un document (string legacy ou objet) pour affichage. */
 const normalizeDoc = (d: SubFolderDocument): DocumentFile =>
@@ -33,16 +34,90 @@ const readAsDataUrl = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
-/** Déclenche le téléchargement d'un document depuis son dataUrl. */
-const downloadDoc = (doc: DocumentFile) => {
-  if (!doc.dataUrl) return;
+/** Durée de validité d'une URL signée Supabase (secondes). */
+const SIGNED_URL_TTL = 60 * 60; // 1 heure
+
+/**
+ * Résout une URL d'accès pour un document :
+ *  - Supabase Storage → URL signée fraîche (temporaire, 1 h)
+ *  - Ancien format dataUrl → utilisé tel quel (fallback local)
+ *  - Rien → null (document legacy sans contenu)
+ */
+async function resolveDocUrl(doc: DocumentFile): Promise<string | null> {
+  if (doc.storagePath && doc.bucket) {
+    const client = getSupabase();
+    if (!client) return doc.dataUrl ?? null;
+    const { data, error } = await client.storage
+      .from(doc.bucket)
+      .createSignedUrl(doc.storagePath, SIGNED_URL_TTL);
+    if (error || !data) {
+      console.error('[Supabase signedUrl]', error?.message);
+      return doc.dataUrl ?? null;
+    }
+    return data.signedUrl;
+  }
+  return doc.dataUrl ?? null;
+}
+
+/** Déclenche le téléchargement — régénère une URL signée si Supabase. */
+async function downloadDoc(doc: DocumentFile) {
+  const src = await resolveDocUrl(doc);
+  if (!src) return;
   const a = document.createElement('a');
-  a.href = doc.dataUrl;
+  a.href = src;
   a.download = doc.name;
+  if (doc.storagePath && !doc.dataUrl) a.target = '_blank';
   document.body.appendChild(a);
   a.click();
   a.remove();
-};
+}
+
+/**
+ * Supprime un fichier côté Supabase Storage (best-effort).
+ * N'échoue jamais : on laisse le store supprimer l'entrée quoi qu'il arrive.
+ */
+async function deleteFromSupabase(doc: DocumentFile): Promise<void> {
+  if (!doc.storagePath || !doc.bucket) return;
+  const client = getSupabase();
+  if (!client) return;
+  const { error } = await client.storage.from(doc.bucket).remove([doc.storagePath]);
+  if (error) console.error('[Supabase remove]', error.message);
+}
+
+/**
+ * Upload un fichier vers Supabase Storage (bucket PRIVÉ, scopé au dossier).
+ * Retourne un DocumentFile avec `storagePath` + `bucket` (pas de URL persistée).
+ */
+async function uploadToSupabase(
+  dossierId: string,
+  subfolderLabel: string,
+  file: File,
+): Promise<DocumentFile | null> {
+  const client = getSupabase();
+  if (!client) return null;
+  const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 120);
+  // Path scopé : dossierId est déjà unique (uid), on ajoute un timestamp + uid du fichier
+  // pour éviter toute collision et rendre la devinette de path impossible.
+  const rand = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}${Math.random()}`).replace(/-/g, '');
+  const path = `${sanitize(dossierId)}/${sanitize(subfolderLabel)}/${rand}_${sanitize(file.name)}`;
+  const { error } = await client.storage.from(DOSSIER_BUCKET).upload(path, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type || undefined,
+  });
+  if (error) {
+    console.error('[Supabase upload]', error.message);
+    return null;
+  }
+  return {
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    storagePath: path,
+    bucket: DOSSIER_BUCKET,
+    addedAt: new Date().toLocaleDateString('fr-FR'),
+  };
+}
 
 /* ── CONFIG STATUT ── */
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; border: string; glow: string; dot: string; Icon: React.ElementType }> = {
@@ -112,8 +187,17 @@ export default function DossierDetailPage() {
   // Modal "documents dans le sous-dossier"
   const [openedSubfolder, setOpenedSubfolder] = useState<string | null>(null);
   const [newDocName, setNewDocName] = useState('');
-  // Document en cours de prévisualisation (plein écran)
+  // Document en cours de prévisualisation (plein écran) + URL signée résolue
   const [previewDoc, setPreviewDoc] = useState<DocumentFile | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const openPreview = async (doc: DocumentFile) => {
+    setPreviewDoc(doc);
+    setPreviewUrl(null);
+    const url = await resolveDocUrl(doc);
+    setPreviewUrl(url);
+  };
+  const closePreview = () => { setPreviewDoc(null); setPreviewUrl(null); };
   const [devisObjet,    setDevisObjet]    = useState('');
   const [devisMontant,  setDevisMontant]  = useState('');
   const [devisTva,      setDevisTva]      = useState('20');
@@ -622,6 +706,15 @@ export default function DossierDetailPage() {
           if (!files) return;
           const arr = Array.from(files);
           for (const f of arr) {
+            // 1) Tentative Supabase Storage (URL distante, pas de blob dans localStorage)
+            if (supabaseConfigured) {
+              const uploaded = await uploadToSupabase(id, openedSubfolder, f);
+              if (uploaded) {
+                addDocumentToSubfolder(id, openedSubfolder, uploaded);
+                continue;
+              }
+            }
+            // 2) Fallback : dataURL en localStorage
             try {
               const dataUrl = await readAsDataUrl(f);
               addDocumentToSubfolder(id, openedSubfolder, {
@@ -631,7 +724,6 @@ export default function DossierDetailPage() {
                 dataUrl,
               });
             } catch {
-              // Fallback : on stocke au moins le nom si la lecture échoue
               addDocumentToSubfolder(id, openedSubfolder, { name: f.name, type: f.type, size: f.size });
             }
           }
@@ -659,7 +751,7 @@ export default function DossierDetailPage() {
                     Aucun document dans ce sous-dossier
                   </div>
                 ) : docs.map((doc, i) => {
-                  const canPreview = !!doc.dataUrl;
+                  const canPreview = !!(doc.storagePath || doc.dataUrl);
                   const isImg = doc.type?.startsWith('image/');
                   return (
                     <div key={i} className="flex items-center gap-3 px-4 py-3">
@@ -683,7 +775,7 @@ export default function DossierDetailPage() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => canPreview && setPreviewDoc(doc)}
+                        onClick={() => canPreview && openPreview(doc)}
                         disabled={!canPreview}
                         title={canPreview ? 'Aperçu' : 'Aperçu indisponible (document hérité sans contenu)'}
                         className="p-1.5 rounded-lg text-[#304035]/50 hover:text-[#304035] hover:bg-[#304035]/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -702,7 +794,10 @@ export default function DossierDetailPage() {
                         <Download className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => removeDocumentFromSubfolder(id, openedSubfolder, doc.name)}
+                        onClick={async () => {
+                          await deleteFromSupabase(doc);
+                          removeDocumentFromSubfolder(id, openedSubfolder, doc.name);
+                        }}
                         className="p-1.5 rounded-lg text-[#304035]/40 hover:text-red-500 hover:bg-red-50 transition-colors"
                         aria-label="Supprimer"
                       >
@@ -746,10 +841,10 @@ export default function DossierDetailPage() {
       })()}
 
       {/* ══ MODAL : Aperçu plein écran d'un document ══ */}
-      {previewDoc && previewDoc.dataUrl && (
+      {previewDoc && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
-          onClick={() => setPreviewDoc(null)}
+          onClick={closePreview}
         >
           <div
             className="relative w-full max-w-5xl max-h-[92vh] flex flex-col bg-white rounded-2xl overflow-hidden shadow-2xl"
@@ -771,7 +866,7 @@ export default function DossierDetailPage() {
                   Télécharger
                 </button>
                 <button
-                  onClick={() => setPreviewDoc(null)}
+                  onClick={closePreview}
                   className="p-2 rounded-lg hover:bg-[#304035]/5 transition-colors"
                   aria-label="Fermer"
                 >
@@ -780,13 +875,18 @@ export default function DossierDetailPage() {
               </div>
             </div>
             <div className="flex-1 overflow-auto bg-[#304035]/[0.03] flex items-center justify-center p-4">
-              {previewDoc.type?.startsWith('image/') ? (
+              {!previewUrl ? (
+                <div className="flex items-center gap-3 text-[#304035]/60 text-sm">
+                  <div className="h-5 w-5 border-2 border-[#a67749] border-t-transparent rounded-full animate-spin" />
+                  Chargement sécurisé…
+                </div>
+              ) : previewDoc.type?.startsWith('image/') ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={previewDoc.dataUrl} alt={previewDoc.name} className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-md" />
+                <img src={previewUrl} alt={previewDoc.name} className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-md" />
               ) : previewDoc.type === 'application/pdf' ? (
-                <iframe src={previewDoc.dataUrl} title={previewDoc.name} className="w-full h-[80vh] rounded-lg bg-white" />
+                <iframe src={previewUrl} title={previewDoc.name} className="w-full h-[80vh] rounded-lg bg-white" />
               ) : previewDoc.type?.startsWith('text/') ? (
-                <iframe src={previewDoc.dataUrl} title={previewDoc.name} className="w-full h-[80vh] rounded-lg bg-white" />
+                <iframe src={previewUrl} title={previewDoc.name} className="w-full h-[80vh] rounded-lg bg-white" />
               ) : (
                 <div className="text-center py-12 px-6">
                   <FileText className="h-16 w-16 text-[#304035]/20 mx-auto mb-4" />

@@ -19,8 +19,14 @@ export interface DocumentFile {
   type?: string;
   /** Taille en octets */
   size?: number;
-  /** Contenu base64 data URL (pour preview / download). */
+  /** Contenu base64 data URL (fallback local). */
   dataUrl?: string;
+  /** URL publique (Supabase Storage ou autre CDN) — préférée à dataUrl si présente. */
+  url?: string;
+  /** Clé / chemin du fichier dans le bucket (pour suppression). */
+  storagePath?: string;
+  /** Bucket Supabase où le fichier est stocké. */
+  bucket?: string;
   addedAt?: string;
 }
 
