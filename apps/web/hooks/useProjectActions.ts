@@ -19,9 +19,27 @@ interface CreateProjectData {
   siteAddress?: string;
   postalCode?: string;
   tva?: string;
+  tauxTVA?: number;
+  delaiChantier?: number;
+  delaiChantierUnit?: 'days' | 'weeks';
   phone?: string;
   email?: string;
 }
+
+/**
+ * Un ID est considéré "local-only" (pas encore en DB) s'il ne ressemble pas
+ * à un cuid (prefix 'c' + 24 chars alphanumeric) ni à un UUID.
+ * Tous les IDs générés par le store Zustand commencent par 'd', 's', 'p', etc.
+ * suivi de 8 chars, ou sont les démos figées (d1..d9, s1..s4, p1..p3).
+ */
+const isLocalOnlyId = (id: string): boolean => {
+  if (!id) return true;
+  // cuid v1 : commence par 'c', 25 chars, [0-9a-z]
+  if (/^c[0-9a-z]{24}$/.test(id)) return false;
+  // cuid v2 ou UUID v4 : 36 chars avec tirets
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return false;
+  return true; // tout le reste = local
+};
 
 export function useProjectActions() {
   const user = useAuthStore((s) => s.user);
@@ -85,7 +103,7 @@ export function useProjectActions() {
       if (user?.id === 'demo' || !user?.workspaceId) return;
 
       // Éviter d'appeler l'API pour les IDs de démo
-      if (['d1','d2','d3','d4','d5','d6','d7','d8','d9'].includes(id)) return;
+      if (isLocalOnlyId(id)) return;
 
       try {
         await api(`/projects/${id}/sign`, { method: 'POST' });
@@ -106,7 +124,7 @@ export function useProjectActions() {
 
       if (user?.id === 'demo' || !user?.workspaceId) return;
 
-      if (['d1','d2','d3','d4','d5','d6','d7','d8','d9'].includes(id)) return;
+      if (isLocalOnlyId(id)) return;
 
       try {
         await api(`/projects/${id}`, {
@@ -130,7 +148,7 @@ export function useProjectActions() {
       store.updateDossierStatus(id, status as any);
 
       if (user?.id === 'demo' || !user?.workspaceId) return;
-      if (['d1','d2','d3','d4','d5','d6','d7','d8','d9'].includes(id)) return;
+      if (isLocalOnlyId(id)) return;
 
       const priorityMap: Record<string, string> = {
         'URGENT': 'URGENT',

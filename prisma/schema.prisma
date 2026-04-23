@@ -244,6 +244,7 @@ model Workspace {
   auditLogs          AuditLog[]
   automationRules    AutomationRule[]
   quotes             Quote[]
+  dossierDocuments   DossierDocument[]
 }
 
 model User {
@@ -268,6 +269,7 @@ model User {
   iaJobs            IaJob[]
   createdEvents     Event[]
   ownedProjects     Project[]       @relation("ProjectOwner")
+  createdDossierDocuments DossierDocument[] @relation("DossierDocumentCreatedBy")
 }
 
 model UserWorkspace {
@@ -402,9 +404,37 @@ model Project {
   auditLogs            AuditLog[]
   quotes               Quote[]
   reminders            Reminder[]
+  dossierDocuments     DossierDocument[]
 
   @@index([workspaceId])
   @@index([clientId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOSSIER DOCUMENTS (sous-dossiers frontend : DOSSIER RENSEIGNEMENT, RELEVE, etc.)
+// Stockage : Supabase Storage (bucket privé), accès uniquement via URL signée
+// générée par l'API après validation d'ownership workspace.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DossierDocument {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  projectId       String
+  subfolderLabel  String
+  storageBucket   String
+  storagePath     String   @unique
+  originalName    String
+  mimeType        String?
+  sizeBytes       Int?
+  createdById     String
+  createdAt       DateTime @default(now())
+
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy       User      @relation("DossierDocumentCreatedBy", fields: [createdById], references: [id])
+
+  @@index([projectId])
+  @@index([workspaceId, projectId, subfolderLabel])
 }
 
 model ProjectFolder {

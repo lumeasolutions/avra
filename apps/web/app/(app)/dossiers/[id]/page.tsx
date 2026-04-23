@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
-import { getSupabase, DOSSIER_BUCKET, supabaseConfigured } from '@/lib/supabase';
+import { uploadDossierDoc, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
+import { useProjectActions } from '@/hooks/useProjectActions';
 
 /** Normalise un document (string legacy ou objet) pour affichage. */
 const normalizeDoc = (d: SubFolderDocument): DocumentFile =>
@@ -25,98 +26,36 @@ const formatSize = (bytes?: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(2)} Mo`;
 };
 
-/** Lit un File en base64 data URL (Promise). */
-const readAsDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-
-/** Durée de validité d'une URL signée Supabase (secondes). */
-const SIGNED_URL_TTL = 60 * 60; // 1 heure
-
 /**
  * Résout une URL d'accès pour un document :
- *  - Supabase Storage → URL signée fraîche (temporaire, 1 h)
- *  - Ancien format dataUrl → utilisé tel quel (fallback local)
- *  - Rien → null (document legacy sans contenu)
+ *  - Document API (docId) → demande une URL signée fraîche au backend (1 h)
+ *  - Ancien format dataUrl → fallback local (documents pré-migration)
+ *  - Rien → null
  */
-async function resolveDocUrl(doc: DocumentFile): Promise<string | null> {
-  if (doc.storagePath && doc.bucket) {
-    const client = getSupabase();
-    if (!client) return doc.dataUrl ?? null;
-    const { data, error } = await client.storage
-      .from(doc.bucket)
-      .createSignedUrl(doc.storagePath, SIGNED_URL_TTL);
-    if (error || !data) {
-      console.error('[Supabase signedUrl]', error?.message);
+async function resolveDocUrl(dossierId: string, doc: DocumentFile): Promise<string | null> {
+  if (doc.docId) {
+    try {
+      const { signedUrl } = await getDocSignedUrl(dossierId, doc.docId);
+      return signedUrl;
+    } catch (err) {
+      console.error('[signedUrl]', err);
       return doc.dataUrl ?? null;
     }
-    return data.signedUrl;
   }
   return doc.dataUrl ?? null;
 }
 
-/** Déclenche le téléchargement — régénère une URL signée si Supabase. */
-async function downloadDoc(doc: DocumentFile) {
-  const src = await resolveDocUrl(doc);
+/** Déclenche le téléchargement via URL signée fraîche. */
+async function downloadDoc(dossierId: string, doc: DocumentFile) {
+  const src = await resolveDocUrl(dossierId, doc);
   if (!src) return;
   const a = document.createElement('a');
   a.href = src;
   a.download = doc.name;
-  if (doc.storagePath && !doc.dataUrl) a.target = '_blank';
+  if (doc.docId && !doc.dataUrl) a.target = '_blank';
   document.body.appendChild(a);
   a.click();
   a.remove();
-}
-
-/**
- * Supprime un fichier côté Supabase Storage (best-effort).
- * N'échoue jamais : on laisse le store supprimer l'entrée quoi qu'il arrive.
- */
-async function deleteFromSupabase(doc: DocumentFile): Promise<void> {
-  if (!doc.storagePath || !doc.bucket) return;
-  const client = getSupabase();
-  if (!client) return;
-  const { error } = await client.storage.from(doc.bucket).remove([doc.storagePath]);
-  if (error) console.error('[Supabase remove]', error.message);
-}
-
-/**
- * Upload un fichier vers Supabase Storage (bucket PRIVÉ, scopé au dossier).
- * Retourne un DocumentFile avec `storagePath` + `bucket` (pas de URL persistée).
- */
-async function uploadToSupabase(
-  dossierId: string,
-  subfolderLabel: string,
-  file: File,
-): Promise<DocumentFile | null> {
-  const client = getSupabase();
-  if (!client) return null;
-  const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 120);
-  // Path scopé : dossierId est déjà unique (uid), on ajoute un timestamp + uid du fichier
-  // pour éviter toute collision et rendre la devinette de path impossible.
-  const rand = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}${Math.random()}`).replace(/-/g, '');
-  const path = `${sanitize(dossierId)}/${sanitize(subfolderLabel)}/${rand}_${sanitize(file.name)}`;
-  const { error } = await client.storage.from(DOSSIER_BUCKET).upload(path, file, {
-    cacheControl: '3600',
-    upsert: false,
-    contentType: file.type || undefined,
-  });
-  if (error) {
-    console.error('[Supabase upload]', error.message);
-    return null;
-  }
-  return {
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    storagePath: path,
-    bucket: DOSSIER_BUCKET,
-    addedAt: new Date().toLocaleDateString('fr-FR'),
-  };
 }
 
 /* ── CONFIG STATUT ── */
@@ -166,18 +105,90 @@ export default function DossierDetailPage() {
   const allInvoices       = useFacturationStore(s => s.invoices);
   const dossier           = [...dossiers, ...dossiersSignes].find(d => d.id === id);
   const invoices          = allInvoices.filter(i => i.dossierId === id);
-  const signerDossier     = useDossierStore(s => s.signerDossier);
-  const updateDossierStatus = useDossierStore(s => s.updateDossierStatus);
+  // Actions persistées en DB via l'API (double-write : optimistic local + API)
+  const { signProject, updateProjectStatus } = useProjectActions();
+  // Actions uniquement locales (pas encore d'endpoint API dédié).
+  // NOTE : subfolders, validation, notes sont conservés en localStorage.
+  // Pour les rendre multi-device, il faudra ajouter des endpoints backend
+  // (cf. AUDIT_DOSSIERS_DOCUMENTS.md fix #6).
   const addSubfolder      = useDossierStore(s => s.addSubfolder);
   const toggleSubfolderValidated = useDossierStore(s => s.toggleSubfolderValidated);
   const addDocumentToSubfolder = useDossierStore(s => s.addDocumentToSubfolder);
   const removeDocumentFromSubfolder = useDossierStore(s => s.removeDocumentFromSubfolder);
   const ensureDefaultSubfolders = useDossierStore(s => s.ensureDefaultSubfolders);
+  const updateDossierNotes = useDossierStore(s => s.updateDossierNotes);
 
   // Backfill : complète les dossiers créés avant l'ajout des sous-dossiers par défaut
   useEffect(() => {
     if (id) ensureDefaultSubfolders(id);
   }, [id, ensureDefaultSubfolders]);
+
+  // ────────────────────────────────────────────────────────────────────
+  // Réhydratation depuis le backend (source de vérité = DB).
+  // Au chargement, on liste tous les documents du dossier côté API et on
+  // complète le store local avec ceux qui manquent (identification par docId).
+  // Si un document référence un sous-dossier inconnu, on le crée à la volée
+  // afin de ne jamais perdre un upload. Fallback "AUTRES" si label vide.
+  // Erreur réseau silencieuse : l'état local est conservé.
+  // ────────────────────────────────────────────────────────────────────
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingDocs(true);
+      try {
+        const remote = await listDossierDocs(id);
+        if (cancelled) return;
+        // Snapshot du store après backfill, pour repérer les docIds déjà connus
+        const dossierNow = [
+          ...useDossierStore.getState().dossiers,
+          ...useDossierStore.getState().dossiersSignes,
+        ].find(d => d.id === id);
+        if (!dossierNow) return;
+
+        const existingDocIds = new Set<string>();
+        const existingLabels = new Set<string>();
+        const subs = 'signedSubfolders' in dossierNow
+          ? (dossierNow as any).signedSubfolders
+          : dossierNow.subfolders;
+        for (const sf of subs ?? []) {
+          existingLabels.add(sf.label);
+          for (const d of (sf.documents ?? [])) {
+            if (typeof d !== 'string' && d.docId) existingDocIds.add(d.docId);
+          }
+        }
+
+        const FALLBACK_LABEL = 'AUTRES';
+
+        for (const doc of remote) {
+          if (existingDocIds.has(doc.id)) continue; // déjà dans le store
+          // Détermine le sous-dossier cible
+          let targetLabel = (doc.subfolderLabel ?? '').trim() || FALLBACK_LABEL;
+          // Sous-dossier inconnu dans le store ? on le crée à la volée
+          if (!existingLabels.has(targetLabel)) {
+            addSubfolder(id, targetLabel);
+            existingLabels.add(targetLabel);
+          }
+          addDocumentToSubfolder(id, targetLabel, {
+            docId: doc.id,
+            name: doc.originalName,
+            type: doc.mimeType ?? undefined,
+            size: doc.sizeBytes ?? undefined,
+            addedAt: doc.createdAt,
+          });
+          existingDocIds.add(doc.id);
+        }
+      } catch {
+        // silencieux : on conserve l'état local (hors ligne / non authentifié)
+      } finally {
+        if (!cancelled) setLoadingDocs(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   const addInvoice        = useFacturationStore(s => s.addInvoice);
 
   const [showDevis,     setShowDevis]     = useState(false);
@@ -194,15 +205,27 @@ export default function DossierDetailPage() {
   const openPreview = async (doc: DocumentFile) => {
     setPreviewDoc(doc);
     setPreviewUrl(null);
-    const url = await resolveDocUrl(doc);
+    const url = await resolveDocUrl(id, doc);
     setPreviewUrl(url);
   };
   const closePreview = () => { setPreviewDoc(null); setPreviewUrl(null); };
   const [devisObjet,    setDevisObjet]    = useState('');
   const [devisMontant,  setDevisMontant]  = useState('');
   const [devisTva,      setDevisTva]      = useState('20');
-  const [notes,         setNotes]         = useState('');
+  // Les notes sont synchronisées avec le store (persistées en localStorage).
+  // Valeur initiale = celle du dossier en store ; les changements sont propagés
+  // via updateDossierNotes.
+  const [notes,         setNotesLocal]    = useState(dossier?.notes ?? '');
   const [editingNotes,  setEditingNotes]  = useState(false);
+  const setNotes = (v: string) => {
+    setNotesLocal(v);
+    if (id) updateDossierNotes(id, v);
+  };
+  // Re-synchronise notes quand le dossier change (navigation, sync API)
+  useEffect(() => {
+    setNotesLocal(dossier?.notes ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dossier?.id]);
 
   if (!dossier) {
     return (
@@ -227,7 +250,17 @@ export default function DossierDetailPage() {
   const stepIdx = STATUS_ORDER.indexOf(dossier.status);
   const totalHT = invoices.reduce((s, i) => s + (i.montantHT > 0 ? i.montantHT : 0), 0);
 
-  const handleSigner = () => { signerDossier(id); router.push('/dossiers-signes'); };
+  // Signe le dossier : POST /projects/:id/sign (via useProjectActions) + mise à jour store.
+  // Fire-and-forget : on route immédiatement vers /dossiers-signes, l'API tourne en arrière-plan.
+  const handleSigner = async () => {
+    try {
+      await signProject(id);
+    } catch (err) {
+      console.warn('[sign] API call failed (state local conservé) :', err);
+    } finally {
+      router.push('/dossiers-signes');
+    }
+  };
   const handleAddFolder = () => {
     if (!newFolderLabel.trim()) return;
     addSubfolder(id, newFolderLabel.trim());
@@ -377,6 +410,13 @@ export default function DossierDetailPage() {
                   <FolderOpen className="h-4 w-4 text-[#304035]" />
                 </div>
                 <h2 className="text-sm font-bold text-[#304035]">Dossiers & fichiers</h2>
+                {loadingDocs && (
+                  <div
+                    className="h-3.5 w-3.5 border-2 border-[#a67749] border-t-transparent rounded-full animate-spin"
+                    title="Synchronisation des documents…"
+                    aria-label="Synchronisation des documents"
+                  />
+                )}
               </div>
               <button
                 onClick={() => setShowAddFolder(true)}
@@ -670,7 +710,7 @@ export default function DossierDetailPage() {
                 const isActive = dossier.status === s;
                 return (
                   <button key={s}
-                    onClick={() => { updateDossierStatus(id, s as any); setShowStatus(false); }}
+                    onClick={() => { updateProjectStatus(id, s); setShowStatus(false); }}
                     className="w-full flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-bold text-left transition-all"
                     style={isActive
                       ? { background: c.bg, color: c.text, boxShadow: `0 4px 12px ${c.glow}` }
@@ -689,46 +729,62 @@ export default function DossierDetailPage() {
         </div>
       )}
 
-      {/* ══ MODAL : Ajout dossier ══ */}
       {/* ══ MODAL : Documents d'un sous-dossier ══ */}
       {openedSubfolder && (() => {
         const sf = dossier.subfolders.find(s => s.label === openedSubfolder);
         if (!sf) return null;
         const docs = (sf.documents ?? []).map(normalizeDoc);
+
+        // Ajout "manuel" par nom seul — placeholder local, sans upload.
+        // Utile pour noter qu'un document physique est attendu mais pas encore reçu.
         const handleAddDoc = () => {
           const name = newDocName.trim();
           if (!name) return;
           addDocumentToSubfolder(id, openedSubfolder, { name });
           setNewDocName('');
         };
+
+        // Upload réel via l'API NestJS → Supabase Storage.
+        // Toutes les vérifs (MIME, taille, ownership) sont faites côté serveur.
         const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
           const files = e.target.files;
           if (!files) return;
           const arr = Array.from(files);
           for (const f of arr) {
-            // 1) Tentative Supabase Storage (URL distante, pas de blob dans localStorage)
-            if (supabaseConfigured) {
-              const uploaded = await uploadToSupabase(id, openedSubfolder, f);
-              if (uploaded) {
-                addDocumentToSubfolder(id, openedSubfolder, uploaded);
-                continue;
-              }
-            }
-            // 2) Fallback : dataURL en localStorage
             try {
-              const dataUrl = await readAsDataUrl(f);
+              const uploaded = await uploadDossierDoc(id, openedSubfolder, f);
               addDocumentToSubfolder(id, openedSubfolder, {
-                name: f.name,
-                type: f.type,
-                size: f.size,
-                dataUrl,
+                docId: uploaded.id,
+                name: uploaded.originalName,
+                type: uploaded.mimeType ?? f.type,
+                size: uploaded.sizeBytes ?? f.size,
+                addedAt: uploaded.createdAt,
               });
-            } catch {
-              addDocumentToSubfolder(id, openedSubfolder, { name: f.name, type: f.type, size: f.size });
+            } catch (err: any) {
+              // Remontée discrète à l'utilisateur — on ne garde PAS le doc en local
+              // si l'upload serveur a échoué (évite une illusion de succès).
+              // eslint-disable-next-line no-alert
+              alert(`Impossible d'uploader ${f.name} : ${err?.message ?? 'erreur réseau'}`);
             }
           }
           e.target.value = '';
         };
+
+        // Suppression : si le doc est sur le backend (docId présent), on purge
+        // côté API d'abord (DB + bucket). Puis on retire du store local.
+        const handleDelete = async (doc: DocumentFile) => {
+          if (doc.docId) {
+            try {
+              await deleteDossierDoc(id, doc.docId);
+            } catch (err: any) {
+              // eslint-disable-next-line no-alert
+              alert(`Suppression impossible : ${err?.message ?? 'erreur réseau'}`);
+              return;
+            }
+          }
+          removeDocumentFromSubfolder(id, openedSubfolder, doc.name);
+        };
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={() => setOpenedSubfolder(null)}>
             <div className="w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10" onClick={e => e.stopPropagation()}>
@@ -751,7 +807,10 @@ export default function DossierDetailPage() {
                     Aucun document dans ce sous-dossier
                   </div>
                 ) : docs.map((doc, i) => {
-                  const canPreview = !!(doc.storagePath || doc.dataUrl);
+                  // Un doc est prévisualisable si on peut récupérer son contenu :
+                  //  - docId (API → URL signée fraîche)
+                  //  - dataUrl (legacy local)
+                  const canPreview = !!(doc.docId || doc.dataUrl);
                   const isImg = doc.type?.startsWith('image/');
                   return (
                     <div key={i} className="flex items-center gap-3 px-4 py-3">
@@ -777,7 +836,7 @@ export default function DossierDetailPage() {
                         type="button"
                         onClick={() => canPreview && openPreview(doc)}
                         disabled={!canPreview}
-                        title={canPreview ? 'Aperçu' : 'Aperçu indisponible (document hérité sans contenu)'}
+                        title={canPreview ? 'Aperçu' : 'Aperçu indisponible (document placeholder sans contenu)'}
                         className="p-1.5 rounded-lg text-[#304035]/50 hover:text-[#304035] hover:bg-[#304035]/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         aria-label="Aperçu"
                       >
@@ -785,7 +844,7 @@ export default function DossierDetailPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => canPreview && downloadDoc(doc)}
+                        onClick={() => canPreview && downloadDoc(id, doc)}
                         disabled={!canPreview}
                         title={canPreview ? 'Télécharger' : 'Téléchargement indisponible'}
                         className="p-1.5 rounded-lg text-[#304035]/50 hover:text-[#a67749] hover:bg-[#a67749]/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -794,10 +853,7 @@ export default function DossierDetailPage() {
                         <Download className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={async () => {
-                          await deleteFromSupabase(doc);
-                          removeDocumentFromSubfolder(id, openedSubfolder, doc.name);
-                        }}
+                        onClick={() => handleDelete(doc)}
                         className="p-1.5 rounded-lg text-[#304035]/40 hover:text-red-500 hover:bg-red-50 transition-colors"
                         aria-label="Supprimer"
                       >
@@ -818,7 +874,7 @@ export default function DossierDetailPage() {
                 </label>
               </label>
 
-              {/* Ajouter manuellement */}
+              {/* Ajouter manuellement (placeholder sans upload) */}
               <div className="flex gap-2">
                 <input
                   value={newDocName}
@@ -859,7 +915,7 @@ export default function DossierDetailPage() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => downloadDoc(previewDoc)}
+                  onClick={() => downloadDoc(id, previewDoc)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#a67749] text-white text-xs font-bold hover:bg-[#304035] transition-colors"
                 >
                   <Download className="h-3.5 w-3.5" />
@@ -894,7 +950,7 @@ export default function DossierDetailPage() {
                     Aperçu non disponible pour ce type de fichier.
                   </p>
                   <button
-                    onClick={() => downloadDoc(previewDoc)}
+                    onClick={() => downloadDoc(id, previewDoc)}
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#304035] text-white text-sm font-bold hover:bg-[#a67749] transition-colors"
                   >
                     <Download className="h-4 w-4" />
@@ -907,6 +963,7 @@ export default function DossierDetailPage() {
         </div>
       )}
 
+      {/* ══ MODAL : Ajout d'un sous-dossier ══ */}
       {showAddFolder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10">
@@ -995,3 +1052,4 @@ export default function DossierDetailPage() {
     </div>
   );
 }
+ 

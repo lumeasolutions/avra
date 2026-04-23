@@ -33,14 +33,14 @@ const securityHeaders = [
       `script-src 'self' 'unsafe-inline' https://plausible.io${isProd ? '' : " 'unsafe-eval'"}`,
       // Styles : self + unsafe-inline pour Tailwind
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      // Images : self + data: (pour logos base64) + blob: (pour canvas/génération IA) + fal.ai CDN
-      "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com",
+      // Images : self + data: (pour logos base64) + blob: (pour canvas/génération IA) + fal.ai CDN + Supabase Storage (preview images via URL signée)
+      "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com https://*.supabase.co",
       // Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // API fetch : self + fal.ai + Sentry + Plausible (+ localhost en dev)
-      `connect-src 'self' https://fal.run https://*.fal.ai wss://fal.run https://*.sentry.io https://sentry.io https://plausible.io${isProd ? '' : ' http://localhost:3001 ws://localhost:3002'}`,
-      // Frames interdites
-      "frame-src 'none'",
+      // API fetch : self + fal.ai + Sentry + Plausible + Supabase Storage (download direct via URL signée) (+ localhost en dev)
+      `connect-src 'self' https://fal.run https://*.fal.ai wss://fal.run https://*.sentry.io https://sentry.io https://plausible.io https://*.supabase.co${isProd ? '' : ' http://localhost:3001 ws://localhost:3002'}`,
+      // Frames : Supabase Storage (iframe preview PDF via URL signée)
+      "frame-src 'self' https://*.supabase.co",
       "frame-ancestors 'self'",
       // Objects interdits
       "object-src 'none'",

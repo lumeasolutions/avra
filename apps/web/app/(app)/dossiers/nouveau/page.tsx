@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FilePlus, Plus, User, Phone, MapPin, Receipt, ChevronRight, Check, AlertTriangle, Clock, CheckCircle2, Circle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { useDossierStore } from '@/store';
+import { useProjectActions } from '@/hooks/useProjectActions';
 
 const STATUS_OPTIONS = [
   { value: 'URGENT',    label: 'Urgent',    icon: AlertTriangle,  color: '#ef4444', bg: '#fef2f2', border: '#fecaca' },
@@ -172,7 +172,7 @@ const TVA_RATES: TvaRate[] = TVA_GROUPS.flatMap(g => g.rates);
 
 export default function NouveauDossierPage() {
   const router = useRouter();
-  const addDossier = useDossierStore(s => s.addDossier);
+  const { createProject } = useProjectActions();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sameAddress, setSameAddress] = useState(false);
@@ -197,23 +197,33 @@ export default function NouveauDossierPage() {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.lastName.trim()) { setError('Le nom du client est requis'); return; }
     setError('');
     setLoading(true);
-    const newId = addDossier({
-      lastName: form.lastName,
-      firstName: form.firstName || undefined,
-      address: form.address || undefined,
-      siteAddress: sameAddress ? form.address : (form.siteAddress || undefined),
-      postalCode: form.postalCode || undefined,
-      tva: form.tva || undefined,
-      tauxTVA: form.tauxTVA || undefined,
-      delaiChantier: form.delaiChantier ? parseInt(form.delaiChantier) : undefined,
-      delaiChantierUnit: form.delaiChantier ? (form.delaiChantierUnit as 'days' | 'weeks') : undefined,
-    });
-    router.push(`/dossiers/${newId}`);
+    try {
+      // createProject fait le double-write : optimistic local + POST /projects/with-client
+      // → renvoie l'ID cuid réel du projet créé en base (pour que les documents uploadés
+      // plus tard trouvent bien un projet existant côté API).
+      const newId = await createProject({
+        lastName: form.lastName,
+        firstName: form.firstName || undefined,
+        address: form.address || undefined,
+        siteAddress: sameAddress ? form.address : (form.siteAddress || undefined),
+        postalCode: form.postalCode || undefined,
+        tva: form.tva || undefined,
+        tauxTVA: form.tauxTVA || undefined,
+        delaiChantier: form.delaiChantier ? parseInt(form.delaiChantier) : undefined,
+        delaiChantierUnit: form.delaiChantier ? (form.delaiChantierUnit as 'days' | 'weeks') : undefined,
+        phone: form.phone || undefined,
+        email: form.email || undefined,
+      });
+      router.push(`/dossiers/${newId}`);
+    } catch (err: any) {
+      setError(err?.message || 'Erreur lors de la création du dossier');
+      setLoading(false);
+    }
   };
 
   const inputCls = "w-full rounded-xl border border-[#304035]/12 bg-white px-4 py-3 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#304035]/25 focus:border-[#304035]/30 transition-all";

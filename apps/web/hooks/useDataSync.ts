@@ -149,45 +149,91 @@ export function useDataSync() {
       );
       const lostProjects = data.filter((p) => ['PERDU', 'ARCHIVE'].includes(p.lifecycleStatus));
 
-      // Convertir en format frontend
-      const dossiers = activeProjects.map((p) => ({
-        id: p.id,
-        name: p.client?.lastName || p.name || 'Sans nom',
-        firstName: p.client?.firstName || '',
-        phone: p.client?.phone || '',
-        email: p.client?.email || '',
-        address: '',
-        status: mapPriorityToStatus(p.priority, p.lifecycleStatus),
-        createdAt: new Date(p.createdAt).toLocaleDateString('fr-FR'),
-        subfolders: p.subfolders || [{ label: 'DOSSIER RENSEIGNEMENT' }],
-        notes: p.notes || '',
-      }));
+      // Index des dossiers locaux existants par ID (pour merger les champs client-only).
+      // Rappel : l'API ne retourne PAS subfolders/notes/tauxTVA/delaiChantier/address/tva.
+      // On doit donc préserver ces champs s'ils sont déjà dans le store.
+      const localActiveById = new Map(store.dossiers.map((d) => [d.id, d]));
+      const localSignedById = new Map(store.dossiersSignes.map((d) => [d.id, d]));
 
-      const dossiersSignes = signedProjects.map((p) => ({
-        id: p.id,
-        name: p.client?.lastName || p.name || 'Sans nom',
-        firstName: p.client?.firstName || '',
-        phone: p.client?.phone || '',
-        email: p.client?.email || '',
-        address: '',
-        status: mapPriorityToStatus(p.priority, p.lifecycleStatus),
-        createdAt: new Date(p.createdAt).toLocaleDateString('fr-FR'),
-        subfolders: [{ label: 'DOSSIER RENSEIGNEMENT' }],
-        signedDate: p.saleSignedAt ? new Date(p.saleSignedAt).toLocaleDateString('fr-FR') : new Date(p.updatedAt).toLocaleDateString('fr-FR'),
-        signedSubfolders: [
-          { label: 'DOSSIER AVANT VENTE' },
-          { label: 'PROJET VERSION 3' },
-          { label: 'SUIVI DE CHANTIER' },
-          { label: 'RELEVE DE MESURES' },
-          { label: 'PLAN TECHNIQUE DCE', alert: true },
-          { label: 'COMMANDES', alert: true },
-          { label: 'LIVRAISONS' },
-          { label: 'FICHE DE POSE' },
-          { label: 'SAV' },
-          { label: 'RECEPTION CHANTIER' },
-        ],
-        confirmations: [],
-      }));
+      // Sous-dossiers par défaut pour un dossier "frais" venu du backend sans état local.
+      const DEFAULT_SUBFOLDERS = [
+        { label: 'DOSSIER RENSEIGNEMENT' },
+        { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
+        { label: 'RELEVE DE MESURES' },
+        { label: 'PROJET VERSION 1 – APS' },
+        { label: 'PROJET VERSION 2' },
+        { label: 'PROJET VERSION 3 – APD' },
+      ];
+      const DEFAULT_SIGNED_SUBFOLDERS = [
+        { label: 'DOSSIER AVANT VENTE' },
+        { label: 'PROJET VERSION 3' },
+        { label: 'SUIVI DE CHANTIER' },
+        { label: 'RELEVE DE MESURES' },
+        { label: 'PLAN TECHNIQUE DCE', alert: true },
+        { label: 'COMMANDES', alert: true },
+        { label: 'LIVRAISONS' },
+        { label: 'FICHE DE POSE' },
+        { label: 'SAV' },
+        { label: 'RECEPTION CHANTIER' },
+      ];
+
+      // Dossiers actifs — merge : champs serveur-vrai (name/firstName/phone/email/createdAt/status)
+      // écrasent le local ; champs client-only (subfolders/notes/address/tva/...) préservés.
+      const dossiers = activeProjects.map((p) => {
+        const local = localActiveById.get(p.id) || localSignedById.get(p.id);
+        return {
+          id: p.id,
+          name: p.client?.lastName || p.name || 'Sans nom',
+          firstName: p.client?.firstName || '',
+          phone: p.client?.phone || '',
+          email: p.client?.email || '',
+          // Champs préservés du local si dispo, sinon défaut vide
+          address: local?.address ?? '',
+          siteAddress: local?.siteAddress,
+          postalCode: local?.postalCode,
+          tva: local?.tva,
+          tauxTVA: local?.tauxTVA,
+          delaiChantier: local?.delaiChantier,
+          delaiChantierUnit: local?.delaiChantierUnit,
+          status: mapPriorityToStatus(p.priority, p.lifecycleStatus),
+          createdAt: new Date(p.createdAt).toLocaleDateString('fr-FR'),
+          subfolders: local?.subfolders && local.subfolders.length > 0
+            ? local.subfolders
+            : DEFAULT_SUBFOLDERS.map((sf) => ({ ...sf })),
+          notes: local?.notes ?? '',
+        };
+      });
+
+      const dossiersSignes = signedProjects.map((p) => {
+        const local = localSignedById.get(p.id) || localActiveById.get(p.id);
+        return {
+          id: p.id,
+          name: p.client?.lastName || p.name || 'Sans nom',
+          firstName: p.client?.firstName || '',
+          phone: p.client?.phone || '',
+          email: p.client?.email || '',
+          address: local?.address ?? '',
+          siteAddress: local?.siteAddress,
+          postalCode: local?.postalCode,
+          tva: local?.tva,
+          tauxTVA: local?.tauxTVA,
+          delaiChantier: local?.delaiChantier,
+          delaiChantierUnit: local?.delaiChantierUnit,
+          status: mapPriorityToStatus(p.priority, p.lifecycleStatus),
+          createdAt: new Date(p.createdAt).toLocaleDateString('fr-FR'),
+          subfolders: local?.subfolders && local.subfolders.length > 0
+            ? local.subfolders
+            : DEFAULT_SUBFOLDERS.map((sf) => ({ ...sf })),
+          notes: local?.notes ?? '',
+          signedDate: p.saleSignedAt
+            ? new Date(p.saleSignedAt).toLocaleDateString('fr-FR')
+            : new Date(p.updatedAt).toLocaleDateString('fr-FR'),
+          signedSubfolders: (local as any)?.signedSubfolders && (local as any).signedSubfolders.length > 0
+            ? (local as any).signedSubfolders
+            : DEFAULT_SIGNED_SUBFOLDERS.map((sf) => ({ ...sf })),
+          confirmations: (local as any)?.confirmations ?? [],
+        };
+      });
 
       const dossiersPerdus = lostProjects.map((p) => ({
         id: p.id,
@@ -200,7 +246,7 @@ export function useDataSync() {
       // Remplacer les données de démo par les données réelles
       if (hasDemoData || dossiers.length > 0) {
         const realIds = new Set(dossiers.map((d) => d.id));
-        // Garder les dossiers non-démo créés localement (si l'utilisateur en a créé)
+        // Garder les dossiers non-démo créés localement (en attente d'un id cuid du backend)
         const localNonDemoActive = hasDemoData
           ? []
           : store.dossiers.filter((d) => !realIds.has(d.id));

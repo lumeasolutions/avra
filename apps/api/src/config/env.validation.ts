@@ -70,6 +70,16 @@ export class EnvironmentVariables {
 
   @IsString()
   BETA_ADMIN_EMAILS?: string;
+
+  // 📦 Supabase Storage (dossier-documents)
+  @IsString()
+  SUPABASE_URL?: string;
+
+  @IsString()
+  SUPABASE_SERVICE_ROLE_KEY?: string;
+
+  @IsString()
+  SUPABASE_DOSSIER_BUCKET?: string;
 }
 
 export function validate(config: Record<string, any>) {

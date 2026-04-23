@@ -27,6 +27,8 @@ export interface DocumentFile {
   storagePath?: string;
   /** Bucket Supabase où le fichier est stocké. */
   bucket?: string;
+  /** Identifiant DossierDocument côté API (source de vérité). */
+  docId?: string;
   addedAt?: string;
 }
 
@@ -192,6 +194,9 @@ export const useDossierStore = create<DossierState>()(
           siteAddress: data.siteAddress,
           postalCode: data.postalCode,
           tva: data.tva,
+          tauxTVA: data.tauxTVA,
+          delaiChantier: data.delaiChantier,
+          delaiChantierUnit: data.delaiChantierUnit,
           phone: data.phone,
           email: data.email,
           status: 'EN COURS',
@@ -421,3 +426,5 @@ export const useDossierStore = create<DossierState>()(
     { name: 'avra-dossier-store' }
   )
 );
+
+     

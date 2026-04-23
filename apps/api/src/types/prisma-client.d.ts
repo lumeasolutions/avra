@@ -87,6 +87,7 @@ declare module '@prisma/client' {
     readonly contact: any;
     readonly address: any;
     readonly project: any;
+    readonly dossierDocument: any;
     readonly projectFolder: any;
     readonly projectStageData: any;
     readonly projectCustomFieldValue: any;
