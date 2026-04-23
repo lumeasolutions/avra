@@ -86,7 +86,7 @@ export default function BetaBannerSlot() {
         </Link>
       </div>
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 640px) {
           .beta-banner {
             font-size: 0.72rem !important;
@@ -97,14 +97,14 @@ export default function BetaBannerSlot() {
             display: none;
           }
           .beta-banner::before {
-            content: "🌱 Bêta privée · Juillet 2026";
+            content: '🌱 Bêta privée · Juillet 2026';
             font-weight: 600;
           }
         }
         body {
           padding-top: 36px;
         }
-      `}</style>
+      ` }} />
     </>
   );
 }
