@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -64,6 +64,12 @@ export default function DossierDetailPage() {
   const toggleSubfolderValidated = useDossierStore(s => s.toggleSubfolderValidated);
   const addDocumentToSubfolder = useDossierStore(s => s.addDocumentToSubfolder);
   const removeDocumentFromSubfolder = useDossierStore(s => s.removeDocumentFromSubfolder);
+  const ensureDefaultSubfolders = useDossierStore(s => s.ensureDefaultSubfolders);
+
+  // Backfill : complète les dossiers créés avant l'ajout des sous-dossiers par défaut
+  useEffect(() => {
+    if (id) ensureDefaultSubfolders(id);
+  }, [id, ensureDefaultSubfolders]);
   const addInvoice        = useFacturationStore(s => s.addInvoice);
 
   const [showDevis,     setShowDevis]     = useState(false);

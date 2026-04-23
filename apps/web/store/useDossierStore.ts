@@ -130,6 +130,11 @@ interface DossierState {
   toggleSubfolderValidated: (dossierId: string, label: string) => void;
   addDocumentToSubfolder: (dossierId: string, label: string, docName: string) => void;
   removeDocumentFromSubfolder: (dossierId: string, label: string, docName: string) => void;
+  /**
+   * Complète un dossier existant avec les sous-dossiers par défaut manquants
+   * (backfill pour les dossiers créés avant l'ajout des defaults).
+   */
+  ensureDefaultSubfolders: (dossierId: string) => void;
   signerDossier: (id: string) => void;
   perdreDossier: (id: string, reason: string) => void;
   updateDateButoireSignee: (dossierId: string, label: string, date: string) => void;
@@ -167,7 +172,7 @@ export const useDossierStore = create<DossierState>()(
           email: data.email,
           status: 'EN COURS',
           createdAt: new Date().toLocaleDateString('fr-FR'),
-          subfolders: [{ label: 'DOSSIER RENSEIGNEMENT' }],
+          subfolders: DEFAULT_SUBFOLDERS.map(sf => ({ ...sf })),
         };
         set(s => ({ dossiers: [newDossier, ...s.dossiers] }));
         return id;
@@ -236,6 +241,23 @@ export const useDossierStore = create<DossierState>()(
           set(s => ({
             dossiersSignes: s.dossiersSignes.map(d =>
               d.id === dossierId ? { ...d, signedSubfolders: d.signedSubfolders.map(addDoc) } : d
+            ),
+          }));
+        }
+      },
+
+      ensureDefaultSubfolders: (dossierId) => {
+        const mergeDefaults = (existing: SubFolder[]): SubFolder[] => {
+          const existingLabels = new Set(existing.map(s => s.label));
+          const missing = DEFAULT_SUBFOLDERS.filter(d => !existingLabels.has(d.label)).map(sf => ({ ...sf }));
+          if (missing.length === 0) return existing;
+          return [...existing, ...missing];
+        };
+        const inDossiers = get().dossiers.some(d => d.id === dossierId);
+        if (inDossiers) {
+          set(s => ({
+            dossiers: s.dossiers.map(d =>
+              d.id === dossierId ? { ...d, subfolders: mergeDefaults(d.subfolders) } : d
             ),
           }));
         }
