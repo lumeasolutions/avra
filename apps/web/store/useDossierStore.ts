@@ -78,6 +78,9 @@ const DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER RENSEIGNEMENT' },
   { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
   { label: 'RELEVE DE MESURES' },
+  { label: 'PROJET VERSION 1 – APS' },
+  { label: 'PROJET VERSION 2' },
+  { label: 'PROJET VERSION 3 – APD', alert: true },
 ];
 
 const SIGNED_SUBFOLDERS: SubFolder[] = [
