@@ -99,8 +99,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {/* Mobile : AssistantFAB sur toutes les pages sauf /assistant */}
-        {!isTogglePage && !isNoAssistantPage && <AssistantFAB />}
+        {/* FAB "Assistant AVRA" volontairement absent hors /planning et /planning-gestion :
+            les autres pages utilisent le panel permanent à droite. */}
       </div>
     </AppGuard>
   );
