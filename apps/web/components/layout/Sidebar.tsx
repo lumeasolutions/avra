@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { useDossierStore, useFacturationStore, useUIStore } from '@/store';
 import { AssistantPanel } from './AssistantPanel';
@@ -23,6 +23,12 @@ export function Sidebar() {
   const devis = useFacturationStore(s => s.devis);
   const alerts = useUIStore(s => s.alerts);
   const profession = useAuthStore(s => s.profession);
+  const logout = useAuthStore(s => s.logout);
+  const router = useRouter();
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
   const professionInfo = profession ? PROFESSION_LABELS[profession] : null;
   const urgentCount = useMemo(() => dossiers.filter(d => d.status === 'URGENT').length, [dossiers]);
   const signedCount = dossiersSignes.length;
@@ -234,6 +240,30 @@ export function Sidebar() {
           }}>{alertCount}</span>
         )}
       </Link>
+
+      {/* Bouton déconnexion — sous historique */}
+      <button
+        type="button"
+        onClick={handleLogout}
+        aria-label="Déconnexion"
+        title="Se déconnecter"
+        style={{
+          position: 'absolute', top: 94, left: 14, zIndex: 20,
+          width: 34, height: 34, borderRadius: '50%',
+          background: 'rgba(192,57,43,0.18)',
+          border: '1px solid rgba(255,255,255,0.18)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(4px)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+          cursor: 'pointer',
+        }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8" width={16} height={16}>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
 
       <div className="sidebar-logo">
 

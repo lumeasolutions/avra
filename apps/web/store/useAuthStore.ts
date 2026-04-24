@@ -65,6 +65,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        // Appelle l'API backend pour purger les cookies HttpOnly (access + refresh)
+        // côté serveur. Fire-and-forget : même en cas d'échec réseau, on nettoie
+        // l'état local pour éviter de rester coincé dans une session morte.
+        if (typeof window !== 'undefined') {
+          fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
+        }
         if (typeof document !== 'undefined') {
           document.cookie = 'logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
         }
