@@ -43,6 +43,7 @@ const isLocalOnlyId = (id: string): boolean => {
 
 export function useProjectActions() {
   const user = useAuthStore((s) => s.user);
+  const profession = useAuthStore((s) => s.profession);
   const store = useDossierStore();
 
   /**
@@ -53,11 +54,11 @@ export function useProjectActions() {
     async (data: CreateProjectData): Promise<string> => {
       // Mode démo ou pas de vraie auth → création locale uniquement
       if (user?.id === 'demo' || !user?.workspaceId) {
-        return store.addDossier(data);
+        return store.addDossier({ ...data, profession });
       }
 
       // Optimistic update local d'abord
-      const localId = store.addDossier(data);
+      const localId = store.addDossier({ ...data, profession });
 
       try {
         // Appel API pour persister en base
@@ -89,7 +90,7 @@ export function useProjectActions() {
         return localId;
       }
     },
-    [user, store],
+    [user, store, profession],
   );
 
   /**

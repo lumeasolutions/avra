@@ -11,6 +11,9 @@ import {
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
+import { MENUISIER_PROJET_REGEX } from '@/store/useDossierStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { Trash2 } from 'lucide-react';
 import { uploadDossierDoc, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
 import { useProjectActions } from '@/hooks/useProjectActions';
 
@@ -112,16 +115,22 @@ export default function DossierDetailPage() {
   // Pour les rendre multi-device, il faudra ajouter des endpoints backend
   // (cf. AUDIT_DOSSIERS_DOCUMENTS.md fix #6).
   const addSubfolder      = useDossierStore(s => s.addSubfolder);
+  const removeSubfolder   = useDossierStore(s => s.removeSubfolder);
   const toggleSubfolderValidated = useDossierStore(s => s.toggleSubfolderValidated);
   const addDocumentToSubfolder = useDossierStore(s => s.addDocumentToSubfolder);
   const removeDocumentFromSubfolder = useDossierStore(s => s.removeDocumentFromSubfolder);
   const ensureDefaultSubfolders = useDossierStore(s => s.ensureDefaultSubfolders);
   const updateDossierNotes = useDossierStore(s => s.updateDossierNotes);
+  const profession = useAuthStore(s => s.profession);
+  const isMenuisier = profession === 'menuisier';
+
+  // Modale de confirmation de suppression d'un sous-dossier
+  const [deleteConfirm, setDeleteConfirm] = useState<{ label: string; docsCount: number } | null>(null);
 
   // Backfill : complète les dossiers créés avant l'ajout des sous-dossiers par défaut
   useEffect(() => {
-    if (id) ensureDefaultSubfolders(id);
-  }, [id, ensureDefaultSubfolders]);
+    if (id) ensureDefaultSubfolders(id, profession);
+  }, [id, ensureDefaultSubfolders, profession]);
 
   // ────────────────────────────────────────────────────────────────────
   // Réhydratation depuis le backend (source de vérité = DB).
@@ -486,6 +495,22 @@ export default function DossierDetailPage() {
                     </button>
                   )}
 
+                  {/* Bouton supprimer — menuisier uniquement, bloqué si des documents sont presents */}
+                  {isMenuisier && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteConfirm({ label: sf.label, docsCount });
+                      }}
+                      className="p-2 rounded-lg text-red-500/60 hover:text-red-600 hover:bg-red-50 transition-all shrink-0"
+                      title={`Supprimer "${sf.label}"`}
+                      aria-label={`Supprimer ${sf.label}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+
                   <ChevronRight className="sf-arrow h-4 w-4 text-[#304035]/25 shrink-0" />
                 </div>
                 );
@@ -495,6 +520,30 @@ export default function DossierDetailPage() {
                   Aucun fichier — commencez par créer un devis
                 </div>
               )}
+
+              {/* Bouton "Creer projet N+1" - menuisier uniquement */}
+              {isMenuisier && (() => {
+                const nextN = dossier.subfolders.reduce((max, sf) => {
+                  const m = sf.label.match(MENUISIER_PROJET_REGEX);
+                  if (!m) return max;
+                  const n = parseInt(m[1], 10);
+                  return Number.isFinite(n) && n > max ? n : max;
+                }, 0) + 1;
+                const nextLabel = `PROJET ${nextN}`;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => addSubfolder(id, nextLabel)}
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 text-sm font-bold text-[#a67749] bg-gradient-to-r from-[#a67749]/5 via-[#d9b38a]/10 to-[#a67749]/5 hover:from-[#a67749]/10 hover:via-[#d9b38a]/20 hover:to-[#a67749]/10 border-t border-dashed border-[#a67749]/30 transition-all group"
+                    title={`Créer ${nextLabel}`}
+                  >
+                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#a67749] text-white shadow-md group-hover:rotate-90 transition-transform duration-300">
+                      <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+                    </span>
+                    Créer {nextLabel}
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
@@ -1044,6 +1093,201 @@ export default function DossierDetailPage() {
               <button onClick={() => setShowDevis(false)}
                 className="flex-1 rounded-xl border border-[#304035]/20 py-3 font-medium text-[#304035] hover:bg-[#f5eee8] transition-colors">
                 Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          MODALE WAOUHH — CONFIRMATION SUPPRESSION
+      ═══════════════════════════════════════════════ */}
+      {deleteConfirm && (
+        <div
+          onClick={() => setDeleteConfirm(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(15, 20, 17, 0.7)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20,
+            animation: 'dcFadeIn 0.25s ease-out',
+          }}
+        >
+          <style>{`
+            @keyframes dcFadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes dcPopIn {
+              0% { opacity: 0; transform: scale(0.85) translateY(20px); }
+              60% { transform: scale(1.03) translateY(-4px); }
+              100% { opacity: 1; transform: scale(1) translateY(0); }
+            }
+            @keyframes dcIconShake {
+              0%, 100% { transform: rotate(0deg); }
+              20% { transform: rotate(-8deg); }
+              40% { transform: rotate(8deg); }
+              60% { transform: rotate(-6deg); }
+              80% { transform: rotate(6deg); }
+            }
+            @keyframes dcPulseRed {
+              0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5), 0 20px 60px rgba(239,68,68,0.3); }
+              50%      { box-shadow: 0 0 0 14px rgba(239,68,68,0), 0 20px 60px rgba(239,68,68,0.45); }
+            }
+          `}</style>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: 480,
+              background: 'linear-gradient(145deg, #ffffff 0%, #fef7f5 100%)',
+              borderRadius: 28,
+              padding: 36,
+              boxShadow: '0 30px 100px rgba(0,0,0,0.35), 0 0 0 1px rgba(239,68,68,0.1) inset',
+              animation: 'dcPopIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Glow décoratif rouge en haut */}
+            <div style={{
+              position: 'absolute', top: -80, left: '50%', transform: 'translateX(-50%)',
+              width: 280, height: 280, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(239,68,68,0.18) 0%, transparent 70%)',
+              pointerEvents: 'none',
+            }} />
+
+            {/* Icône corbeille pulsante */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20, position: 'relative', zIndex: 2 }}>
+              <div
+                style={{
+                  width: 88, height: 88, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  animation: 'dcPulseRed 2s ease-in-out infinite',
+                }}
+              >
+                <div style={{ animation: 'dcIconShake 1.2s ease-in-out infinite' }}>
+                  <Trash2 className="h-10 w-10 text-white" strokeWidth={2.2} />
+                </div>
+              </div>
+            </div>
+
+            {/* Titre */}
+            <h3 style={{
+              textAlign: 'center',
+              fontSize: 22, fontWeight: 800,
+              color: '#304035',
+              marginBottom: 10,
+              position: 'relative', zIndex: 2,
+            }}>
+              Supprimer ce sous-dossier&nbsp;?
+            </h3>
+
+            {/* Label du sous-dossier */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center', justifyContent: 'center',
+              background: 'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(239,68,68,0.04))',
+              border: '1.5px solid rgba(239,68,68,0.25)',
+              borderRadius: 14,
+              padding: '10px 18px',
+              margin: '0 auto 18px',
+              width: 'fit-content',
+              color: '#991b1b',
+              fontWeight: 800,
+              fontSize: 14,
+              letterSpacing: '0.03em',
+              position: 'relative', zIndex: 2,
+              maxWidth: '100%',
+            }}>
+              <span style={{ maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {deleteConfirm.label}
+              </span>
+            </div>
+
+            {/* Message */}
+            <p style={{
+              textAlign: 'center',
+              fontSize: 14,
+              color: 'rgba(48,64,53,0.65)',
+              lineHeight: 1.55,
+              marginBottom: 28,
+              position: 'relative', zIndex: 2,
+            }}>
+              {deleteConfirm.docsCount > 0 ? (
+                <>
+                  ⚠️ Ce sous-dossier contient <strong style={{ color: '#b91c1c' }}>{deleteConfirm.docsCount} document{deleteConfirm.docsCount > 1 ? 's' : ''}</strong>.
+                  <br />
+                  Leur lien sera perdu. Cette action est <strong>définitive</strong>.
+                </>
+              ) : (
+                <>
+                  Cette action est <strong>définitive</strong>.
+                  <br />
+                  Vous ne pourrez pas récupérer ce sous-dossier.
+                </>
+              )}
+            </p>
+
+            {/* Boutons */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 12,
+              position: 'relative', zIndex: 2,
+            }}>
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: 14,
+                  border: '1.5px solid rgba(48,64,53,0.15)',
+                  background: 'white',
+                  color: '#304035',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#f5eee8';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                ✋ Je ne veux pas supprimer
+              </button>
+              <button
+                onClick={() => {
+                  removeSubfolder(id, deleteConfirm.label);
+                  setDeleteConfirm(null);
+                }}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: 14,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                  color: 'white',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 8px 24px rgba(239,68,68,0.4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(239,68,68,0.55)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(239,68,68,0.4)';
+                }}
+              >
+                🗑️ Oui, je veux supprimer
               </button>
             </div>
           </div>

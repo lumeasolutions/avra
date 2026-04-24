@@ -107,7 +107,10 @@ export interface DossierPerdu {
   montantEstime?: number;
 }
 
-// Données initiales
+// Données initiales — sous-dossiers par défaut selon la profession.
+// Pour le portail menuisier on a un jeu volontairement simple :
+// renseignement → relevé de mesure & photos existants → projet 1,
+// puis l'utilisateur ajoute "projet 2", "projet 3"… via le bouton "+ Créer projet".
 const DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER RENSEIGNEMENT' },
   { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
@@ -116,6 +119,21 @@ const DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'PROJET VERSION 2' },
   { label: 'PROJET VERSION 3 – APD' },
 ];
+
+export const MENUISIER_DEFAULT_SUBFOLDERS: SubFolder[] = [
+  { label: 'DOSSIER RENSEIGNEMENT' },
+  { label: 'RELEVÉ DE MESURE & PHOTOS EXISTANTS' },
+  { label: 'PROJET 1' },
+];
+
+/** Regex pour détecter les sous-dossiers "PROJET N" (menuisier) */
+export const MENUISIER_PROJET_REGEX = /^PROJET\s+(\d+)$/i;
+
+/** Retourne le jeu par défaut de sous-dossiers selon la profession */
+export function getDefaultSubfoldersForProfession(profession?: string | null): SubFolder[] {
+  if (profession === 'menuisier') return MENUISIER_DEFAULT_SUBFOLDERS;
+  return DEFAULT_SUBFOLDERS;
+}
 
 const SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER AVANT VENTE' },
@@ -149,7 +167,8 @@ interface DossierState {
   datesButoiresSignes: Record<string, Record<string, string>>;
 
   // Actions
-  addDossier: (data: { lastName: string; firstName?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string }) => string;
+  addDossier: (data: { lastName: string; firstName?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string; profession?: string | null }) => string;
+  removeSubfolder: (dossierId: string, label: string) => void;
   updateDossierStatus: (id: string, status: DossierStatus) => void;
   updateDossierNotes: (id: string, notes: string) => void;
   addSubfolder: (dossierId: string, label: string) => void;
@@ -160,7 +179,7 @@ interface DossierState {
    * Complète un dossier existant avec les sous-dossiers par défaut manquants
    * (backfill pour les dossiers créés avant l'ajout des defaults).
    */
-  ensureDefaultSubfolders: (dossierId: string) => void;
+  ensureDefaultSubfolders: (dossierId: string, profession?: string | null) => void;
   signerDossier: (id: string) => void;
   perdreDossier: (id: string, reason: string) => void;
   updateDateButoireSignee: (dossierId: string, label: string, date: string) => void;
@@ -201,10 +220,31 @@ export const useDossierStore = create<DossierState>()(
           email: data.email,
           status: 'EN COURS',
           createdAt: new Date().toLocaleDateString('fr-FR'),
-          subfolders: DEFAULT_SUBFOLDERS.map(sf => ({ ...sf })),
+          subfolders: getDefaultSubfoldersForProfession(data.profession).map(sf => ({ ...sf })),
         };
         set(s => ({ dossiers: [newDossier, ...s.dossiers] }));
         return id;
+      },
+
+      removeSubfolder: (dossierId, label) => {
+        const inDossiers = get().dossiers.some(d => d.id === dossierId);
+        if (inDossiers) {
+          set(s => ({
+            dossiers: s.dossiers.map(d =>
+              d.id === dossierId
+                ? { ...d, subfolders: d.subfolders.filter(sf => sf.label !== label) }
+                : d,
+            ),
+          }));
+        } else {
+          set(s => ({
+            dossiersSignes: s.dossiersSignes.map(d =>
+              d.id === dossierId
+                ? { ...d, signedSubfolders: d.signedSubfolders.filter(sf => sf.label !== label) }
+                : d,
+            ),
+          }));
+        }
       },
 
       updateDossierStatus: (id, status) => {
@@ -279,21 +319,20 @@ export const useDossierStore = create<DossierState>()(
         }
       },
 
-      ensureDefaultSubfolders: (dossierId) => {
-        const mergeDefaults = (existing: SubFolder[]): SubFolder[] => {
-          const existingLabels = new Set(existing.map(s => s.label));
-          const missing = DEFAULT_SUBFOLDERS.filter(d => !existingLabels.has(d.label)).map(sf => ({ ...sf }));
-          if (missing.length === 0) return existing;
-          return [...existing, ...missing];
-        };
+      ensureDefaultSubfolders: (dossierId, profession) => {
+        // Skip entierement si le dossier a deja des sous-dossiers : c'est l'utilisateur
+        // qui gere sa liste (notamment en menuisier ou il peut avoir supprime des defaults).
+        // Le backfill n'est utile que pour les tres vieux dossiers arrives avec une liste vide.
         const inDossiers = get().dossiers.some(d => d.id === dossierId);
-        if (inDossiers) {
-          set(s => ({
-            dossiers: s.dossiers.map(d =>
-              d.id === dossierId ? { ...d, subfolders: mergeDefaults(d.subfolders) } : d
-            ),
-          }));
-        }
+        if (!inDossiers) return;
+        const defaults = getDefaultSubfoldersForProfession(profession);
+        set(s => ({
+          dossiers: s.dossiers.map(d => {
+            if (d.id !== dossierId) return d;
+            if (d.subfolders.length > 0) return d; // respect choix utilisateur
+            return { ...d, subfolders: defaults.map(sf => ({ ...sf })) };
+          }),
+        }));
       },
 
       removeDocumentFromSubfolder: (dossierId, label, docName) => {
