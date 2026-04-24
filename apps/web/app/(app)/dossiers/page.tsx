@@ -306,7 +306,13 @@ export default function DossiersPage() {
           {filtered.map((d, i) => {
             const cfg = STATUS_CONFIG[d.status] ?? STATUS_CONFIG['EN COURS'];
             const Icon = cfg.Icon;
-            const progress = progressMap[d.status] ?? 50;
+            // Progression reelle : ratio de sous-dossiers valides.
+            // Fallback sur progressMap si le dossier n'a pas encore de sous-dossiers.
+            const totalSubs = d.subfolders.length;
+            const validatedSubs = d.subfolders.filter(sf => sf.validated).length;
+            const progress = totalSubs === 0
+              ? (progressMap[d.status] ?? 0)
+              : Math.round((validatedSubs / totalSubs) * 100);
             const [c1, c2] = avatarColor(d.name);
             const initials = `${d.name.charAt(0)}${d.firstName ? d.firstName.charAt(0) : ''}`.toUpperCase();
 

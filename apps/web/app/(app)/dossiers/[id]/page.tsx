@@ -253,7 +253,13 @@ export default function DossierDetailPage() {
 
   const cfg = STATUS_CONFIG[dossier.status] ?? STATUS_CONFIG['EN COURS'];
   const StatusIcon = cfg.Icon;
-  const progress = PROGRESS_MAP[dossier.status] ?? 50;
+  // Progression reelle : ratio de sous-dossiers valides sur le total.
+  // PROGRESS_MAP servait de fallback simule quand il n'y avait pas encore de validations.
+  const totalSubs = dossier.subfolders.length;
+  const validatedSubs = dossier.subfolders.filter(sf => sf.validated).length;
+  const progress = totalSubs === 0
+    ? (PROGRESS_MAP[dossier.status] ?? 0)
+    : Math.round((validatedSubs / totalSubs) * 100);
   const [c1, c2] = avatarColor(dossier.name);
   const initials = `${dossier.name.charAt(0)}${dossier.firstName ? dossier.firstName.charAt(0) : ''}`.toUpperCase();
   const stepIdx = STATUS_ORDER.indexOf(dossier.status);
@@ -652,20 +658,50 @@ export default function DossierDetailPage() {
             </div>
           </div>
 
-          {/* Progression */}
+          {/* Progression — reflete reellement le ratio de sous-dossiers valides */}
           <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-[#304035]/5">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-bold text-[#304035]">Progression</h2>
-                <span className="text-sm font-black" style={{ color: cfg.bg }}>{progress}%</span>
+                <span
+                  className="text-sm font-black tabular-nums"
+                  style={{ color: progress === 100 ? '#10b981' : progress >= 50 ? '#a67749' : '#304035' }}
+                >
+                  {progress}%
+                </span>
               </div>
             </div>
             <div className="px-5 py-4">
               <div className="h-2 bg-[#304035]/8 rounded-full overflow-hidden mb-3">
-                <div className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${c1}, ${c2})` }} />
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${progress}%`,
+                    background: progress === 100
+                      ? 'linear-gradient(90deg, #10b981, #22c55e)'
+                      : `linear-gradient(90deg, ${c1}, ${c2})`,
+                  }}
+                />
               </div>
-              <div className="flex items-center gap-2">
+
+              {/* Ratio reel des validations */}
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-[#304035]/70">
+                  {validatedSubs} / {totalSubs} sous-dossier{totalSubs > 1 ? 's' : ''} validé{validatedSubs > 1 ? 's' : ''}
+                </span>
+                {totalSubs > 0 && progress < 100 && (
+                  <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 px-2 py-0.5 rounded-full">
+                    {totalSubs - validatedSubs} restant{totalSubs - validatedSubs > 1 ? 's' : ''}
+                  </span>
+                )}
+                {progress === 100 && totalSubs > 0 && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    🎉 Complet
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2 border-t border-[#304035]/5">
                 <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: cfg.bg }} />
                 <span className="text-xs font-semibold" style={{ color: cfg.bg }}>{cfg.label}</span>
                 <span className="text-xs text-[#304035]/40 ml-auto">{dossier.createdAt}</span>
