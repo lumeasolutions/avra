@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, Circle, Phone, Mail, MapPin, FolderOpen, LayoutGrid, List } from 'lucide-react';
 import { useDossierStore } from '@/store';
+import { ValidationDashboard } from '@/components/dossiers/ValidationDashboard';
 
 const STATUS_CONFIG: Record<string, {
   label: string;
@@ -133,9 +134,10 @@ export default function DossiersPage() {
           .dos-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .dos-search-bar { flex-direction: column !important; }
           .dos-search-bar > * { width: 100% !important; }
+          .dos-top-row { grid-template-columns: 1fr !important; }
         }
       `}</style>
-      
+
 
       {/* ── HEADER ── */}
       <PageHeader
@@ -169,9 +171,10 @@ export default function DossiersPage() {
         }
       />
 
-      {/* ── KPI STRIP ── */}
-      <div className="dos-kpi-grid grid grid-cols-4 gap-3">
-        {Object.entries(counts).map(([status, count]) => {
+      {/* ── TOP ROW : KPI STRIP (2/3) + VALIDATION DASHBOARD (1/3) ── */}
+      <div className="dos-top-row grid gap-4" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)' }}>
+        <div className="dos-kpi-grid grid grid-cols-4 gap-3 content-start">
+          {Object.entries(counts).map(([status, count]) => {
           const cfg = STATUS_CONFIG[status];
           const Icon = cfg.Icon;
           const isActive = filterStatus === status;
@@ -198,6 +201,10 @@ export default function DossiersPage() {
             </button>
           );
         })}
+        </div>
+
+        {/* ── VALIDATION DASHBOARD (top-right) ── */}
+        <ValidationDashboard />
       </div>
 
       {/* ── SEARCH + SORT BAR ── */}
