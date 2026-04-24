@@ -77,7 +77,10 @@ export const useAuthStore = create<AuthState>()(
         // Vider tous les stores applicatifs pour éviter qu'un nouvel utilisateur
         // voie les données du précédent
         clearAllAppStores();
-        set({ token: null, user: null, profession: null });
+        // On garde `profession` en localStorage : c'est une préférence durable
+        // (choisie une seule fois à l'inscription). La remettre à null obligerait
+        // l'utilisateur à repasser par /portal-select à chaque reconnexion.
+        set({ token: null, user: null });
       },
 
       isAuthenticated: () => {
