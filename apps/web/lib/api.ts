@@ -149,16 +149,45 @@ export const authApi = {
     }).then(() => undefined),
 };
 
-/** Upload fichier (multipart) vers l'API */
+/**
+ * Upload fichier (multipart) vers l'API.
+ * - Envoie le cookie HttpOnly via `credentials: 'include'`
+ * - Fallback Bearer token (mode démo / prod sans cookie encore posé)
+ * - Sur 401 : tente un refresh puis rejoue la requête UNE fois
+ *   (aligné sur le comportement de `api()`)
+ */
 export async function apiUpload<T>(
   path: string,
   formData: FormData,
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const token = getDemoToken();
+  const buildHeaders = (): HeadersInit => {
+    const h: Record<string, string> = {};
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
+  };
+
+  let res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
     body: formData,
-    credentials: 'include', // 🔒 Cookie HttpOnly envoyé automatiquement
+    credentials: 'include',
+    headers: buildHeaders(),
   });
+
+  if (res.status === 401) {
+    const ok = await refreshAccessToken();
+    if (!ok) {
+      const err = await res.json().catch(() => ({ message: 'Unauthorized' }));
+      throw new Error(err.message ?? 'Unauthorized');
+    }
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: buildHeaders(),
+    });
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(err.message ?? 'Erreur upload');
