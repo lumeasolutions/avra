@@ -67,12 +67,18 @@ export function DevPortalSwitcher() {
           from { opacity: 0; transform: translateY(8px) scale(0.96); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
+        /* Position : bas-centre du viewport pour éviter à la fois la sidebar
+         * (330px à gauche) et le panel assistant (310px à droite). */
         .dps-fab {
           position: fixed;
           bottom: 18px;
-          left: 18px;
+          left: 50%;
+          transform: translateX(-50%);
           z-index: 9999;
           font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        @media (max-width: 900px) {
+          .dps-fab { bottom: 14px; }
         }
         .dps-trigger {
           display: flex;
@@ -109,8 +115,9 @@ export function DevPortalSwitcher() {
         .dps-panel {
           position: absolute;
           bottom: calc(100% + 8px);
-          left: 0;
-          min-width: 220px;
+          left: 50%;
+          transform: translateX(-50%);
+          min-width: 240px;
           padding: 8px;
           border-radius: 14px;
           background: linear-gradient(135deg, #1e1c1a 0%, #2a2622 100%);
