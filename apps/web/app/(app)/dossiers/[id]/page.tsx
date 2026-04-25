@@ -7,7 +7,7 @@ import {
   FolderOpen, FileText, ImageIcon, Ruler, CheckCircle, ArrowLeft,
   GitCompare, AlertTriangle, Plus, ChevronRight, Tag, Phone, Mail,
   MapPin, Calendar, Receipt, FileCheck, StickyNote, Pencil, X,
-  Clock, Circle, TrendingUp, Zap, Eye, Download, Check
+  Clock, Circle, TrendingUp, Zap, Eye, Download, Check, CornerDownRight
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
@@ -445,7 +445,43 @@ export default function DossierDetailPage() {
               </button>
             </div>
             <div className="divide-y divide-[#304035]/5">
-              {dossier.subfolders.map((sf, i) => {
+              {(() => {
+                // ── Tri d'affichage ────────────────────────────────────────
+                // Pour le portail architecte, on regroupe visuellement les
+                // versions de projets : V1-APS suivie de ses V2..V5 (indentees),
+                // puis V1-APD suivie de ses V2..V5.
+                // Pour les autres portails, ordre inchange.
+                type DisplayItem = { sf: typeof dossier.subfolders[number]; depth: number };
+                const items: DisplayItem[] = [];
+                if (isArchitecte) {
+                  const nonProjet: DisplayItem[] = [];
+                  const aps: DisplayItem[] = [];
+                  const apd: DisplayItem[] = [];
+                  for (const sub of dossier.subfolders) {
+                    const m = sub.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
+                    if (!m) {
+                      nonProjet.push({ sf: sub, depth: 0 });
+                      continue;
+                    }
+                    const v = parseInt(m[1], 10);
+                    const phase = m[2].toUpperCase();
+                    const it: DisplayItem = { sf: sub, depth: v > 1 ? 1 : 0 };
+                    if (phase === 'APS') aps.push(it);
+                    else if (phase === 'APD') apd.push(it);
+                  }
+                  const byVersion = (a: DisplayItem, b: DisplayItem) => {
+                    const va = parseInt(a.sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX)?.[1] ?? '0', 10);
+                    const vb = parseInt(b.sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX)?.[1] ?? '0', 10);
+                    return va - vb;
+                  };
+                  aps.sort(byVersion);
+                  apd.sort(byVersion);
+                  items.push(...nonProjet, ...aps, ...apd);
+                } else {
+                  for (const sub of dossier.subfolders) items.push({ sf: sub, depth: 0 });
+                }
+                return items;
+              })().map(({ sf, depth }, i) => {
                 // Alerte dynamique : uniquement si le sous-dossier est vide
                 // (aucun document présent). Dès qu'un document est ajouté,
                 // l'alerte disparaît automatiquement.
@@ -454,19 +490,23 @@ export default function DossierDetailPage() {
                 const docsCount = sf.documents?.length ?? 0;
                 // Date affichée : dernière modif du sous-dossier, sinon date de création du dossier
                 const displayDate = sf.date ?? dossier.createdAt;
+                const isChildVersion = depth > 0;
                 return (
-                <div key={i}
+                <div key={`${sf.label}-${i}`}
                   role="button"
                   tabIndex={0}
                   onClick={() => setOpenedSubfolder(sf.label)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); } }}
-                  className="subfolder-row flex w-full items-center gap-4 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749] hover:bg-[#304035]/[0.02] cursor-pointer"
+                  className={`subfolder-row flex w-full items-center gap-4 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749] hover:bg-[#304035]/[0.02] cursor-pointer ${isChildVersion ? 'pl-12 bg-[#a67749]/[0.025]' : ''}`}
                 >
-                  <div className="p-2 bg-[#304035]/5 rounded-xl text-[#a67749]/70 shrink-0">
+                  {isChildVersion && (
+                    <CornerDownRight className="h-4 w-4 text-[#a67749]/50 shrink-0 -ml-1" />
+                  )}
+                  <div className={`p-2 rounded-xl shrink-0 ${isChildVersion ? 'bg-[#a67749]/8 text-[#a67749]/60' : 'bg-[#304035]/5 text-[#a67749]/70'}`}>
                     {getIconForType(sf.icon)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="font-semibold text-[#304035] text-sm block truncate">{sf.label}</span>
+                    <span className={`font-semibold text-sm block truncate ${isChildVersion ? 'text-[#304035]/85' : 'text-[#304035]'}`}>{sf.label}</span>
                     <span className="text-xs text-[#304035]/50 mt-0.5 block">
                       Modifié le {displayDate} · {docsCount} document{docsCount > 1 ? 's' : ''}
                     </span>
