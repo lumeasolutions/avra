@@ -174,12 +174,16 @@ export default function ParametresPage() {
   const [editApporteurId, setEditApporteurId] = useState<string | null>(null);
   const [iaForm, setIAForm] = useState(iaConfig);
 
-  // TEMPORARY DEV — switch portail
+  // TEMPORARY DEV — switch portail. Check permissif : on affiche pour tout
+  // utilisateur authentifié dans la zone (app) (donc déjà guard via AppGuard).
+  // Une fois la dev terminée, on retire toute la section.
   const authUser = useAuthStore(s => s.user);
   const currentProfession = useAuthStore(s => s.profession);
   const forceProfession = useAuthStore(s => s._devForceProfession);
-  const isDevAdmin = (authUser?.role === 'ADMIN') ||
-    (typeof authUser?.email === 'string' && ADMIN_EMAILS.includes(authUser.email.toLowerCase()));
+  const isDevAdmin = !!authUser; // tout user connecté voit le switcher pendant la phase dev
+  // (Note : on garde la liste ADMIN_EMAILS pour pouvoir restaurer une politique
+  //  stricte d'un seul ajustement plus tard si besoin.)
+  void ADMIN_EMAILS;
 
   const panelRef = useRef<HTMLDivElement>(null);
 
