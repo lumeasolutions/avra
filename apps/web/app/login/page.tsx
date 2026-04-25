@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -13,7 +13,17 @@ function getRedirectUrl(profession: string | null) {
   return `/portail-${profession}`;
 }
 
+// Wrapper Suspense requis par Next.js 14 dès qu'un enfant utilise useSearchParams.
+// Sans ce wrapper, le build échoue sur le pré-rendering statique de /login.
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#0a0a0a' }} />}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const token = useAuthStore((s) => s.token);
   const profession = useAuthStore((s) => s.profession);
   const setAuth = useAuthStore((s) => s.setAuth);
