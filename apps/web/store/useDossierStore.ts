@@ -112,16 +112,15 @@ export interface DossierPerdu {
 // renseignement → relevé de mesure & photos existants → projet 1,
 // puis l'utilisateur ajoute "projet 2", "projet 3"… via le bouton "+ Créer projet".
 //
-// Cuisiniste = workflow APS / APD avec versions intermediaires.
-// Architecte = workflow simplifie : 1 APS + 1 APD, pas de version 2 (les
-// modifications se font dans la version courante via la doc partagee client).
+// Cuisiniste = workflow OPTION : 2 options par defaut, l'utilisateur peut
+// monter jusqu'a OPTION 5 via le bouton +.
+// Architecte = workflow simplifie : 1 APS + 1 APD, jusqu'a 5 versions par phase.
 const DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER RENSEIGNEMENT' },
   { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
   { label: 'RELEVE DE MESURES' },
-  { label: 'PROJET VERSION 1 – APS' },
-  { label: 'PROJET VERSION 2' },
-  { label: 'PROJET VERSION 3 – APD' },
+  { label: 'OPTION 1' },
+  { label: 'OPTION 2' },
 ];
 
 export const ARCHITECTE_DEFAULT_SUBFOLDERS: SubFolder[] = [
@@ -149,6 +148,11 @@ export const MENUISIER_PROJET_REGEX = /^PROJET\s+(\d+)$/i;
 export const ARCHITECTE_PROJET_VERSION_REGEX = /^PROJET\s+VERSION\s+(\d+)\s*[–—-]\s*(APS|APD)$/i;
 /** Plafond de versions par phase (APS et APD) côté architecte. */
 export const ARCHITECTE_MAX_VERSION = 5;
+
+/** Regex pour détecter les sous-dossiers "OPTION N" (cuisiniste). */
+export const CUISINISTE_OPTION_REGEX = /^OPTION\s+(\d+)$/i;
+/** Plafond d'options côté cuisiniste. */
+export const CUISINISTE_MAX_OPTION = 5;
 
 /** Retourne le jeu par défaut de sous-dossiers selon la profession */
 export function getDefaultSubfoldersForProfession(profession?: string | null): SubFolder[] {

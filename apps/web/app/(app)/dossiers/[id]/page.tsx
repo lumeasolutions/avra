@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
-import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION } from '@/store/useDossierStore';
+import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
 import { uploadDossierDoc, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
@@ -124,6 +124,7 @@ export default function DossierDetailPage() {
   const profession = useAuthStore(s => s.profession);
   const isMenuisier = profession === 'menuisier';
   const isArchitecte = profession === 'architecte';
+  const isCuisiniste = profession === 'cuisiniste';
 
   // Modale de confirmation de suppression d'un sous-dossier
   const [deleteConfirm, setDeleteConfirm] = useState<{ label: string; docsCount: number } | null>(null);
@@ -447,10 +448,10 @@ export default function DossierDetailPage() {
             <div className="divide-y divide-[#304035]/5">
               {(() => {
                 // ── Tri d'affichage ────────────────────────────────────────
-                // Pour le portail architecte, on regroupe visuellement les
-                // versions de projets : V1-APS suivie de ses V2..V5 (indentees),
-                // puis V1-APD suivie de ses V2..V5.
-                // Pour les autres portails, ordre inchange.
+                // Architecte : groupe V1-APS + V2..V5-APS (V2+ indentees), puis
+                //              V1-APD + V2..V5-APD.
+                // Cuisiniste : groupe OPTION 1 + OPTION 2..5 (OPTION 2+ indentees).
+                // Autres : ordre inchange.
                 type DisplayItem = { sf: typeof dossier.subfolders[number]; depth: number };
                 const items: DisplayItem[] = [];
                 if (isArchitecte) {
@@ -477,6 +478,24 @@ export default function DossierDetailPage() {
                   aps.sort(byVersion);
                   apd.sort(byVersion);
                   items.push(...nonProjet, ...aps, ...apd);
+                } else if (isCuisiniste) {
+                  const nonOption: DisplayItem[] = [];
+                  const options: DisplayItem[] = [];
+                  for (const sub of dossier.subfolders) {
+                    const m = sub.label.match(CUISINISTE_OPTION_REGEX);
+                    if (!m) {
+                      nonOption.push({ sf: sub, depth: 0 });
+                      continue;
+                    }
+                    const v = parseInt(m[1], 10);
+                    options.push({ sf: sub, depth: v > 1 ? 1 : 0 });
+                  }
+                  options.sort((a, b) => {
+                    const va = parseInt(a.sf.label.match(CUISINISTE_OPTION_REGEX)?.[1] ?? '0', 10);
+                    const vb = parseInt(b.sf.label.match(CUISINISTE_OPTION_REGEX)?.[1] ?? '0', 10);
+                    return va - vb;
+                  });
+                  items.push(...nonOption, ...options);
                 } else {
                   for (const sub of dossier.subfolders) items.push({ sf: sub, depth: 0 });
                 }
@@ -542,6 +561,39 @@ export default function DossierDetailPage() {
                     // N'afficher le + que sur la version max — sinon ça pollue la liste
                     if (currentVersion !== maxVersion) return null;
                     const nextLabel = `PROJET VERSION ${currentVersion + 1} – ${phase}`;
+                    return (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addSubfolder(id, nextLabel);
+                        }}
+                        className="flex items-center justify-center h-7 w-7 rounded-full bg-[#a67749]/12 text-[#a67749] hover:bg-[#a67749] hover:text-white hover:shadow-md transition-all shrink-0 group"
+                        title={`Créer ${nextLabel}`}
+                        aria-label={`Créer ${nextLabel}`}
+                      >
+                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" strokeWidth={2.5} />
+                      </button>
+                    );
+                  })()}
+
+                  {/* Cuisiniste : bouton + pour créer l'option suivante (OPTION N+1).
+                   *  Visible uniquement sur l'OPTION la plus haute, jusqu'au plafond de 5. */}
+                  {isCuisiniste && (() => {
+                    const m = sf.label.match(CUISINISTE_OPTION_REGEX);
+                    if (!m) return null;
+                    const currentOption = parseInt(m[1], 10);
+                    if (!Number.isFinite(currentOption)) return null;
+                    if (currentOption >= CUISINISTE_MAX_OPTION) return null;
+                    let maxOption = 0;
+                    for (const other of dossier.subfolders) {
+                      const om = other.label.match(CUISINISTE_OPTION_REGEX);
+                      if (!om) continue;
+                      const v = parseInt(om[1], 10);
+                      if (Number.isFinite(v) && v > maxOption) maxOption = v;
+                    }
+                    if (currentOption !== maxOption) return null;
+                    const nextLabel = `OPTION ${currentOption + 1}`;
                     return (
                       <button
                         type="button"
