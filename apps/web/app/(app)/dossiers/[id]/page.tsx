@@ -405,6 +405,150 @@ export default function DossierDetailPage() {
             </div>
           </div>
 
+          {/* Bouton Tableau de bord — rond, anime, voyant.
+              Place entre la progression d'etapes et la colonne d'actions. */}
+          <style>{`
+            @keyframes ddbBtnAuraRotate { to { transform: rotate(360deg); } }
+            @keyframes ddbBtnPulse {
+              0%, 100% { box-shadow: 0 0 0 0 rgba(217, 179, 138, 0.55), 0 8px 22px rgba(217, 179, 138, 0.35), inset 0 1px 0 rgba(255,255,255,0.4); }
+              50%      { box-shadow: 0 0 0 14px rgba(217, 179, 138, 0), 0 8px 22px rgba(217, 179, 138, 0.45), inset 0 1px 0 rgba(255,255,255,0.5); }
+            }
+            @keyframes ddbBtnIconFloat {
+              0%, 100% { transform: translateY(0); }
+              50%      { transform: translateY(-1.5px); }
+            }
+            @keyframes ddbBtnSparkle {
+              0%, 100% { transform: scale(0.8) rotate(0deg); opacity: 0; }
+              50%      { transform: scale(1.15) rotate(180deg); opacity: 1; }
+            }
+            .ddb-trigger-wrap {
+              position: relative;
+              width: 64px; height: 64px;
+              flex-shrink: 0;
+              align-self: center;
+              margin: 0 18px 0 12px;
+            }
+            /* Anneau rotatif gradient en arriere plan */
+            .ddb-trigger-aura {
+              position: absolute; inset: -6px;
+              border-radius: 50%;
+              background: conic-gradient(
+                from 0deg,
+                rgba(217, 179, 138, 0) 0deg,
+                rgba(217, 179, 138, 0.7) 90deg,
+                rgba(240, 200, 130, 0.95) 180deg,
+                rgba(217, 179, 138, 0.7) 270deg,
+                rgba(217, 179, 138, 0) 360deg
+              );
+              animation: ddbBtnAuraRotate 5s linear infinite;
+              opacity: 0.85;
+              filter: blur(2px);
+              pointer-events: none;
+            }
+            /* Cercle interieur "vide" pour ne montrer que l'anneau de l'aura */
+            .ddb-trigger-aura::before {
+              content: '';
+              position: absolute; inset: 6px;
+              border-radius: 50%;
+              background: linear-gradient(135deg, #2a3a30 0%, #3d5244 100%);
+            }
+            /* Bouton principal : disque dore */
+            .ddb-trigger-btn {
+              position: relative;
+              width: 100%; height: 100%;
+              border-radius: 50%;
+              background:
+                radial-gradient(circle at 30% 30%, #f4d6a8 0%, #d9b38a 35%, #b88c5c 100%);
+              border: 2px solid rgba(255, 255, 255, 0.35);
+              cursor: pointer;
+              display: flex; align-items: center; justify-content: center;
+              color: #2a3a30;
+              animation: ddbBtnPulse 2.4s ease-in-out infinite;
+              transition: transform 0.25s cubic-bezier(0.34, 1.42, 0.64, 1);
+              z-index: 1;
+            }
+            .ddb-trigger-btn:hover { transform: scale(1.08); }
+            .ddb-trigger-btn:active { transform: scale(0.96); }
+            .ddb-trigger-btn svg {
+              animation: ddbBtnIconFloat 2.4s ease-in-out infinite;
+            }
+            /* Etat ouvert : inversion couleurs (vert + halo intense) */
+            .ddb-trigger-btn.is-open {
+              background: radial-gradient(circle at 30% 30%, #4a6552 0%, #2a3a30 100%);
+              color: #d9b38a;
+              border-color: rgba(217, 179, 138, 0.6);
+            }
+            /* Sparkles autour du bouton */
+            .ddb-trigger-spark {
+              position: absolute;
+              width: 6px; height: 6px;
+              border-radius: 50%;
+              background: #fff;
+              box-shadow: 0 0 8px #fff, 0 0 14px rgba(217, 179, 138, 0.9);
+              animation: ddbBtnSparkle 2.8s ease-in-out infinite;
+              pointer-events: none;
+              z-index: 2;
+            }
+            .ddb-trigger-spark.s1 { top: -4px; left: 50%; animation-delay: 0s; }
+            .ddb-trigger-spark.s2 { top: 50%; right: -4px; animation-delay: 0.7s; }
+            .ddb-trigger-spark.s3 { bottom: -4px; left: 30%; animation-delay: 1.4s; }
+            .ddb-trigger-spark.s4 { top: 30%; left: -4px; animation-delay: 2.1s; }
+
+            /* Tooltip */
+            .ddb-trigger-tooltip {
+              position: absolute;
+              top: calc(100% + 10px);
+              left: 50%; transform: translateX(-50%);
+              background: rgba(20, 28, 22, 0.95);
+              color: #fff;
+              padding: 6px 12px;
+              border-radius: 8px;
+              font-size: 11px; font-weight: 700;
+              white-space: nowrap;
+              opacity: 0;
+              pointer-events: none;
+              transition: opacity 0.18s ease, transform 0.18s ease;
+              border: 1px solid rgba(217, 179, 138, 0.3);
+              z-index: 10;
+            }
+            .ddb-trigger-tooltip::before {
+              content: '';
+              position: absolute;
+              top: -4px; left: 50%; transform: translateX(-50%) rotate(45deg);
+              width: 8px; height: 8px;
+              background: rgba(20, 28, 22, 0.95);
+              border-left: 1px solid rgba(217, 179, 138, 0.3);
+              border-top: 1px solid rgba(217, 179, 138, 0.3);
+            }
+            .ddb-trigger-wrap:hover .ddb-trigger-tooltip {
+              opacity: 1;
+              transform: translateX(-50%) translateY(2px);
+            }
+
+            @media (max-width: 768px) {
+              .ddb-trigger-wrap { width: 52px; height: 52px; margin: 0 10px; }
+              .ddb-trigger-tooltip { display: none; }
+            }
+          `}</style>
+          <div className="ddb-trigger-wrap">
+            <span className="ddb-trigger-aura" aria-hidden="true" />
+            <span className="ddb-trigger-spark s1" aria-hidden="true" />
+            <span className="ddb-trigger-spark s2" aria-hidden="true" />
+            <span className="ddb-trigger-spark s3" aria-hidden="true" />
+            <span className="ddb-trigger-spark s4" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={() => setShowDashboard(v => !v)}
+              className={`ddb-trigger-btn${showDashboard ? ' is-open' : ''}`}
+              title="Tableau de bord — vue d'ensemble du dossier"
+              aria-expanded={showDashboard}
+              aria-controls="dossier-dashboard-panel"
+            >
+              <LayoutDashboard className="h-6 w-6" strokeWidth={2.5} />
+            </button>
+            <span className="ddb-trigger-tooltip">Tableau de bord</span>
+          </div>
+
           {/* Actions header */}
           <div className="shrink-0 flex flex-col gap-2">
             <button
@@ -417,21 +561,6 @@ export default function DossierDetailPage() {
             <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
               <GitCompare className="h-3.5 w-3.5" />
               Comparer
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowDashboard(v => !v)}
-              className={`flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl border transition-all ${
-                showDashboard
-                  ? 'bg-white text-[#304035] border-white shadow-md'
-                  : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'
-              }`}
-              title="Tableau de bord — vue d'ensemble du dossier"
-              aria-expanded={showDashboard}
-              aria-controls="dossier-dashboard-panel"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              Tableau de bord
             </button>
           </div>
         </div>
