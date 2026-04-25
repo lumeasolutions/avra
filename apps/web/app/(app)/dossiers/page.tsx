@@ -237,41 +237,67 @@ export default function DossiersPage() {
       {showDashboard && (
         <>
           <style>{`
-            @keyframes dboardSlide {
-              from { opacity: 0; transform: translateY(-12px) scale(0.98); }
-              to   { opacity: 1; transform: translateY(0) scale(1); }
+            @keyframes dboardReveal {
+              0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.85) rotate(-1deg); filter: blur(6px); }
+              60%  { opacity: 1; transform: translate(-50%, -50%) scale(1.02) rotate(0); filter: blur(0); }
+              100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); filter: blur(0); }
             }
             @keyframes dboardFadeBg {
-              from { opacity: 0; }
-              to   { opacity: 1; }
+              from { opacity: 0; backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); }
+              to   { opacity: 1; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+            }
+            @keyframes dboardAuraPulse {
+              0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
+              50%      { opacity: 0.85; transform: translate(-50%, -50%) scale(1.04); }
             }
             .dboard-backdrop {
               position: fixed; inset: 0;
-              background: rgba(20, 28, 22, 0.45);
-              backdrop-filter: blur(4px);
-              -webkit-backdrop-filter: blur(4px);
+              background: radial-gradient(ellipse at center, rgba(48, 64, 53, 0.6) 0%, rgba(8, 12, 10, 0.85) 75%);
+              backdrop-filter: blur(8px);
+              -webkit-backdrop-filter: blur(8px);
               z-index: 60;
-              animation: dboardFadeBg 0.18s ease-out;
+              animation: dboardFadeBg 0.28s ease-out;
+            }
+            /* Aura lumineuse derriere le panel */
+            .dboard-aura {
+              position: fixed;
+              top: 50%; left: 50%;
+              transform: translate(-50%, -50%);
+              width: min(820px, calc(100vw - 24px));
+              height: 70vh; max-height: 720px;
+              z-index: 65;
+              pointer-events: none;
+              background:
+                radial-gradient(ellipse at 30% 20%, rgba(217, 179, 138, 0.4), transparent 55%),
+                radial-gradient(ellipse at 70% 80%, rgba(74, 163, 80, 0.32), transparent 55%);
+              filter: blur(40px);
+              animation: dboardAuraPulse 4s ease-in-out infinite;
+              border-radius: 50%;
             }
             .dboard-panel {
               position: fixed;
-              top: 92px; right: 24px;
+              top: 50%; left: 50%;
+              transform: translate(-50%, -50%);
               z-index: 70;
-              width: min(720px, calc(100vw - 48px));
-              max-height: calc(100vh - 120px);
+              width: min(720px, calc(100vw - 32px));
+              max-height: min(86vh, 760px);
               overflow-y: auto;
               background: linear-gradient(180deg, #fffaf3 0%, #ffffff 50%);
-              border-radius: 20px;
-              border: 1px solid rgba(48, 64, 53, 0.12);
-              box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28), 0 6px 18px rgba(48, 64, 53, 0.18);
-              animation: dboardSlide 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+              border-radius: 24px;
+              border: 1px solid rgba(255, 255, 255, 0.6);
+              box-shadow:
+                0 0 0 1px rgba(48, 64, 53, 0.06),
+                0 36px 90px rgba(0, 0, 0, 0.42),
+                0 10px 26px rgba(48, 64, 53, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+              animation: dboardReveal 0.5s cubic-bezier(0.34, 1.42, 0.64, 1);
             }
             .dboard-panel-header {
               position: sticky; top: 0;
               background: linear-gradient(135deg, #304035 0%, #3d5244 100%);
               padding: 14px 18px;
               display: flex; align-items: center; justify-content: space-between;
-              border-radius: 20px 20px 0 0;
+              border-radius: 24px 24px 0 0;
               z-index: 1;
             }
             .dboard-panel-title {
@@ -293,7 +319,7 @@ export default function DossiersPage() {
               color: rgba(255,255,255,0.85);
               cursor: pointer;
               display: flex; align-items: center; justify-content: center;
-              transition: all 0.18s ease;
+              transition: all 0.2s ease;
             }
             .dboard-close:hover {
               background: rgba(255,255,255,0.22);
@@ -302,11 +328,13 @@ export default function DossiersPage() {
             }
             .dboard-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
             @media (max-width: 768px) {
-              .dboard-panel { top: 70px; right: 12px; left: 12px; width: auto; max-height: calc(100vh - 90px); }
+              .dboard-panel { width: calc(100vw - 24px); max-height: 90vh; }
+              .dboard-aura { width: calc(100vw - 12px); }
             }
           `}</style>
 
           <div className="dboard-backdrop" onClick={() => setShowDashboard(false)} aria-hidden="true" />
+          <div className="dboard-aura" aria-hidden="true" />
 
           <aside id="dashboard-panel" className="dboard-panel" role="dialog" aria-label="Tableau de bord">
             <div className="dboard-panel-header">
