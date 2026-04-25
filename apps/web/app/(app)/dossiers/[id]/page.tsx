@@ -1735,23 +1735,44 @@ export default function DossierDetailPage() {
               }
               .ddb-circle-wrap {
                 position: relative;
-                width: 96px; height: 96px;
+                width: 104px; height: 104px;
                 flex-shrink: 0;
                 animation: ddbCountUp 0.6s ease-out 0.4s both;
               }
-              .ddb-circle-svg { width: 100%; height: 100%; transform: scale(1.06); }
+              .ddb-circle-svg {
+                position: absolute; inset: 0;
+                width: 100%; height: 100%;
+                display: block;
+              }
+              /* Centrage parfait : grid place-items + line-height 1 + box centree
+                 sur le rayon utile du cercle (rayon 42 sur viewBox 100). */
               .ddb-circle-pct {
                 position: absolute; inset: 0;
-                display: flex; align-items: baseline; justify-content: center;
-                gap: 1px;
+                display: grid;
+                place-items: center;
+                pointer-events: none;
+              }
+              .ddb-circle-pct-inner {
+                display: inline-flex; align-items: center; gap: 1px;
+                line-height: 1;
+                /* Compense le poids visuel du caractere '%' a droite pour que
+                   le bloc soit OPTIQUEMENT centre dans le cercle. */
+                transform: translateX(-3px);
               }
               .ddb-circle-num {
-                font-size: 30px; font-weight: 800; color: #fff;
+                font-size: 26px; font-weight: 800; color: #fff;
                 letter-spacing: -0.04em;
                 line-height: 1;
                 text-shadow: 0 1px 8px rgba(217, 179, 138, 0.6);
               }
-              .ddb-circle-unit { font-size: 13px; color: rgba(255,255,255,0.7); font-weight: 700; padding-bottom: 4px; }
+              .ddb-circle-unit {
+                font-size: 12px; color: rgba(255,255,255,0.72);
+                font-weight: 700;
+                line-height: 1;
+                margin-left: 2px;
+                align-self: flex-start;
+                margin-top: 2px;
+              }
 
               .ddb-progress-stats {
                 display: flex; flex: 1;
@@ -1953,8 +1974,10 @@ export default function DossierDetailPage() {
                           />
                         </svg>
                         <div className="ddb-circle-pct">
-                          <span className="ddb-circle-num">{progressPct}</span>
-                          <span className="ddb-circle-unit">%</span>
+                          <span className="ddb-circle-pct-inner">
+                            <span className="ddb-circle-num">{progressPct}</span>
+                            <span className="ddb-circle-unit">%</span>
+                          </span>
                         </div>
                       </div>
 
