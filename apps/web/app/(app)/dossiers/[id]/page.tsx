@@ -7,7 +7,7 @@ import {
   FolderOpen, FileText, ImageIcon, Ruler, CheckCircle, ArrowLeft,
   GitCompare, AlertTriangle, Plus, ChevronRight, Tag, Phone, Mail,
   MapPin, Calendar, Receipt, FileCheck, StickyNote, Pencil, X,
-  Clock, Circle, TrendingUp, Zap, Eye, Download, Check, CornerDownRight
+  Clock, Circle, TrendingUp, Zap, Eye, Download, Check, CornerDownRight, LayoutDashboard
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
@@ -204,7 +204,16 @@ export default function DossierDetailPage() {
 
   const [showDevis,     setShowDevis]     = useState(false);
   const [showStatus,    setShowStatus]    = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [showAddFolder, setShowAddFolder] = useState(false);
+
+  // Fermeture clavier du tableau de bord
+  useEffect(() => {
+    if (!showDashboard) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowDashboard(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showDashboard]);
   const [newFolderLabel, setNewFolderLabel] = useState('');
   // Modal "documents dans le sous-dossier"
   const [openedSubfolder, setOpenedSubfolder] = useState<string | null>(null);
@@ -408,6 +417,21 @@ export default function DossierDetailPage() {
             <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
               <GitCompare className="h-3.5 w-3.5" />
               Comparer
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDashboard(v => !v)}
+              className={`flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl border transition-all ${
+                showDashboard
+                  ? 'bg-white text-[#304035] border-white shadow-md'
+                  : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'
+              }`}
+              title="Tableau de bord — vue d'ensemble du dossier"
+              aria-expanded={showDashboard}
+              aria-controls="dossier-dashboard-panel"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              Tableau de bord
             </button>
           </div>
         </div>
@@ -1524,6 +1548,352 @@ export default function DossierDetailPage() {
           </div>
         </div>
       )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+       *  PANEL TABLEAU DE BORD DU DOSSIER
+       *  Liste des sous-dossiers avec statut validation + date.
+       *  Ouvert/ferme via le bouton 'Tableau de bord' dans la banniere.
+       *  ══════════════════════════════════════════════════════════════════ */}
+      {showDashboard && (() => {
+        // Calculs : progression + listes valide / en attente
+        const allSubs = dossier.subfolders;
+        const totalSubs = allSubs.length;
+        const validatedSubs = allSubs.filter(sf => sf.validated);
+        const pendingSubs = allSubs.filter(sf => !sf.validated);
+        const progressPct = totalSubs === 0 ? 0 : Math.round((validatedSubs.length / totalSubs) * 100);
+        const allDone = totalSubs > 0 && validatedSubs.length === totalSubs;
+
+        return (
+          <>
+            <style>{`
+              @keyframes ddbFadeBg {
+                from { opacity: 0; }
+                to   { opacity: 1; }
+              }
+              @keyframes ddbSlide {
+                from { opacity: 0; transform: translateY(-14px) scale(0.97); }
+                to   { opacity: 1; transform: translateY(0) scale(1); }
+              }
+              @keyframes ddbRowIn {
+                from { opacity: 0; transform: translateX(-12px); }
+                to   { opacity: 1; transform: translateX(0); }
+              }
+              @keyframes ddbRingPulse {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+                50%      { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+              }
+              @keyframes ddbWarnPulse {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.55); }
+                50%      { box-shadow: 0 0 0 8px rgba(249, 115, 22, 0); }
+              }
+              @keyframes ddbShimmer {
+                0%   { background-position: -200% 0; }
+                100% { background-position: 200% 0; }
+              }
+              @keyframes ddbSpin {
+                to { transform: rotate(360deg); }
+              }
+
+              .ddb-backdrop {
+                position: fixed; inset: 0;
+                background: rgba(20, 28, 22, 0.5);
+                backdrop-filter: blur(6px);
+                -webkit-backdrop-filter: blur(6px);
+                z-index: 70;
+                animation: ddbFadeBg 0.2s ease-out;
+              }
+              .ddb-panel {
+                position: fixed;
+                top: 92px; right: 24px;
+                z-index: 80;
+                width: min(640px, calc(100vw - 48px));
+                max-height: calc(100vh - 120px);
+                overflow: hidden;
+                background: #fff;
+                border-radius: 22px;
+                border: 1px solid rgba(48, 64, 53, 0.1);
+                box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32), 0 8px 22px rgba(48, 64, 53, 0.18);
+                animation: ddbSlide 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+                display: flex; flex-direction: column;
+              }
+              .ddb-header {
+                position: relative;
+                padding: 18px 20px 22px;
+                background: linear-gradient(135deg, #2a3a30 0%, #3d5244 60%, #4a6552 100%);
+                color: #fff;
+                overflow: hidden;
+              }
+              .ddb-header::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: radial-gradient(circle at 80% 0%, rgba(217, 179, 138, 0.25), transparent 60%);
+                pointer-events: none;
+              }
+              .ddb-header-row {
+                display: flex; align-items: flex-start; justify-content: space-between;
+                gap: 12px; position: relative; z-index: 1;
+              }
+              .ddb-title-block { display: flex; align-items: center; gap: 12px; }
+              .ddb-title-icon {
+                width: 40px; height: 40px; border-radius: 12px;
+                background: rgba(255,255,255,0.12);
+                border: 1px solid rgba(255,255,255,0.2);
+                display: flex; align-items: center; justify-content: center;
+                color: #d9b38a;
+              }
+              .ddb-title h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+              .ddb-title p { margin: 2px 0 0; font-size: 12px; color: rgba(255,255,255,0.62); }
+
+              .ddb-close {
+                width: 34px; height: 34px; border-radius: 10px;
+                border: 1px solid rgba(255,255,255,0.2);
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.85);
+                cursor: pointer;
+                display: flex; align-items: center; justify-content: center;
+                transition: all 0.2s ease;
+              }
+              .ddb-close:hover { background: rgba(255,255,255,0.22); transform: rotate(90deg); }
+
+              .ddb-progress-block {
+                margin-top: 14px;
+                position: relative; z-index: 1;
+              }
+              .ddb-progress-numbers {
+                display: flex; align-items: baseline; justify-content: space-between;
+                margin-bottom: 8px;
+              }
+              .ddb-progress-pct {
+                font-size: 28px; font-weight: 800; color: #fff;
+                letter-spacing: -0.02em;
+                font-family: var(--font-body, inherit);
+              }
+              .ddb-progress-label { font-size: 11px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+              .ddb-progress-bar {
+                height: 10px; border-radius: 999px;
+                background: rgba(255,255,255,0.1);
+                overflow: hidden;
+                position: relative;
+                border: 1px solid rgba(255,255,255,0.08);
+              }
+              .ddb-progress-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #d9b38a 0%, #f0c785 50%, #d9b38a 100%);
+                background-size: 200% 100%;
+                animation: ddbShimmer 2.4s linear infinite;
+                border-radius: 999px;
+                transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+                box-shadow: 0 0 12px rgba(217, 179, 138, 0.5);
+              }
+              .ddb-all-done-badge {
+                display: inline-flex; align-items: center; gap: 6px;
+                padding: 4px 10px; border-radius: 999px;
+                background: rgba(34, 197, 94, 0.18);
+                border: 1px solid rgba(34, 197, 94, 0.45);
+                color: #86efac;
+                font-size: 11px; font-weight: 700;
+                margin-top: 8px;
+                position: relative; z-index: 1;
+              }
+
+              .ddb-body {
+                flex: 1;
+                overflow-y: auto;
+                padding: 14px 16px 18px;
+                background: linear-gradient(180deg, #fbf8f3 0%, #fff 30%);
+              }
+
+              .ddb-section-title {
+                font-size: 10px; font-weight: 800;
+                text-transform: uppercase; letter-spacing: 0.12em;
+                color: rgba(48, 64, 53, 0.45);
+                margin: 4px 4px 8px;
+                display: flex; align-items: center; gap: 6px;
+              }
+              .ddb-section-title:not(:first-child) { margin-top: 16px; }
+
+              .ddb-row {
+                display: flex; align-items: center; gap: 12px;
+                padding: 12px 14px;
+                border-radius: 14px;
+                background: #fff;
+                border: 1px solid rgba(48, 64, 53, 0.08);
+                margin-bottom: 8px;
+                transition: all 0.15s ease;
+                animation: ddbRowIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+              }
+              .ddb-row:hover { border-color: rgba(48, 64, 53, 0.18); box-shadow: 0 2px 10px rgba(48, 64, 53, 0.06); transform: translateX(2px); }
+              .ddb-row-validated { background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%); border-color: rgba(34, 197, 94, 0.25); }
+              .ddb-row-pending   { background: linear-gradient(135deg, #fff7ed 0%, #fff 100%); border-color: rgba(249, 115, 22, 0.28); }
+
+              .ddb-icon-circle {
+                width: 32px; height: 32px; border-radius: 10px;
+                display: flex; align-items: center; justify-content: center;
+                flex-shrink: 0;
+              }
+              .ddb-icon-validated { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; animation: ddbRingPulse 2.5s ease-in-out infinite; }
+              .ddb-icon-pending   { background: linear-gradient(135deg, #fb923c, #ea580c); color: #fff; animation: ddbWarnPulse 2.5s ease-in-out infinite; }
+
+              .ddb-row-label {
+                flex: 1; min-width: 0;
+                font-size: 13px; font-weight: 700;
+                color: #1a1614;
+              }
+              .ddb-row-meta {
+                font-size: 11px; color: rgba(48, 64, 53, 0.5);
+                margin-top: 2px; font-weight: 500;
+              }
+              .ddb-row-date {
+                font-size: 12px; font-weight: 700;
+                font-family: 'Courier New', monospace;
+                padding: 4px 10px; border-radius: 8px;
+                flex-shrink: 0;
+              }
+              .ddb-row-date-ok { background: rgba(34, 197, 94, 0.12); color: #15803d; }
+              .ddb-row-date-warn { background: rgba(249, 115, 22, 0.12); color: #c2410c; }
+
+              .ddb-empty {
+                padding: 32px 16px; text-align: center;
+                color: rgba(48, 64, 53, 0.4);
+                font-size: 13px;
+              }
+
+              @media (max-width: 768px) {
+                .ddb-panel { top: 70px; right: 12px; left: 12px; width: auto; }
+                .ddb-progress-pct { font-size: 24px; }
+              }
+            `}</style>
+
+            <div className="ddb-backdrop" onClick={() => setShowDashboard(false)} aria-hidden="true" />
+
+            <aside id="dossier-dashboard-panel" className="ddb-panel" role="dialog" aria-label="Tableau de bord du dossier">
+              {/* Header avec progression */}
+              <div className="ddb-header">
+                <div className="ddb-header-row">
+                  <div className="ddb-title-block">
+                    <div className="ddb-title-icon"><LayoutDashboard className="h-5 w-5" /></div>
+                    <div className="ddb-title">
+                      <h3>Tableau de bord</h3>
+                      <p>{dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''} · {totalSubs} sous-dossier{totalSubs > 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="ddb-close"
+                    onClick={() => setShowDashboard(false)}
+                    aria-label="Fermer le tableau de bord"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Barre de progression — visible uniquement si au moins un sous-dossier */}
+                {totalSubs > 0 && (
+                  <div className="ddb-progress-block">
+                    <div className="ddb-progress-numbers">
+                      <span className="ddb-progress-pct">{progressPct}%</span>
+                      <span className="ddb-progress-label">
+                        {validatedSubs.length} / {totalSubs} validés
+                      </span>
+                    </div>
+                    <div className="ddb-progress-bar">
+                      <div className="ddb-progress-fill" style={{ width: `${progressPct}%` }} />
+                    </div>
+                    {allDone && (
+                      <div className="ddb-all-done-badge">
+                        <Check className="h-3 w-3" />
+                        Tous les sous-dossiers sont validés
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Body — listes des sous-dossiers */}
+              <div className="ddb-body">
+                {totalSubs === 0 ? (
+                  <div className="ddb-empty">
+                    Ce dossier ne contient pas encore de sous-dossier.
+                  </div>
+                ) : (
+                  <>
+                    {/* Section : sous-dossiers en attente (priorité haute en haut) */}
+                    {pendingSubs.length > 0 && (
+                      <>
+                        <div className="ddb-section-title">
+                          <AlertTriangle className="h-3 w-3 text-orange-500" />
+                          En attente · {pendingSubs.length}
+                        </div>
+                        {pendingSubs.map((sf, i) => {
+                          const docsCount = sf.documents?.length ?? 0;
+                          return (
+                            <div
+                              key={`p-${sf.label}`}
+                              className="ddb-row ddb-row-pending"
+                              style={{ animationDelay: `${i * 60}ms` }}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => { setOpenedSubfolder(sf.label); setShowDashboard(false); }}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); setShowDashboard(false); } }}
+                            >
+                              <div className="ddb-icon-circle ddb-icon-pending">
+                                <AlertTriangle className="h-4 w-4" />
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div className="ddb-row-label">{sf.label}</div>
+                                <div className="ddb-row-meta">
+                                  {docsCount === 0 ? 'Vide · à compléter' : `${docsCount} document${docsCount > 1 ? 's' : ''} · à valider`}
+                                </div>
+                              </div>
+                              <div className="ddb-row-date ddb-row-date-warn">À VALIDER</div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {/* Section : sous-dossiers validés */}
+                    {validatedSubs.length > 0 && (
+                      <>
+                        <div className="ddb-section-title">
+                          <Check className="h-3 w-3 text-green-600" />
+                          Validés · {validatedSubs.length}
+                        </div>
+                        {validatedSubs.map((sf, i) => {
+                          const displayDate = sf.date ?? dossier.createdAt;
+                          return (
+                            <div
+                              key={`v-${sf.label}`}
+                              className="ddb-row ddb-row-validated"
+                              style={{ animationDelay: `${(pendingSubs.length + i) * 60}ms` }}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => { setOpenedSubfolder(sf.label); setShowDashboard(false); }}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); setShowDashboard(false); } }}
+                            >
+                              <div className="ddb-icon-circle ddb-icon-validated">
+                                <Check className="h-4 w-4" strokeWidth={3} />
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div className="ddb-row-label">{sf.label}</div>
+                                <div className="ddb-row-meta">
+                                  Validé le {displayDate}
+                                </div>
+                              </div>
+                              <div className="ddb-row-date ddb-row-date-ok">{displayDate}</div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </aside>
+          </>
+        );
+      })()}
     </div>
   );
 }
