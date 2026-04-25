@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useRelanceEngine } from '@/hooks/useRelanceEngine';
 import { useDataSync } from '@/hooks/useDataSync';
 import { useAlertEngine } from '@/hooks/useAlertEngine';
+import { useTokenRefresh } from '@/hooks/useTokenRefresh';
 
 /* Dynamic import pour code splitting */
 const AssistantFAB = nextDynamic(() => import('@/components/layout/AssistantFAB').then(mod => mod.AssistantFAB), {
@@ -22,6 +23,12 @@ const AssistantPanel = nextDynamic(() => import('@/components/layout/AssistantPa
 
 function RelanceEngineProvider() {
   useRelanceEngine();
+  return null;
+}
+
+/** Garde la session vivante : refresh proactif du JWT + récupération sur 401. */
+function TokenRefreshProvider() {
+  useTokenRefresh();
   return null;
 }
 
@@ -49,6 +56,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AppGuard>
+      <TokenRefreshProvider />
       <RelanceEngineProvider />
       <AlertEngineProvider />
       <DataSyncProvider />

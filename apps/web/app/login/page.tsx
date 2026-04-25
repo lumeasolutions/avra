@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { authApi } from '@/lib/api';
-import { Eye, EyeOff, ArrowRight, Sparkles, Zap, Shield, Layers } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Sparkles, Zap, Shield, Layers, AlertTriangle } from 'lucide-react';
 
 function getRedirectUrl(profession: string | null) {
   if (!profession) return '/portal-select';
@@ -25,6 +26,9 @@ export default function LoginPage() {
   const [passFocused, setPassFocused] = useState(false);
   // "Rester connecté" — coché par défaut, chargé depuis localStorage
   const [rememberMe, setRememberMe] = useState(true);
+  // Détecte une redirection depuis la zone app après expiration de session
+  const searchParams = useSearchParams();
+  const sessionExpired = searchParams?.get('reason') === 'session-expired';
 
   useEffect(() => {
     // Charger la préférence sauvegardée
@@ -499,6 +503,32 @@ export default function LoginPage() {
                 Connectez-vous à votre espace AVRA
               </p>
             </div>
+
+            {/* Bandeau "Session expirée" si redirection depuis la zone app */}
+            {sessionExpired && (
+              <div
+                role="alert"
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                  padding: '12px 14px',
+                  marginBottom: 16,
+                  borderRadius: 12,
+                  background: 'rgba(201,169,110,0.12)',
+                  border: '1px solid rgba(201,169,110,0.4)',
+                  color: '#f5e9d4',
+                  fontSize: '0.85rem',
+                  lineHeight: 1.5,
+                }}
+              >
+                <AlertTriangle style={{ width: 16, height: 16, marginTop: 2, flexShrink: 0, color: '#d9b38a' }} />
+                <div>
+                  <strong style={{ color: '#fff', display: 'block', marginBottom: 2 }}>Session expirée</strong>
+                  Votre session a expiré pour des raisons de sécurité. Reconnectez-vous pour reprendre.
+                </div>
+              </div>
+            )}
 
             {/* Formulaire */}
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

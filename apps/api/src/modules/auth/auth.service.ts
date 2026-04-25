@@ -80,6 +80,10 @@ export class AuthService {
 
     return {
       accessToken: tokenPair.accessToken,
+      // 🔒 Le refreshToken est exposé au controller pour qu'il le pose en
+      // cookie HttpOnly. Il NE DOIT PAS être renvoyé dans le body au client
+      // (le controller le retire avant `res.json`).
+      refreshToken: tokenPair.refreshToken,
       user: {
         id: user.id,
         email: user.email,

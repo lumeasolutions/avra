@@ -40,6 +40,32 @@ let refreshInFlight: Promise<boolean> | null = null;
 let lastRefreshFailedAt = 0;
 const REFRESH_BACKOFF_MS = 5_000;
 
+/** Redirige vers /login en cas de session définitivement perdue. Idempotent
+ *  (ne redirige pas si on est déjà sur /login ou /register). */
+let sessionExpiredHandled = false;
+function handleSessionExpired() {
+  if (sessionExpiredHandled) return;
+  if (typeof window === 'undefined') return;
+  const path = window.location.pathname;
+  if (path.startsWith('/login') || path.startsWith('/register') || path.startsWith('/rejoindre') || path === '/') return;
+  sessionExpiredHandled = true;
+  // Purge le state Zustand auth pour ne pas rester bloqué dans un état "logged-in"
+  try {
+    const raw = localStorage.getItem('avra-auth');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.state) {
+        parsed.state.token = null;
+        parsed.state.user = null;
+        localStorage.setItem('avra-auth', JSON.stringify(parsed));
+      }
+    }
+    document.cookie = 'logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  } catch {/* noop */}
+  // Redirection avec un flag pour afficher un message UX
+  window.location.href = `/login?reason=session-expired&from=${encodeURIComponent(path)}`;
+}
+
 async function refreshAccessToken(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
   if (Date.now() - lastRefreshFailedAt < REFRESH_BACKOFF_MS) return false;
@@ -94,7 +120,9 @@ export async function api<T>(
   if (res.status === 401 && !_retried && !path.startsWith('/auth/')) {
     const ok = await refreshAccessToken();
     if (!ok) {
-      throw new Error('Unauthorized');
+      // Refresh impossible → session morte → redirection /login
+      handleSessionExpired();
+      throw new Error('Session expirée');
     }
     // Nouveau cookie access_token défini par le serveur — relancer la requête UNE seule fois
     res = await fetch(`${API_BASE}${path}`, {
@@ -103,7 +131,9 @@ export async function api<T>(
       credentials: 'include',
     });
     if (res.status === 401) {
-      throw new Error('Unauthorized');
+      // Même après refresh, toujours 401 → vraie session morte
+      handleSessionExpired();
+      throw new Error('Session expirée');
     }
   }
 
@@ -177,8 +207,8 @@ export async function apiUpload<T>(
   if (res.status === 401) {
     const ok = await refreshAccessToken();
     if (!ok) {
-      const err = await res.json().catch(() => ({ message: 'Unauthorized' }));
-      throw new Error(err.message ?? 'Unauthorized');
+      handleSessionExpired();
+      throw new Error('Session expirée');
     }
     res = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
@@ -186,6 +216,10 @@ export async function apiUpload<T>(
       credentials: 'include',
       headers: buildHeaders(),
     });
+    if (res.status === 401) {
+      handleSessionExpired();
+      throw new Error('Session expirée');
+    }
   }
 
   if (!res.ok) {

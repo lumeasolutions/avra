@@ -14,27 +14,61 @@ import type { JwtPayload } from '@avra/types';
 const IS_PROD = process.env.NODE_ENV === 'production';
 const IS_SECURE = IS_PROD || process.env.FORCE_SECURE_COOKIES === 'true';
 
-/** Durée de vie du cookie access_token en ms (15 min) */
-const ACCESS_COOKIE_TTL = 15 * 60 * 1000;
+/** Durée de vie du cookie access_token en ms (60 min — assez long pour que
+ *  le refresh proactif ait largement le temps, court pour la sécurité). */
+const ACCESS_COOKIE_TTL = 60 * 60 * 1000;
+/** Durée de vie du cookie refresh_token / user_id en ms (30 jours). */
+const REFRESH_COOKIE_TTL = 30 * 24 * 60 * 60 * 1000;
 /** Durée de vie du cookie logged_in en ms (30 jours) */
 const SESSION_COOKIE_TTL = 30 * 24 * 60 * 60 * 1000;
 
-function setAuthCookies(res: Response, accessToken: string) {
+interface AuthCookieData {
+  accessToken: string;
+  refreshToken?: string;
+  userId?: string;
+}
+
+function setAuthCookies(res: Response, data: AuthCookieData) {
   // 🔒 Cookie HttpOnly — inaccessible au JavaScript, résiste aux XSS
   // 🔒 Secure flag — cookies uniquement en HTTPS (sauf local development)
-  // 🔒 SameSite=Strict — protection contre CSRF
-  res.cookie('access_token', accessToken, {
+  // 🔒 SameSite=Lax — fonctionne pour les redirections OAuth-like, protège
+  //    contre CSRF en lecture cross-site mais autorise les navigations directes.
+  //    'Strict' bloquait certains scenarios (refresh post-redirect).
+  res.cookie('access_token', data.accessToken, {
     httpOnly: true,
     secure: IS_SECURE,
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge: ACCESS_COOKIE_TTL,
     path: '/',
   });
+
+  // Refresh token + user id en HttpOnly long-lived. Permettent au endpoint
+  // /auth/refresh de regénérer un access_token sans exiger d'auth préalable.
+  if (data.refreshToken) {
+    res.cookie('refresh_token', data.refreshToken, {
+      httpOnly: true,
+      secure: IS_SECURE,
+      sameSite: 'lax',
+      maxAge: REFRESH_COOKIE_TTL,
+      // Limité à /api/v1/auth pour minimiser la surface d'envoi
+      path: '/',
+    });
+  }
+  if (data.userId) {
+    res.cookie('user_id', data.userId, {
+      httpOnly: true,
+      secure: IS_SECURE,
+      sameSite: 'lax',
+      maxAge: REFRESH_COOKIE_TTL,
+      path: '/',
+    });
+  }
+
   // Cookie lisible par le frontend pour savoir si l'utilisateur est connecté
   res.cookie('logged_in', 'true', {
     httpOnly: false,
     secure: IS_SECURE,
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge: SESSION_COOKIE_TTL,
     path: '/',
   });
@@ -42,6 +76,8 @@ function setAuthCookies(res: Response, accessToken: string) {
 
 function clearAuthCookies(res: Response) {
   res.clearCookie('access_token', { path: '/' });
+  res.clearCookie('refresh_token', { path: '/' });
+  res.clearCookie('user_id', { path: '/' });
   res.clearCookie('logged_in', { path: '/' });
 }
 
@@ -59,22 +95,53 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.auth.login(dto);
-    setAuthCookies(res, result.accessToken);
-    // Ne pas renvoyer accessToken dans le corps — il est dans le cookie HttpOnly
-    const { accessToken: _, ...safeResult } = result;
+    setAuthCookies(res, {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      userId: result.user.id,
+    });
+    // Ne pas renvoyer accessToken/refreshToken dans le corps — ils sont en cookies HttpOnly
+    const { accessToken: _a, refreshToken: _r, ...safeResult } = result;
     return safeResult;
   }
 
+  /**
+   * /auth/refresh — Public car appelé quand le access_token est déjà mort.
+   * Lit refresh_token et user_id depuis les cookies HttpOnly posés au login.
+   * Régénère un access_token + nouveau refresh_token (rotation) et les
+   * renvoie en cookies. Le client n'a rien à fournir (body vide accepté).
+   */
+  @Public()
   @SkipCsrf()
+  @Throttle({ auth: { ttl: 60 * 1000, limit: 30 } })
   @Post('refresh')
   async refresh(
-    @Body() dto: { userId: string; refreshToken: string },
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.auth.refreshToken(dto.userId, dto.refreshToken);
-    setAuthCookies(res, result.accessToken);
-    // Ne pas exposer le nouveau accessToken dans le corps
-    return { ok: true };
+    const cookies = (req as Request & { cookies?: Record<string, string> }).cookies ?? {};
+    const refreshToken = cookies.refresh_token;
+    const userId = cookies.user_id;
+
+    if (!refreshToken || !userId) {
+      // Pas de cookies → le client doit se reconnecter.
+      clearAuthCookies(res);
+      return res.status(401).json({ message: 'No refresh token' });
+    }
+
+    try {
+      const result = await this.auth.refreshToken(userId, refreshToken);
+      setAuthCookies(res, {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        userId,
+      });
+      return { ok: true };
+    } catch (err) {
+      // Refresh invalide / expiré → on purge tous les cookies pour forcer un login.
+      clearAuthCookies(res);
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
   }
 
   @UseGuards(JwtAuthGuard)
@@ -99,10 +166,14 @@ export class AuthController {
   ) {
     const result = await this.auth.register(dto);
     // Si register renvoie un accessToken, le poser en cookie httpOnly comme login
-    const accessToken = (result as { accessToken?: string }).accessToken;
-    if (accessToken) {
-      setAuthCookies(res, accessToken);
-      const { accessToken: _, ...safeResult } = result as { accessToken?: string };
+    const r = result as { accessToken?: string; refreshToken?: string; userId?: string };
+    if (r.accessToken) {
+      setAuthCookies(res, {
+        accessToken: r.accessToken,
+        refreshToken: r.refreshToken,
+        userId: r.userId,
+      });
+      const { accessToken: _a, refreshToken: _r, ...safeResult } = result as Record<string, unknown>;
       return safeResult;
     }
     return result;
