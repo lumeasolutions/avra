@@ -111,6 +111,10 @@ export interface DossierPerdu {
 // Pour le portail menuisier on a un jeu volontairement simple :
 // renseignement → relevé de mesure & photos existants → projet 1,
 // puis l'utilisateur ajoute "projet 2", "projet 3"… via le bouton "+ Créer projet".
+//
+// Cuisiniste = workflow APS / APD avec versions intermediaires.
+// Architecte = workflow simplifie : 1 APS + 1 APD, pas de version 2 (les
+// modifications se font dans la version courante via la doc partagee client).
 const DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER RENSEIGNEMENT' },
   { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
@@ -118,6 +122,14 @@ const DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'PROJET VERSION 1 – APS' },
   { label: 'PROJET VERSION 2' },
   { label: 'PROJET VERSION 3 – APD' },
+];
+
+export const ARCHITECTE_DEFAULT_SUBFOLDERS: SubFolder[] = [
+  { label: 'DOSSIER RENSEIGNEMENT' },
+  { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
+  { label: 'RELEVE DE MESURES' },
+  { label: 'PROJET VERSION 1 – APS' },
+  { label: 'PROJET VERSION 1 – APD' },
 ];
 
 export const MENUISIER_DEFAULT_SUBFOLDERS: SubFolder[] = [
@@ -132,6 +144,7 @@ export const MENUISIER_PROJET_REGEX = /^PROJET\s+(\d+)$/i;
 /** Retourne le jeu par défaut de sous-dossiers selon la profession */
 export function getDefaultSubfoldersForProfession(profession?: string | null): SubFolder[] {
   if (profession === 'menuisier') return MENUISIER_DEFAULT_SUBFOLDERS;
+  if (profession === 'architecte') return ARCHITECTE_DEFAULT_SUBFOLDERS;
   return DEFAULT_SUBFOLDERS;
 }
 

@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
-import { useDossierStore } from '@/store/useDossierStore';
+import { useDossierStore, getDefaultSubfoldersForProfession } from '@/store/useDossierStore';
 import { usePlanningStore } from '@/store/usePlanningStore';
 import { useFacturationStore } from '@/store/useFacturationStore';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
@@ -88,6 +88,7 @@ export function useDataSync() {
   const syncedRef = useRef(false);
 
   const user = useAuthStore((s) => s.user);
+  const profession = useAuthStore((s) => s.profession);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
 
@@ -179,15 +180,12 @@ export function useDataSync() {
       const localActiveById = new Map(store.dossiers.map((d) => [d.id, d]));
       const localSignedById = new Map(store.dossiersSignes.map((d) => [d.id, d]));
 
-      // Sous-dossiers par défaut pour un dossier "frais" venu du backend sans état local.
-      const DEFAULT_SUBFOLDERS = [
-        { label: 'DOSSIER RENSEIGNEMENT' },
-        { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
-        { label: 'RELEVE DE MESURES' },
-        { label: 'PROJET VERSION 1 – APS' },
-        { label: 'PROJET VERSION 2' },
-        { label: 'PROJET VERSION 3 – APD' },
-      ];
+      // Sous-dossiers par défaut pour un dossier "frais" venu du backend sans
+      // état local. On respecte la profession courante de l'utilisateur :
+      //  - architecte : 5 items (PROJET VERSION 1 APS + APD, sans v2)
+      //  - cuisiniste : 6 items (workflow APS / V2 / APD)
+      //  - menuisier : 3 items (renseignement + relevé + PROJET 1)
+      const DEFAULT_SUBFOLDERS = getDefaultSubfoldersForProfession(profession);
       const DEFAULT_SIGNED_SUBFOLDERS = [
         { label: 'DOSSIER AVANT VENTE' },
         { label: 'PROJET VERSION 3' },
