@@ -3,9 +3,11 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, Circle, Phone, Mail, MapPin, FolderOpen, LayoutGrid, List } from 'lucide-react';
+import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, Circle, Phone, Mail, MapPin, FolderOpen, LayoutGrid, List, Trash2 } from 'lucide-react';
 import { useDossierStore } from '@/store';
 import { ValidationDashboard } from '@/components/dossiers/ValidationDashboard';
+import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
+import { useProjectActions } from '@/hooks/useProjectActions';
 
 const STATUS_CONFIG: Record<string, {
   label: string;
@@ -90,6 +92,38 @@ export default function DossiersPage() {
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('status');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // ── Suppression ─────────────────────────────────────────────────────────
+  const { deleteProject } = useProjectActions();
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; firstName?: string; itemsCount: number } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const askDelete = (e: React.MouseEvent, d: { id: string; name: string; firstName?: string; subfolders: { length: number }[] | { length: number } }) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeleteError(null);
+    setDeleteTarget({
+      id: d.id,
+      name: d.name,
+      firstName: d.firstName,
+      itemsCount: Array.isArray(d.subfolders) ? d.subfolders.length : 0,
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteProject(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (err: any) {
+      setDeleteError(err?.message ?? 'Erreur lors de la suppression');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     let list = [...dossiers];
@@ -348,10 +382,21 @@ export default function DossiersPage() {
                         />
                       </div>
 
-                      {/* Badge statut */}
-                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${cfg.tagBg}`}>
-                        <Icon className="h-3 w-3" />
-                        {cfg.label}
+                      {/* Badge statut + bouton corbeille */}
+                      <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${cfg.tagBg}`}>
+                          <Icon className="h-3 w-3" />
+                          {cfg.label}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => askDelete(e, d)}
+                          className="dossier-delete-btn flex items-center justify-center h-7 w-7 rounded-lg bg-[#304035]/5 text-[#304035]/35 hover:bg-red-50 hover:text-red-600 hover:scale-105 transition-all opacity-0 group-hover:opacity-100"
+                          title="Supprimer ce dossier"
+                          aria-label={`Supprimer ${d.name}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
 
@@ -462,6 +507,17 @@ export default function DossiersPage() {
                     {cfg.label}
                   </div>
 
+                  {/* Bouton corbeille (apparait au hover) */}
+                  <button
+                    type="button"
+                    onClick={(e) => askDelete(e, d)}
+                    className="flex items-center justify-center h-8 w-8 rounded-lg bg-transparent text-[#304035]/35 hover:bg-red-50 hover:text-red-600 hover:scale-105 transition-all opacity-0 group-hover:opacity-100 shrink-0"
+                    title="Supprimer ce dossier"
+                    aria-label={`Supprimer ${d.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+
                   <ChevronRight className="card-arrow h-4 w-4 text-[#304035]/25 group-hover:text-[#a67749] transition-all shrink-0" />
                 </Link>
               );
@@ -469,6 +525,18 @@ export default function DossiersPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de confirmation de suppression — disponible pour les 3 portails */}
+      <DeleteDossierModal
+        open={!!deleteTarget}
+        dossierName={deleteTarget?.name ?? ''}
+        dossierFirstName={deleteTarget?.firstName}
+        itemsCount={deleteTarget?.itemsCount ?? 0}
+        loading={deleting}
+        error={deleteError}
+        onConfirm={confirmDelete}
+        onCancel={() => { if (!deleting) { setDeleteTarget(null); setDeleteError(null); } }}
+      />
     </div>
   );
 }

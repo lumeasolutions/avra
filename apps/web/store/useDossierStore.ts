@@ -208,6 +208,11 @@ interface DossierState {
   ensureDefaultSubfolders: (dossierId: string, profession?: string | null) => void;
   signerDossier: (id: string) => void;
   perdreDossier: (id: string, reason: string) => void;
+  /**
+   * Supprime définitivement un dossier (active, signé ou perdu) du store local.
+   * En backend l'appel API est fait depuis useProjectActions.deleteProject.
+   */
+  deleteDossier: (id: string) => void;
   updateDateButoireSignee: (dossierId: string, label: string, date: string) => void;
   updateDossierSigneDateButoires: (dossierId: string, dateButoires: DossierSigne['dateButoires']) => void;
   setDatesButoiresSignes: (dossierId: string, dates: Record<string, string>) => void;
@@ -411,6 +416,14 @@ export const useDossierStore = create<DossierState>()(
         set(s => ({
           dossiers: s.dossiers.filter(d => d.id !== id),
           dossiersPerdus: [perdu, ...s.dossiersPerdus],
+        }));
+      },
+
+      deleteDossier: (id) => {
+        set(s => ({
+          dossiers: s.dossiers.filter(d => d.id !== id),
+          dossiersSignes: s.dossiersSignes.filter(d => d.id !== id),
+          dossiersPerdus: s.dossiersPerdus.filter(d => d.id !== id),
         }));
       },
 

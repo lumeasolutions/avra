@@ -204,10 +204,39 @@ export function useProjectActions() {
     [user, store],
   );
 
+  /**
+   * Supprime définitivement un dossier (DB + store local).
+   * En cas d'échec API, throw une Error que l'UI doit catcher pour informer
+   * l'utilisateur (la suppression locale est tentée même sur échec API pour
+   * éviter qu'un dossier "fantôme" reste affiché).
+   */
+  const deleteProject = useCallback(
+    async (id: string): Promise<void> => {
+      // Mode démo ou ID local : suppression locale uniquement, pas d'API
+      if (user?.id === 'demo' || !user?.workspaceId || isLocalOnlyId(id)) {
+        store.deleteDossier(id);
+        return;
+      }
+
+      try {
+        await api(`/projects/${id}`, { method: 'DELETE' });
+      } catch (err: any) {
+        // On retire quand même du store local pour ne pas laisser un fantôme.
+        // L'utilisateur saura via l'erreur que la DB peut être désynchronisée.
+        store.deleteDossier(id);
+        const msg = err?.message ?? 'Erreur réseau';
+        throw new Error(`Suppression API échouée : ${msg} (dossier retiré localement)`);
+      }
+      store.deleteDossier(id);
+    },
+    [user, store],
+  );
+
   return {
     createProject,
     signProject,
     loseProject,
     updateProjectStatus,
+    deleteProject,
   };
 }
