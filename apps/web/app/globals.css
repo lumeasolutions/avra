@@ -100,11 +100,24 @@ body {
 
 /* ── AVRA Design System v2 additions ── */
 
-/* Scrollbar styling */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(48, 64, 53, 0.15); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(48, 64, 53, 0.25); }
+/* Scrollbar styling — légèrement plus visible pour permettre le défilement
+ * au touchpad / clavier (sans souris). 8px de large, opacité accentuée. */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(48, 64, 53, 0.04); border-radius: 999px; }
+::-webkit-scrollbar-thumb { background: rgba(48, 64, 53, 0.28); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(48, 64, 53, 0.45); }
+* { scrollbar-color: rgba(48, 64, 53, 0.28) rgba(48, 64, 53, 0.04); scrollbar-width: thin; }
+
+/* Container app principal : scrollbar TOUJOURS visible (le user a expressément
+ * demandé une barre latérale de défilement quand pas de souris). */
+.app-scroll-visible {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(48, 64, 53, 0.32) rgba(48, 64, 53, 0.06);
+}
+.app-scroll-visible::-webkit-scrollbar { width: 10px; }
+.app-scroll-visible::-webkit-scrollbar-track { background: rgba(48, 64, 53, 0.05); border-radius: 999px; margin: 4px 0; }
+.app-scroll-visible::-webkit-scrollbar-thumb { background: rgba(48, 64, 53, 0.32); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+.app-scroll-visible::-webkit-scrollbar-thumb:hover { background: rgba(48, 64, 53, 0.55); background-clip: padding-box; border: 2px solid transparent; }
 
 /* Focus ring for accessibility */
 *:focus-visible {
@@ -566,11 +579,13 @@ flex: 1;
 
 overflow-y: auto;
 
-scrollbar-width: none;
+scrollbar-width: thin;
 
 }
 
-.menu-list::-webkit-scrollbar { display: none; }
+.menu-list::-webkit-scrollbar { width: 6px; }
+.menu-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 999px; }
+.menu-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.32); }
 
 .menu-item {
 

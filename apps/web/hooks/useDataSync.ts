@@ -16,7 +16,7 @@ import { useDossierStore } from '@/store/useDossierStore';
 import { usePlanningStore } from '@/store/usePlanningStore';
 import { useFacturationStore } from '@/store/useFacturationStore';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuthStore, clearAllAppStoresHard } from '@/store/useAuthStore';
 
 // IDs fictifs de démonstration (hardcodés dans les stores initiaux)
 const DEMO_DOSSIER_IDS = new Set(['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9']);
@@ -101,6 +101,30 @@ export function useDataSync() {
 
     syncedRef.current = true;
     setSyncing(true);
+
+    // Détection multi-utilisateur : si l'utilisateur connecté est différent
+    // du dernier connu sur ce navigateur, on purge l'ensemble des stores
+    // métier pour éviter les fuites de données entre comptes.
+    // Un flag `avra-reset-in-progress` empêche toute boucle de reload même
+    // si l'écriture du nouveau userId échoue avant le reload.
+    if (typeof localStorage !== 'undefined' && typeof user?.id === 'string' && user.id.length > 0) {
+      const resetInProgress = localStorage.getItem('avra-reset-in-progress') === 'true';
+      if (resetInProgress) {
+        // On vient d'effectuer un reset, on consomme le flag et on continue.
+        localStorage.removeItem('avra-reset-in-progress');
+        localStorage.setItem('avra-last-user-id', user.id);
+      } else {
+        const lastUserId = localStorage.getItem('avra-last-user-id');
+        if (lastUserId && lastUserId !== user.id) {
+          clearAllAppStoresHard();
+          localStorage.setItem('avra-last-user-id', user.id);
+          localStorage.setItem('avra-reset-in-progress', 'true');
+          if (typeof window !== 'undefined') window.location.reload();
+          return;
+        }
+        localStorage.setItem('avra-last-user-id', user.id);
+      }
+    }
 
     // Perf : sync séquentielle — la Serverless Function NestJS est mono-instance
     // et 4 requêtes parallèles au cold-start saturent le process et provoquent des 500.

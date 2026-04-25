@@ -3,6 +3,8 @@
 import nextDynamic from 'next/dynamic';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AppGuard } from '@/components/layout/AppGuard';
+// TEMPORARY DEV — voir DevPortalSwitcher.tsx pour les instructions de retrait.
+import { DevPortalSwitcher } from '@/components/dev/DevPortalSwitcher';
 import { usePathname } from 'next/navigation';
 import { useRelanceEngine } from '@/hooks/useRelanceEngine';
 import { useDataSync } from '@/hooks/useDataSync';
@@ -57,7 +59,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar />
         {/* Contenu central */}
         <main
-          className="app-main-content min-h-screen py-5 overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="app-main-content min-h-screen py-5 overflow-y-scroll app-scroll-visible"
           style={{
             flex: '1 1 0%',
             minWidth: 0,
@@ -101,6 +103,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* FAB "Assistant AVRA" volontairement absent hors /planning et /planning-gestion :
             les autres pages utilisent le panel permanent à droite. */}
+
+        {/* TEMPORARY DEV — switcher de portail pour admins. À retirer avant GA. */}
+        <DevPortalSwitcher />
       </div>
     </AppGuard>
   );

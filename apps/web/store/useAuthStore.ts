@@ -1,8 +1,37 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-/** Vide les localStorage keys de tous les stores applicatifs (appelé au logout) */
-function clearAllAppStores() {
+/**
+ * Vide les localStorage keys des stores qui contiennent des données purement
+ * locales (UI prefs, sessions assistant, historique view-only).
+ *
+ * IMPORTANT — Ce qui N'EST PAS vidé :
+ *  - `avra-dossier-store` → contient les sous-dossiers/notes/docs locaux qui
+ *    ne sont pas (encore) en base. Les vider au logout = perdre du travail
+ *    quand l'utilisateur se reconnecte. Le sync (`useDataSync`) reconcilie
+ *    avec le backend à la prochaine connexion.
+ *  - `avra-planning-store`, `avra-facturation-store`, `avra-intervenant-store`,
+ *    `avra-stock-store` → idem, contenus métier qui doivent survivre logout.
+ *
+ * On vide UNIQUEMENT les stores éphémères (UI/historique/assistant). Pour
+ * éviter une fuite cross-utilisateur sur appareil partagé, `useDataSync`
+ * détecte le changement de userId à la connexion et reset si nécessaire.
+ */
+function clearEphemeralStores() {
+  if (typeof localStorage === 'undefined') return;
+  const ephemeralKeys = [
+    'avra-assistant-store',
+    'avra-history-store',
+    'avra-ui-store',
+  ];
+  ephemeralKeys.forEach((key) => localStorage.removeItem(key));
+}
+
+/**
+ * Vide TOUS les stores applicatifs — utilisé uniquement quand un utilisateur
+ * différent se connecte sur le même navigateur (détecté côté useDataSync).
+ */
+export function clearAllAppStoresHard() {
   if (typeof localStorage === 'undefined') return;
   const storeKeys = [
     'avra-dossier-store',
@@ -37,6 +66,12 @@ interface AuthState {
   _hasHydrated: boolean;
   setAuth: (token: string, user: User) => void;
   setProfession: (p: Profession) => void;
+  /**
+   * TEMPORARY DEV ONLY — bypass de la garde pour permettre aux admins de
+   * switcher de portail sans recréer de compte. À retirer avant la GA en
+   * même temps que <DevPortalSwitcher />.
+   */
+  _devForceProfession: (p: Profession) => void;
   logout: () => void;
   isAuthenticated: () => boolean;
   setHasHydrated: (state: boolean) => void;
@@ -64,6 +99,9 @@ export const useAuthStore = create<AuthState>()(
         set({ profession: p });
       },
 
+      // TEMPORARY DEV ONLY — voir DevPortalSwitcher
+      _devForceProfession: (p) => set({ profession: p }),
+
       logout: () => {
         // Appelle l'API backend pour purger les cookies HttpOnly (access + refresh)
         // côté serveur. Fire-and-forget : même en cas d'échec réseau, on nettoie
@@ -74,12 +112,19 @@ export const useAuthStore = create<AuthState>()(
         if (typeof document !== 'undefined') {
           document.cookie = 'logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
         }
-        // Vider tous les stores applicatifs pour éviter qu'un nouvel utilisateur
-        // voie les données du précédent
-        clearAllAppStores();
-        // On garde `profession` en localStorage : c'est une préférence durable
-        // (choisie une seule fois à l'inscription). La remettre à null obligerait
-        // l'utilisateur à repasser par /portal-select à chaque reconnexion.
+        // On NE vide PAS les stores métier (dossiers/planning/factu/...) :
+        // ils sont conservés pour permettre à l'utilisateur de retrouver son
+        // travail à la prochaine connexion. Si un *autre* utilisateur se
+        // connecte sur ce navigateur, useDataSync détecte le userId différent
+        // et purge alors via clearAllAppStoresHard().
+        clearEphemeralStores();
+        // Mémorise le dernier userId connecté pour permettre la détection
+        // multi-utilisateur côté useDataSync.
+        if (typeof localStorage !== 'undefined') {
+          const u = get().user;
+          if (u?.id) localStorage.setItem('avra-last-user-id', u.id);
+        }
+        // On garde `profession` en localStorage : c'est une préférence durable.
         set({ token: null, user: null });
       },
 

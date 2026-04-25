@@ -9,7 +9,7 @@
 
 import { useCallback } from 'react';
 import { api } from '@/lib/api';
-import { useDossierStore } from '@/store/useDossierStore';
+import { useDossierStore, getDefaultSubfoldersForProfession } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 
 interface CreateProjectData {
@@ -47,8 +47,15 @@ export function useProjectActions() {
   const store = useDossierStore();
 
   /**
-   * Crée un dossier : appelle l'API puis met à jour le store local.
-   * En mode demo ou si l'API échoue, crée uniquement en local.
+   * Crée un dossier de manière fiable :
+   *  - En mode démo : création locale uniquement (acceptable, mode test)
+   *  - En mode authentifié : appel API EN PREMIER. Si l'API échoue,
+   *    on lève une erreur — on ne laisse pas de dossier orphelin local-only
+   *    qui disparaîtrait au logout/login.
+   *
+   * Retourne l'ID réel (cuid backend ou local en mode démo).
+   * Throw une Error en cas d'échec API — l'UI doit la catch et afficher
+   * un message à l'utilisateur (toast / banner d'erreur).
    */
   const createProject = useCallback(
     async (data: CreateProjectData): Promise<string> => {
@@ -57,12 +64,10 @@ export function useProjectActions() {
         return store.addDossier({ ...data, profession });
       }
 
-      // Optimistic update local d'abord
-      const localId = store.addDossier({ ...data, profession });
-
+      // 1. Appel API EN PREMIER pour obtenir un vrai cuid avant tout local
+      let result: { id: string };
       try {
-        // Appel API pour persister en base
-        const result = await api<{ id: string }>('/projects/with-client', {
+        result = await api<{ id: string }>('/projects/with-client', {
           method: 'POST',
           body: JSON.stringify({
             clientType: 'PARTICULIER',
@@ -74,21 +79,50 @@ export function useProjectActions() {
             tradeType: 'CUISINISTE',
           }),
         });
-
-        // Mettre à jour l'ID local avec l'ID réel de la base
-        if (result?.id && result.id !== localId) {
-          useDossierStore.setState((s) => ({
-            dossiers: s.dossiers.map((d) =>
-              d.id === localId ? { ...d, id: result.id } : d,
-            ),
-          }));
-          return result.id;
-        }
-        return localId;
-      } catch (err) {
-        console.warn('[ProjectActions] API create failed, keeping local:', err);
-        return localId;
+      } catch (err: any) {
+        const msg = err?.message ?? 'Erreur réseau';
+        console.error('[ProjectActions] API create failed:', err);
+        // Throw : pas de dossier orphelin. L'UI doit afficher l'erreur.
+        throw new Error(`Impossible de créer le dossier : ${msg}`);
       }
+
+      if (!result?.id) {
+        throw new Error('Réponse API invalide : id manquant');
+      }
+
+      // 2. Une fois le backend OK, on ajoute en local avec le vrai ID.
+      //    On utilise une variante de addDossier qui force l'ID fourni.
+      const realId = result.id;
+      // addDossier ne permet pas de forcer un ID — on l'ajoute manuellement
+      // dans le store en réutilisant la même structure.
+      useDossierStore.setState((s) => {
+        // Évite les doublons si la même création est appelée 2 fois (StrictMode)
+        if (s.dossiers.some((d) => d.id === realId)) return s;
+        return {
+          dossiers: [
+            ...s.dossiers,
+            {
+              id: realId,
+              name: data.lastName,
+              firstName: data.firstName,
+              address: data.address,
+              siteAddress: data.siteAddress,
+              postalCode: data.postalCode,
+              tva: data.tva,
+              tauxTVA: data.tauxTVA,
+              delaiChantier: data.delaiChantier,
+              delaiChantierUnit: data.delaiChantierUnit,
+              phone: data.phone,
+              email: data.email,
+              status: 'EN COURS' as const,
+              createdAt: new Date().toLocaleDateString('fr-FR'),
+              subfolders: getDefaultSubfoldersForProfession(profession),
+              notes: '',
+            },
+          ],
+        };
+      });
+      return realId;
     },
     [user, store, profession],
   );

@@ -7,7 +7,7 @@ import {
   FolderOpen, FileText, ImageIcon, Ruler, CheckCircle, ArrowLeft,
   GitCompare, AlertTriangle, Plus, ChevronRight, Tag, Phone, Mail,
   MapPin, Calendar, Receipt, FileCheck, StickyNote, Pencil, X,
-  Clock, Circle, TrendingUp, Zap, Eye, Download
+  Clock, Circle, TrendingUp, Zap, Eye, Download, Check
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
@@ -207,6 +207,8 @@ export default function DossierDetailPage() {
   // Modal "documents dans le sous-dossier"
   const [openedSubfolder, setOpenedSubfolder] = useState<string | null>(null);
   const [newDocName, setNewDocName] = useState('');
+  // États transitoires pour les opérations docs (loading + erreur visible).
+  const [docOpStatus, setDocOpStatus] = useState<{ kind: 'idle' | 'uploading' | 'deleting' | 'error' | 'success'; message?: string }>({ kind: 'idle' });
   // Document en cours de prévisualisation (plein écran) + URL signée résolue
   const [previewDoc, setPreviewDoc] = useState<DocumentFile | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -835,6 +837,10 @@ export default function DossierDetailPage() {
           const files = e.target.files;
           if (!files) return;
           const arr = Array.from(files);
+          let succeeded = 0;
+          let failed = 0;
+          let lastError = '';
+          setDocOpStatus({ kind: 'uploading', message: `Téléversement en cours (${arr.length} fichier${arr.length > 1 ? 's' : ''})…` });
           for (const f of arr) {
             try {
               const uploaded = await uploadDossierDoc(id, openedSubfolder, f);
@@ -845,33 +851,48 @@ export default function DossierDetailPage() {
                 size: uploaded.sizeBytes ?? f.size,
                 addedAt: uploaded.createdAt,
               });
+              succeeded++;
             } catch (err: any) {
-              // Remontée discrète à l'utilisateur — on ne garde PAS le doc en local
-              // si l'upload serveur a échoué (évite une illusion de succès).
-              // eslint-disable-next-line no-alert
-              alert(`Impossible d'uploader ${f.name} : ${err?.message ?? 'erreur réseau'}`);
+              failed++;
+              lastError = err?.message ?? 'erreur réseau';
+              console.error(`[Dossier] upload failed for ${f.name}:`, err);
             }
           }
           e.target.value = '';
+          if (failed === 0) {
+            setDocOpStatus({ kind: 'success', message: `${succeeded} fichier${succeeded > 1 ? 's' : ''} téléversé${succeeded > 1 ? 's' : ''}` });
+            setTimeout(() => setDocOpStatus({ kind: 'idle' }), 2200);
+          } else {
+            setDocOpStatus({
+              kind: 'error',
+              message: succeeded > 0
+                ? `${succeeded} OK · ${failed} échec(s) — ${lastError}`
+                : `Échec téléversement : ${lastError}`,
+            });
+          }
         };
 
         // Suppression : si le doc est sur le backend (docId présent), on purge
         // côté API d'abord (DB + bucket). Puis on retire du store local.
         const handleDelete = async (doc: DocumentFile) => {
+          setDocOpStatus({ kind: 'deleting', message: `Suppression de ${doc.name}…` });
           if (doc.docId) {
             try {
               await deleteDossierDoc(id, doc.docId);
             } catch (err: any) {
-              // eslint-disable-next-line no-alert
-              alert(`Suppression impossible : ${err?.message ?? 'erreur réseau'}`);
+              const msg = err?.message ?? 'erreur réseau';
+              console.error('[Dossier] delete failed:', err);
+              setDocOpStatus({ kind: 'error', message: `Suppression impossible : ${msg}` });
               return;
             }
           }
           removeDocumentFromSubfolder(id, openedSubfolder, doc.name);
+          setDocOpStatus({ kind: 'success', message: 'Document supprimé' });
+          setTimeout(() => setDocOpStatus({ kind: 'idle' }), 1800);
         };
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={() => setOpenedSubfolder(null)}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={() => { setOpenedSubfolder(null); setDocOpStatus({ kind: 'idle' }); setNewDocName(''); }}>
             <div className="w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10" onClick={e => e.stopPropagation()}>
               <div className="flex items-start justify-between mb-5">
                 <div>
@@ -880,7 +901,7 @@ export default function DossierDetailPage() {
                     {docs.length} document{docs.length > 1 ? 's' : ''}{sf.date ? ` · Modifié le ${sf.date}` : ''}
                   </p>
                 </div>
-                <button onClick={() => setOpenedSubfolder(null)} className="p-2 rounded-lg hover:bg-[#304035]/5 transition-colors" aria-label="Fermer">
+                <button onClick={() => { setOpenedSubfolder(null); setDocOpStatus({ kind: 'idle' }); setNewDocName(''); }} className="p-2 rounded-lg hover:bg-[#304035]/5 transition-colors" aria-label="Fermer">
                   <X className="h-5 w-5 text-[#304035]/60" />
                 </button>
               </div>
@@ -949,11 +970,54 @@ export default function DossierDetailPage() {
                 })}
               </div>
 
+              {/* Bandeau état opération (upload/delete) */}
+              {docOpStatus.kind !== 'idle' && (
+                <div
+                  className={`mb-3 rounded-xl px-4 py-2.5 text-xs font-medium flex items-center gap-2 ${
+                    docOpStatus.kind === 'error'
+                      ? 'bg-red-50 text-red-700 border border-red-200'
+                      : docOpStatus.kind === 'success'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-[#a67749]/10 text-[#7c3a1e] border border-[#a67749]/30'
+                  }`}
+                  role="status"
+                >
+                  {(docOpStatus.kind === 'uploading' || docOpStatus.kind === 'deleting') && (
+                    <span className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                  )}
+                  {docOpStatus.kind === 'success' && <Check className="h-3.5 w-3.5 shrink-0" />}
+                  {docOpStatus.kind === 'error' && <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
+                  <span className="flex-1">{docOpStatus.message}</span>
+                  <button
+                    type="button"
+                    onClick={() => setDocOpStatus({ kind: 'idle' })}
+                    className="text-current hover:opacity-70"
+                    aria-label="Fermer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Upload fichier */}
               <label className="block mb-3">
                 <span className="sr-only">Téléverser un fichier</span>
-                <input type="file" multiple onChange={handleFileInput} className="hidden" id={`sf-file-${sf.label}`} />
-                <label htmlFor={`sf-file-${sf.label}`} className="flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed border-[#304035]/20 py-3 text-sm font-medium text-[#304035]/70 hover:border-[#a67749] hover:bg-[#a67749]/5 hover:text-[#a67749] cursor-pointer transition-all">
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleFileInput}
+                  className="hidden"
+                  id={`sf-file-${sf.label}`}
+                  disabled={docOpStatus.kind === 'uploading' || docOpStatus.kind === 'deleting'}
+                />
+                <label
+                  htmlFor={`sf-file-${sf.label}`}
+                  className={`flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed py-3 text-sm font-medium transition-all ${
+                    docOpStatus.kind === 'uploading' || docOpStatus.kind === 'deleting'
+                      ? 'border-[#304035]/10 text-[#304035]/30 cursor-not-allowed'
+                      : 'border-[#304035]/20 text-[#304035]/70 hover:border-[#a67749] hover:bg-[#a67749]/5 hover:text-[#a67749] cursor-pointer'
+                  }`}
+                >
                   <Plus className="h-4 w-4" />
                   Téléverser un ou plusieurs fichiers
                 </label>
