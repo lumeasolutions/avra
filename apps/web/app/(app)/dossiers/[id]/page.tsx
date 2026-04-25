@@ -423,12 +423,31 @@ export default function DossierDetailPage() {
             }
             .ddb-trigger-wrap {
               position: relative;
-              width: 64px; height: 64px;
+              width: 64px;
               flex-shrink: 0;
               align-self: center;
               margin: 0 18px 0 12px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 4px;
             }
-            /* Anneau rotatif gradient en arriere plan */
+            .ddb-trigger-circle {
+              position: relative;
+              width: 64px; height: 64px;
+            }
+            .ddb-trigger-label {
+              font-size: 9.5px;
+              font-weight: 700;
+              color: rgba(255, 255, 255, 0.85);
+              text-transform: uppercase;
+              letter-spacing: 0.06em;
+              white-space: nowrap;
+              text-align: center;
+              line-height: 1.2;
+              text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+            }
+            /* Anneau rotatif gradient en arriere plan — relativement au cercle */
             .ddb-trigger-aura {
               position: absolute; inset: -6px;
               border-radius: 50%;
@@ -494,59 +513,31 @@ export default function DossierDetailPage() {
             .ddb-trigger-spark.s3 { bottom: -4px; left: 30%; animation-delay: 1.4s; }
             .ddb-trigger-spark.s4 { top: 30%; left: -4px; animation-delay: 2.1s; }
 
-            /* Tooltip */
-            .ddb-trigger-tooltip {
-              position: absolute;
-              top: calc(100% + 10px);
-              left: 50%; transform: translateX(-50%);
-              background: rgba(20, 28, 22, 0.95);
-              color: #fff;
-              padding: 6px 12px;
-              border-radius: 8px;
-              font-size: 11px; font-weight: 700;
-              white-space: nowrap;
-              opacity: 0;
-              pointer-events: none;
-              transition: opacity 0.18s ease, transform 0.18s ease;
-              border: 1px solid rgba(217, 179, 138, 0.3);
-              z-index: 10;
-            }
-            .ddb-trigger-tooltip::before {
-              content: '';
-              position: absolute;
-              top: -4px; left: 50%; transform: translateX(-50%) rotate(45deg);
-              width: 8px; height: 8px;
-              background: rgba(20, 28, 22, 0.95);
-              border-left: 1px solid rgba(217, 179, 138, 0.3);
-              border-top: 1px solid rgba(217, 179, 138, 0.3);
-            }
-            .ddb-trigger-wrap:hover .ddb-trigger-tooltip {
-              opacity: 1;
-              transform: translateX(-50%) translateY(2px);
-            }
-
             @media (max-width: 768px) {
-              .ddb-trigger-wrap { width: 52px; height: 52px; margin: 0 10px; }
-              .ddb-trigger-tooltip { display: none; }
+              .ddb-trigger-wrap { width: 52px; margin: 0 10px; }
+              .ddb-trigger-circle { width: 52px; height: 52px; }
+              .ddb-trigger-label { font-size: 9px; }
             }
           `}</style>
           <div className="ddb-trigger-wrap">
-            <span className="ddb-trigger-aura" aria-hidden="true" />
-            <span className="ddb-trigger-spark s1" aria-hidden="true" />
-            <span className="ddb-trigger-spark s2" aria-hidden="true" />
-            <span className="ddb-trigger-spark s3" aria-hidden="true" />
-            <span className="ddb-trigger-spark s4" aria-hidden="true" />
-            <button
-              type="button"
-              onClick={() => setShowDashboard(v => !v)}
-              className={`ddb-trigger-btn${showDashboard ? ' is-open' : ''}`}
-              title="Tableau de bord — vue d'ensemble du dossier"
-              aria-expanded={showDashboard}
-              aria-controls="dossier-dashboard-panel"
-            >
-              <LayoutDashboard className="h-6 w-6" strokeWidth={2.5} />
-            </button>
-            <span className="ddb-trigger-tooltip">Tableau de bord</span>
+            <div className="ddb-trigger-circle">
+              <span className="ddb-trigger-aura" aria-hidden="true" />
+              <span className="ddb-trigger-spark s1" aria-hidden="true" />
+              <span className="ddb-trigger-spark s2" aria-hidden="true" />
+              <span className="ddb-trigger-spark s3" aria-hidden="true" />
+              <span className="ddb-trigger-spark s4" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={() => setShowDashboard(v => !v)}
+                className={`ddb-trigger-btn${showDashboard ? ' is-open' : ''}`}
+                title="Tableau de bord — vue d'ensemble du dossier"
+                aria-expanded={showDashboard}
+                aria-controls="dossier-dashboard-panel"
+              >
+                <LayoutDashboard className="h-6 w-6" strokeWidth={2.5} />
+              </button>
+            </div>
+            <span className="ddb-trigger-label">Tableau de bord</span>
           </div>
 
           {/* Actions header */}
