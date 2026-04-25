@@ -1567,16 +1567,25 @@ export default function DossierDetailPage() {
           <>
             <style>{`
               @keyframes ddbFadeBg {
-                from { opacity: 0; }
-                to   { opacity: 1; }
+                from { opacity: 0; backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); }
+                to   { opacity: 1; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
               }
-              @keyframes ddbSlide {
-                from { opacity: 0; transform: translateY(-14px) scale(0.97); }
-                to   { opacity: 1; transform: translateY(0) scale(1); }
+              @keyframes ddbReveal {
+                0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.82) rotate(-1deg); filter: blur(8px); }
+                60%  { opacity: 1; transform: translate(-50%, -50%) scale(1.02) rotate(0); filter: blur(0); }
+                100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); filter: blur(0); }
+              }
+              @keyframes ddbHaloRotate {
+                0%   { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+              @keyframes ddbAuraGlow {
+                0%, 100% { opacity: 0.55; transform: scale(1); }
+                50%      { opacity: 0.85; transform: scale(1.03); }
               }
               @keyframes ddbRowIn {
-                from { opacity: 0; transform: translateX(-12px); }
-                to   { opacity: 1; transform: translateX(0); }
+                from { opacity: 0; transform: translateX(-14px) scale(0.98); }
+                to   { opacity: 1; transform: translateX(0) scale(1); }
               }
               @keyframes ddbRingPulse {
                 0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
@@ -1590,44 +1599,104 @@ export default function DossierDetailPage() {
                 0%   { background-position: -200% 0; }
                 100% { background-position: 200% 0; }
               }
-              @keyframes ddbSpin {
-                to { transform: rotate(360deg); }
+              @keyframes ddbSparkleFloat {
+                0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+                10%  { opacity: 1; }
+                50%  { opacity: 0.8; transform: translateY(-12px) translateX(4px) scale(1.1); }
+                90%  { opacity: 0.4; }
+                100% { transform: translateY(-30px) translateX(-2px) scale(0.9); opacity: 0; }
+              }
+              @keyframes ddbCountUp {
+                from { transform: translateY(8px); opacity: 0; }
+                to   { transform: translateY(0); opacity: 1; }
+              }
+              @keyframes ddbCircleDraw {
+                from { stroke-dashoffset: 283; }
+                to   { stroke-dashoffset: var(--circle-offset, 113); }
               }
 
               .ddb-backdrop {
                 position: fixed; inset: 0;
-                background: rgba(20, 28, 22, 0.5);
-                backdrop-filter: blur(6px);
-                -webkit-backdrop-filter: blur(6px);
+                background:
+                  radial-gradient(ellipse at center, rgba(48, 64, 53, 0.65) 0%, rgba(8, 12, 10, 0.85) 75%);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
                 z-index: 70;
-                animation: ddbFadeBg 0.2s ease-out;
+                animation: ddbFadeBg 0.32s ease-out;
               }
+
+              /* Aura lumineuse derriere le panel */
+              .ddb-aura {
+                position: fixed;
+                top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
+                width: min(820px, calc(100vw - 24px));
+                height: 70vh; max-height: 760px;
+                z-index: 75;
+                pointer-events: none;
+                background:
+                  radial-gradient(ellipse at 30% 20%, rgba(217, 179, 138, 0.4), transparent 55%),
+                  radial-gradient(ellipse at 70% 80%, rgba(74, 163, 80, 0.32), transparent 55%);
+                filter: blur(40px);
+                animation: ddbAuraGlow 4s ease-in-out infinite;
+                border-radius: 50%;
+              }
+
               .ddb-panel {
                 position: fixed;
-                top: 92px; right: 24px;
+                top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
                 z-index: 80;
-                width: min(640px, calc(100vw - 48px));
-                max-height: calc(100vh - 120px);
+                width: min(720px, calc(100vw - 32px));
+                max-height: min(86vh, 820px);
                 overflow: hidden;
                 background: #fff;
-                border-radius: 22px;
-                border: 1px solid rgba(48, 64, 53, 0.1);
-                box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32), 0 8px 22px rgba(48, 64, 53, 0.18);
-                animation: ddbSlide 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+                border-radius: 28px;
+                border: 1px solid rgba(255, 255, 255, 0.6);
+                box-shadow:
+                  0 0 0 1px rgba(48, 64, 53, 0.06),
+                  0 40px 100px rgba(0, 0, 0, 0.45),
+                  0 12px 30px rgba(48, 64, 53, 0.22),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.9);
+                animation: ddbReveal 0.55s cubic-bezier(0.34, 1.42, 0.64, 1);
                 display: flex; flex-direction: column;
               }
               .ddb-header {
                 position: relative;
-                padding: 18px 20px 22px;
-                background: linear-gradient(135deg, #2a3a30 0%, #3d5244 60%, #4a6552 100%);
+                padding: 20px 22px 24px;
+                background: linear-gradient(135deg, #2a3a30 0%, #3d5244 55%, #4a6552 100%);
                 color: #fff;
                 overflow: hidden;
               }
+              /* Halo dore qui tourne lentement en arriere-plan */
               .ddb-header::before {
                 content: '';
                 position: absolute;
-                inset: 0;
-                background: radial-gradient(circle at 80% 0%, rgba(217, 179, 138, 0.25), transparent 60%);
+                top: -50%; left: -10%;
+                width: 320px; height: 320px;
+                background: radial-gradient(circle, rgba(217, 179, 138, 0.42) 0%, rgba(217, 179, 138, 0.1) 40%, transparent 70%);
+                animation: ddbHaloRotate 18s linear infinite;
+                pointer-events: none;
+              }
+              /* 2eme halo plus subtil sur la droite */
+              .ddb-header::after {
+                content: '';
+                position: absolute;
+                bottom: -40%; right: -10%;
+                width: 280px; height: 280px;
+                background: radial-gradient(circle, rgba(74, 163, 80, 0.25) 0%, transparent 60%);
+                animation: ddbHaloRotate 24s linear infinite reverse;
+                pointer-events: none;
+              }
+
+              /* Particules sparkles dans le header */
+              .ddb-sparkle {
+                position: absolute;
+                width: 4px; height: 4px;
+                background: #d9b38a;
+                border-radius: 50%;
+                box-shadow: 0 0 8px rgba(217, 179, 138, 0.9), 0 0 14px rgba(217, 179, 138, 0.4);
+                animation: ddbSparkleFloat 3.5s ease-in-out infinite;
                 pointer-events: none;
               }
               .ddb-header-row {
@@ -1657,25 +1726,66 @@ export default function DossierDetailPage() {
               .ddb-close:hover { background: rgba(255,255,255,0.22); transform: rotate(90deg); }
 
               .ddb-progress-block {
-                margin-top: 14px;
+                margin-top: 16px;
                 position: relative; z-index: 1;
               }
-              .ddb-progress-numbers {
-                display: flex; align-items: baseline; justify-content: space-between;
-                margin-bottom: 8px;
+              .ddb-progress-flex {
+                display: flex; align-items: center; gap: 20px;
+                margin-bottom: 14px;
               }
-              .ddb-progress-pct {
-                font-size: 28px; font-weight: 800; color: #fff;
+              .ddb-circle-wrap {
+                position: relative;
+                width: 96px; height: 96px;
+                flex-shrink: 0;
+                animation: ddbCountUp 0.6s ease-out 0.4s both;
+              }
+              .ddb-circle-svg { width: 100%; height: 100%; transform: scale(1.06); }
+              .ddb-circle-pct {
+                position: absolute; inset: 0;
+                display: flex; align-items: baseline; justify-content: center;
+                gap: 1px;
+              }
+              .ddb-circle-num {
+                font-size: 30px; font-weight: 800; color: #fff;
+                letter-spacing: -0.04em;
+                line-height: 1;
+                text-shadow: 0 1px 8px rgba(217, 179, 138, 0.6);
+              }
+              .ddb-circle-unit { font-size: 13px; color: rgba(255,255,255,0.7); font-weight: 700; padding-bottom: 4px; }
+
+              .ddb-progress-stats {
+                display: flex; flex: 1;
+                gap: 14px;
+                animation: ddbCountUp 0.6s ease-out 0.55s both;
+              }
+              .ddb-stats-row {
+                flex: 1; display: flex; flex-direction: column; align-items: flex-start;
+                min-width: 0;
+              }
+              .ddb-stat-num {
+                font-size: 22px; font-weight: 800; line-height: 1;
                 letter-spacing: -0.02em;
-                font-family: var(--font-body, inherit);
               }
-              .ddb-progress-label { font-size: 11px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+              .ddb-stat-ok { color: #86efac; text-shadow: 0 0 12px rgba(134, 239, 172, 0.4); }
+              .ddb-stat-warn { color: #fdba74; text-shadow: 0 0 12px rgba(253, 186, 116, 0.4); }
+              .ddb-stat-total { color: rgba(255,255,255,0.95); }
+              .ddb-stat-label {
+                font-size: 9.5px; color: rgba(255,255,255,0.55);
+                text-transform: uppercase; letter-spacing: 0.1em;
+                font-weight: 700; margin-top: 4px;
+              }
+              .ddb-stat-divider {
+                width: 1px; height: 32px; align-self: center;
+                background: rgba(255,255,255,0.12);
+              }
+
               .ddb-progress-bar {
-                height: 10px; border-radius: 999px;
+                height: 8px; border-radius: 999px;
                 background: rgba(255,255,255,0.1);
                 overflow: hidden;
                 position: relative;
                 border: 1px solid rgba(255,255,255,0.08);
+                animation: ddbCountUp 0.6s ease-out 0.7s both;
               }
               .ddb-progress-fill {
                 height: 100%;
@@ -1766,10 +1876,33 @@ export default function DossierDetailPage() {
             `}</style>
 
             <div className="ddb-backdrop" onClick={() => setShowDashboard(false)} aria-hidden="true" />
+            <div className="ddb-aura" aria-hidden="true" />
 
             <aside id="dossier-dashboard-panel" className="ddb-panel" role="dialog" aria-label="Tableau de bord du dossier">
-              {/* Header avec progression */}
+              {/* Header avec progression + sparkles + halos rotatifs */}
               <div className="ddb-header">
+                {/* Particules dorees scintillantes */}
+                {Array.from({ length: 8 }).map((_, i) => {
+                  const positions = [
+                    { left: '12%', bottom: '10%', delay: '0s' },
+                    { left: '28%', bottom: '40%', delay: '0.6s' },
+                    { left: '46%', bottom: '15%', delay: '1.2s' },
+                    { left: '62%', bottom: '50%', delay: '0.3s' },
+                    { left: '78%', bottom: '22%', delay: '0.9s' },
+                    { left: '88%', bottom: '60%', delay: '1.5s' },
+                    { left: '20%', bottom: '70%', delay: '2.1s' },
+                    { left: '70%', bottom: '8%',  delay: '1.8s' },
+                  ];
+                  const p = positions[i];
+                  return (
+                    <span
+                      key={i}
+                      className="ddb-sparkle"
+                      style={{ left: p.left, bottom: p.bottom, animationDelay: p.delay }}
+                    />
+                  );
+                })}
+
                 <div className="ddb-header-row">
                   <div className="ddb-title-block">
                     <div className="ddb-title-icon"><LayoutDashboard className="h-5 w-5" /></div>
@@ -1788,22 +1921,69 @@ export default function DossierDetailPage() {
                   </button>
                 </div>
 
-                {/* Barre de progression — visible uniquement si au moins un sous-dossier */}
+                {/* Barre de progression + cercle radial — visible uniquement si au moins un sous-dossier */}
                 {totalSubs > 0 && (
                   <div className="ddb-progress-block">
-                    <div className="ddb-progress-numbers">
-                      <span className="ddb-progress-pct">{progressPct}%</span>
-                      <span className="ddb-progress-label">
-                        {validatedSubs.length} / {totalSubs} validés
-                      </span>
+                    <div className="ddb-progress-flex">
+                      {/* Cercle radial wahou */}
+                      <div className="ddb-circle-wrap">
+                        <svg viewBox="0 0 100 100" className="ddb-circle-svg" aria-hidden="true">
+                          <defs>
+                            <linearGradient id="ddbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stopColor="#f0c785" />
+                              <stop offset="50%" stopColor="#d9b38a" />
+                              <stop offset="100%" stopColor="#c89a64" />
+                            </linearGradient>
+                            <filter id="ddbGlow" x="-50%" y="-50%" width="200%" height="200%">
+                              <feGaussianBlur stdDeviation="2" result="b" />
+                              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+                            </filter>
+                          </defs>
+                          <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="8" />
+                          <circle
+                            cx="50" cy="50" r="42" fill="none"
+                            stroke="url(#ddbGrad)"
+                            strokeWidth="8"
+                            strokeLinecap="round"
+                            strokeDasharray="264"
+                            strokeDashoffset={264 - (264 * progressPct) / 100}
+                            transform="rotate(-90 50 50)"
+                            filter="url(#ddbGlow)"
+                            style={{ transition: 'stroke-dashoffset 1.1s cubic-bezier(0.22, 1, 0.36, 1)' }}
+                          />
+                        </svg>
+                        <div className="ddb-circle-pct">
+                          <span className="ddb-circle-num">{progressPct}</span>
+                          <span className="ddb-circle-unit">%</span>
+                        </div>
+                      </div>
+
+                      {/* Stats à droite */}
+                      <div className="ddb-progress-stats">
+                        <div className="ddb-stats-row">
+                          <span className="ddb-stat-num ddb-stat-ok">{validatedSubs.length}</span>
+                          <span className="ddb-stat-label">Validés</span>
+                        </div>
+                        <div className="ddb-stat-divider" />
+                        <div className="ddb-stats-row">
+                          <span className="ddb-stat-num ddb-stat-warn">{pendingSubs.length}</span>
+                          <span className="ddb-stat-label">En attente</span>
+                        </div>
+                        <div className="ddb-stat-divider" />
+                        <div className="ddb-stats-row">
+                          <span className="ddb-stat-num ddb-stat-total">{totalSubs}</span>
+                          <span className="ddb-stat-label">Total</span>
+                        </div>
+                      </div>
                     </div>
+
                     <div className="ddb-progress-bar">
                       <div className="ddb-progress-fill" style={{ width: `${progressPct}%` }} />
                     </div>
                     {allDone && (
                       <div className="ddb-all-done-badge">
                         <Check className="h-3 w-3" />
-                        Tous les sous-dossiers sont validés
+                        Dossier complet — tous les sous-dossiers validés
                       </div>
                     )}
                   </div>
