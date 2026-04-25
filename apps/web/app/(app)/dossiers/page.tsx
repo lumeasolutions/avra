@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, Circle, Phone, Mail, MapPin, FolderOpen, LayoutGrid, List, Trash2 } from 'lucide-react';
+import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, Circle, Phone, Mail, MapPin, FolderOpen, LayoutGrid, List, Trash2, LayoutDashboard } from 'lucide-react';
 import { useDossierStore } from '@/store';
 import { ValidationDashboard } from '@/components/dossiers/ValidationDashboard';
 import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
@@ -92,6 +92,16 @@ export default function DossiersPage() {
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('status');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // ── Tableau de bord (panel flottant) ────────────────────────────────────
+  const [showDashboard, setShowDashboard] = useState(false);
+  // Fermeture clavier (Escape)
+  useEffect(() => {
+    if (!showDashboard) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowDashboard(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showDashboard]);
 
   // ── Suppression ─────────────────────────────────────────────────────────
   const { deleteProject } = useProjectActions();
@@ -201,45 +211,163 @@ export default function DossiersPage() {
               <FilePlus className="h-4 w-4" />
               Nouveau dossier
             </Link>
+            {/* Bouton Tableau de bord — ouvre le panel flottant */}
+            <button
+              type="button"
+              onClick={() => setShowDashboard(v => !v)}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all active:scale-95 border ${
+                showDashboard
+                  ? 'bg-white text-[#304035] border-white shadow-md'
+                  : 'bg-white/10 text-white border-white/25 hover:bg-white/20'
+              }`}
+              title="Tableau de bord — KPIs et validation en temps réel"
+              aria-expanded={showDashboard}
+              aria-controls="dashboard-panel"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Tableau de bord
+            </button>
           </>
         }
       />
 
-      {/* ── TOP ROW : KPI STRIP (2/3) + VALIDATION DASHBOARD (1/3) ── */}
-      <div className="dos-top-row grid gap-4" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)' }}>
-        <div className="dos-kpi-grid grid grid-cols-4 gap-3 content-start">
-          {Object.entries(counts).map(([status, count]) => {
-          const cfg = STATUS_CONFIG[status];
-          const Icon = cfg.Icon;
-          const isActive = filterStatus === status;
-          return (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(isActive ? '' : status)}
-              className={`relative rounded-2xl p-4 text-left transition-all duration-200 border ${
-                isActive
-                  ? 'bg-[#304035] border-[#304035] shadow-md'
-                  : count === 0
-                  ? 'bg-white border-[#304035]/5 opacity-50'
-                  : 'bg-white border-[#304035]/8 hover:border-[#304035]/20'
-              }`}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className={`p-2 rounded-xl ${isActive ? 'bg-white/10' : 'bg-[#304035]/5'}`}>
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-white' : cfg.iconColor}`} />
-                </div>
-                <div className={`h-2 w-2 rounded-full ${count > 0 ? cfg.dotColor : 'bg-[#304035]/15'} ${isActive ? 'ring-2 ring-white/40' : ''}`} />
-              </div>
-              <div className={`text-2xl font-bold ${isActive ? 'text-white' : count === 0 ? 'text-[#304035]/30' : 'text-[#304035]'}`}>{count}</div>
-              <div className={`text-xs font-semibold mt-0.5 ${isActive ? 'text-white/70' : 'text-[#304035]/50'}`}>{cfg.label}</div>
-            </button>
-          );
-        })}
-        </div>
+      {/* ── PANEL TABLEAU DE BORD (flottant, ouvert/fermé via le bouton) ──
+       *  Contient les 4 KPIs cliquables (URGENT/EN COURS/FINITION/A VALIDER)
+       *  + le widget ValidationDashboard. Click sur la X ou backdrop pour fermer. */}
+      {showDashboard && (
+        <>
+          <style>{`
+            @keyframes dboardSlide {
+              from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+              to   { opacity: 1; transform: translateY(0) scale(1); }
+            }
+            @keyframes dboardFadeBg {
+              from { opacity: 0; }
+              to   { opacity: 1; }
+            }
+            .dboard-backdrop {
+              position: fixed; inset: 0;
+              background: rgba(20, 28, 22, 0.45);
+              backdrop-filter: blur(4px);
+              -webkit-backdrop-filter: blur(4px);
+              z-index: 60;
+              animation: dboardFadeBg 0.18s ease-out;
+            }
+            .dboard-panel {
+              position: fixed;
+              top: 92px; right: 24px;
+              z-index: 70;
+              width: min(720px, calc(100vw - 48px));
+              max-height: calc(100vh - 120px);
+              overflow-y: auto;
+              background: linear-gradient(180deg, #fffaf3 0%, #ffffff 50%);
+              border-radius: 20px;
+              border: 1px solid rgba(48, 64, 53, 0.12);
+              box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28), 0 6px 18px rgba(48, 64, 53, 0.18);
+              animation: dboardSlide 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+            }
+            .dboard-panel-header {
+              position: sticky; top: 0;
+              background: linear-gradient(135deg, #304035 0%, #3d5244 100%);
+              padding: 14px 18px;
+              display: flex; align-items: center; justify-content: space-between;
+              border-radius: 20px 20px 0 0;
+              z-index: 1;
+            }
+            .dboard-panel-title {
+              display: flex; align-items: center; gap: 10px;
+              color: #fff;
+            }
+            .dboard-panel-title h3 {
+              margin: 0; font-size: 16px; font-weight: 800;
+              letter-spacing: -0.01em;
+            }
+            .dboard-panel-title p {
+              margin: 1px 0 0 0; font-size: 11px;
+              color: rgba(255,255,255,0.6);
+            }
+            .dboard-close {
+              width: 32px; height: 32px; border-radius: 10px;
+              border: 1px solid rgba(255,255,255,0.2);
+              background: rgba(255,255,255,0.1);
+              color: rgba(255,255,255,0.85);
+              cursor: pointer;
+              display: flex; align-items: center; justify-content: center;
+              transition: all 0.18s ease;
+            }
+            .dboard-close:hover {
+              background: rgba(255,255,255,0.22);
+              color: #fff;
+              transform: rotate(90deg);
+            }
+            .dboard-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+            @media (max-width: 768px) {
+              .dboard-panel { top: 70px; right: 12px; left: 12px; width: auto; max-height: calc(100vh - 90px); }
+            }
+          `}</style>
 
-        {/* ── VALIDATION DASHBOARD (top-right) ── */}
-        <ValidationDashboard />
-      </div>
+          <div className="dboard-backdrop" onClick={() => setShowDashboard(false)} aria-hidden="true" />
+
+          <aside id="dashboard-panel" className="dboard-panel" role="dialog" aria-label="Tableau de bord">
+            <div className="dboard-panel-header">
+              <div className="dboard-panel-title">
+                <LayoutDashboard className="h-5 w-5" />
+                <div>
+                  <h3>Tableau de bord</h3>
+                  <p>Validation en temps réel · KPIs par statut</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="dboard-close"
+                onClick={() => setShowDashboard(false)}
+                aria-label="Fermer le tableau de bord"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="dboard-body">
+              {/* 4 KPIs cliquables */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {Object.entries(counts).map(([status, count]) => {
+                  const cfg = STATUS_CONFIG[status];
+                  const Icon = cfg.Icon;
+                  const isActive = filterStatus === status;
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => {
+                        setFilterStatus(isActive ? '' : status);
+                        setShowDashboard(false); // referme le panel après filtre
+                      }}
+                      className={`relative rounded-2xl p-4 text-left transition-all duration-200 border ${
+                        isActive
+                          ? 'bg-[#304035] border-[#304035] shadow-md'
+                          : count === 0
+                          ? 'bg-white border-[#304035]/5 opacity-60'
+                          : 'bg-white border-[#304035]/10 hover:border-[#304035]/30 hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className={`p-2 rounded-xl ${isActive ? 'bg-white/10' : 'bg-[#304035]/5'}`}>
+                          <Icon className={`h-4 w-4 ${isActive ? 'text-white' : cfg.iconColor}`} />
+                        </div>
+                        <div className={`h-2 w-2 rounded-full ${count > 0 ? cfg.dotColor : 'bg-[#304035]/15'} ${isActive ? 'ring-2 ring-white/40' : ''}`} />
+                      </div>
+                      <div className={`text-2xl font-bold ${isActive ? 'text-white' : count === 0 ? 'text-[#304035]/30' : 'text-[#304035]'}`}>{count}</div>
+                      <div className={`text-xs font-semibold mt-0.5 ${isActive ? 'text-white/70' : 'text-[#304035]/50'}`}>{cfg.label}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Validation Dashboard */}
+              <ValidationDashboard />
+            </div>
+          </aside>
+        </>
+      )}
 
       {/* ── SEARCH + SORT BAR ── */}
       <div className="dos-search-bar flex gap-3 items-center">
