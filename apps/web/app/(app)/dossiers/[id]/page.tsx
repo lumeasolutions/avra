@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
-import { MENUISIER_PROJET_REGEX } from '@/store/useDossierStore';
+import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
 import { uploadDossierDoc, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
@@ -123,6 +123,7 @@ export default function DossierDetailPage() {
   const updateDossierNotes = useDossierStore(s => s.updateDossierNotes);
   const profession = useAuthStore(s => s.profession);
   const isMenuisier = profession === 'menuisier';
+  const isArchitecte = profession === 'architecte';
 
   // Modale de confirmation de suppression d'un sous-dossier
   const [deleteConfirm, setDeleteConfirm] = useState<{ label: string; docsCount: number } | null>(null);
@@ -478,6 +479,44 @@ export default function DossierDetailPage() {
                       <span className="text-xs font-bold text-orange-600">Vide</span>
                     </div>
                   )}
+
+                  {/* Architecte : bouton + pour créer la version suivante (APS / APD).
+                   *  Visible uniquement sur la version la plus haute déjà existante
+                   *  pour cette phase, et tant qu'on n'a pas atteint le plafond de 5. */}
+                  {isArchitecte && (() => {
+                    const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
+                    if (!m) return null;
+                    const currentVersion = parseInt(m[1], 10);
+                    const phase = m[2].toUpperCase() as 'APS' | 'APD';
+                    if (!Number.isFinite(currentVersion)) return null;
+                    if (currentVersion >= ARCHITECTE_MAX_VERSION) return null;
+                    // Trouve la version max actuelle pour cette phase
+                    let maxVersion = 0;
+                    for (const other of dossier.subfolders) {
+                      const om = other.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
+                      if (!om) continue;
+                      if (om[2].toUpperCase() !== phase) continue;
+                      const v = parseInt(om[1], 10);
+                      if (Number.isFinite(v) && v > maxVersion) maxVersion = v;
+                    }
+                    // N'afficher le + que sur la version max — sinon ça pollue la liste
+                    if (currentVersion !== maxVersion) return null;
+                    const nextLabel = `PROJET VERSION ${currentVersion + 1} – ${phase}`;
+                    return (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addSubfolder(id, nextLabel);
+                        }}
+                        className="flex items-center justify-center h-7 w-7 rounded-full bg-[#a67749]/12 text-[#a67749] hover:bg-[#a67749] hover:text-white hover:shadow-md transition-all shrink-0 group"
+                        title={`Créer ${nextLabel}`}
+                        aria-label={`Créer ${nextLabel}`}
+                      >
+                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" strokeWidth={2.5} />
+                      </button>
+                    );
+                  })()}
 
                   {/* Bouton Valider / Pastille verte validée */}
                   {isValidated ? (

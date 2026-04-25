@@ -141,6 +141,15 @@ export const MENUISIER_DEFAULT_SUBFOLDERS: SubFolder[] = [
 /** Regex pour détecter les sous-dossiers "PROJET N" (menuisier) */
 export const MENUISIER_PROJET_REGEX = /^PROJET\s+(\d+)$/i;
 
+/**
+ * Regex pour détecter les sous-dossiers "PROJET VERSION N – APS" / "– APD" (architecte).
+ * Capture : groupe 1 = numéro de version, groupe 2 = phase (APS|APD).
+ * Tolère le tiret simple (-) ou em dash (–).
+ */
+export const ARCHITECTE_PROJET_VERSION_REGEX = /^PROJET\s+VERSION\s+(\d+)\s*[–—-]\s*(APS|APD)$/i;
+/** Plafond de versions par phase (APS et APD) côté architecte. */
+export const ARCHITECTE_MAX_VERSION = 5;
+
 /** Retourne le jeu par défaut de sous-dossiers selon la profession */
 export function getDefaultSubfoldersForProfession(profession?: string | null): SubFolder[] {
   if (profession === 'menuisier') return MENUISIER_DEFAULT_SUBFOLDERS;
