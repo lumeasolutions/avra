@@ -100,24 +100,76 @@ body {
 
 /* ── AVRA Design System v2 additions ── */
 
-/* Scrollbar styling — légèrement plus visible pour permettre le défilement
- * au touchpad / clavier (sans souris). 8px de large, opacité accentuée. */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: rgba(48, 64, 53, 0.04); border-radius: 999px; }
-::-webkit-scrollbar-thumb { background: rgba(48, 64, 53, 0.28); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(48, 64, 53, 0.45); }
-* { scrollbar-color: rgba(48, 64, 53, 0.28) rgba(48, 64, 53, 0.04); scrollbar-width: thin; }
+/* ─── SCROLLBARS GLOBALES — toujours visibles ───────────────────────────────
+ * Important UX : beaucoup d'utilisateurs sont sur PC portable sans souris.
+ * Sans scrollbar visible (touchpad sans gesture explicite), ils ne savent
+ * pas qu'on peut descendre dans la page. On force donc partout :
+ *  - html/body : scrollbar permanente côté droit du viewport
+ *  - tous les conteneurs scrollables : scrollbar visible (Webkit + Firefox)
+ *  - palette discrète gold/vert pour rester dans le design system
+ * ───────────────────────────────────────────────────────────────────────── */
 
-/* Container app principal : scrollbar TOUJOURS visible (le user a expressément
- * demandé une barre latérale de défilement quand pas de souris). */
-.app-scroll-visible {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(48, 64, 53, 0.32) rgba(48, 64, 53, 0.06);
+/* Force la scrollbar de la page TOUJOURS visible (évite les sauts horizontaux
+ * quand le contenu ne déborde pas, et signale visuellement qu'on peut scroller). */
+html { overflow-y: scroll; }
+
+/* Webkit (Chrome, Edge, Safari, Opera) — scrollbar globale */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
 }
-.app-scroll-visible::-webkit-scrollbar { width: 10px; }
-.app-scroll-visible::-webkit-scrollbar-track { background: rgba(48, 64, 53, 0.05); border-radius: 999px; margin: 4px 0; }
-.app-scroll-visible::-webkit-scrollbar-thumb { background: rgba(48, 64, 53, 0.32); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
-.app-scroll-visible::-webkit-scrollbar-thumb:hover { background: rgba(48, 64, 53, 0.55); background-clip: padding-box; border: 2px solid transparent; }
+::-webkit-scrollbar-track {
+  background: rgba(48, 64, 53, 0.05);
+  border-radius: 999px;
+  margin: 2px 0;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(48, 64, 53, 0.35);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  min-height: 40px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(48, 64, 53, 0.55);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+}
+::-webkit-scrollbar-thumb:active {
+  background: rgba(166, 119, 73, 0.7); /* gold à l'action pour signaler le drag */
+  background-clip: padding-box;
+  border: 3px solid transparent;
+}
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* Firefox — l'API est plus limitée, on définit couleur + épaisseur */
+* {
+  scrollbar-color: rgba(48, 64, 53, 0.35) rgba(48, 64, 53, 0.05);
+  scrollbar-width: auto;
+}
+
+/* Container principal app (zone authentifiee) — scrollbar légèrement plus
+ * proeminente (zone de travail principale). */
+.app-scroll-visible {
+  scrollbar-width: auto;
+  scrollbar-color: rgba(48, 64, 53, 0.42) rgba(48, 64, 53, 0.06);
+}
+.app-scroll-visible::-webkit-scrollbar { width: 14px; }
+.app-scroll-visible::-webkit-scrollbar-track { background: rgba(48, 64, 53, 0.06); border-radius: 999px; margin: 4px 0; }
+.app-scroll-visible::-webkit-scrollbar-thumb { background: rgba(48, 64, 53, 0.42); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; min-height: 48px; }
+.app-scroll-visible::-webkit-scrollbar-thumb:hover { background: rgba(48, 64, 53, 0.65); background-clip: padding-box; border: 3px solid transparent; }
+.app-scroll-visible::-webkit-scrollbar-thumb:active { background: rgba(166, 119, 73, 0.85); background-clip: padding-box; border: 3px solid transparent; }
+
+/* Sombre (pages auth login/register/portal-select et marketing dark) :
+ * scrollbar adaptée pour fond sombre. */
+.scroll-dark {
+  scrollbar-color: rgba(255, 255, 255, 0.25) rgba(255, 255, 255, 0.05);
+}
+.scroll-dark::-webkit-scrollbar { width: 12px; }
+.scroll-dark::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 999px; }
+.scroll-dark::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; min-height: 40px; }
+.scroll-dark::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.45); background-clip: padding-box; border: 3px solid transparent; }
+.scroll-dark::-webkit-scrollbar-thumb:active { background: rgba(217, 179, 138, 0.8); background-clip: padding-box; border: 3px solid transparent; }
 
 /* Focus ring for accessibility */
 *:focus-visible {
@@ -583,9 +635,11 @@ scrollbar-width: thin;
 
 }
 
-.menu-list::-webkit-scrollbar { width: 6px; }
-.menu-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 999px; }
-.menu-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.32); }
+.menu-list::-webkit-scrollbar { width: 8px; }
+.menu-list::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 999px; }
+.menu-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.28); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; min-height: 32px; }
+.menu-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.45); background-clip: padding-box; border: 2px solid transparent; }
+.menu-list::-webkit-scrollbar-thumb:active { background: rgba(217, 179, 138, 0.7); background-clip: padding-box; border: 2px solid transparent; }
 
 .menu-item {
 
