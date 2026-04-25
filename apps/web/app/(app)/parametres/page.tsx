@@ -6,12 +6,21 @@ import {
   ChevronRight, Save, Plus, Trash2, X, Crown, Eye, EyeOff, Check,
   Hash, Banknote, SlidersHorizontal, RefreshCw, Download, Upload,
   AlertTriangle, Shield, Percent, UserCheck, Users, TrendingUp, Sparkles,
-  Bot, Brain, Mic, MessageSquare, Database, Zap,
+  Bot, Brain, Mic, MessageSquare, Database, Zap, Repeat,
 } from 'lucide-react';
 import type { Apporteur } from '@/store';
 import { useConfigStore, useDossierStore, useFacturationStore, useHistoryStore, useStockStore } from '@/store';
+import { useAuthStore, type Profession } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
+
+// TEMPORARY DEV — voir DevPortalSwitcher panel ci-dessous
+const ADMIN_EMAILS = ['lumeasolutionsss@outlook.fr', 'cgdesignplan@gmail.com'];
+const PORTAILS_DEV: Array<{ id: Exclude<Profession, null>; emoji: string; label: string; color: string; gradient: string }> = [
+  { id: 'architecte', emoji: '🏛️', label: 'Architecte d\'intérieur', color: '#6b8e73', gradient: 'linear-gradient(135deg, #6b8e73 0%, #3D5449 55%, #2C3E2F 100%)' },
+  { id: 'menuisier', emoji: '🪵', label: 'Menuisier', color: '#c08a5a', gradient: 'linear-gradient(135deg, #d9b38a 0%, #a67749 50%, #7B4F2E 100%)' },
+  { id: 'cuisiniste', emoji: '🍳', label: 'Cuisiniste', color: '#4a7ec0', gradient: 'linear-gradient(135deg, #4a7ec0 0%, #1A3A5C 55%, #0F2540 100%)' },
+];
 
 // ─── Config sections ──────────────────────────────────────────────────────────
 
@@ -165,6 +174,13 @@ export default function ParametresPage() {
   const [editApporteurId, setEditApporteurId] = useState<string | null>(null);
   const [iaForm, setIAForm] = useState(iaConfig);
 
+  // TEMPORARY DEV — switch portail
+  const authUser = useAuthStore(s => s.user);
+  const currentProfession = useAuthStore(s => s.profession);
+  const forceProfession = useAuthStore(s => s._devForceProfession);
+  const isDevAdmin = (authUser?.role === 'ADMIN') ||
+    (typeof authUser?.email === 'string' && ADMIN_EMAILS.includes(authUser.email.toLowerCase()));
+
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll vers le panneau ouvert
@@ -199,6 +215,34 @@ export default function ParametresPage() {
 
       {/* ── Grille des sections ── */}
       <div className="grid gap-2.5 lg:grid-cols-2">
+        {/* Section dev temporaire — switch portail (admins uniquement) */}
+        {isDevAdmin && (
+          <button
+            onClick={() => setActive(active === 'portail-dev' ? null : 'portail-dev')}
+            className={cn(
+              'flex items-center justify-between rounded-2xl p-4 text-left transition-all border',
+              active === 'portail-dev'
+                ? 'bg-[#a67749] border-[#a67749] shadow-lg'
+                : 'bg-[#fff8ef] border-[#a67749]/40 hover:border-[#a67749] hover:shadow-md shadow-sm'
+            )}
+          >
+            <div className="flex items-center gap-3.5">
+              <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', active === 'portail-dev' ? 'bg-white/20' : 'bg-[#a67749]/15')}>
+                <Repeat className={cn('h-5 w-5', active === 'portail-dev' ? 'text-white' : 'text-[#a67749]')} />
+              </div>
+              <div>
+                <p className={cn('font-bold text-sm flex items-center gap-2', active === 'portail-dev' ? 'text-white' : 'text-[#a67749]')}>
+                  Changer de portail
+                  <span className={cn('text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded', active === 'portail-dev' ? 'bg-white/25 text-white' : 'bg-[#a67749]/15 text-[#a67749]')}>DEV</span>
+                </p>
+                <p className={cn('text-xs mt-0.5', active === 'portail-dev' ? 'text-white/65' : 'text-[#a67749]/60')}>
+                  Outil temporaire — bascule entre les 3 portails métier sans déconnexion
+                </p>
+              </div>
+            </div>
+            <ChevronRight className={cn('h-4 w-4 transition-transform shrink-0', active === 'portail-dev' ? 'text-white rotate-90' : 'text-[#a67749]/35')} />
+          </button>
+        )}
         {SECTIONS.map(s => (
           <button
             key={s.id}
@@ -1362,6 +1406,109 @@ export default function ParametresPage() {
           </div>
 
           <SaveButton saved={!!savedMap['ia']} onClick={() => { updateIAConfig(iaForm); flash('ia'); }} />
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+       * TEMPORARY DEV — Panel "Changer de portail"
+       * Accessible aux admins (role ADMIN ou email whitelisté).
+       * À retirer avant la GA :
+       *   1. Supprimer ce panel
+       *   2. Supprimer la section "portail-dev" plus haut dans la grille
+       *   3. Supprimer les imports + helpers associés (PORTAILS_DEV, ADMIN_EMAILS,
+       *      isDevAdmin, forceProfession, currentProfession)
+       *   4. Supprimer `_devForceProfession` de useAuthStore.ts
+       * ══════════════════════════════════════════════════════════════════════ */}
+      {active === 'portail-dev' && isDevAdmin && (
+        <div className="rounded-2xl border border-[#a67749]/30 bg-white shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-[#a67749]/8 via-[#a67749]/4 to-transparent border-b border-[#a67749]/15 px-6 py-4 flex items-center gap-3">
+            <Repeat className="h-5 w-5 text-[#a67749]" />
+            <div className="flex-1">
+              <h3 className="font-bold text-[#a67749] text-base flex items-center gap-2">
+                Changer de portail
+                <span className="text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded bg-[#a67749]/15">DEV</span>
+              </h3>
+              <p className="text-xs text-[#304035]/55 mt-0.5">
+                Outil de développement temporaire — bascule entre les 3 portails métier sans avoir à se déconnecter et reconnecter.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-5">
+            <div>
+              <label className="block text-[10px] font-bold text-[#304035]/50 mb-2 uppercase tracking-widest">Portail actuel</label>
+              {currentProfession ? (
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#304035]/5 border border-[#304035]/10">
+                  <span className="text-xl">{PORTAILS_DEV.find(p => p.id === currentProfession)?.emoji}</span>
+                  <span className="font-bold text-sm text-[#304035]">
+                    {PORTAILS_DEV.find(p => p.id === currentProfession)?.label}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-sm text-[#304035]/50 italic">Aucun portail sélectionné</div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-[#304035]/50 mb-2 uppercase tracking-widest">Basculer vers</label>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {PORTAILS_DEV.map(p => {
+                  const active = p.id === currentProfession;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        if (active) return;
+                        forceProfession(p.id);
+                        if (typeof window !== 'undefined') {
+                          window.location.href = `/portail-${p.id}`;
+                        }
+                      }}
+                      disabled={active}
+                      className={cn(
+                        'relative overflow-hidden rounded-2xl p-4 text-left border transition-all',
+                        active
+                          ? 'border-[#304035]/15 bg-[#f5eee8]/40 cursor-not-allowed opacity-60'
+                          : 'border-[#304035]/10 bg-white hover:shadow-lg hover:-translate-y-0.5 hover:border-transparent cursor-pointer'
+                      )}
+                      style={!active ? { transition: 'all 0.25s ease' } : undefined}
+                    >
+                      {!active && (
+                        <span
+                          aria-hidden
+                          className="absolute inset-0 opacity-0 hover:opacity-10 transition-opacity"
+                          style={{ background: p.gradient }}
+                        />
+                      )}
+                      <div className="relative flex items-center gap-3">
+                        <span className="text-2xl">{p.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-[#304035] truncate">{p.label}</p>
+                          <p className="text-[11px] text-[#304035]/50 mt-0.5">
+                            {active ? 'Portail actuel' : `Aller sur /portail-${p.id}`}
+                          </p>
+                        </div>
+                        {active ? (
+                          <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-[#304035]/40 shrink-0" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 rounded-xl bg-[#fff8ef] border border-[#a67749]/20 px-4 py-3">
+              <AlertTriangle className="h-4 w-4 text-[#a67749] shrink-0 mt-0.5" />
+              <p className="text-xs text-[#7c5a30] leading-relaxed">
+                <strong className="font-bold">Outil interne réservé aux admins.</strong> En production normale, le choix
+                du portail est définitif (fait à l'inscription). Cette section sera retirée avant la sortie GA.
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
