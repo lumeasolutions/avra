@@ -1,6 +1,7 @@
 import { Module, Global } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { CsrfGuard } from './guards/csrf.guard';
+import { CsrfTokenInterceptor } from './interceptors/csrf-token.interceptor';
 import { SecurityController } from './controllers/security.controller';
 import { PermissionGuard } from './permissions/permission.guard';
 import { WorkspaceGuard } from './permissions/workspace.guard';
@@ -34,6 +35,12 @@ import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
     {
       provide: APP_GUARD,
       useClass: CsrfGuard,
+    },
+    // ✅ SECURITY: Expose le token CSRF dans le header X-CSRF-Token
+    // après chaque requête (le frontend le réutilise pour les mutations).
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CsrfTokenInterceptor,
     },
     // ✅ SECURITY: Apply workspace isolation guard
     {

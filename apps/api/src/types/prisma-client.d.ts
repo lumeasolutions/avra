@@ -96,6 +96,7 @@ declare module '@prisma/client' {
     readonly storedFile: any;
     readonly document: any;
     readonly documentShare: any;
+    readonly documentAuditLog: any;
     readonly event: any;
     readonly eventIntervenant: any;
     readonly reminder: any;

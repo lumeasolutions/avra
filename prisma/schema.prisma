@@ -245,6 +245,7 @@ model Workspace {
   automationRules    AutomationRule[]
   quotes             Quote[]
   dossierDocuments   DossierDocument[]
+  documentAuditLogs  DocumentAuditLog[]
 }
 
 model User {
@@ -270,6 +271,7 @@ model User {
   createdEvents     Event[]
   ownedProjects     Project[]       @relation("ProjectOwner")
   createdDossierDocuments DossierDocument[] @relation("DossierDocumentCreatedBy")
+  documentAuditLogs DocumentAuditLog[]
 }
 
 model UserWorkspace {
@@ -526,6 +528,18 @@ model Document {
   kind            DocumentKind @default(AUTRE)
   visibilityClient Boolean     @default(false)
   version         Int          @default(1)
+  /// Date d'expiration optionnelle (Kbis ~3 mois, attestation assurance ~1 an).
+  /// Null = pas de péremption. Une alerte UI apparait à J-30.
+  expiresAt       DateTime?
+  /// Description / notes libres saisies par l'admin (mémo interne).
+  description     String?      @db.Text
+  /// Tags personnalisés en CSV : ex "urgent,2026,fournisseur-blum".
+  /// Format simple pour éviter une table dédiée — on filtre côté UI.
+  tagsCsv         String?
+  /// Document parent si cette ligne est une nouvelle version d'un autre.
+  /// Permet le versioning : on garde toutes les versions et on remonte
+  /// la chaîne via parentDocumentId.
+  parentDocumentId String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -534,12 +548,46 @@ model Document {
   storedFile        StoredFile     @relation(fields: [storedFileId], references: [id])
   createdBy         User           @relation(fields: [createdById], references: [id])
   folder            ProjectFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  parentDocument    Document?      @relation("DocumentVersions", fields: [parentDocumentId], references: [id], onDelete: SetNull)
+  childVersions     Document[]     @relation("DocumentVersions")
   shares            DocumentShare[]
+  auditLogs         DocumentAuditLog[]
   iaJobsAsSource    IaJob[]        @relation("IaSourceDoc")
   iaJobsAsResult    IaJob[]        @relation("IaResultDoc")
 
   @@index([workspaceId])
   @@index([projectId])
+  @@index([workspaceId, projectId, expiresAt])
+  @@index([parentDocumentId])
+}
+
+/// Audit log des actions effectuées sur les documents (admin docs notamment).
+/// Conservation 90 jours par défaut (RGPD), pruning via cron côté backend.
+///
+/// `action` est un string libre pour rester extensible :
+///   'upload', 'download', 'delete', 'replace', 'share-create',
+///   'share-revoke', 'tags-update', 'expiration-update',
+///   'category-update', 'rename'.
+model DocumentAuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  documentId  String?
+  /// Conservé même si le document est supprimé — trace permanente.
+  documentTitle String
+  userId      String
+  userEmail   String
+  action      String
+  /// Métadonnées libres (JSON string) : ip, userAgent, anciennes valeurs…
+  meta        String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  document    Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([workspaceId, createdAt])
+  @@index([documentId])
+  @@index([userId])
 }
 
 model DocumentShare {
