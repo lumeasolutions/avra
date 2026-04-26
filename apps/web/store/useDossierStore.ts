@@ -162,7 +162,7 @@ export function getDefaultSubfoldersForProfession(profession?: string | null): S
   return DEFAULT_SUBFOLDERS;
 }
 
-const SIGNED_SUBFOLDERS: SubFolder[] = [
+export const SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER AVANT VENTE' },
   { label: 'PROJET VERSION 3' },
   { label: 'SUIVI DE CHANTIER' },

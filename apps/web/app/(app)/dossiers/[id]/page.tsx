@@ -11,11 +11,12 @@ import {
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
-import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION } from '@/store/useDossierStore';
+import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION, SIGNED_SUBFOLDERS } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
 import { uploadDossierDoc, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
 import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
+import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
 import { useProjectActions } from '@/hooks/useProjectActions';
 
 /** Normalise un document (string legacy ou objet) pour affichage. */
@@ -122,6 +123,7 @@ export default function DossierDetailPage() {
   const removeDocumentFromSubfolder = useDossierStore(s => s.removeDocumentFromSubfolder);
   const ensureDefaultSubfolders = useDossierStore(s => s.ensureDefaultSubfolders);
   const updateDossierNotes = useDossierStore(s => s.updateDossierNotes);
+  const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
   const profession = useAuthStore(s => s.profession);
   const isMenuisier = profession === 'menuisier';
   const isArchitecte = profession === 'architecte';
@@ -292,14 +294,31 @@ export default function DossierDetailPage() {
   const stepIdx = STATUS_ORDER.indexOf(dossier.status);
   const totalHT = invoices.reduce((s, i) => s + (i.montantHT > 0 ? i.montantHT : 0), 0);
 
-  // Signe le dossier : POST /projects/:id/sign (via useProjectActions) + mise à jour store.
-  // Fire-and-forget : on route immédiatement vers /dossiers-signes, l'API tourne en arrière-plan.
-  const handleSigner = async () => {
+  // ── Validation projet : modal dates butoires obligatoire ──────────────
+  // L'utilisateur doit renseigner les dates butoires de chaque sous-dossier
+  // signé AVANT de pouvoir valider (sinon l'équipe perd les deadlines).
+  const [showDateButoiresModal, setShowDateButoiresModal] = useState(false);
+  const [signing, setSigning] = useState(false);
+  const signedSubfolderLabels = SIGNED_SUBFOLDERS.map((sf) => sf.label);
+
+  const handleSigner = () => {
+    // Ouvre la modal — la signature réelle est faite après la saisie des dates
+    setShowDateButoiresModal(true);
+  };
+
+  const handleConfirmDatesButoires = async (dates: Record<string, string>) => {
+    setSigning(true);
     try {
+      // 1. Persister les dates butoires AVANT le sign (le sign déplace le
+      //    dossier dans dossiersSignes et nettoie l'état local).
+      setDatesButoiresSignes(id, dates);
+      // 2. Signer le projet (POST /projects/:id/sign + store update).
       await signProject(id);
     } catch (err) {
       console.warn('[sign] API call failed (state local conservé) :', err);
     } finally {
+      setSigning(false);
+      setShowDateButoiresModal(false);
       router.push('/dossiers-signes');
     }
   };
@@ -2347,6 +2366,17 @@ export default function DossierDetailPage() {
           </>
         );
       })()}
+
+      {/* ══════════════════════════════════════════════════════════════════
+       *  MODAL : dates butoires obligatoires avant validation projet
+       *  ══════════════════════════════════════════════════════════════════ */}
+      <DateButoireValidationModal
+        open={showDateButoiresModal}
+        signedSubfolders={signedSubfolderLabels}
+        loading={signing}
+        onConfirm={handleConfirmDatesButoires}
+        onCancel={() => { if (!signing) setShowDateButoiresModal(false); }}
+      />
     </div>
   );
 }
