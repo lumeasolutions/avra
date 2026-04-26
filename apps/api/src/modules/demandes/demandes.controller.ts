@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, Param, Patch, Post, Query, Req,
+  Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res,
   UseGuards, BadRequestException, ForbiddenException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -9,7 +9,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import type { JwtPayload } from '@avra/types';
 import { DemandeStatus, DemandeType } from '../../prisma-enums';
-import { Request } from 'express';
+import { Request, Response } from 'express';
+import * as fs from 'fs';
 
 /* ─────────────────────────────────────────────────────────────────────
  * COTE PRO — toutes les routes ici sont @UseGuards(JwtAuthGuard)
@@ -105,6 +106,17 @@ export class DemandesController {
     @Param('attachmentId') attachmentId: string,
   ) {
     return this.demandes.removeAttachment(user.workspaceId, id, 'pro', attachmentId);
+  }
+
+  /** Download d'une piece jointe (cote pro). */
+  @Get('attachments/:attachmentId')
+  async downloadAttachment(
+    @CurrentUser() user: JwtPayload,
+    @Param('attachmentId') attachmentId: string,
+    @Res() res: Response,
+  ) {
+    const r = await this.demandes.getAttachmentForDownload(user.workspaceId, attachmentId, 'pro');
+    return streamOrRedirect(res, r);
   }
 
   /* ── Invitations (cote pro) ────────────────────────────────────── */
@@ -204,6 +216,17 @@ export class IntervenantPortalController {
   profile(@CurrentUser() user: JwtPayload) {
     return this.demandes.getIntervenantProfilesForUser(user.sub);
   }
+
+  /** Download d'une piece jointe (cote intervenant). */
+  @Get('attachments/:attachmentId')
+  async downloadAttachment(
+    @CurrentUser() user: JwtPayload,
+    @Param('attachmentId') attachmentId: string,
+    @Res() res: Response,
+  ) {
+    const r = await this.demandes.getAttachmentForDownload(user.sub, attachmentId, 'intervenant');
+    return streamOrRedirect(res, r);
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -271,4 +294,23 @@ export class IntervenantInvitationController {
   async refuse(@Param('token') token: string) {
     return this.demandes.refuseInvitation(token);
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Helper interne pour les routes /attachments/:id
+ * Decide entre 302 redirect (Supabase signed URL) et streaming local FS.
+ * ───────────────────────────────────────────────────────────────────── */
+function streamOrRedirect(
+  res: Response,
+  r:
+    | { kind: 'redirect'; signedUrl: string; originalName: string; mimeType: string }
+    | { kind: 'stream'; filePath: string; originalName: string; mimeType: string },
+) {
+  if (r.kind === 'redirect') {
+    return res.redirect(302, r.signedUrl);
+  }
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(r.originalName)}"`);
+  res.setHeader('Content-Type', r.mimeType);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  fs.createReadStream(r.filePath).pipe(res);
 }

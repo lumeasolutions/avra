@@ -38,20 +38,11 @@ export function AttachmentsList({ attachments, onDownload }: Props) {
 
   const handleDownload = async (att: DemandeAttachment) => {
     if (onDownload) return onDownload(att);
-    // Fallback : tentative de download via l'endpoint document
-    try {
-      if (att.dossierDocumentId) {
-        // Endpoint que le backend pro expose pour récup d'un dossierDocument
-        // Côté intervenant : il y a un endpoint dédié dans IntervenantPortalController
-        // qu'on utilisera dès qu'on l'expose. Pour l'instant : best-effort.
-        window.open(`/api/v1/intervenant-portal/attachments/${att.id}`, '_blank');
-        return;
-      }
-      if (att.documentId) {
-        window.open(`/api/v1/intervenant-portal/attachments/${att.id}`, '_blank');
-        return;
-      }
-    } catch {/* noop */}
+    // Endpoint backend qui :
+    //  - 302 redirect vers Supabase signed URL (DossierDocument)
+    //  - stream local FS (Document admin)
+    // Le navigateur suit le redirect transparent.
+    window.open(`/api/v1/intervenant-portal/attachments/${encodeURIComponent(att.id)}`, '_blank');
   };
 
   return (
