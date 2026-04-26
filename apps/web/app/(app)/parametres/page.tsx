@@ -16,10 +16,18 @@ import { PageHeader } from '@/components/layout/PageHeader';
 
 // TEMPORARY DEV — voir DevPortalSwitcher panel ci-dessous
 const ADMIN_EMAILS = ['lumeasolutionsss@outlook.fr', 'cgdesignplan@gmail.com'];
-const PORTAILS_DEV: Array<{ id: Exclude<Profession, null>; emoji: string; label: string; color: string; gradient: string }> = [
-  { id: 'architecte', emoji: '🏛️', label: 'Architecte d\'intérieur', color: '#6b8e73', gradient: 'linear-gradient(135deg, #6b8e73 0%, #3D5449 55%, #2C3E2F 100%)' },
-  { id: 'menuisier', emoji: '🪵', label: 'Menuisier', color: '#c08a5a', gradient: 'linear-gradient(135deg, #d9b38a 0%, #a67749 50%, #7B4F2E 100%)' },
-  { id: 'cuisiniste', emoji: '🍳', label: 'Cuisiniste', color: '#4a7ec0', gradient: 'linear-gradient(135deg, #4a7ec0 0%, #1A3A5C 55%, #0F2540 100%)' },
+
+/**
+ * Liste des destinations du switcher.
+ * `id` = profession (architecte/menuisier/cuisiniste) OU 'intervenant'.
+ * Pour 'intervenant', on ne touche pas a la profession et on redirige vers /intervenant.
+ */
+type PortalChoiceId = Exclude<Profession, null> | 'intervenant';
+const PORTAILS_DEV: Array<{ id: PortalChoiceId; emoji: string; label: string; color: string; gradient: string; href: string }> = [
+  { id: 'architecte', emoji: '🏛️', label: 'Architecte d\'intérieur', color: '#6b8e73', gradient: 'linear-gradient(135deg, #6b8e73 0%, #3D5449 55%, #2C3E2F 100%)', href: '/portail-architecte' },
+  { id: 'menuisier',  emoji: '🪵', label: 'Menuisier',                color: '#c08a5a', gradient: 'linear-gradient(135deg, #d9b38a 0%, #a67749 50%, #7B4F2E 100%)', href: '/portail-menuisier' },
+  { id: 'cuisiniste', emoji: '🍳', label: 'Cuisiniste',               color: '#4a7ec0', gradient: 'linear-gradient(135deg, #4a7ec0 0%, #1A3A5C 55%, #0F2540 100%)', href: '/portail-cuisiniste' },
+  { id: 'intervenant', emoji: '🔧', label: 'Espace intervenant',      color: '#3D5449', gradient: 'linear-gradient(135deg, #4a6951 0%, #3D5449 50%, #1a2a1e 100%)', href: '/intervenant' },
 ];
 
 // ─── Config sections ──────────────────────────────────────────────────────────
@@ -240,7 +248,7 @@ export default function ParametresPage() {
                   <span className={cn('text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded', active === 'portail-dev' ? 'bg-white/25 text-white' : 'bg-[#a67749]/15 text-[#a67749]')}>DEV</span>
                 </p>
                 <p className={cn('text-xs mt-0.5', active === 'portail-dev' ? 'text-white/65' : 'text-[#a67749]/60')}>
-                  Outil temporaire — bascule entre les 3 portails métier sans déconnexion
+                  Bascule entre les 3 portails métier + l'espace intervenant
                 </p>
               </div>
             </div>
@@ -1433,7 +1441,7 @@ export default function ParametresPage() {
                 <span className="text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded bg-[#a67749]/15">DEV</span>
               </h3>
               <p className="text-xs text-[#304035]/55 mt-0.5">
-                Outil de développement temporaire — bascule entre les 3 portails métier sans avoir à se déconnecter et reconnecter.
+                Bascule entre les 3 portails métier ou l'espace intervenant sans avoir à se déconnecter.
               </p>
             </div>
           </div>
@@ -1455,18 +1463,25 @@ export default function ParametresPage() {
 
             <div>
               <label className="block text-[10px] font-bold text-[#304035]/50 mb-2 uppercase tracking-widest">Basculer vers</label>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {PORTAILS_DEV.map(p => {
-                  const active = p.id === currentProfession;
+                  // 'intervenant' n'est pas une profession — il n'apparait jamais comme "actif"
+                  // dans le switch profession (on y va via /intervenant directement).
+                  const active = p.id !== 'intervenant' && p.id === currentProfession;
+                  const isIntervenant = p.id === 'intervenant';
                   return (
                     <button
                       key={p.id}
                       type="button"
                       onClick={() => {
                         if (active) return;
-                        forceProfession(p.id);
+                        // Pour les 3 portails metiers, on update aussi profession.
+                        // Pour intervenant, on ne touche pas a profession (c'est une vue).
+                        if (!isIntervenant) {
+                          forceProfession(p.id as Exclude<Profession, null>);
+                        }
                         if (typeof window !== 'undefined') {
-                          window.location.href = `/portail-${p.id}`;
+                          window.location.href = p.href;
                         }
                       }}
                       disabled={active}
@@ -1490,7 +1505,7 @@ export default function ParametresPage() {
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-sm text-[#304035] truncate">{p.label}</p>
                           <p className="text-[11px] text-[#304035]/50 mt-0.5">
-                            {active ? 'Portail actuel' : `Aller sur /portail-${p.id}`}
+                            {active ? 'Portail actuel' : isIntervenant ? 'Aller sur /intervenant' : `Aller sur ${p.href}`}
                           </p>
                         </div>
                         {active ? (
