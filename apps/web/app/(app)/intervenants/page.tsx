@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Mail, Phone, Plus, Trash2, Search, Wrench, Users,
   X, Edit3, Check, FileText, ArrowUpDown,
-  MessageSquare, ExternalLink, HardHat,
+  MessageSquare, ExternalLink, HardHat, Send, Link2, ShieldCheck, Clock,
 } from 'lucide-react';
 import { useDossierStore, useIntervenantStore, type Intervenant } from '@/store';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
+import { InviteIntervenantModal } from '@/components/demandes/InviteIntervenantModal';
+import { listInvitations, type IntervenantInvitation } from '@/lib/demandes-api';
 
 // ─── Config types ─────────────────────────────────────────────────────────────
 
@@ -357,6 +359,28 @@ export default function IntervenantsPage() {
   const [form, setForm] = useState({ type: 'POSEUR', name: '', phone: '', email: '', notes: '' });
   const [selected, setSelected] = useState<string | null>(null);
 
+  // Invitations PENDING par intervenantId — affichees comme badges "Invite"
+  const [invitations, setInvitations] = useState<Record<string, IntervenantInvitation>>({});
+  // Modal d'invitation : { intervenantId, name, email }
+  const [invitingFor, setInvitingFor] = useState<{ id: string; name: string; email?: string } | null>(null);
+
+  // Charge les invitations PENDING au mount
+  useEffect(() => {
+    let cancelled = false;
+    listInvitations()
+      .then((rawList) => {
+        if (cancelled) return;
+        const arr = Array.isArray(rawList) ? rawList : (Array.isArray((rawList as any)?.data) ? (rawList as any).data : []);
+        const byIntervenantId: Record<string, IntervenantInvitation> = {};
+        for (const inv of arr as IntervenantInvitation[]) {
+          if (inv.status === 'PENDING') byIntervenantId[inv.intervenantId] = inv;
+        }
+        setInvitations(byIntervenantId);
+      })
+      .catch(() => {/* noop : auth/network — on affiche juste sans badge */});
+    return () => { cancelled = true; };
+  }, []);
+
   const selectedIntervenant = intervenants.find(i => i.id === selected) ?? null;
 
   const typesPresents = useMemo(() => {
@@ -605,6 +629,11 @@ export default function IntervenantsPage() {
           <div className="divide-y divide-[#304035]/5">
             {filtered.map(i => {
               const c = cfg(i.type);
+              const inv = invitations[i.id];
+              // Statut de liaison : invité PENDING > pas de compte (par defaut côté pro,
+              // on n'a pas l'info userId ici dans le store local — l'API est source de
+              // vérité pour le bouton "Inviter" qui se réafficherait après refresh).
+              const status: 'invited' | 'no-account' = inv ? 'invited' : 'no-account';
               return (
                 <div
                   key={i.id}
@@ -624,6 +653,16 @@ export default function IntervenantsPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-[#304035] group-hover:text-[#a67749] transition-colors text-[15px]">{i.name}</p>
                       <TypeBadge type={i.type} size="xs" />
+                      {/* Badge statut compte */}
+                      {status === 'invited' ? (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                          <Clock className="h-2.5 w-2.5" /> INVITÉ
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                          PAS DE COMPTE
+                        </span>
+                      )}
                       {i.notes && (
                         <span className="text-[10px] text-[#304035]/35 italic truncate max-w-[130px] hidden sm:block">{i.notes}</span>
                       )}
@@ -648,27 +687,50 @@ export default function IntervenantsPage() {
                     </div>
                   </div>
 
-                  {/* Actions rapides hover */}
-                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    {i.phone && (
-                      <a href={`tel:${i.phone.replace(/\s/g, '')}`} onClick={e => e.stopPropagation()}
-                        className="h-8 w-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center text-white transition-colors shadow-sm"
-                        title="Appeler">
-                        <Phone className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                    {i.email && (
-                      <a href={`mailto:${i.email}`} onClick={e => e.stopPropagation()}
-                        className="h-8 w-8 rounded-xl bg-blue-500 hover:bg-blue-600 flex items-center justify-center text-white transition-colors shadow-sm"
-                        title="Envoyer un email">
-                        <Mail className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                    <button onClick={e => { e.stopPropagation(); setSelected(i.id); }}
-                      className="h-8 w-8 rounded-xl bg-[#304035]/8 hover:bg-[#304035]/15 flex items-center justify-center text-[#304035]/60 transition-colors"
-                      title="Voir la fiche">
-                      <Edit3 className="h-3.5 w-3.5" />
+                  {/* Actions rapides — toujours visibles pour l'invitation/demande */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Bouton INVITER / VOIR INVITATION — toujours visible */}
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        setInvitingFor({ id: i.id, name: i.name, email: i.email || undefined });
+                      }}
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold transition-all shadow-sm',
+                        status === 'invited'
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+                          : 'bg-[#a67749] text-white hover:bg-[#a67749]/85 hover:shadow-md'
+                      )}
+                      title={status === 'invited' ? 'Voir / gérer l\'invitation' : 'Envoyer un lien d\'accès'}
+                    >
+                      {status === 'invited' ? <Link2 className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+                      <span className="hidden sm:inline">
+                        {status === 'invited' ? 'Lien' : 'Inviter'}
+                      </span>
                     </button>
+
+                    {/* Actions rapides hover */}
+                    <div className="hidden md:flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {i.phone && (
+                        <a href={`tel:${i.phone.replace(/\s/g, '')}`} onClick={e => e.stopPropagation()}
+                          className="h-8 w-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center text-white transition-colors shadow-sm"
+                          title="Appeler">
+                          <Phone className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      {i.email && (
+                        <a href={`mailto:${i.email}`} onClick={e => e.stopPropagation()}
+                          className="h-8 w-8 rounded-xl bg-blue-500 hover:bg-blue-600 flex items-center justify-center text-white transition-colors shadow-sm"
+                          title="Envoyer un email">
+                          <Mail className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      <button onClick={e => { e.stopPropagation(); setSelected(i.id); }}
+                        className="h-8 w-8 rounded-xl bg-[#304035]/8 hover:bg-[#304035]/15 flex items-center justify-center text-[#304035]/60 transition-colors"
+                        title="Voir la fiche">
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -683,6 +745,26 @@ export default function IntervenantsPage() {
           intervenant={selectedIntervenant}
           onClose={() => setSelected(null)}
           onDelete={() => { removeIntervenant(selectedIntervenant.id); setSelected(null); }}
+        />
+      )}
+
+      {/* ── Modal invitation ── */}
+      {invitingFor && (
+        <InviteIntervenantModal
+          open={!!invitingFor}
+          onClose={() => setInvitingFor(null)}
+          intervenantId={invitingFor.id}
+          intervenantName={invitingFor.name}
+          defaultEmail={invitingFor.email}
+          existingInvitation={invitations[invitingFor.id] ?? null}
+          onChange={(inv) => {
+            setInvitations(prev => {
+              const next = { ...prev };
+              if (inv && inv.status === 'PENDING') next[invitingFor.id] = inv;
+              else delete next[invitingFor.id];
+              return next;
+            });
+          }}
         />
       )}
     </div>
