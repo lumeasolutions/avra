@@ -80,9 +80,12 @@ export class IaController {
       // Charger le contexte workspace si user connecté
       let dossiers: any[] = [];
       let invoices: any[] = [];
+      let intervenants: any[] = [];
+      let demandes: any[] = [];
+      let invitationsPending = 0;
 
       if (user?.workspaceId) {
-        [dossiers, invoices] = await Promise.all([
+        [dossiers, invoices, intervenants, demandes, invitationsPending] = await Promise.all([
           this.prisma.project.findMany({
             where: { workspaceId: user.workspaceId },
             select: { id: true, name: true, lifecycleStatus: true, priority: true },
@@ -91,6 +94,21 @@ export class IaController {
           this.prisma.paymentRequest.findMany({
             where: { workspaceId: user.workspaceId },
             select: { id: true, status: true },
+          }),
+          this.prisma.intervenant.findMany({
+            where: { workspaceId: user.workspaceId },
+            select: { id: true, type: true, companyName: true, firstName: true, lastName: true, userId: true },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+          }),
+          (this.prisma as any).demande.findMany({
+            where: { workspaceId: user.workspaceId },
+            select: { id: true, status: true, type: true },
+            orderBy: { createdAt: 'desc' },
+            take: 200,
+          }),
+          (this.prisma as any).intervenantInvitation.count({
+            where: { workspaceId: user.workspaceId, status: 'PENDING' },
           }),
         ]);
       }
@@ -106,6 +124,21 @@ export class IaController {
       // Résumé nommé des dossiers actifs pour que l'IA soit précise
       const activeDossierNames = activeDossiers.map((d: any) => d.name).join(', ') || 'aucun';
 
+      // Phase 7 — contexte demandes/intervenants
+      const intervenantNames = intervenants
+        .slice(0, 8)
+        .map((i: any) =>
+          (i.companyName ?? `${i.firstName ?? ''} ${i.lastName ?? ''}`.trim() ?? '—')
+            + ` (${i.type})`,
+        )
+        .join(', ');
+      const demandePendingCount = demandes.filter((d: any) =>
+        d.status === 'ENVOYEE' || d.status === 'VUE'
+      ).length;
+      const demandeEnCoursCount = demandes.filter((d: any) =>
+        d.status === 'ACCEPTEE' || d.status === 'EN_COURS'
+      ).length;
+
       // Convertir au format messages
       const messages = (body.messages || []).map((m) => ({
         role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
@@ -120,6 +153,12 @@ export class IaController {
         pendingInvoiceCount,
         signedCount: signedDossiers.length,
         activeDossierNames,
+        intervenantCount: intervenants.length,
+        activeIntervenantNames: intervenantNames || undefined,
+        demandeCount: demandes.length,
+        demandePendingCount,
+        demandeEnCoursCount,
+        invitationsPendingCount: invitationsPending,
       });
 
       // Configurer la réponse SSE

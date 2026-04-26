@@ -50,6 +50,12 @@ export class QwenService {
     pendingInvoiceCount?: number;
     signedCount?: number;
     activeDossierNames?: string;
+    intervenantCount?: number;
+    activeIntervenantNames?: string;
+    demandeCount?: number;
+    demandePendingCount?: number;
+    demandeEnCoursCount?: number;
+    invitationsPendingCount?: number;
   }): string {
     return SYSTEM_PROMPTS.ASSISTANT(context);
   }
@@ -99,6 +105,12 @@ export class QwenService {
       pendingInvoiceCount?: number;
       signedCount?: number;
       activeDossierNames?: string;
+      intervenantCount?: number;
+      activeIntervenantNames?: string;
+      demandeCount?: number;
+      demandePendingCount?: number;
+      demandeEnCoursCount?: number;
+      invitationsPendingCount?: number;
     },
   ): Promise<Readable> {
     if (!this.enabled || !this.apiKey) {

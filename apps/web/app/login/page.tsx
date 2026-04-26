@@ -13,6 +13,34 @@ function getRedirectUrl(profession: string | null) {
   return `/portail-${profession}`;
 }
 
+/** Whitelist anti open-redirect : seules les routes internes safe sont acceptees. */
+function safeNextUrl(next: string | null | undefined): string | null {
+  if (!next) return null;
+  if (typeof next !== 'string') return null;
+  // Doit commencer par / mais pas par // (protocole-relatif) ni /\ (Windows hack)
+  if (!next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return null;
+  // Routes autorisees explicitement
+  const allowedPrefixes = ['/intervenant', '/invitation/', '/portail-', '/dashboard', '/dossiers'];
+  return allowedPrefixes.some((p) => next === p || next.startsWith(p)) ? next : null;
+}
+
+/**
+ * Detecte si le user connecte est un intervenant (lie a au moins un Intervenant).
+ * Utilise pour rediriger vers /intervenant au lieu de /portail-* si c'est le cas.
+ */
+async function detectIsIntervenant(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/v1/intervenant-portal/profile', {
+      method: 'GET', credentials: 'include',
+    });
+    if (!res.ok) return false;
+    const data = await res.json().catch(() => null);
+    return Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 // Wrapper Suspense requis par Next.js 14 dès qu'un enfant utilise useSearchParams.
 // Sans ce wrapper, le build échoue sur le pré-rendering statique de /login.
 export default function LoginPage() {
@@ -39,6 +67,8 @@ function LoginPageInner() {
   // Détecte une redirection depuis la zone app après expiration de session
   const searchParams = useSearchParams();
   const sessionExpired = searchParams?.get('reason') === 'session-expired';
+  // Lien retour priorité (ex: invitation acceptation, deep-link)
+  const next = safeNextUrl(searchParams?.get('next'));
 
   useEffect(() => {
     // Charger la préférence sauvegardée
@@ -46,10 +76,29 @@ function LoginPageInner() {
     if (saved === 'false') setRememberMe(false);
   }, []);
 
+  /**
+   * Calcule la destination post-login.
+   * Priorite :
+   *  1. ?next= (whitelist) → respecte deep-link (typiquement /invitation/<token>)
+   *  2. user lie a Intervenant → /intervenant
+   *  3. profession choisie → /portail-<profession>
+   *  4. fallback /portal-select
+   */
+  const computeRedirectAfterLogin = async (): Promise<string> => {
+    if (next) return next;
+    const isIntervenant = await detectIsIntervenant();
+    if (isIntervenant) return '/intervenant';
+    return getRedirectUrl(profession);
+  };
+
   useEffect(() => {
     if (token) {
-      window.location.href = getRedirectUrl(profession);
+      // User deja connecte qui revient sur /login → redirige proprement
+      computeRedirectAfterLogin().then((url) => {
+        window.location.href = url;
+      });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, profession]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,7 +116,8 @@ function LoginPageInner() {
         sessionStorage.removeItem('avra-session-active');
       }
       setAuth('', res.user as Parameters<typeof setAuth>[1]);
-      window.location.href = getRedirectUrl(profession);
+      const url = await computeRedirectAfterLogin();
+      window.location.href = url;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Identifiants invalides');
     } finally {

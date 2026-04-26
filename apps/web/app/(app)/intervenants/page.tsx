@@ -275,6 +275,16 @@ function FicheIntervenant({
                 </div>
               </div>
 
+              {/* Action principale : envoyer une demande */}
+              <div className="mb-2">
+                <SendToIntervenantButton
+                  variant="primary"
+                  label={`Envoyer une demande à ${intervenant.name.split(' ')[0]}`}
+                  prefill={{ intervenantId: intervenant.id }}
+                  style={{ width: '100%', justifyContent: 'center' }}
+                />
+              </div>
+
               {/* Dossiers */}
               {intervenant.dossiers.length > 0 && (
                 <div>
