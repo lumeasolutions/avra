@@ -102,13 +102,19 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
     setLoadingList(true);
     setError(null);
 
+    // L'endpoint /intervenants peut renvoyer soit un array soit { data, total, page, pageSize }.
+    // On normalise dans tous les cas pour eviter un crash useMemo en aval.
+    const toArray = <T,>(x: any): T[] => Array.isArray(x) ? x : Array.isArray(x?.data) ? x.data : [];
+
     Promise.all([
-      api<IntervenantOption[]>('/intervenants').catch(() => [] as IntervenantOption[]),
-      api<IntervenantInvitation[]>('/demandes/invitations/all').catch(() => [] as IntervenantInvitation[]),
+      api<any>('/intervenants').catch(() => [] as any),
+      api<any>('/demandes/invitations/all').catch(() => [] as any),
     ])
-      .then(([list, invs]) => {
+      .then(([rawList, rawInvs]) => {
         if (cancelled) return;
-        setIntervenants(list ?? []);
+        const list = toArray<IntervenantOption>(rawList);
+        const invs = toArray<IntervenantInvitation>(rawInvs);
+        setIntervenants(list);
         // Map invitations PENDING par intervenantId
         const m: Record<string, IntervenantInvitation> = {};
         for (const i of invs) if (i.status === 'PENDING') m[i.intervenantId] = i;
@@ -143,7 +149,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
 
   // Si prefill.intervenantId : on saute directement à compose
   useEffect(() => {
-    if (open && prefill?.intervenantId && intervenants) {
+    if (open && prefill?.intervenantId && Array.isArray(intervenants)) {
       const i = intervenants.find((x) => x.id === prefill.intervenantId);
       if (i) { setSelectedId(i.id); setStep('compose'); }
     }
@@ -158,7 +164,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
   }, [open]);
 
   const filtered = useMemo(() => {
-    if (!intervenants) return [];
+    if (!Array.isArray(intervenants)) return [];
     const q = search.trim().toLowerCase();
     if (!q) return intervenants;
     return intervenants.filter((i) =>
@@ -171,7 +177,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
   }, [intervenants, search]);
 
   const selectedIntervenant = useMemo(
-    () => intervenants?.find((i) => i.id === selectedId) ?? null,
+    () => Array.isArray(intervenants) ? intervenants.find((i) => i.id === selectedId) ?? null : null,
     [intervenants, selectedId],
   );
 
