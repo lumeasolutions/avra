@@ -135,6 +135,7 @@ export const MENUISIER_DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER RENSEIGNEMENT' },
   { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
   { label: 'RELEVE DE MESURES' },
+  { label: 'PROJET 1' },
 ];
 
 /** Regex pour détecter les sous-dossiers "PROJET N" (menuisier) */
