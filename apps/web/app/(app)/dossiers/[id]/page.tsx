@@ -2373,6 +2373,8 @@ export default function DossierDetailPage() {
       <DateButoireValidationModal
         open={showDateButoiresModal}
         signedSubfolders={signedSubfolderLabels}
+        dossierId={id}
+        clientName={`${dossier.firstName ? dossier.firstName + ' ' : ''}${dossier.name}`.trim()}
         loading={signing}
         onConfirm={handleConfirmDatesButoires}
         onCancel={() => { if (!signing) setShowDateButoiresModal(false); }}

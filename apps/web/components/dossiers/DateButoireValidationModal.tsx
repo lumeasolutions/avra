@@ -2,35 +2,43 @@
 
 /**
  * DateButoireValidationModal — modale "wahou" qui force la saisie des dates
- * butoires pour CHAQUE sous-dossier signé avant de valider le projet.
+ * butoires AVANT validation, avec en bonus à l'écran :
+ *  - Le PLANNING GESTION (semaine courante) pour voir quels créneaux sont pris
+ *  - Les DEVIS du dossier (DOSSIER AVANT VENTE) pour vérifier ce qui a été vendu
+ *  - Les inputs de dates butoires (11 sous-dossiers signés)
  *
  * Sans dates butoires, l'équipe perd la traçabilité des deadlines projet.
  * Cette modale est BLOQUANTE : le bouton "Valider le projet" reste désactivé
  * tant qu'au moins une date manque.
  *
  * Effet wahou :
- *  - Entrée scale 0.85 → 1.02 → 1 avec rebond cubic-bezier
- *  - Backdrop blur progressif + radial gradient sombre
- *  - Halo doré rotatif derrière le header + sparkles animés
- *  - Icône calendar dans un cercle qui pulse en boucle
- *  - Barre de progression dorée qui se remplit au fur et à mesure
+ *  - Backdrop radial sombre + blur progressif
+ *  - Modal scale 0.86 → 1.02 → 1 avec rebond cubic-bezier
+ *  - Header gradient vert + halos rotatifs + sparkles dorées
+ *  - Icône calendar dans cercle qui pulse en boucle
+ *  - Barre de progression dorée shimmer (devient verte à 100%)
  *  - Bouton "Valider" avec shimmer + glow quand tout est rempli
- *  - Bouton "Pré-remplir" pour suggérer des dates intelligentes (workflow type)
+ *  - Bouton "Pré-remplir" qui suggère des délais standards par sous-dossier
+ *  - Layout 2 colonnes responsive (1 colonne sur mobile)
  */
 
 import { useState, useEffect, useMemo } from 'react';
 import {
   X, Calendar, Sparkles, AlertTriangle, Check, Loader2,
-  AlertCircle, Wand2, FileCheck,
+  AlertCircle, Wand2, FileCheck, Receipt, CalendarDays, ChevronLeft, ChevronRight,
 } from 'lucide-react';
+import { usePlanningStore, type PlanningEvent } from '@/store/usePlanningStore';
+import { useFacturationStore, type Devis } from '@/store/useFacturationStore';
 
 export interface DateButoireValidationProps {
   open: boolean;
   /** Liste des labels de sous-dossiers signés à dater. */
   signedSubfolders: string[];
-  /** Date d'aujourd'hui pré-formatée (passée par le parent pour SSR-safe). */
+  /** ID du dossier en cours de validation — pour filtrer ses devis. */
+  dossierId: string;
+  /** Nom du client à afficher en titre. */
+  clientName?: string;
   loading?: boolean;
-  /** Appelé avec un Record<label, date> (format YYYY-MM-DD) quand tout OK. */
   onConfirm: (dates: Record<string, string>) => Promise<void> | void;
   onCancel: () => void;
 }
@@ -53,18 +61,13 @@ const DEFAULT_DELAYS: Record<string, number> = {
   'SAV':                 180,
 };
 
+const DAYS = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];
+
 function suggestDate(label: string): string {
   const days = DEFAULT_DELAYS[label] ?? 30;
   const d = new Date();
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
-}
-
-function fmtFr(iso: string): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function dayDelta(iso: string): number {
@@ -76,21 +79,31 @@ function dayDelta(iso: string): number {
   return Math.round((d.getTime() - today.getTime()) / 86400_000);
 }
 
+function fmtMontant(n: number): string {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+}
+
 export function DateButoireValidationModal({
-  open, signedSubfolders, loading, onConfirm, onCancel,
+  open, signedSubfolders, dossierId, clientName, loading, onConfirm, onCancel,
 }: DateButoireValidationProps) {
+  const planningEvents = usePlanningStore((s) => s.planningEvents);
+  const gestEvents = usePlanningStore((s) => s.gestEvents);
+  const allDevis = useFacturationStore((s) => s.devis);
+
   const [dates, setDates] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
 
-  // Réinitialise à chaque ouverture
+  // Reset à chaque ouverture
   useEffect(() => {
     if (!open) return;
     setDates({});
     setError(null);
+    setWeekOffset(0);
   }, [open]);
 
-  // Escape ferme (sauf pendant submit)
+  // Escape pour fermer
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -105,8 +118,33 @@ export function DateButoireValidationModal({
     };
   }, [open, submitting, loading, onCancel]);
 
+  // ── Devis du dossier ─────────────────────────────────────────────────────
+  const dossierDevis = useMemo<Devis[]>(() => {
+    return allDevis.filter((d) => d.dossierId === dossierId);
+  }, [allDevis, dossierId]);
+
+  // ── Planning de la semaine courante (filtré par weekOffset) ──────────────
+  const weekEvents = useMemo(() => {
+    const fromPlanning: Array<{ day: number; startHour: number; duration: number; title: string; color: string }> =
+      planningEvents
+        .filter((e) => (e.weekOffset ?? 0) === weekOffset)
+        .map((e) => ({ day: e.day, startHour: e.startHour, duration: e.duration, title: e.title, color: e.color }));
+    const fromGest: typeof fromPlanning =
+      gestEvents
+        .filter((e) => e.weekOffset === weekOffset)
+        .map((e) => ({
+          day: e.day,
+          startHour: e.startHour,
+          duration: e.duration,
+          title: e.client,
+          color: e.type === 'POSE' ? '#4a7ec0' : e.type === 'LIVRAISON' ? '#c08a5a' : '#7c3a1e',
+        }));
+    return [...fromPlanning, ...fromGest];
+  }, [planningEvents, gestEvents, weekOffset]);
+
+  // ── Computed ─────────────────────────────────────────────────────────────
   const filledCount = useMemo(
-    () => signedSubfolders.filter(l => !!dates[l]).length,
+    () => signedSubfolders.filter((l) => !!dates[l]).length,
     [signedSubfolders, dates],
   );
   const total = signedSubfolders.length;
@@ -117,9 +155,7 @@ export function DateButoireValidationModal({
 
   const handlePrefill = () => {
     const next: Record<string, string> = {};
-    for (const label of signedSubfolders) {
-      next[label] = suggestDate(label);
-    }
+    for (const label of signedSubfolders) next[label] = suggestDate(label);
     setDates(next);
     setError(null);
   };
@@ -140,6 +176,11 @@ export function DateButoireValidationModal({
 
   if (!open) return null;
 
+  // Plage horaire affichée : on prend min/max des events visibles (avec borne 8h-19h par défaut)
+  const hourFrom = Math.min(8, ...weekEvents.map((e) => e.startHour));
+  const hourTo = Math.max(19, ...weekEvents.map((e) => e.startHour + e.duration));
+  const hours = Array.from({ length: hourTo - hourFrom + 1 }, (_, i) => hourFrom + i);
+
   return (
     <>
       <style>{`
@@ -148,9 +189,9 @@ export function DateButoireValidationModal({
           to   { opacity: 1; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
         }
         @keyframes dbvReveal {
-          0%   { opacity: 0; transform: scale(0.86) rotate(-1deg); filter: blur(8px); }
-          60%  { opacity: 1; transform: scale(1.02) rotate(0); filter: blur(0); }
-          100% { opacity: 1; transform: scale(1) rotate(0); filter: blur(0); }
+          0%   { opacity: 0; transform: scale(0.9) translateY(10px); filter: blur(6px); }
+          60%  { opacity: 1; transform: scale(1.01) translateY(0); filter: blur(0); }
+          100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
         }
         @keyframes dbvHaloRot { to { transform: rotate(360deg); } }
         @keyframes dbvIconPulse {
@@ -172,6 +213,12 @@ export function DateButoireValidationModal({
           from { opacity: 0; transform: translateX(-10px); }
           to   { opacity: 1; transform: translateX(0); }
         }
+        @keyframes dbv-shine {
+          0%   { transform: translateX(-100%); }
+          50%  { transform: translateX(100%); }
+          100% { transform: translateX(100%); }
+        }
+        @keyframes dbv-spin { to { transform: rotate(360deg); } }
 
         .dbv-bg {
           position: fixed; inset: 0; z-index: 90;
@@ -179,13 +226,14 @@ export function DateButoireValidationModal({
           backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
           animation: dbvFade 0.32s ease-out;
           display: flex; align-items: center; justify-content: center;
-          padding: 24px;
+          padding: 16px;
         }
         .dbv-card {
-          width: 100%; max-width: 620px;
-          max-height: min(90vh, 820px);
+          width: 100%;
+          max-width: 1200px;
+          max-height: 95vh;
           background: #fff;
-          border-radius: 28px;
+          border-radius: 24px;
           border: 1px solid rgba(255,255,255,0.6);
           box-shadow:
             0 0 0 1px rgba(48,64,53,0.06),
@@ -199,7 +247,7 @@ export function DateButoireValidationModal({
 
         .dbv-head {
           position: relative; overflow: hidden; flex-shrink: 0;
-          padding: 22px 24px 24px;
+          padding: 18px 22px 20px;
           background: linear-gradient(135deg, #2a3a30 0%, #3d5244 55%, #4a6552 100%);
           color: #fff;
         }
@@ -224,22 +272,21 @@ export function DateButoireValidationModal({
           animation: dbvSparkle 3.6s ease-in-out infinite;
           pointer-events: none;
         }
-
         .dbv-row { position: relative; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .dbv-titles { display: flex; align-items: center; gap: 14px; }
         .dbv-icon {
-          width: 52px; height: 52px; border-radius: 16px;
+          width: 48px; height: 48px; border-radius: 14px;
           background: radial-gradient(circle at 30% 30%, #f4d6a8 0%, #d9b38a 50%, #b88c5c 100%);
           color: #2a3a30; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
           animation: dbvIconPulse 2.4s ease-in-out infinite;
           box-shadow: 0 6px 18px rgba(217,179,138,0.4);
         }
-        .dbv-titles h2 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
-        .dbv-titles p { margin: 2px 0 0; font-size: 12px; color: rgba(255,255,255,0.65); }
+        .dbv-titles h2 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+        .dbv-titles p { margin: 2px 0 0; font-size: 11.5px; color: rgba(255,255,255,0.65); }
 
         .dbv-close {
-          width: 34px; height: 34px; border-radius: 10px;
+          width: 32px; height: 32px; border-radius: 10px;
           border: 1px solid rgba(255,255,255,0.2);
           background: rgba(255,255,255,0.08);
           color: rgba(255,255,255,0.85);
@@ -250,25 +297,18 @@ export function DateButoireValidationModal({
         .dbv-close:hover:not(:disabled) { background: rgba(255,255,255,0.22); transform: rotate(90deg); }
         .dbv-close:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        /* Progression */
-        .dbv-progress { position: relative; z-index: 1; margin-top: 18px; }
-        .dbv-progress-stats {
-          display: flex; justify-content: space-between; align-items: baseline;
-          margin-bottom: 8px;
-        }
+        .dbv-progress { position: relative; z-index: 1; margin-top: 12px; display: flex; align-items: center; gap: 14px; }
         .dbv-progress-pct {
-          font-size: 24px; font-weight: 800; color: #fff;
+          font-size: 22px; font-weight: 800; color: #fff;
           letter-spacing: -0.02em; line-height: 1;
         }
         .dbv-progress-pct.complete { color: #86efac; text-shadow: 0 0 14px rgba(134,239,172,0.5); }
-        .dbv-progress-label {
-          font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
-          color: rgba(255,255,255,0.6); font-weight: 700;
-        }
+        .dbv-progress-bar-wrap { flex: 1; }
         .dbv-progress-bar {
           height: 8px; border-radius: 999px;
           background: rgba(255,255,255,0.12);
           overflow: hidden; border: 1px solid rgba(255,255,255,0.08);
+          margin-top: 4px;
         }
         .dbv-progress-fill {
           height: 100%;
@@ -284,28 +324,150 @@ export function DateButoireValidationModal({
           background-size: 200% 100%;
           box-shadow: 0 0 14px rgba(134,239,172,0.7);
         }
+        .dbv-progress-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.55); font-weight: 700; }
 
-        /* Body — liste sous-dossiers */
+        /* Body — 2 colonnes */
         .dbv-body {
-          flex: 1; overflow-y: auto;
-          padding: 18px 22px;
+          flex: 1; overflow: hidden;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0;
           background: linear-gradient(180deg, #fbf8f3 0%, #fff 100%);
         }
+        @media (max-width: 900px) {
+          .dbv-body { grid-template-columns: 1fr; }
+        }
+        .dbv-col-left { display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto; border-right: 1px solid rgba(48,64,53,0.08); }
+        .dbv-col-right { display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
+        @media (max-width: 900px) {
+          .dbv-col-left { border-right: none; border-bottom: 1px solid rgba(48,64,53,0.08); }
+        }
+
+        /* Sections cards */
+        .dbv-section {
+          background: #fff;
+          border-radius: 14px;
+          border: 1px solid rgba(48,64,53,0.08);
+          overflow: hidden;
+        }
+        .dbv-section-head {
+          display: flex; align-items: center; gap: 8px; justify-content: space-between;
+          padding: 10px 14px;
+          border-bottom: 1px solid rgba(48,64,53,0.06);
+          background: linear-gradient(135deg, #f5eee8 0%, #faf6ef 100%);
+        }
+        .dbv-section-title {
+          display: inline-flex; align-items: center; gap: 7px;
+          font-size: 11px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: 0.1em;
+          color: #304035;
+        }
+        .dbv-section-title svg { color: #a67749; }
+
+        /* Planning gestion mini */
+        .dbv-plan-nav { display: inline-flex; align-items: center; gap: 6px; }
+        .dbv-plan-nav button {
+          width: 22px; height: 22px; border-radius: 6px;
+          border: 1px solid rgba(48,64,53,0.12);
+          background: #fff;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; color: rgba(48,64,53,0.55);
+          transition: all 0.15s ease;
+        }
+        .dbv-plan-nav button:hover { background: rgba(48,64,53,0.06); color: #1a1614; }
+        .dbv-plan-nav span { font-size: 11px; font-weight: 700; color: rgba(48,64,53,0.7); min-width: 60px; text-align: center; }
+
+        .dbv-plan-grid {
+          display: grid;
+          grid-template-columns: 36px repeat(7, minmax(0, 1fr));
+          background: #fafaf7;
+          font-size: 10px;
+          height: 100%;
+        }
+        .dbv-plan-headcell {
+          padding: 6px 4px; text-align: center;
+          font-weight: 800; color: rgba(48,64,53,0.6);
+          background: #fff;
+          border-bottom: 1px solid rgba(48,64,53,0.08);
+        }
+        .dbv-plan-hour {
+          padding: 4px;
+          text-align: right;
+          color: rgba(48,64,53,0.45);
+          font-family: 'Courier New', monospace;
+          border-right: 1px solid rgba(48,64,53,0.06);
+          font-size: 9px;
+          background: #fff;
+        }
+        .dbv-plan-cell {
+          position: relative;
+          height: 28px;
+          border-right: 1px solid rgba(48,64,53,0.04);
+          border-bottom: 1px solid rgba(48,64,53,0.04);
+        }
+        .dbv-plan-event {
+          position: absolute; left: 2px; right: 2px; top: 1px;
+          padding: 2px 5px;
+          border-radius: 5px;
+          font-size: 9px; font-weight: 700;
+          color: #fff;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+        }
+        .dbv-plan-empty {
+          padding: 18px 12px;
+          text-align: center;
+          font-size: 11px;
+          color: rgba(48,64,53,0.4);
+        }
+
+        /* Devis list */
+        .dbv-devis-list { display: flex; flex-direction: column; gap: 6px; padding: 10px; max-height: 240px; overflow-y: auto; }
+        .dbv-devis-row {
+          display: flex; align-items: center; gap: 10px;
+          padding: 8px 10px;
+          border-radius: 9px;
+          border: 1px solid rgba(48,64,53,0.08);
+          background: #fff;
+          transition: all 0.16s ease;
+        }
+        .dbv-devis-row:hover { border-color: rgba(166,119,73,0.3); background: #fff8ef; }
+        .dbv-devis-icon {
+          width: 28px; height: 28px; border-radius: 7px;
+          background: linear-gradient(135deg, #fff8ef, #ffe7c2);
+          color: #a67749;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0; font-size: 11px;
+        }
+        .dbv-devis-info { flex: 1; min-width: 0; }
+        .dbv-devis-ref { font-size: 12px; font-weight: 700; color: #1a1614; }
+        .dbv-devis-meta { font-size: 10.5px; color: rgba(48,64,53,0.5); margin-top: 1px; }
+        .dbv-devis-amount { font-size: 12px; font-weight: 800; color: #16a34a; flex-shrink: 0; }
+        .dbv-devis-amount.neg { color: rgba(48,64,53,0.4); }
+
+        .dbv-empty {
+          padding: 28px 16px;
+          text-align: center;
+          color: rgba(48,64,53,0.4);
+          font-size: 11.5px;
+        }
+
+        /* Dates butoires (right column) */
         .dbv-warn {
           display: flex; gap: 10px;
-          padding: 12px 14px;
-          margin-bottom: 16px;
+          padding: 11px 14px;
+          margin-bottom: 12px;
           border-radius: 12px;
           background: linear-gradient(135deg, #fff7ed 0%, #fff 100%);
           border: 1px solid rgba(249,115,22,0.25);
           color: #9a3412;
-          font-size: 12.5px; line-height: 1.5;
+          font-size: 12px; line-height: 1.5;
         }
         .dbv-warn-icon { color: #ea580c; flex-shrink: 0; margin-top: 1px; }
 
         .dbv-prefill {
           display: inline-flex; align-items: center; gap: 6px;
-          padding: 7px 12px; margin-bottom: 14px;
+          padding: 7px 12px; margin-bottom: 12px;
           border-radius: 10px;
           background: linear-gradient(135deg, #fff8ef 0%, #ffe7c2 100%);
           border: 1px solid rgba(166,119,73,0.3);
@@ -319,11 +481,11 @@ export function DateButoireValidationModal({
         }
         .dbv-prefill:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .dbv-list { display: flex; flex-direction: column; gap: 8px; }
+        .dbv-list { display: flex; flex-direction: column; gap: 7px; }
         .dbv-item {
-          display: flex; align-items: center; gap: 12px;
-          padding: 12px 14px;
-          border-radius: 12px;
+          display: flex; align-items: center; gap: 10px;
+          padding: 9px 12px;
+          border-radius: 10px;
           background: #fff;
           border: 1px solid rgba(48,64,53,0.1);
           transition: all 0.16s ease;
@@ -335,10 +497,10 @@ export function DateButoireValidationModal({
           border-color: rgba(34,197,94,0.3);
         }
         .dbv-item-bullet {
-          width: 28px; height: 28px; border-radius: 50%;
+          width: 24px; height: 24px; border-radius: 50%;
           flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
-          font-size: 11px; font-weight: 800;
+          font-size: 10px; font-weight: 800;
           background: rgba(48,64,53,0.08);
           color: rgba(48,64,53,0.55);
           border: 1px solid rgba(48,64,53,0.1);
@@ -347,21 +509,21 @@ export function DateButoireValidationModal({
         .dbv-item.filled .dbv-item-bullet {
           background: linear-gradient(135deg, #22c55e, #16a34a);
           color: #fff; border-color: #16a34a;
-          box-shadow: 0 4px 10px rgba(34,197,94,0.3);
+          box-shadow: 0 3px 8px rgba(34,197,94,0.3);
         }
         .dbv-item-label {
           flex: 1; min-width: 0;
-          font-size: 13px; font-weight: 700;
+          font-size: 12px; font-weight: 700;
           color: #1a1614;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .dbv-item-input {
-          flex-shrink: 0; width: 165px;
-          padding: 8px 10px;
+          flex-shrink: 0; width: 145px;
+          padding: 6px 8px;
           border: 1px solid rgba(48,64,53,0.15);
-          border-radius: 8px;
+          border-radius: 7px;
           background: #fff;
-          font-size: 12px; color: #1a1614;
+          font-size: 11.5px; color: #1a1614;
           font-family: inherit;
           transition: all 0.16s ease;
         }
@@ -370,21 +532,21 @@ export function DateButoireValidationModal({
           border-color: #a67749;
           box-shadow: 0 0 0 3px rgba(166,119,73,0.18);
         }
-        .dbv-item.filled .dbv-item-input { border-color: rgba(34,197,94,0.4); background: #fff; }
+        .dbv-item.filled .dbv-item-input { border-color: rgba(34,197,94,0.4); }
         .dbv-item-delta {
           flex-shrink: 0;
-          font-size: 10.5px; font-weight: 700;
+          font-size: 10px; font-weight: 700;
           color: rgba(48,64,53,0.55);
           font-family: 'Courier New', monospace;
-          min-width: 50px; text-align: right;
+          min-width: 42px; text-align: right;
         }
         .dbv-item.filled .dbv-item-delta { color: #16a34a; }
 
         /* Footer */
         .dbv-foot {
           flex-shrink: 0;
-          display: flex; gap: 10px; justify-content: flex-end;
-          padding: 16px 22px;
+          display: flex; gap: 10px; align-items: center; justify-content: flex-end;
+          padding: 14px 22px;
           border-top: 1px solid rgba(48,64,53,0.08);
           background: rgba(48,64,53,0.02);
         }
@@ -396,7 +558,7 @@ export function DateButoireValidationModal({
         }
 
         .dbv-btn {
-          padding: 11px 22px; border-radius: 12px;
+          padding: 10px 20px; border-radius: 11px;
           font-size: 13px; font-weight: 800;
           cursor: pointer; transition: all 0.2s ease; border: none;
           display: inline-flex; align-items: center; gap: 8px;
@@ -432,11 +594,6 @@ export function DateButoireValidationModal({
           animation: dbv-shine 2.4s ease-in-out infinite;
           pointer-events: none;
         }
-        @keyframes dbv-shine {
-          0%   { transform: translateX(-100%); }
-          50%  { transform: translateX(100%); }
-          100% { transform: translateX(100%); }
-        }
         .dbv-confirm:disabled, .dbv-confirm:disabled:hover {
           background: linear-gradient(135deg, rgba(48,64,53,0.5) 0%, rgba(48,64,53,0.4) 100%);
           color: rgba(255,255,255,0.7);
@@ -446,7 +603,6 @@ export function DateButoireValidationModal({
         }
         .dbv-confirm.submitting { animation: none; cursor: wait; }
         .dbv-spin { animation: dbv-spin 0.9s linear infinite; }
-        @keyframes dbv-spin { to { transform: rotate(360deg); } }
       `}</style>
 
       <div
@@ -457,8 +613,8 @@ export function DateButoireValidationModal({
         onClick={() => { if (!submitting && !loading) onCancel(); }}
       >
         <div className="dbv-card" onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
           <div className="dbv-head">
-            {/* Sparkles */}
             {[
               { left: '14%', bottom: '18%', delay: '0s' },
               { left: '36%', bottom: '60%', delay: '0.7s' },
@@ -472,10 +628,10 @@ export function DateButoireValidationModal({
 
             <div className="dbv-row">
               <div className="dbv-titles">
-                <div className="dbv-icon"><Calendar style={{ width: 26, height: 26 }} /></div>
+                <div className="dbv-icon"><Calendar style={{ width: 24, height: 24 }} /></div>
                 <div>
-                  <h2 id="dbv-h2">Dates butoires obligatoires</h2>
-                  <p>Renseignez les échéances avant de valider le projet</p>
+                  <h2 id="dbv-h2">Validation projet</h2>
+                  <p>{clientName ? `Dossier ${clientName} · ` : ''}Renseignez les dates butoires avant de valider</p>
                 </div>
               </div>
               <button
@@ -490,72 +646,165 @@ export function DateButoireValidationModal({
             </div>
 
             <div className="dbv-progress">
-              <div className="dbv-progress-stats">
-                <span className={`dbv-progress-pct${allFilled ? ' complete' : ''}`}>{progressPct}%</span>
-                <span className="dbv-progress-label">{filledCount} / {total} dates renseignées</span>
-              </div>
-              <div className="dbv-progress-bar">
-                <div className={`dbv-progress-fill${allFilled ? ' complete' : ''}`} style={{ width: `${progressPct}%` }} />
+              <span className={`dbv-progress-pct${allFilled ? ' complete' : ''}`}>{progressPct}%</span>
+              <div className="dbv-progress-bar-wrap">
+                <div className="dbv-progress-label">{filledCount} / {total} dates renseignées</div>
+                <div className="dbv-progress-bar">
+                  <div className={`dbv-progress-fill${allFilled ? ' complete' : ''}`} style={{ width: `${progressPct}%` }} />
+                </div>
               </div>
             </div>
           </div>
 
+          {/* Body — 2 colonnes */}
           <div className="dbv-body">
-            <div className="dbv-warn">
-              <AlertTriangle className="dbv-warn-icon" style={{ width: 16, height: 16 }} />
-              <div>
-                Sans dates butoires, l'équipe perd la traçabilité des deadlines projet.
-                <strong> La validation est bloquée tant que toutes les dates ne sont pas saisies.</strong>
+            {/* COLONNE GAUCHE : Planning gestion + Devis */}
+            <div className="dbv-col-left">
+              <div className="dbv-section">
+                <div className="dbv-section-head">
+                  <span className="dbv-section-title">
+                    <CalendarDays style={{ width: 13, height: 13 }} />
+                    Planning gestion
+                  </span>
+                  <div className="dbv-plan-nav">
+                    <button type="button" onClick={() => setWeekOffset((w) => w - 1)} aria-label="Semaine précédente">
+                      <ChevronLeft style={{ width: 12, height: 12 }} />
+                    </button>
+                    <span>{weekOffset === 0 ? 'Cette semaine' : weekOffset > 0 ? `+${weekOffset} sem.` : `${weekOffset} sem.`}</span>
+                    <button type="button" onClick={() => setWeekOffset((w) => w + 1)} aria-label="Semaine suivante">
+                      <ChevronRight style={{ width: 12, height: 12 }} />
+                    </button>
+                  </div>
+                </div>
+
+                {weekEvents.length === 0 ? (
+                  <div className="dbv-plan-empty">Aucun événement planifié sur cette semaine</div>
+                ) : (
+                  <div className="dbv-plan-grid">
+                    <div className="dbv-plan-headcell">·</div>
+                    {DAYS.map((d) => <div key={d} className="dbv-plan-headcell">{d}</div>)}
+                    {hours.map((h) => (
+                      <div key={`row-${h}`} style={{ display: 'contents' }}>
+                        <div className="dbv-plan-hour">{h}h</div>
+                        {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                          const evt = weekEvents.find((e) => e.day === day && e.startHour === h);
+                          return (
+                            <div key={`c-${h}-${day}`} className="dbv-plan-cell">
+                              {evt && (
+                                <div
+                                  className="dbv-plan-event"
+                                  style={{
+                                    background: evt.color,
+                                    height: `${Math.max(1, evt.duration) * 28 - 2}px`,
+                                  }}
+                                  title={evt.title}
+                                >
+                                  {evt.title}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="dbv-section">
+                <div className="dbv-section-head">
+                  <span className="dbv-section-title">
+                    <Receipt style={{ width: 13, height: 13 }} />
+                    Dossier avant vente
+                  </span>
+                  <span style={{ fontSize: 10, color: 'rgba(48,64,53,0.5)', fontWeight: 600 }}>
+                    {dossierDevis.length} devis
+                  </span>
+                </div>
+                {dossierDevis.length === 0 ? (
+                  <div className="dbv-empty">Aucun devis associé à ce dossier</div>
+                ) : (
+                  <div className="dbv-devis-list">
+                    {dossierDevis.map((d) => (
+                      <div key={d.id} className="dbv-devis-row">
+                        <div className="dbv-devis-icon">
+                          <Receipt style={{ width: 13, height: 13 }} />
+                        </div>
+                        <div className="dbv-devis-info">
+                          <div className="dbv-devis-ref">Devis n°{d.ref}</div>
+                          <div className="dbv-devis-meta">
+                            {d.objet ? `${d.objet} · ` : ''}{d.dateCreation} · {d.statut}
+                          </div>
+                        </div>
+                        <div className={`dbv-devis-amount${d.totalTTC <= 0 ? ' neg' : ''}`}>
+                          {fmtMontant(d.totalTTC)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            <button
-              type="button"
-              className="dbv-prefill"
-              onClick={handlePrefill}
-              disabled={submitting || loading}
-              title="Remplit avec des délais standards (modifiables ensuite)"
-            >
-              <Wand2 style={{ width: 12, height: 12 }} />
-              <Sparkles style={{ width: 11, height: 11 }} />
-              Pré-remplir avec des délais standards
-            </button>
+            {/* COLONNE DROITE : Dates butoires */}
+            <div className="dbv-col-right">
+              <div className="dbv-warn">
+                <AlertTriangle className="dbv-warn-icon" style={{ width: 16, height: 16 }} />
+                <div>
+                  Sans dates butoires, l'équipe perd la traçabilité des deadlines projet.
+                  <strong> La validation est bloquée tant que toutes les dates ne sont pas saisies.</strong>
+                </div>
+              </div>
 
-            <div className="dbv-list">
-              {signedSubfolders.map((label, i) => {
-                const value = dates[label] ?? '';
-                const isFilled = !!value;
-                const delta = isFilled ? dayDelta(value) : 0;
-                return (
-                  <div
-                    key={label}
-                    className={`dbv-item${isFilled ? ' filled' : ''}`}
-                    style={{ animationDelay: `${i * 35}ms` }}
-                  >
-                    <div className="dbv-item-bullet">
-                      {isFilled ? <Check style={{ width: 14, height: 14 }} /> : i + 1}
+              <button
+                type="button"
+                className="dbv-prefill"
+                onClick={handlePrefill}
+                disabled={submitting || loading}
+                title="Remplit avec des délais standards (modifiables ensuite)"
+              >
+                <Wand2 style={{ width: 12, height: 12 }} />
+                <Sparkles style={{ width: 11, height: 11 }} />
+                Pré-remplir avec des délais standards
+              </button>
+
+              <div className="dbv-list">
+                {signedSubfolders.map((label, i) => {
+                  const value = dates[label] ?? '';
+                  const isFilled = !!value;
+                  const delta = isFilled ? dayDelta(value) : 0;
+                  return (
+                    <div
+                      key={label}
+                      className={`dbv-item${isFilled ? ' filled' : ''}`}
+                      style={{ animationDelay: `${i * 30}ms` }}
+                    >
+                      <div className="dbv-item-bullet">
+                        {isFilled ? <Check style={{ width: 12, height: 12 }} /> : i + 1}
+                      </div>
+                      <span className="dbv-item-label" title={label}>{label}</span>
+                      {isFilled && (
+                        <span className="dbv-item-delta">
+                          {delta === 0 ? "auj." : delta > 0 ? `J+${delta}` : `J${delta}`}
+                        </span>
+                      )}
+                      <input
+                        type="date"
+                        className="dbv-item-input"
+                        min={today}
+                        value={value}
+                        onChange={(e) => setDates((s) => ({ ...s, [label]: e.target.value }))}
+                        disabled={submitting || loading}
+                        aria-label={`Date butoire pour ${label}`}
+                      />
                     </div>
-                    <span className="dbv-item-label" title={label}>{label}</span>
-                    {isFilled && (
-                      <span className="dbv-item-delta">
-                        {delta === 0 ? "aujourd'hui" : delta > 0 ? `J+${delta}` : `J${delta}`}
-                      </span>
-                    )}
-                    <input
-                      type="date"
-                      className="dbv-item-input"
-                      min={today}
-                      value={value}
-                      onChange={(e) => setDates((s) => ({ ...s, [label]: e.target.value }))}
-                      disabled={submitting || loading}
-                      aria-label={`Date butoire pour ${label}`}
-                    />
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
 
+          {/* Footer */}
           <div className="dbv-foot">
             {error && (
               <div className="dbv-error" role="alert">
