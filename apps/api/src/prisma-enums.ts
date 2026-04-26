@@ -226,3 +226,35 @@ export const AuditAction = {
   PAY: 'PAY',
 } as const;
 export type AuditAction = typeof AuditAction[keyof typeof AuditAction];
+
+export const DemandeType = {
+  POSE: 'POSE',
+  LIVRAISON: 'LIVRAISON',
+  SAV: 'SAV',
+  MESURE: 'MESURE',
+  DEVIS: 'DEVIS',
+  CONFIRMATION_COMMANDE: 'CONFIRMATION_COMMANDE',
+  COMPLEMENT: 'COMPLEMENT',
+  AUTRE: 'AUTRE',
+} as const;
+export type DemandeType = typeof DemandeType[keyof typeof DemandeType];
+
+export const DemandeStatus = {
+  ENVOYEE: 'ENVOYEE',
+  VUE: 'VUE',
+  ACCEPTEE: 'ACCEPTEE',
+  REFUSEE: 'REFUSEE',
+  EN_COURS: 'EN_COURS',
+  TERMINEE: 'TERMINEE',
+  ANNULEE: 'ANNULEE',
+} as const;
+export type DemandeStatus = typeof DemandeStatus[keyof typeof DemandeStatus];
+
+export const IntervenantInvitationStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REFUSED: 'REFUSED',
+  EXPIRED: 'EXPIRED',
+  REVOKED: 'REVOKED',
+} as const;
+export type IntervenantInvitationStatus = typeof IntervenantInvitationStatus[keyof typeof IntervenantInvitationStatus];

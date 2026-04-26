@@ -14,6 +14,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { EventsModule } from './modules/events/events.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { IntervenantsModule } from './modules/intervenants/intervenants.module';
+import { DemandesModule } from './modules/demandes/demandes.module';
 import { StockModule } from './modules/stock/stock.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -46,6 +47,7 @@ import { DossierDocumentsModule } from './modules/dossier-documents/dossier-docu
     EventsModule,
     DocumentsModule,
     IntervenantsModule,
+    DemandesModule,
     StockModule,
     OrdersModule,
     NotificationsModule,
