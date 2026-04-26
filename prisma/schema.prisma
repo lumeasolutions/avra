@@ -114,6 +114,40 @@ enum IntervenantRequestStatus {
   CANCELLED
 }
 
+/// Types de demande envoyees aux intervenants depuis l'app pro.
+/// Centralise tous les workflows : pose, livraison, SAV, mesure, etc.
+enum DemandeType {
+  POSE
+  LIVRAISON
+  SAV
+  MESURE
+  DEVIS
+  CONFIRMATION_COMMANDE
+  COMPLEMENT
+  AUTRE
+}
+
+/// Workflow d'une demande adressee a un intervenant.
+enum DemandeStatus {
+  ENVOYEE      // Cree, intervenant pas encore connecte
+  VUE          // Intervenant a ouvert la demande
+  ACCEPTEE     // Intervenant a accepte de la prendre
+  REFUSEE      // Intervenant a decline
+  EN_COURS     // Intervention en cours
+  TERMINEE     // Intervention finie (avec eventuels docs en retour)
+  ANNULEE      // Le pro a annule la demande
+}
+
+/// Statut d'une invitation envoyee a un intervenant pour creer/lier
+/// son compte au portail.
+enum IntervenantInvitationStatus {
+  PENDING       // Token actif, intervenant pas encore clique
+  ACCEPTED      // Compte cree ou relation creee
+  REFUSED       // Intervenant a decline
+  EXPIRED       // Token > expiresAt
+  REVOKED       // Pro a revoque le lien avant action
+}
+
 enum DocumentKind {
   PLAN
   DEVIS
@@ -246,6 +280,8 @@ model Workspace {
   quotes             Quote[]
   dossierDocuments   DossierDocument[]
   documentAuditLogs  DocumentAuditLog[]
+  intervenantInvitations IntervenantInvitation[]
+  demandes           Demande[]
 }
 
 model User {
@@ -272,6 +308,14 @@ model User {
   ownedProjects     Project[]       @relation("ProjectOwner")
   createdDossierDocuments DossierDocument[] @relation("DossierDocumentCreatedBy")
   documentAuditLogs DocumentAuditLog[]
+  /// Profil intervenant (1-1 si l'utilisateur est un intervenant connecte).
+  intervenantProfiles      Intervenant[]            @relation("IntervenantUser")
+  intervenantInvitationsCreated  IntervenantInvitation[] @relation("IntervenantInvitationCreatedBy")
+  intervenantInvitationsAccepted IntervenantInvitation[] @relation("IntervenantInvitationAcceptedBy")
+  demandesCreated          Demande[]                @relation("DemandeCreatedBy")
+  demandeMessages          DemandeMessage[]         @relation("DemandeMessageAuthor")
+  demandeAttachments       DemandeAttachment[]      @relation("DemandeAttachmentUploadedBy")
+  demandeStatusEvents      DemandeStatusEvent[]     @relation("DemandeStatusEventTriggeredBy")
 }
 
 model UserWorkspace {
@@ -407,6 +451,7 @@ model Project {
   quotes               Quote[]
   reminders            Reminder[]
   dossierDocuments     DossierDocument[]
+  demandes             Demande[]               @relation("DemandeProject")
 
   @@index([workspaceId])
   @@index([clientId])
@@ -434,6 +479,7 @@ model DossierDocument {
   workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   createdBy       User      @relation("DossierDocumentCreatedBy", fields: [createdById], references: [id])
+  demandeAttachments DemandeAttachment[]
 
   @@index([projectId])
   @@index([workspaceId, projectId, subfolderLabel])
@@ -554,6 +600,7 @@ model Document {
   auditLogs         DocumentAuditLog[]
   iaJobsAsSource    IaJob[]        @relation("IaSourceDoc")
   iaJobsAsResult    IaJob[]        @relation("IaResultDoc")
+  demandeAttachments DemandeAttachment[] @relation("DemandeAttachmentDoc")
 
   @@index([workspaceId])
   @@index([projectId])
@@ -625,6 +672,7 @@ model Event {
   createdBy           User               @relation(fields: [createdById], references: [id])
   eventIntervenants   EventIntervenant[]
   reminders           Reminder[]
+  demandes            Demande[]          @relation("DemandeEvent")
 
   @@index([workspaceId])
 }
@@ -671,15 +719,176 @@ model Intervenant {
   notes           String?
   portalEnabled   Boolean         @default(false)
   portalToken     String?         @unique
+  /// Lien vers le compte User si l'intervenant a accepte une invitation
+  /// au portail (NULL = annuaire seul, sans compte connecte).
+  userId          String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   workspace           Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user                User?                @relation("IntervenantUser", fields: [userId], references: [id], onDelete: SetNull)
   projects            ProjectIntervenant[]
   eventIntervenants   EventIntervenant[]
   requests            IntervenantRequest[]
+  invitations         IntervenantInvitation[]
+  demandes            Demande[]
 
   @@index([workspaceId])
+  @@index([userId])
+}
+
+/// Invitation envoyee a un intervenant pour creer (ou lier) son compte
+/// au portail. Token sécurisé 192 bits, expiration 14 jours par défaut.
+/// Une invitation peut etre acceptee, refusee, expirer, ou etre revoquee.
+model IntervenantInvitation {
+  id              String                       @id @default(cuid())
+  intervenantId   String
+  workspaceId     String
+  /// Token URL-safe (256 bits hex). Le pro envoie le lien
+  /// /intervenant/invitation/{token} a l'intervenant.
+  token           String                       @unique
+  /// Email cible (pre-rempli sur la page d'inscription).
+  email           String
+  status          IntervenantInvitationStatus  @default(PENDING)
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  refusedAt       DateTime?
+  revokedAt       DateTime?
+  /// Si le compte User est cree au moment de l'acceptation, on stocke l'ID.
+  acceptedByUserId String?
+  /// Message libre du pro envoye dans l'email d'invitation.
+  message         String?
+  createdById     String
+  createdAt       DateTime                     @default(now())
+
+  intervenant     Intervenant @relation(fields: [intervenantId], references: [id], onDelete: Cascade)
+  workspace       Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy       User        @relation("IntervenantInvitationCreatedBy", fields: [createdById], references: [id])
+  acceptedByUser  User?       @relation("IntervenantInvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([intervenantId])
+  @@index([email])
+  @@index([expiresAt])
+}
+
+/// Demande envoyee a un intervenant. Version moderne et complete de
+/// IntervenantRequest (laisse en place pour retrocompat). Supporte tous
+/// les types de workflow (pose, livraison, SAV, mesure, devis, confirmation
+/// commande...) avec un fil de messages, des PJ, et un audit log de statut.
+model Demande {
+  id              String         @id @default(cuid())
+  workspaceId     String
+  /// L'intervenant cible. Null si la demande est en cours de redaction
+  /// avant assignation finale (cas tres rare, pour brouillons).
+  intervenantId   String?
+  /// Optionnel : projet/dossier auquel la demande est rattachee.
+  projectId       String?
+  /// Optionnel : event planning declencheur (cas planning -> demande auto).
+  eventId         String?
+  type            DemandeType    @default(AUTRE)
+  status          DemandeStatus  @default(ENVOYEE)
+  title           String
+  /// Note libre du pro (le brief de la demande).
+  notes           String?        @db.Text
+  /// Date prevue (deadline souhaitee) — informative, pas bloquante.
+  scheduledFor    DateTime?
+  /// Reponse libre de l'intervenant a l'acceptation/refus.
+  responseMessage String?        @db.Text
+  /// Premiere ouverture de la demande par l'intervenant (vue).
+  viewedAt        DateTime?
+  acceptedAt      DateTime?
+  refusedAt       DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  /// Createur cote pro.
+  createdById     String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  intervenant     Intervenant?       @relation(fields: [intervenantId], references: [id], onDelete: SetNull)
+  project         Project?           @relation("DemandeProject", fields: [projectId], references: [id], onDelete: SetNull)
+  event           Event?             @relation("DemandeEvent", fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy       User               @relation("DemandeCreatedBy", fields: [createdById], references: [id])
+  messages        DemandeMessage[]
+  attachments     DemandeAttachment[]
+  statusEvents    DemandeStatusEvent[]
+
+  @@index([workspaceId, status])
+  @@index([intervenantId, status])
+  @@index([projectId])
+  @@index([eventId])
+}
+
+/// Message dans le fil de discussion d'une demande.
+/// Auteur peut etre cote pro (User pro) ou cote intervenant (User intervenant).
+model DemandeMessage {
+  id            String   @id @default(cuid())
+  demandeId     String
+  /// Auteur — peut etre n'importe quel User (pro ou intervenant).
+  authorId      String
+  /// Cache du nom affiche (snapshot au moment de l'envoi).
+  authorName    String
+  /// 'pro' ou 'intervenant' selon le contexte de l'envoi.
+  authorRole    String
+  body          String   @db.Text
+  createdAt     DateTime @default(now())
+
+  demande       Demande  @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  author        User     @relation("DemandeMessageAuthor", fields: [authorId], references: [id])
+
+  @@index([demandeId, createdAt])
+}
+
+/// Piece jointe attachee a une demande (lien vers DossierDocument
+/// existant, ou Document admin si pertinent). Permet au pro de joindre
+/// les plans / devis / photos a une demande sans dupliquer le fichier.
+model DemandeAttachment {
+  id            String   @id @default(cuid())
+  demandeId     String
+  /// L'un OU l'autre — jamais les deux.
+  dossierDocumentId String?
+  documentId        String?
+  /// Snapshot du nom au moment de l'ajout (le doc peut etre supprime).
+  displayName       String
+  /// Cache pratique du mime pour affichage liste.
+  mimeType          String?
+  /// 'pro' ou 'intervenant' selon qui a uploade.
+  uploadedByRole    String
+  uploadedById      String
+  createdAt         DateTime @default(now())
+
+  demande           Demande         @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  dossierDocument   DossierDocument? @relation(fields: [dossierDocumentId], references: [id], onDelete: SetNull)
+  document          Document?       @relation("DemandeAttachmentDoc", fields: [documentId], references: [id], onDelete: SetNull)
+  uploadedBy        User            @relation("DemandeAttachmentUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([demandeId])
+  @@index([dossierDocumentId])
+  @@index([documentId])
+}
+
+/// Audit log des changements de statut sur une demande.
+/// Permet de reconstituer la timeline complete : qui a passe de ENVOYEE
+/// a VUE, quand, etc. Conservation indefinie (donnees compactes).
+model DemandeStatusEvent {
+  id            String         @id @default(cuid())
+  demandeId     String
+  fromStatus    DemandeStatus?
+  toStatus      DemandeStatus
+  /// Auteur du changement (pro ou intervenant).
+  triggeredById String
+  triggeredByRole String
+  /// Optionnel : commentaire associe au changement.
+  comment       String?
+  createdAt     DateTime       @default(now())
+
+  demande       Demande @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  triggeredBy   User    @relation("DemandeStatusEventTriggeredBy", fields: [triggeredById], references: [id])
+
+  @@index([demandeId, createdAt])
 }
 
 model IntervenantRequest {

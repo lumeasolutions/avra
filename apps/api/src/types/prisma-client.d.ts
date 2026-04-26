@@ -72,6 +72,30 @@ declare module '@prisma/client' {
   export const AuditAction: { CREATE: 'CREATE'; UPDATE: 'UPDATE'; DELETE: 'DELETE'; LOGIN: 'LOGIN'; EXPORT: 'EXPORT'; UPLOAD: 'UPLOAD'; SIGN: 'SIGN'; PAY: 'PAY' };
   export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'EXPORT' | 'UPLOAD' | 'SIGN' | 'PAY';
 
+  export const DemandeType: {
+    POSE: 'POSE'; LIVRAISON: 'LIVRAISON'; SAV: 'SAV'; MESURE: 'MESURE';
+    DEVIS: 'DEVIS'; CONFIRMATION_COMMANDE: 'CONFIRMATION_COMMANDE';
+    COMPLEMENT: 'COMPLEMENT'; AUTRE: 'AUTRE';
+  };
+  export type DemandeType =
+    | 'POSE' | 'LIVRAISON' | 'SAV' | 'MESURE' | 'DEVIS'
+    | 'CONFIRMATION_COMMANDE' | 'COMPLEMENT' | 'AUTRE';
+
+  export const DemandeStatus: {
+    ENVOYEE: 'ENVOYEE'; VUE: 'VUE'; ACCEPTEE: 'ACCEPTEE'; REFUSEE: 'REFUSEE';
+    EN_COURS: 'EN_COURS'; TERMINEE: 'TERMINEE'; ANNULEE: 'ANNULEE';
+  };
+  export type DemandeStatus =
+    | 'ENVOYEE' | 'VUE' | 'ACCEPTEE' | 'REFUSEE'
+    | 'EN_COURS' | 'TERMINEE' | 'ANNULEE';
+
+  export const IntervenantInvitationStatus: {
+    PENDING: 'PENDING'; ACCEPTED: 'ACCEPTED'; REFUSED: 'REFUSED';
+    EXPIRED: 'EXPIRED'; REVOKED: 'REVOKED';
+  };
+  export type IntervenantInvitationStatus =
+    | 'PENDING' | 'ACCEPTED' | 'REFUSED' | 'EXPIRED' | 'REVOKED';
+
   // PrismaClient avec tous les modèles du schema
   export class PrismaClient {
     $connect(): Promise<void>;
@@ -97,6 +121,11 @@ declare module '@prisma/client' {
     readonly document: any;
     readonly documentShare: any;
     readonly documentAuditLog: any;
+    readonly intervenantInvitation: any;
+    readonly demande: any;
+    readonly demandeMessage: any;
+    readonly demandeAttachment: any;
+    readonly demandeStatusEvent: any;
     readonly event: any;
     readonly eventIntervenant: any;
     readonly reminder: any;
