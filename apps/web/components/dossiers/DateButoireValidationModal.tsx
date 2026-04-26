@@ -26,11 +26,11 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   X, Calendar, Sparkles, AlertTriangle, Check, Loader2,
   AlertCircle, Wand2, FileCheck, Receipt, CalendarDays, ChevronLeft, ChevronRight,
+  Eye,
 } from 'lucide-react';
 import { usePlanningStore } from '@/store/usePlanningStore';
 import type {
   SubFolder,
-  SubFolderDocument,
   DocumentFile,
 } from '@/store/useDossierStore';
 import {
@@ -38,6 +38,7 @@ import {
   CUISINISTE_OPTION_REGEX,
   MENUISIER_PROJET_REGEX,
 } from '@/store/useDossierStore';
+import { getDocSignedUrl } from '@/lib/dossier-docs-api';
 
 type Profession = 'architecte' | 'menuisier' | 'cuisiniste' | null;
 
@@ -97,11 +98,12 @@ function dayDelta(iso: string): number {
 export function DateButoireValidationModal({
   open, signedSubfolders, dossierId, clientName, subfolders, profession, loading, onConfirm, onCancel,
 }: DateButoireValidationProps) {
-  void dossierId;
   const planningEvents = usePlanningStore((s) => s.planningEvents);
   const gestEvents = usePlanningStore((s) => s.gestEvents);
 
   const [dates, setDates] = useState<Record<string, string>>({});
+  // ID du doc en cours de chargement preview (loupe → spinner pendant fetch URL signée)
+  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -210,6 +212,30 @@ export function DateButoireValidationModal({
     for (const label of signedSubfolders) next[label] = suggestDate(label);
     setDates(next);
     setError(null);
+  };
+
+  /**
+   * Ouvre le doc dans un nouvel onglet (preview) sans fermer le modal.
+   * - Backend (docId) : fetch URL signée fraîche puis window.open
+   * - Legacy (dataUrl) : ouverture directe via blob URL
+   * - Placeholder pur (ni docId ni dataUrl) : on indique "indisponible"
+   */
+  const handlePreviewDoc = async (doc: DocumentFile) => {
+    const previewKey = doc.docId ?? doc.name;
+    if (doc.dataUrl) {
+      window.open(doc.dataUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (!doc.docId || !dossierId) return;
+    setPreviewLoadingId(previewKey);
+    try {
+      const { signedUrl } = await getDocSignedUrl(dossierId, doc.docId);
+      window.open(signedUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      console.error('[validation-modal] preview failed:', err);
+    } finally {
+      setPreviewLoadingId(null);
+    }
   };
 
   const handleSubmit = async () => {
@@ -496,6 +522,28 @@ export function DateButoireValidationModal({
         .dbv-devis-meta { font-size: 10.5px; color: rgba(48,64,53,0.5); margin-top: 1px; }
         .dbv-devis-amount { font-size: 12px; font-weight: 800; color: #16a34a; flex-shrink: 0; }
         .dbv-devis-amount.neg { color: rgba(48,64,53,0.4); }
+
+        /* Bouton loupe pour preview document */
+        .dbv-preview-btn {
+          flex-shrink: 0;
+          width: 30px; height: 30px;
+          border-radius: 8px;
+          border: 1px solid rgba(48,64,53,0.1);
+          background: #fff;
+          color: rgba(48,64,53,0.55);
+          cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: all 0.16s ease;
+        }
+        .dbv-preview-btn:hover:not(:disabled) {
+          border-color: #a67749;
+          background: #fff8ef;
+          color: #a67749;
+          transform: scale(1.06);
+          box-shadow: 0 2px 8px rgba(166,119,73,0.22);
+        }
+        .dbv-preview-btn:active:not(:disabled) { transform: scale(0.96); }
+        .dbv-preview-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .dbv-empty {
           padding: 28px 16px;
@@ -789,28 +837,47 @@ export function DateButoireValidationModal({
                   </div>
                 ) : (
                   <div className="dbv-devis-list">
-                    {lastProjectDocs.map((doc, i) => (
-                      <div key={i} className="dbv-devis-row">
-                        <div className="dbv-devis-icon">
-                          <Receipt style={{ width: 13, height: 13 }} />
-                        </div>
-                        <div className="dbv-devis-info">
-                          <div className="dbv-devis-ref" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {doc.name}
+                    {lastProjectDocs.map((doc, i) => {
+                      const previewKey = doc.docId ?? doc.name;
+                      const canPreview = !!(doc.docId || doc.dataUrl);
+                      const isLoading = previewLoadingId === previewKey;
+                      return (
+                        <div key={i} className="dbv-devis-row">
+                          <div className="dbv-devis-icon">
+                            <Receipt style={{ width: 13, height: 13 }} />
                           </div>
-                          <div className="dbv-devis-meta">
-                            {(doc.size || doc.type) && (
-                              <>
-                                {doc.size ? `${(doc.size / 1024).toFixed(0)} Ko` : ''}
-                                {doc.size && doc.type ? ' · ' : ''}
-                                {doc.type ?? ''}
-                              </>
+                          <div className="dbv-devis-info">
+                            <div className="dbv-devis-ref" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {doc.name}
+                            </div>
+                            <div className="dbv-devis-meta">
+                              {(doc.size || doc.type) && (
+                                <>
+                                  {doc.size ? `${(doc.size / 1024).toFixed(0)} Ko` : ''}
+                                  {doc.size && doc.type ? ' · ' : ''}
+                                  {doc.type ?? ''}
+                                </>
+                              )}
+                              {!doc.size && !doc.type && doc.addedAt ? `Ajouté le ${doc.addedAt}` : ''}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="dbv-preview-btn"
+                            onClick={() => canPreview && handlePreviewDoc(doc)}
+                            disabled={!canPreview || isLoading}
+                            title={canPreview ? 'Voir le document' : 'Aperçu indisponible (placeholder sans contenu)'}
+                            aria-label={`Voir ${doc.name}`}
+                          >
+                            {isLoading ? (
+                              <Loader2 style={{ width: 14, height: 14, animation: 'dbv-spin 0.9s linear infinite' }} />
+                            ) : (
+                              <Eye style={{ width: 14, height: 14 }} />
                             )}
-                            {!doc.size && !doc.type && doc.addedAt ? `Ajouté le ${doc.addedAt}` : ''}
-                          </div>
+                          </button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
