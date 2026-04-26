@@ -198,6 +198,12 @@ export class IntervenantPortalController {
   listMessages(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.demandes.listMessages(user.sub, id, 'intervenant');
   }
+
+  /** Profils Intervenant lies au User connecte (peut etre plusieurs). */
+  @Get('profile')
+  profile(@CurrentUser() user: JwtPayload) {
+    return this.demandes.getIntervenantProfilesForUser(user.sub);
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────
