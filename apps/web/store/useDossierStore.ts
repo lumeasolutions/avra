@@ -133,8 +133,8 @@ export const ARCHITECTE_DEFAULT_SUBFOLDERS: SubFolder[] = [
 
 export const MENUISIER_DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER RENSEIGNEMENT' },
-  { label: 'RELEVÉ DE MESURE & PHOTOS EXISTANTS' },
-  { label: 'PROJET 1' },
+  { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
+  { label: 'RELEVE DE MESURES' },
 ];
 
 /** Regex pour détecter les sous-dossiers "PROJET N" (menuisier) */
