@@ -18,6 +18,7 @@ import { uploadDossierDoc, listDossierDocs, getDocSignedUrl, deleteDossierDoc } 
 import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
 import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
 import { useProjectActions } from '@/hooks/useProjectActions';
+import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 
 /** Normalise un document (string legacy ou objet) pour affichage. */
 const normalizeDoc = (d: SubFolderDocument): DocumentFile =>
@@ -582,6 +583,21 @@ export default function DossierDetailPage() {
               <Tag className="h-3.5 w-3.5" />
               Changer statut
             </button>
+            <SendToIntervenantButton
+              variant="secondary"
+              label="Envoyer à intervenant"
+              prefill={{
+                projectId: dossier.id,
+                title: `Intervention — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.2)',
+                fontSize: 12,
+                padding: '10px 14px',
+              }}
+            />
             <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
               <GitCompare className="h-3.5 w-3.5" />
               Comparer

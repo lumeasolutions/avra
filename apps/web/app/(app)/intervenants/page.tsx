@@ -9,6 +9,7 @@ import {
 import { useDossierStore, useIntervenantStore, type Intervenant } from '@/store';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 
 // ─── Config types ─────────────────────────────────────────────────────────────
 
@@ -389,18 +390,21 @@ export default function IntervenantsPage() {
           ? `${filtered.length} sur ${intervenants.length} · filtrés`
           : `${intervenants.length} intervenant${intervenants.length > 1 ? 's' : ''}`}
         actions={
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className={cn(
-              'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all shadow-sm',
-              showForm
-                ? 'bg-white/15 text-white border border-white/20'
-                : 'bg-[#a67749] text-white hover:bg-[#a67749]/85 shadow-md hover:shadow-lg hover:-translate-y-px'
-            )}
-          >
-            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {showForm ? 'Fermer' : 'Ajouter'}
-          </button>
+          <div className="flex items-center gap-2">
+            <SendToIntervenantButton variant="primary" label="Envoyer une demande" />
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className={cn(
+                'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all shadow-sm',
+                showForm
+                  ? 'bg-white/15 text-white border border-white/20'
+                  : 'bg-[#a67749] text-white hover:bg-[#a67749]/85 shadow-md hover:shadow-lg hover:-translate-y-px'
+              )}
+            >
+              {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {showForm ? 'Fermer' : 'Ajouter'}
+            </button>
+          </div>
         }
       />
 
