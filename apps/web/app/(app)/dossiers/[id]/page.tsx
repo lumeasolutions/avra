@@ -2375,6 +2375,8 @@ export default function DossierDetailPage() {
         signedSubfolders={signedSubfolderLabels}
         dossierId={id}
         clientName={`${dossier.firstName ? dossier.firstName + ' ' : ''}${dossier.name}`.trim()}
+        subfolders={dossier.subfolders}
+        profession={profession}
         loading={signing}
         onConfirm={handleConfirmDatesButoires}
         onCancel={() => { if (!signing) setShowDateButoiresModal(false); }}

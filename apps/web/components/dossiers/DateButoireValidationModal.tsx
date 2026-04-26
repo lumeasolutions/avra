@@ -27,8 +27,19 @@ import {
   X, Calendar, Sparkles, AlertTriangle, Check, Loader2,
   AlertCircle, Wand2, FileCheck, Receipt, CalendarDays, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { usePlanningStore, type PlanningEvent } from '@/store/usePlanningStore';
-import { useFacturationStore, type Devis } from '@/store/useFacturationStore';
+import { usePlanningStore } from '@/store/usePlanningStore';
+import type {
+  SubFolder,
+  SubFolderDocument,
+  DocumentFile,
+} from '@/store/useDossierStore';
+import {
+  ARCHITECTE_PROJET_VERSION_REGEX,
+  CUISINISTE_OPTION_REGEX,
+  MENUISIER_PROJET_REGEX,
+} from '@/store/useDossierStore';
+
+type Profession = 'architecte' | 'menuisier' | 'cuisiniste' | null;
 
 export interface DateButoireValidationProps {
   open: boolean;
@@ -38,6 +49,10 @@ export interface DateButoireValidationProps {
   dossierId: string;
   /** Nom du client à afficher en titre. */
   clientName?: string;
+  /** Sous-dossiers actifs du dossier (avec leurs documents). */
+  subfolders?: SubFolder[];
+  /** Métier de l'utilisateur — détermine quel sous-dossier est "le dernier projet". */
+  profession?: Profession;
   loading?: boolean;
   onConfirm: (dates: Record<string, string>) => Promise<void> | void;
   onCancel: () => void;
@@ -79,16 +94,12 @@ function dayDelta(iso: string): number {
   return Math.round((d.getTime() - today.getTime()) / 86400_000);
 }
 
-function fmtMontant(n: number): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
-}
-
 export function DateButoireValidationModal({
-  open, signedSubfolders, dossierId, clientName, loading, onConfirm, onCancel,
+  open, signedSubfolders, dossierId, clientName, subfolders, profession, loading, onConfirm, onCancel,
 }: DateButoireValidationProps) {
+  void dossierId;
   const planningEvents = usePlanningStore((s) => s.planningEvents);
   const gestEvents = usePlanningStore((s) => s.gestEvents);
-  const allDevis = useFacturationStore((s) => s.devis);
 
   const [dates, setDates] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -118,10 +129,51 @@ export function DateButoireValidationModal({
     };
   }, [open, submitting, loading, onCancel]);
 
-  // ── Devis du dossier ─────────────────────────────────────────────────────
-  const dossierDevis = useMemo<Devis[]>(() => {
-    return allDevis.filter((d) => d.dossierId === dossierId);
-  }, [allDevis, dossierId]);
+  // ── Sous-dossier "dernier projet" selon la profession ────────────────────
+  // Architecte : la version APD avec le numero le plus eleve (le projet final approuve)
+  // Cuisiniste : l'OPTION avec le numero le plus eleve (l'option finale choisie)
+  // Menuisier  : le PROJET avec le numero le plus eleve (le projet final)
+  // Pour chaque cas, on remonte les documents qui s'y trouvent.
+  const lastProjectSubfolder = useMemo<SubFolder | null>(() => {
+    if (!subfolders || subfolders.length === 0) return null;
+
+    let bestVersion = -1;
+    let best: SubFolder | null = null;
+
+    for (const sf of subfolders) {
+      let version: number | null = null;
+      if (profession === 'architecte') {
+        const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
+        // On filtre sur APD uniquement (le projet final approuve)
+        if (m && m[2].toUpperCase() === 'APD') version = parseInt(m[1], 10);
+      } else if (profession === 'cuisiniste') {
+        const m = sf.label.match(CUISINISTE_OPTION_REGEX);
+        if (m) version = parseInt(m[1], 10);
+      } else if (profession === 'menuisier') {
+        const m = sf.label.match(MENUISIER_PROJET_REGEX);
+        if (m) version = parseInt(m[1], 10);
+      } else {
+        // Pas de profession : on prend le dernier sous-dossier numerique connu (fallback)
+        const m =
+          sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX) ??
+          sf.label.match(CUISINISTE_OPTION_REGEX) ??
+          sf.label.match(MENUISIER_PROJET_REGEX);
+        if (m) version = parseInt(m[1], 10);
+      }
+      if (version !== null && Number.isFinite(version) && version > bestVersion) {
+        bestVersion = version;
+        best = sf;
+      }
+    }
+    return best;
+  }, [subfolders, profession]);
+
+  const lastProjectDocs = useMemo(() => {
+    if (!lastProjectSubfolder?.documents) return [] as DocumentFile[];
+    return lastProjectSubfolder.documents.map((d) =>
+      typeof d === 'string' ? ({ name: d } as DocumentFile) : d,
+    );
+  }, [lastProjectSubfolder]);
 
   // ── Planning de la semaine courante (filtré par weekOffset) ──────────────
   const weekEvents = useMemo(() => {
@@ -677,67 +729,85 @@ export function DateButoireValidationModal({
                   </div>
                 </div>
 
-                {weekEvents.length === 0 ? (
-                  <div className="dbv-plan-empty">Aucun événement planifié sur cette semaine</div>
-                ) : (
-                  <div className="dbv-plan-grid">
-                    <div className="dbv-plan-headcell">·</div>
-                    {DAYS.map((d) => <div key={d} className="dbv-plan-headcell">{d}</div>)}
-                    {hours.map((h) => (
-                      <div key={`row-${h}`} style={{ display: 'contents' }}>
-                        <div className="dbv-plan-hour">{h}h</div>
-                        {[1, 2, 3, 4, 5, 6, 7].map((day) => {
-                          const evt = weekEvents.find((e) => e.day === day && e.startHour === h);
-                          return (
-                            <div key={`c-${h}-${day}`} className="dbv-plan-cell">
-                              {evt && (
-                                <div
-                                  className="dbv-plan-event"
-                                  style={{
-                                    background: evt.color,
-                                    height: `${Math.max(1, evt.duration) * 28 - 2}px`,
-                                  }}
-                                  title={evt.title}
-                                >
-                                  {evt.title}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Grille toujours visible (meme sans evenement) — l'utilisateur
+                    voit immediatement quels creneaux sont libres pour planifier. */}
+                <div className="dbv-plan-grid">
+                  <div className="dbv-plan-headcell">·</div>
+                  {DAYS.map((d) => <div key={d} className="dbv-plan-headcell">{d}</div>)}
+                  {hours.map((h) => (
+                    <div key={`row-${h}`} style={{ display: 'contents' }}>
+                      <div className="dbv-plan-hour">{h}h</div>
+                      {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                        const evt = weekEvents.find((e) => e.day === day && e.startHour === h);
+                        return (
+                          <div key={`c-${h}-${day}`} className="dbv-plan-cell">
+                            {evt && (
+                              <div
+                                className="dbv-plan-event"
+                                style={{
+                                  background: evt.color,
+                                  height: `${Math.max(1, evt.duration) * 28 - 2}px`,
+                                }}
+                                title={evt.title}
+                              >
+                                {evt.title}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="dbv-section">
                 <div className="dbv-section-head">
                   <span className="dbv-section-title">
                     <Receipt style={{ width: 13, height: 13 }} />
-                    Dossier avant vente
+                    {profession === 'architecte' ? 'Dossier APD' : 'Dernier projet'}
                   </span>
-                  <span style={{ fontSize: 10, color: 'rgba(48,64,53,0.5)', fontWeight: 600 }}>
-                    {dossierDevis.length} devis
-                  </span>
+                  {lastProjectSubfolder && (
+                    <span style={{ fontSize: 10, color: 'rgba(48,64,53,0.55)', fontWeight: 700 }}>
+                      {lastProjectSubfolder.label}
+                    </span>
+                  )}
                 </div>
-                {dossierDevis.length === 0 ? (
-                  <div className="dbv-empty">Aucun devis associé à ce dossier</div>
+                {!lastProjectSubfolder ? (
+                  <div className="dbv-empty">
+                    {profession === 'architecte'
+                      ? 'Aucun PROJET VERSION X – APD trouvé dans ce dossier'
+                      : profession === 'cuisiniste'
+                      ? 'Aucune OPTION trouvée dans ce dossier'
+                      : profession === 'menuisier'
+                      ? 'Aucun PROJET trouvé dans ce dossier'
+                      : 'Aucun projet trouvé'}
+                  </div>
+                ) : lastProjectDocs.length === 0 ? (
+                  <div className="dbv-empty">
+                    « {lastProjectSubfolder.label} » ne contient aucun document
+                  </div>
                 ) : (
                   <div className="dbv-devis-list">
-                    {dossierDevis.map((d) => (
-                      <div key={d.id} className="dbv-devis-row">
+                    {lastProjectDocs.map((doc, i) => (
+                      <div key={i} className="dbv-devis-row">
                         <div className="dbv-devis-icon">
                           <Receipt style={{ width: 13, height: 13 }} />
                         </div>
                         <div className="dbv-devis-info">
-                          <div className="dbv-devis-ref">Devis n°{d.ref}</div>
-                          <div className="dbv-devis-meta">
-                            {d.objet ? `${d.objet} · ` : ''}{d.dateCreation} · {d.statut}
+                          <div className="dbv-devis-ref" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {doc.name}
                           </div>
-                        </div>
-                        <div className={`dbv-devis-amount${d.totalTTC <= 0 ? ' neg' : ''}`}>
-                          {fmtMontant(d.totalTTC)}
+                          <div className="dbv-devis-meta">
+                            {(doc.size || doc.type) && (
+                              <>
+                                {doc.size ? `${(doc.size / 1024).toFixed(0)} Ko` : ''}
+                                {doc.size && doc.type ? ' · ' : ''}
+                                {doc.type ?? ''}
+                              </>
+                            )}
+                            {!doc.size && !doc.type && doc.addedAt ? `Ajouté le ${doc.addedAt}` : ''}
+                          </div>
                         </div>
                       </div>
                     ))}
