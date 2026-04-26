@@ -7,7 +7,7 @@ import {
   FolderOpen, FileText, ImageIcon, Ruler, CheckCircle, ArrowLeft,
   GitCompare, AlertTriangle, Plus, ChevronRight, Tag, Phone, Mail,
   MapPin, Calendar, Receipt, FileCheck, StickyNote, Pencil, X,
-  Clock, Circle, TrendingUp, Zap, Eye, Download, Check, CornerDownRight, LayoutDashboard
+  Clock, Circle, TrendingUp, Zap, Eye, Download, Check, CornerDownRight, LayoutDashboard, LayoutGrid, List
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
@@ -15,6 +15,7 @@ import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
 import { uploadDossierDoc, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
+import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
 import { useProjectActions } from '@/hooks/useProjectActions';
 
 /** Normalise un document (string legacy ou objet) pour affichage. */
@@ -220,6 +221,19 @@ export default function DossierDetailPage() {
   const [newDocName, setNewDocName] = useState('');
   // États transitoires pour les opérations docs (loading + erreur visible).
   const [docOpStatus, setDocOpStatus] = useState<{ kind: 'idle' | 'uploading' | 'deleting' | 'error' | 'success'; message?: string }>({ kind: 'idle' });
+
+  // Mode d'affichage des docs dans le modal sous-dossier (liste / grille).
+  // Préférence persistée localStorage pour rester cohérent entre sessions.
+  const [docsViewMode, setDocsViewMode] = useState<'list' | 'grid'>('list');
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    const saved = localStorage.getItem('avra-dossier-docs-view');
+    if (saved === 'grid' || saved === 'list') setDocsViewMode(saved);
+  }, []);
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('avra-dossier-docs-view', docsViewMode);
+  }, [docsViewMode]);
   // Document en cours de prévisualisation (plein écran) + URL signée résolue
   const [previewDoc, setPreviewDoc] = useState<DocumentFile | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -1168,82 +1182,198 @@ export default function DossierDetailPage() {
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={() => { setOpenedSubfolder(null); setDocOpStatus({ kind: 'idle' }); setNewDocName(''); }}>
-            <div className="w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10" onClick={e => e.stopPropagation()}>
-              <div className="flex items-start justify-between mb-5">
-                <div>
-                  <h3 className="text-xl font-bold text-[#304035]">{sf.label}</h3>
+            <div className={`w-full ${docsViewMode === 'grid' ? 'max-w-3xl' : 'max-w-lg'} rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10 transition-all`} onClick={e => e.stopPropagation()}>
+              <div className="flex items-start justify-between mb-5 gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-xl font-bold text-[#304035] truncate">{sf.label}</h3>
                   <p className="text-xs text-[#304035]/50 mt-1">
                     {docs.length} document{docs.length > 1 ? 's' : ''}{sf.date ? ` · Modifié le ${sf.date}` : ''}
                   </p>
                 </div>
-                <button onClick={() => { setOpenedSubfolder(null); setDocOpStatus({ kind: 'idle' }); setNewDocName(''); }} className="p-2 rounded-lg hover:bg-[#304035]/5 transition-colors" aria-label="Fermer">
-                  <X className="h-5 w-5 text-[#304035]/60" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Toggle affichage : liste / grille (vignettes) */}
+                  <div className="flex items-center bg-[#304035]/5 rounded-lg p-0.5 mr-1">
+                    <button
+                      type="button"
+                      onClick={() => setDocsViewMode('list')}
+                      className={`p-1.5 rounded-md transition-all ${docsViewMode === 'list' ? 'bg-white text-[#304035] shadow-sm' : 'text-[#304035]/40 hover:text-[#304035]/70'}`}
+                      title="Vue liste"
+                      aria-label="Vue liste"
+                      aria-pressed={docsViewMode === 'list'}
+                    >
+                      <List className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDocsViewMode('grid')}
+                      className={`p-1.5 rounded-md transition-all ${docsViewMode === 'grid' ? 'bg-white text-[#304035] shadow-sm' : 'text-[#304035]/40 hover:text-[#304035]/70'}`}
+                      title="Vue grille (vignettes)"
+                      aria-label="Vue grille (vignettes)"
+                      aria-pressed={docsViewMode === 'grid'}
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <button onClick={() => { setOpenedSubfolder(null); setDocOpStatus({ kind: 'idle' }); setNewDocName(''); }} className="p-2 rounded-lg hover:bg-[#304035]/5 transition-colors" aria-label="Fermer">
+                    <X className="h-5 w-5 text-[#304035]/60" />
+                  </button>
+                </div>
               </div>
 
-              {/* Liste des documents */}
-              <div className="rounded-xl border border-[#304035]/10 divide-y divide-[#304035]/5 mb-5 max-h-72 overflow-y-auto">
-                {docs.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-[#304035]/40 text-sm">
-                    Aucun document dans ce sous-dossier
-                  </div>
-                ) : docs.map((doc, i) => {
-                  // Un doc est prévisualisable si on peut récupérer son contenu :
-                  //  - docId (API → URL signée fraîche)
-                  //  - dataUrl (legacy local)
-                  const canPreview = !!(doc.docId || doc.dataUrl);
-                  const isImg = doc.type?.startsWith('image/');
-                  return (
-                    <div key={i} className="flex items-center gap-3 px-4 py-3">
-                      {isImg && doc.dataUrl ? (
-                        <div className="h-9 w-9 rounded-lg overflow-hidden bg-[#304035]/5 shrink-0 border border-[#304035]/10">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={doc.dataUrl} alt={doc.name} className="h-full w-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="h-9 w-9 rounded-lg bg-[#304035]/5 shrink-0 flex items-center justify-center">
-                          <FileText className="h-4 w-4 text-[#a67749]" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <span className="block text-sm text-[#304035] truncate font-medium">{doc.name}</span>
-                        {(doc.size || doc.type) && (
-                          <span className="block text-[11px] text-[#304035]/40 truncate">
-                            {formatSize(doc.size)}{doc.size && doc.type ? ' · ' : ''}{doc.type ?? ''}
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => canPreview && openPreview(doc)}
-                        disabled={!canPreview}
-                        title={canPreview ? 'Aperçu' : 'Aperçu indisponible (document placeholder sans contenu)'}
-                        className="p-1.5 rounded-lg text-[#304035]/50 hover:text-[#304035] hover:bg-[#304035]/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        aria-label="Aperçu"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => canPreview && downloadDoc(id, doc)}
-                        disabled={!canPreview}
-                        title={canPreview ? 'Télécharger' : 'Téléchargement indisponible'}
-                        className="p-1.5 rounded-lg text-[#304035]/50 hover:text-[#a67749] hover:bg-[#a67749]/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        aria-label="Télécharger"
-                      >
-                        <Download className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(doc)}
-                        className="p-1.5 rounded-lg text-[#304035]/40 hover:text-red-500 hover:bg-red-50 transition-colors"
-                        aria-label="Supprimer"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+              {/* Vue LISTE */}
+              {docsViewMode === 'list' && (
+                <div className="rounded-xl border border-[#304035]/10 divide-y divide-[#304035]/5 mb-5 max-h-72 overflow-y-auto">
+                  {docs.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-[#304035]/40 text-sm">
+                      Aucun document dans ce sous-dossier
                     </div>
-                  );
-                })}
-              </div>
+                  ) : docs.map((doc, i) => {
+                    const canPreview = !!(doc.docId || doc.dataUrl);
+                    const isImg = doc.type?.startsWith('image/');
+                    return (
+                      <div key={i} className="flex items-center gap-3 px-4 py-3">
+                        {isImg && doc.dataUrl ? (
+                          <div className="h-9 w-9 rounded-lg overflow-hidden bg-[#304035]/5 shrink-0 border border-[#304035]/10">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={doc.dataUrl} alt={doc.name} className="h-full w-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="h-9 w-9 rounded-lg bg-[#304035]/5 shrink-0 flex items-center justify-center">
+                            <FileText className="h-4 w-4 text-[#a67749]" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <span className="block text-sm text-[#304035] truncate font-medium">{doc.name}</span>
+                          {(doc.size || doc.type) && (
+                            <span className="block text-[11px] text-[#304035]/40 truncate">
+                              {formatSize(doc.size)}{doc.size && doc.type ? ' · ' : ''}{doc.type ?? ''}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => canPreview && openPreview(doc)}
+                          disabled={!canPreview}
+                          title={canPreview ? 'Aperçu' : 'Aperçu indisponible (document placeholder sans contenu)'}
+                          className="p-1.5 rounded-lg text-[#304035]/50 hover:text-[#304035] hover:bg-[#304035]/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          aria-label="Aperçu"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => canPreview && downloadDoc(id, doc)}
+                          disabled={!canPreview}
+                          title={canPreview ? 'Télécharger' : 'Téléchargement indisponible'}
+                          className="p-1.5 rounded-lg text-[#304035]/50 hover:text-[#a67749] hover:bg-[#a67749]/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          aria-label="Télécharger"
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(doc)}
+                          className="p-1.5 rounded-lg text-[#304035]/40 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          aria-label="Supprimer"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Vue GRILLE — vignettes type explorateur Windows */}
+              {docsViewMode === 'grid' && (
+                <div className="rounded-xl border border-[#304035]/10 mb-5 max-h-[480px] overflow-y-auto p-3 bg-[#fafaf7]">
+                  {docs.length === 0 ? (
+                    <div className="px-4 py-12 text-center text-[#304035]/40 text-sm">
+                      Aucun document dans ce sous-dossier
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                      {docs.map((doc, i) => {
+                        const canPreview = !!(doc.docId || doc.dataUrl);
+                        return (
+                          <div
+                            key={i}
+                            className="dt-card group relative"
+                            style={{ position: 'relative' }}
+                          >
+                            <style>{`
+                              .dt-card { transition: transform 0.18s ease; }
+                              .dt-actions {
+                                position: absolute; top: 6px; left: 6px;
+                                display: flex; gap: 4px;
+                                opacity: 0;
+                                transition: opacity 0.18s ease;
+                              }
+                              .dt-card:hover .dt-actions { opacity: 1; }
+                              .dt-action-btn {
+                                width: 26px; height: 26px;
+                                border-radius: 8px;
+                                background: rgba(255, 255, 255, 0.95);
+                                border: 1px solid rgba(48, 64, 53, 0.12);
+                                display: flex; align-items: center; justify-content: center;
+                                cursor: pointer;
+                                box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+                                color: #304035;
+                                transition: all 0.16s ease;
+                              }
+                              .dt-action-btn:hover { transform: scale(1.08); }
+                              .dt-action-dl:hover { color: #a67749; background: #fff8ef; }
+                              .dt-action-rm:hover { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+                              .dt-action-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+                            `}</style>
+                            <button
+                              type="button"
+                              onClick={() => canPreview && openPreview(doc)}
+                              disabled={!canPreview}
+                              className="block w-full text-left disabled:cursor-not-allowed"
+                              title={canPreview ? `Cliquer pour aperçu : ${doc.name}` : doc.name}
+                              aria-label={`Aperçu de ${doc.name}`}
+                            >
+                              <DocThumbnail doc={doc} dossierId={id} height={120} />
+                            </button>
+
+                            <div className="mt-2 px-1">
+                              <p className="text-xs font-semibold text-[#304035] truncate" title={doc.name}>
+                                {doc.name}
+                              </p>
+                              <p className="text-[10px] text-[#304035]/45 truncate">
+                                {formatSize(doc.size)}{doc.size && doc.type ? ' · ' : ''}{doc.type?.split('/')[1] ?? ''}
+                              </p>
+                            </div>
+
+                            {/* Actions visibles au hover */}
+                            <div className="dt-actions">
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); if (canPreview) downloadDoc(id, doc); }}
+                                disabled={!canPreview}
+                                className="dt-action-btn dt-action-dl"
+                                title="Télécharger"
+                                aria-label="Télécharger"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleDelete(doc); }}
+                                className="dt-action-btn dt-action-rm"
+                                title="Supprimer"
+                                aria-label="Supprimer"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Bandeau état opération (upload/delete) */}
               {docOpStatus.kind !== 'idle' && (
