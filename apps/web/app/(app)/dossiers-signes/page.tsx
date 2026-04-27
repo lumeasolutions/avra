@@ -13,6 +13,7 @@ import { useDossierStore, useFacturationStore, type ConfirmationFournisseur, typ
 import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -824,13 +825,27 @@ export default function DossiersSignesPage() {
         title="Dossiers signés"
         subtitle={`${dossiersSignes.length} dossier${dossiersSignes.length > 1 ? 's' : ''} validé${dossiersSignes.length > 1 ? 's' : ''}`}
         actions={
-          <div className="flex items-center bg-white/15 rounded-xl border border-white/20 p-1 shadow-sm">
-            <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white/25 text-white shadow-sm' : 'text-white/60 hover:text-white'}`}>
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-            <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white/25 text-white shadow-sm' : 'text-white/60 hover:text-white'}`}>
-              <List className="h-4 w-4" />
-            </button>
+          <div className="flex items-center gap-2">
+            <SendToIntervenantButton
+              variant="secondary"
+              label="Demande SAV"
+              prefill={{ type: 'SAV', title: 'SAV — ' }}
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.25)',
+                fontSize: 12,
+                padding: '8px 14px',
+              }}
+            />
+            <div className="flex items-center bg-white/15 rounded-xl border border-white/20 p-1 shadow-sm">
+              <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white/25 text-white shadow-sm' : 'text-white/60 hover:text-white'}`}>
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white/25 text-white shadow-sm' : 'text-white/60 hover:text-white'}`}>
+                <List className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         }
       />

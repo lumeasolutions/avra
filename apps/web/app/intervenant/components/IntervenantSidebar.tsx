@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Inbox, Hammer, Calendar, User, LogOut, BellRing, type LucideIcon } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useDemandesStore } from '@/store/useDemandesStore';
@@ -23,6 +23,9 @@ export function IntervenantSidebar() {
   const myStats = useDemandesStore((s) => s.myStats);
   const fetchMyStats = useDemandesStore((s) => s.fetchMyStats);
 
+  // Track previous count for desktop notification
+  const prevUnreadRef = useRef<number>(0);
+
   useEffect(() => {
     fetchMyStats();
     const interval = setInterval(() => fetchMyStats(), 60_000);
@@ -30,6 +33,33 @@ export function IntervenantSidebar() {
   }, [fetchMyStats]);
 
   const unread = myStats?.unreadCount ?? 0;
+
+  // Phase C : Desktop notification quand une nouvelle demande arrive
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    // Demande la permission au premier render
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {/* noop */});
+    }
+    // Si le compteur a augmente : notification
+    if (unread > prevUnreadRef.current && prevUnreadRef.current > 0) {
+      const delta = unread - prevUnreadRef.current;
+      if (Notification.permission === 'granted') {
+        try {
+          const n = new Notification('AVRA — Nouvelle demande', {
+            body: `Vous avez ${delta} nouvelle${delta > 1 ? 's' : ''} demande${delta > 1 ? 's' : ''} a traiter.`,
+            icon: '/favicon.ico',
+            tag: 'avra-new-demande',
+          });
+          n.onclick = () => {
+            window.focus();
+            window.location.href = '/intervenant/demandes';
+          };
+        } catch {/* noop */}
+      }
+    }
+    prevUnreadRef.current = unread;
+  }, [unread]);
 
   const handleLogout = () => {
     logout();

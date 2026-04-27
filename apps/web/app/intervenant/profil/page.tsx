@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Mail, User as UserIcon, Building2, Phone, AtSign, ShieldCheck, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, User as UserIcon, Building2, Phone, AtSign, ShieldCheck, Save, AlertCircle, CheckCircle2, Calendar, Copy, Download } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { api } from '@/lib/api';
 
@@ -98,6 +98,50 @@ export default function ProfilPage() {
             ))}
           </div>
         )}
+      </Section>
+
+      {/* Phase D : Planning iCal */}
+      <Section icon={<Calendar size={16} />} title="Planning iCal">
+        <p style={{ fontSize: 13, color: '#5b5045', lineHeight: 1.5, marginBottom: 12 }}>
+          Synchronisez automatiquement vos interventions AVRA avec Google Calendar,
+          Apple Calendar ou Outlook. Toutes les demandes planifiees apparaissent sur
+          votre agenda habituel.
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <a
+            href="/api/v1/intervenant-portal/planning.ics"
+            download="avra-planning.ics"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '10px 16px',
+              background: '#1a2a1e', color: '#cbb98a',
+              borderRadius: 10, fontSize: 13, fontWeight: 700,
+              textDecoration: 'none',
+            }}
+          >
+            <Download size={14} /> Telecharger le .ics
+          </a>
+          <button
+            onClick={async () => {
+              const url = `${window.location.origin}/api/v1/intervenant-portal/planning.ics`;
+              try { await navigator.clipboard.writeText(url); } catch {}
+              alert('Lien copie. Collez-le dans votre calendrier sous "Souscrire a un calendrier".');
+            }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '10px 16px',
+              background: 'transparent', color: '#5b5045',
+              border: '1px solid #ddd5c7', borderRadius: 10,
+              fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            <Copy size={14} /> Copier le lien d'abonnement
+          </button>
+        </div>
+        <p style={{ fontSize: 11, color: '#7c6c58', marginTop: 10, lineHeight: 1.4 }}>
+          Mis a jour en temps reel cote serveur. L'abonnement permet une sync
+          automatique (vs telechargement = snapshot ponctuel).
+        </p>
       </Section>
 
       {/* Sécurité */}

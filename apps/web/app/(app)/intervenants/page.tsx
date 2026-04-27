@@ -11,7 +11,8 @@ import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { InviteIntervenantModal } from '@/components/demandes/InviteIntervenantModal';
-import { listInvitations, type IntervenantInvitation } from '@/lib/demandes-api';
+import { listInvitations, createInvitation, type IntervenantInvitation } from '@/lib/demandes-api';
+import { api } from '@/lib/api';
 
 // ─── Config types ─────────────────────────────────────────────────────────────
 
@@ -65,6 +66,13 @@ function Avatar({ name, type, size = 'md' }: { name: string; type: string; size?
   );
 }
 
+// Format duration (minutes) → human "2h", "30min", "3j"
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60 * 24) return `${Math.round(minutes / 60)}h`;
+  return `${Math.round(minutes / 60 / 24)}j`;
+}
+
 // ─── Fiche slide-over ─────────────────────────────────────────────────────────
 
 function FicheIntervenant({
@@ -87,6 +95,21 @@ function FicheIntervenant({
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const c = cfg(intervenant.type);
+
+  // Phase E : charge stats + historique a l'ouverture
+  const [stats, setStats] = useState<import('@/lib/demandes-api').IntervenantStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingStats(true);
+    import('@/lib/demandes-api').then(({ getIntervenantStats }) =>
+      getIntervenantStats(intervenant.id)
+    )
+      .then((s) => { if (!cancelled) setStats(s); })
+      .catch(() => { if (!cancelled) setStats(null); })
+      .finally(() => { if (!cancelled) setLoadingStats(false); });
+    return () => { cancelled = true; };
+  }, [intervenant.id]);
 
   const saveEdit = () => {
     if (!form.name.trim()) return;
@@ -287,6 +310,91 @@ function FicheIntervenant({
                 />
               </div>
 
+              {/* Phase E : Stats + Historique */}
+              {loadingStats ? (
+                <div className="rounded-xl bg-[#304035]/4 p-4 animate-pulse">
+                  <div className="h-3 w-24 bg-[#304035]/12 rounded mb-3" />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="h-12 bg-[#304035]/8 rounded-lg" />
+                    <div className="h-12 bg-[#304035]/8 rounded-lg" />
+                    <div className="h-12 bg-[#304035]/8 rounded-lg" />
+                  </div>
+                </div>
+              ) : stats && stats.total > 0 ? (
+                <div>
+                  <p className="text-[10px] font-bold text-[#304035]/35 uppercase tracking-widest mb-3">
+                    Statistiques de collaboration
+                  </p>
+
+                  {/* Réputation score */}
+                  {stats.reputationScore !== null && (
+                    <div className="rounded-xl bg-gradient-to-r from-[#a67749]/8 to-emerald-50 border border-[#a67749]/20 p-4 mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold text-[#304035]/55 uppercase tracking-widest">Score de fiabilité</span>
+                        <span className="text-2xl font-black text-[#a67749]">{stats.reputationScore}<span className="text-sm text-[#a67749]/60">/100</span></span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-[#304035]/8 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#a67749] to-emerald-500 transition-all"
+                          style={{ width: `${stats.reputationScore}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-[#304035]/45 mt-2 leading-snug">
+                        Calculé sur le taux d'acceptation et de complétion des demandes envoyées.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* KPIs */}
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div className="rounded-xl bg-white border border-[#304035]/8 p-3 text-center">
+                      <p className="text-xl font-bold text-[#304035]">{stats.total}</p>
+                      <p className="text-[9px] font-semibold text-[#304035]/45 uppercase tracking-wider mt-0.5">Demandes</p>
+                    </div>
+                    <div className="rounded-xl bg-white border border-emerald-100 p-3 text-center">
+                      <p className="text-xl font-bold text-emerald-600">{stats.acceptanceRate ?? '—'}{stats.acceptanceRate !== null ? '%' : ''}</p>
+                      <p className="text-[9px] font-semibold text-emerald-700/60 uppercase tracking-wider mt-0.5">Acceptation</p>
+                    </div>
+                    <div className="rounded-xl bg-white border border-blue-100 p-3 text-center">
+                      <p className="text-xl font-bold text-blue-600">{stats.avgResponseMinutes !== null ? formatDuration(stats.avgResponseMinutes) : '—'}</p>
+                      <p className="text-[9px] font-semibold text-blue-700/60 uppercase tracking-wider mt-0.5">Délai réponse</p>
+                    </div>
+                  </div>
+
+                  {/* Historique compact */}
+                  {stats.history.length > 0 && (
+                    <details className="group rounded-xl bg-[#304035]/3 border border-[#304035]/6 overflow-hidden">
+                      <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[#304035]/5 transition-colors">
+                        <span className="text-xs font-bold text-[#304035]/70">Historique ({stats.history.length})</span>
+                        <ArrowUpDown className="h-3.5 w-3.5 text-[#304035]/40 group-open:rotate-180 transition-transform" />
+                      </summary>
+                      <div className="max-h-64 overflow-y-auto divide-y divide-[#304035]/6">
+                        {stats.history.slice(0, 10).map((h) => {
+                          const statusColor = h.status === 'TERMINEE' ? 'bg-emerald-100 text-emerald-700' :
+                                              h.status === 'EN_COURS' ? 'bg-orange-100 text-orange-700' :
+                                              h.status === 'ACCEPTEE' ? 'bg-blue-100 text-blue-700' :
+                                              h.status === 'REFUSEE' ? 'bg-red-100 text-red-700' :
+                                              'bg-[#304035]/10 text-[#304035]/60';
+                          return (
+                            <div key={h.id} className="px-4 py-2.5 hover:bg-white/50 transition-colors">
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className="text-[10px] font-bold text-[#304035]/40 uppercase">{h.type}</span>
+                                <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-bold', statusColor)}>{h.status}</span>
+                              </div>
+                              <p className="text-xs font-semibold text-[#304035] truncate">{h.title}</p>
+                              <p className="text-[10px] text-[#304035]/45 mt-0.5">
+                                {new Date(h.createdAt).toLocaleDateString('fr-FR')}
+                                {h.project?.name ? ` · ${h.project.name}` : ''}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              ) : null}
+
               {/* Dossiers */}
               {intervenant.dossiers.length > 0 && (
                 <div>
@@ -401,11 +509,61 @@ export default function IntervenantsPage() {
     });
   }, [intervenants, search, filterType, sortKey, sortDir]);
 
-  const handleAdd = () => {
+  // Phase B : checkbox "Envoyer une invitation tout de suite"
+  const [sendInviteOnCreate, setSendInviteOnCreate] = useState(false);
+  const [creatingError, setCreatingError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const handleAdd = async () => {
     if (!form.name.trim()) return;
-    addIntervenant(form);
-    setForm({ type: 'POSEUR', name: '', phone: '', email: '', notes: '' });
-    setShowForm(false);
+    setCreatingError(null);
+    setCreating(true);
+    try {
+      // 1. Cree l'intervenant en backend (besoin d'un ID stable pour l'invitation)
+      const parts = form.name.trim().split(/\s+/);
+      const created = await api<any>('/intervenants', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: form.type,
+          companyName: parts.length > 1 ? form.name.trim() : undefined,
+          firstName: parts.length === 1 ? parts[0] : undefined,
+          lastName: undefined,
+          email: form.email || undefined,
+          phone: form.phone || undefined,
+          notes: form.notes || undefined,
+        }),
+      });
+
+      // 2. Mise a jour optimiste du store local avec l'ID backend
+      addIntervenant(form);
+      // Sync best-effort : le useDataSync recharge la liste backend dans la foulee
+      // (sinon le badge "INVITE" ne saura pas que cet intervenant est lie a une invite).
+
+      // 3. Si checkbox cochee + email present : creer l'invitation
+      if (sendInviteOnCreate && form.email && created?.id) {
+        try {
+          const inv = await createInvitation({
+            intervenantId: created.id,
+            email: form.email.trim().toLowerCase(),
+            expiresInDays: 14,
+          });
+          if (inv) {
+            setInvitations(prev => ({ ...prev, [inv.intervenantId]: inv }));
+          }
+        } catch (e: any) {
+          console.warn('[create+invite] invitation failed', e);
+        }
+      }
+
+      // 4. Reset form
+      setForm({ type: 'POSEUR', name: '', phone: '', email: '', notes: '' });
+      setSendInviteOnCreate(false);
+      setShowForm(false);
+    } catch (e: any) {
+      setCreatingError(e?.message ?? "Erreur lors de la creation");
+    } finally {
+      setCreating(false);
+    }
   };
 
   const toggleSort = (key: SortKey) => {
@@ -505,16 +663,65 @@ export default function IntervenantsPage() {
                 />
               </div>
             </div>
+            {/* Checkbox "Envoyer invitation tout de suite" */}
+            <label
+              className={cn(
+                'flex items-start gap-3 rounded-xl border p-4 transition-all cursor-pointer',
+                sendInviteOnCreate
+                  ? 'border-[#a67749] bg-[#fff8ef]'
+                  : 'border-[#304035]/12 bg-[#304035]/2 hover:border-[#a67749]/40',
+                !form.email.trim() && 'opacity-50 cursor-not-allowed'
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={sendInviteOnCreate}
+                onChange={(e) => setSendInviteOnCreate(e.target.checked)}
+                disabled={!form.email.trim()}
+                className="mt-1 h-4 w-4 rounded border-[#a67749] text-[#a67749] cursor-pointer"
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Send className="h-3.5 w-3.5 text-[#a67749]" />
+                  <span className="text-sm font-bold text-[#304035]">Envoyer un lien d'accès AVRA tout de suite</span>
+                </div>
+                <p className="text-xs text-[#304035]/55 leading-relaxed">
+                  {form.email.trim()
+                    ? `Un email avec un lien sécurisé sera envoyé à ${form.email}. À l'acceptation, son compte sera lié au vôtre et il recevra vos demandes (pose, livraison, SAV…).`
+                    : 'Renseignez un email pour activer cette option.'}
+                </p>
+              </div>
+            </label>
+
+            {creatingError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {creatingError}
+              </div>
+            )}
+
             <div className="flex gap-3 pt-1">
               <button
                 onClick={handleAdd}
-                disabled={!form.name.trim()}
-                className="rounded-xl bg-[#304035] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#304035]/85 transition-all disabled:opacity-35 shadow-sm"
+                disabled={!form.name.trim() || creating}
+                className="rounded-xl bg-[#304035] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#304035]/85 transition-all disabled:opacity-35 shadow-sm flex items-center gap-2"
               >
-                Enregistrer
+                {creating ? (
+                  <>
+                    <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Création…
+                  </>
+                ) : sendInviteOnCreate ? (
+                  <>
+                    <Send className="h-3.5 w-3.5" />
+                    Enregistrer + Inviter
+                  </>
+                ) : (
+                  'Enregistrer'
+                )}
               </button>
               <button
                 onClick={() => setShowForm(false)}
+                disabled={creating}
                 className="rounded-xl border border-[#304035]/12 px-6 py-2.5 text-sm font-semibold text-[#304035]/60 hover:bg-[#304035]/5 transition-all"
               >
                 Annuler

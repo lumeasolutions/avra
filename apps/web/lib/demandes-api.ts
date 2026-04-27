@@ -171,7 +171,38 @@ export interface InvitationPreview {
   };
 }
 
+export interface IntervenantStats {
+  total: number;
+  hasAccount: boolean;
+  byStatus: Record<string, number>;
+  byType: Record<string, number>;
+  acceptanceRate: number | null;
+  completionRate: number | null;
+  reputationScore: number | null;
+  avgResponseMinutes: number | null;
+  avgCompletionDays: number | null;
+  lastDemandeAt: string | null;
+  history: Array<{
+    id: string;
+    type: DemandeType;
+    status: DemandeStatus;
+    title: string;
+    createdAt: string;
+    viewedAt: string | null;
+    acceptedAt: string | null;
+    refusedAt: string | null;
+    completedAt: string | null;
+    cancelledAt: string | null;
+    scheduledFor: string | null;
+    project?: { name: string; reference: string | null } | null;
+  }>;
+}
+
 // ─── Cote PRO ───────────────────────────────────────────────────────────────
+
+export async function getIntervenantStats(intervenantId: string): Promise<IntervenantStats> {
+  return api<IntervenantStats>(`/demandes/intervenants/${encodeURIComponent(intervenantId)}/stats`);
+}
 
 export async function listDemandesPro(filters: {
   status?: DemandeStatus; type?: DemandeType;

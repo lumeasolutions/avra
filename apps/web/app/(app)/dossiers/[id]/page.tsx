@@ -803,6 +803,22 @@ export default function DossierDetailPage() {
                     );
                   })()}
 
+                  {/* Bouton "Envoyer aux intervenants" — version/sous-dossier specifique */}
+                  {!isEmpty && (
+                    <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                      <SendToIntervenantButton
+                        variant="icon"
+                        prefill={{
+                          type: isArchitecte || isCuisiniste ? 'POSE' : 'POSE',
+                          title: `${sf.label} — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
+                          projectId: dossier.id,
+                          notes: `Sous-dossier : ${sf.label}\n${docsCount} document(s) à transmettre`,
+                        }}
+                        style={{ width: 28, height: 28, background: '#1a2a1e' }}
+                      />
+                    </div>
+                  )}
+
                   {/* Bouton Valider / Pastille verte validée */}
                   {isValidated ? (
                     <button
@@ -1503,6 +1519,22 @@ export default function DossierDetailPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                {previewDoc.docId && (
+                  <SendToIntervenantButton
+                    variant="compact"
+                    label="Envoyer à intervenant"
+                    prefill={{
+                      type: 'POSE',
+                      title: `Document — ${previewDoc.name}`,
+                      projectId: id,
+                      attachments: [{
+                        dossierDocumentId: previewDoc.docId,
+                        displayName: previewDoc.name,
+                        mimeType: previewDoc.type,
+                      }],
+                    }}
+                  />
+                )}
                 <button
                   onClick={() => downloadDoc(id, previewDoc)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#a67749] text-white text-xs font-bold hover:bg-[#304035] transition-colors"

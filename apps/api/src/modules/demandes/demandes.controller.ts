@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { DemandesService } from './demandes.service';
+import { ICalFeedService } from './ical-feed.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -119,6 +120,15 @@ export class DemandesController {
     return streamOrRedirect(res, r);
   }
 
+  /** Stats + historique d'un intervenant (fiche enrichie). */
+  @Get('intervenants/:intervenantId/stats')
+  intervenantStats(
+    @CurrentUser() user: JwtPayload,
+    @Param('intervenantId') intervenantId: string,
+  ) {
+    return this.demandes.getIntervenantStats(user.workspaceId, intervenantId);
+  }
+
   /* ── Invitations (cote pro) ────────────────────────────────────── */
 
   @Get('invitations/all')
@@ -151,7 +161,10 @@ export class DemandesController {
 @Controller('intervenant-portal')
 @UseGuards(JwtAuthGuard)
 export class IntervenantPortalController {
-  constructor(private readonly demandes: DemandesService) {}
+  constructor(
+    private readonly demandes: DemandesService,
+    private readonly ical: ICalFeedService,
+  ) {}
 
   @Get('demandes')
   listMyDemandes(
@@ -215,6 +228,21 @@ export class IntervenantPortalController {
   @Get('profile')
   profile(@CurrentUser() user: JwtPayload) {
     return this.demandes.getIntervenantProfilesForUser(user.sub);
+  }
+
+  /**
+   * Flux iCalendar (.ics) du planning de l'intervenant. Sert toutes les
+   * demandes scheduledFor non refusees/annulees. Utilisable par Google
+   * Calendar, Apple Calendar, Outlook via "Souscrire a un calendrier".
+   */
+  @Get('planning.ics')
+  async planningIcal(@CurrentUser() user: JwtPayload, @Res() res: Response) {
+    const list = await this.demandes.getScheduledDemandesForIntervenant(user.sub);
+    const ics = this.ical.generate(list as any, `AVRA — Mes interventions (${user.email})`);
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="avra-planning.ics"');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    res.send(ics);
   }
 
   /** Download d'une piece jointe (cote intervenant). */

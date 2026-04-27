@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -8,6 +8,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useDossierStore, useFacturationStore, useUIStore } from '@/store';
 import { AssistantPanel } from './AssistantPanel';
 import { useAuthStore } from '@/store/useAuthStore';
+import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
+import { useDemandesStore } from '@/store/useDemandesStore';
 
 const PROFESSION_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
   architecte: { label: "Architecte d'intérieur", emoji: '🏛️', color: '#3D5449' },
@@ -41,6 +43,17 @@ export function Sidebar() {
     () => dossiersSignes.reduce((s, d) => s + (d.confirmations ?? []).filter(c => !c.validee).length, 0),
     [dossiersSignes]
   );
+
+  // ── Phase C : badge demandes en attente / SAV non traites ──
+  const proStats = useDemandesStore(s => s.proStats);
+  const fetchProStats = useDemandesStore(s => s.fetchProStats);
+  useEffect(() => {
+    fetchProStats();
+    const id = setInterval(() => fetchProStats(), 60_000);
+    return () => clearInterval(id);
+  }, [fetchProStats]);
+  const demandesActionCount = proStats?.actionRequiredCount ?? 0;
+  const savPendingCount = proStats?.byType?.SAV ?? 0;
 
   // ── Mobile open/close state ──────────────────────────────────────────────
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -301,6 +314,22 @@ export function Sidebar() {
 
       </Link>
 
+      {/* Action rapide globale : envoyer une demande a un intervenant */}
+      <div style={{ padding: '0 14px 8px' }} onClick={close}>
+        <SendToIntervenantButton
+          variant="secondary"
+          label="Envoyer une demande"
+          style={{
+            width: '100%',
+            justifyContent: 'center',
+            background: 'rgba(245,238,232,0.06)',
+            color: '#cbb98a',
+            border: '1px solid rgba(203,185,138,0.25)',
+            fontSize: 12,
+            padding: '9px 12px',
+          }}
+        />
+      </div>
 
       <nav className="menu-list">
         {profession && (
@@ -361,6 +390,14 @@ export function Sidebar() {
         <Link href="/intervenants" className={`menu-item ${pathname === '/intervenants' ? 'active' : ''}`} onClick={close}>
           <svg viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Intervenants
+          {demandesActionCount > 0 && (
+            <span className="badge" title="Demandes en attente de réponse intervenant">{demandesActionCount}</span>
+          )}
+        </Link>
+        <Link href="/sav" className={`menu-item ${pathname === '/sav' ? 'active' : ''}`} onClick={close}>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          SAV
+          {savPendingCount > 0 && <span className="badge" title="Tickets SAV ouverts">{savPendingCount}</span>}
         </Link>
       </nav>
     </div>

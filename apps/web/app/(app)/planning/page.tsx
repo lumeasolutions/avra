@@ -10,6 +10,7 @@ import {
 import { useDossierStore, usePlanningStore } from '@/store';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 
 /* ── CONSTANTES ── */
 const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19];
@@ -475,12 +476,28 @@ export default function PlanningPage() {
                                 <p className="text-white text-xs font-bold truncate leading-tight">{ev.title}</p>
                                 <p className="text-white/70 text-[10px] mt-0.5">{ev.startHour}:00 — {ev.startHour + ev.duration}:00</p>
                               </div>
-                              <button
-                                onClick={e2 => { e2.stopPropagation(); deletePlanningEvent(ev.id); }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 flex-shrink-0"
-                              >
-                                <X className="h-3 w-3 text-white/80 hover:text-white" />
-                              </button>
+                              <div onClick={e2 => e2.stopPropagation()} className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 flex-shrink-0 flex items-center gap-1">
+                                <SendToIntervenantButton
+                                  variant="icon"
+                                  prefill={{
+                                    type: 'POSE',
+                                    title: ev.title || 'Intervention planning',
+                                    scheduledFor: undefined,
+                                    notes: `${ev.startHour}h — ${ev.startHour + ev.duration}h`,
+                                  }}
+                                  style={{
+                                    width: 18, height: 18,
+                                    background: 'rgba(255,255,255,0.2)',
+                                    color: 'white',
+                                    borderRadius: 4,
+                                  }}
+                                />
+                                <button
+                                  onClick={e2 => { e2.stopPropagation(); deletePlanningEvent(ev.id); }}
+                                >
+                                  <X className="h-3 w-3 text-white/80 hover:text-white" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );

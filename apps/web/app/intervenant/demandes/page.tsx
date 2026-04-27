@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Inbox, Filter, Search } from 'lucide-react';
 import { useDemandesStore } from '@/store/useDemandesStore';
@@ -31,6 +31,9 @@ function MyDemandesPageInner() {
   const setMyFilters = useDemandesStore((s) => s.setMyFilters);
   const fetchMyDemandes = useDemandesStore((s) => s.fetchMyDemandes);
 
+  // Phase G : recherche locale (texte libre dans titre/notes/projet)
+  const [searchTerm, setSearchTerm] = useState('');
+
   // Sync URL → store au mount + sur changement URL
   useEffect(() => {
     if (initialStatus === 'ALL') {
@@ -49,14 +52,26 @@ function MyDemandesPageInner() {
     router.replace(`/intervenant/demandes${usp.toString() ? `?${usp.toString()}` : ''}`);
   };
 
+  // Filtre recherche local (avant grouping)
+  const searched = useMemo(() => {
+    if (!searchTerm.trim()) return myDemandes;
+    const q = searchTerm.toLowerCase();
+    return myDemandes.filter((d) =>
+      d.title.toLowerCase().includes(q)
+      || (d.notes ?? '').toLowerCase().includes(q)
+      || (d.project?.name ?? '').toLowerCase().includes(q)
+      || d.type.toLowerCase().includes(q)
+    );
+  }, [myDemandes, searchTerm]);
+
   const grouped = useMemo(() => {
     const buckets: Record<string, Demande[]> = {};
-    for (const d of myDemandes) {
+    for (const d of searched) {
       const day = new Date(d.createdAt).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
       (buckets[day] ??= []).push(d);
     }
     return Object.entries(buckets);
-  }, [myDemandes]);
+  }, [searched]);
 
   return (
     <div style={{ maxWidth: 1100 }}>
@@ -72,39 +87,57 @@ function MyDemandesPageInner() {
         </div>
       </div>
 
-      {/* Filtres tabs */}
+      {/* Filtres tabs + recherche */}
       <div style={{
         display: 'flex',
-        gap: 6,
-        flexWrap: 'wrap',
+        gap: 8,
         marginBottom: 16,
-        padding: 6,
-        background: '#fff',
-        borderRadius: 14,
-        boxShadow: '0 1px 4px rgba(26,42,30,0.05)',
+        flexWrap: 'wrap',
+        alignItems: 'center',
       }}>
-        {STATUS_TABS.map((t) => {
-          const active = (myFilters.status ?? 'ALL') === t.value;
-          return (
-            <button
-              key={t.value}
-              onClick={() => setStatus(t.value)}
-              style={{
-                padding: '8px 14px',
-                fontSize: 13,
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                background: active ? '#1a2a1e' : 'transparent',
-                color: active ? '#cbb98a' : '#5b5045',
-                borderRadius: 10,
-                transition: 'all 0.15s',
-              }}
-            >
-              {t.label}
-            </button>
-          );
-        })}
+        <div style={{
+          display: 'flex',
+          gap: 6,
+          flexWrap: 'wrap',
+          padding: 6,
+          background: '#fff',
+          borderRadius: 14,
+          boxShadow: '0 1px 4px rgba(26,42,30,0.05)',
+          flex: '1 1 auto',
+        }}>
+          {STATUS_TABS.map((t) => {
+            const active = (myFilters.status ?? 'ALL') === t.value;
+            return (
+              <button
+                key={t.value}
+                onClick={() => setStatus(t.value)}
+                style={{
+                  padding: '8px 14px', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
+                  background: active ? '#1a2a1e' : 'transparent',
+                  color: active ? '#cbb98a' : '#5b5045',
+                  borderRadius: 10, transition: 'all 0.15s',
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ position: 'relative', minWidth: 220 }}>
+          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#7c6c58' }} />
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Rechercher (titre, projet, type)…"
+            style={{
+              width: '100%',
+              padding: '10px 12px 10px 36px',
+              border: '1px solid #ddd5c7',
+              borderRadius: 12, fontSize: 13, outline: 'none',
+              background: '#fff',
+            }}
+          />
+        </div>
       </div>
 
       {/* Liste */}
