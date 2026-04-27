@@ -496,18 +496,29 @@ export default function IntervenantsPage() {
     return TYPES.filter(t => s.has(t));
   }, [intervenants]);
 
+  // Phase G : filtre par statut compte
+  const [filterAccount, setFilterAccount] = useState<'all' | 'active' | 'invited' | 'none'>('all');
+
   const filtered = useMemo(() => {
     let list = intervenants.filter(i => {
       const q = search.toLowerCase();
       const matchSearch = !q || i.name.toLowerCase().includes(q) || i.email?.toLowerCase().includes(q) || i.phone?.includes(q) || i.type.toLowerCase().includes(q);
       const matchType = !filterType || i.type === filterType;
-      return matchSearch && matchType;
+      // Filter par compte. Note: on n'a pas userId dans le store local,
+      // donc 'active' n'est pas distinct de 'none' sans donnees backend.
+      // Pour distinguer, on regarde les invitations PENDING.
+      const inv = invitations[i.id];
+      let matchAccount = true;
+      if (filterAccount === 'invited') matchAccount = !!inv;
+      else if (filterAccount === 'none') matchAccount = !inv;
+      // 'active' : pas implementable cote local — fallback all
+      return matchSearch && matchType && matchAccount;
     });
     return [...list].sort((a, b) => {
       const cmp = sortKey === 'name' ? a.name.localeCompare(b.name) : a.dossiers.length - b.dossiers.length;
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [intervenants, search, filterType, sortKey, sortDir]);
+  }, [intervenants, search, filterType, sortKey, sortDir, filterAccount, invitations]);
 
   // Phase B : checkbox "Envoyer une invitation tout de suite"
   const [sendInviteOnCreate, setSendInviteOnCreate] = useState(false);
@@ -746,6 +757,31 @@ export default function IntervenantsPage() {
             <X className="h-3.5 w-3.5" />
           </button>
         )}
+      </div>
+
+      {/* ── Filtres par statut compte ── */}
+      <div className="flex gap-2 flex-wrap">
+        {([
+          { id: 'all', label: 'Tous comptes', count: intervenants.length },
+          { id: 'invited', label: 'Invités', count: Object.keys(invitations).length },
+          { id: 'none', label: 'Sans invitation', count: intervenants.filter(i => !invitations[i.id]).length },
+        ] as const).map(opt => {
+          const active = filterAccount === opt.id;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => setFilterAccount(opt.id)}
+              className={cn(
+                'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all border',
+                active
+                  ? 'bg-[#a67749] text-white border-[#a67749] shadow-sm'
+                  : 'bg-white text-[#304035]/55 border-[#304035]/12 hover:border-[#304035]/25 hover:text-[#304035]'
+              )}
+            >
+              {opt.label} ({opt.count})
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Chips filtres type ── */}

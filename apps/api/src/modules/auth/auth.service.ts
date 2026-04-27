@@ -239,6 +239,104 @@ export class AuthService {
     }
   }
 
+  /**
+   * Register specifique pour les intervenants invites.
+   *
+   * Contourne le beta gate via un token d'invitation valide. L'intervenant
+   * recoit un compte User SANS workspace propre (il sera attache au workspace
+   * du pro qui l'a invite via Intervenant.userId).
+   *
+   * Flow :
+   *  1. Verifie l'invitation : token PENDING, non-expire, email match
+   *  2. Cree le User (sans workspace OWNER)
+   *  3. Lie l'Intervenant.userId
+   *  4. Marque l'invitation ACCEPTED
+   *  5. Retourne JWT pour login automatique
+   */
+  async registerIntervenant(dto: {
+    token: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+  }) {
+    if (!dto.token) throw new ForbiddenException('Token requis');
+
+    const inv = await (this.prisma as any).intervenantInvitation.findUnique({
+      where: { token: dto.token },
+      include: {
+        intervenant: { select: { id: true, userId: true } },
+      },
+    });
+    if (!inv) throw new ForbiddenException('Invitation invalide');
+    if (inv.status !== 'PENDING') throw new ForbiddenException(`Invitation deja ${inv.status.toLowerCase()}`);
+    if (inv.expiresAt < new Date()) {
+      await (this.prisma as any).intervenantInvitation.update({
+        where: { id: inv.id }, data: { status: 'EXPIRED' },
+      });
+      throw new ForbiddenException('Invitation expiree');
+    }
+    if (inv.intervenant?.userId) {
+      throw new ConflictException('Cet intervenant est deja lie a un compte');
+    }
+
+    const email = inv.email.toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      // L'utilisateur existe deja avec un compte AVRA — on doit lui demander
+      // de se connecter normalement pour accepter l'invitation, pas de creer
+      // un nouveau compte. C'est gere par /invitation/[token]/accept apres login.
+      throw new ConflictException('Un compte existe deja avec cet email. Connectez-vous pour accepter l\'invitation.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_COST);
+      const refreshTokenPlain = crypto.randomBytes(32).toString('hex');
+      const hashedRefresh = await this.tokenRotation.hashRefreshToken(refreshTokenPlain);
+
+      // 1. Cree le User (pas de workspace propre)
+      const user = await tx.user.create({
+        data: {
+          email,
+          passwordHash: hashedPassword,
+          firstName: dto.firstName ?? null,
+          lastName: dto.lastName ?? null,
+          refreshToken: hashedRefresh,
+          refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          isActive: true,
+        },
+      });
+
+      // 2. Lie l'Intervenant
+      await tx.intervenant.update({
+        where: { id: inv.intervenantId },
+        data: { userId: user.id, portalEnabled: true },
+      });
+
+      // 3. Marque l'invitation acceptee
+      await (tx as any).intervenantInvitation.update({
+        where: { id: inv.id },
+        data: {
+          status: 'ACCEPTED',
+          acceptedAt: new Date(),
+          acceptedByUserId: user.id,
+        },
+      });
+
+      // 4. JWT — pas de workspaceId puisque l'intervenant n'a pas son propre workspace
+      const accessToken = await this.jwt.signAsync(
+        { sub: user.id, email: user.email, workspaceId: '', role: 'INTERVENANT' } as any,
+        { expiresIn: '1h' },
+      );
+
+      return {
+        userId: user.id,
+        accessToken,
+        refreshToken: refreshTokenPlain,
+        intervenantId: inv.intervenantId,
+      };
+    });
+  }
+
   // ✅ TÂCHE 9 — Registration
   async register(dto: RegisterDto) {
     // 🌱 Bêta gate — bloque toute création de compte publique pendant la bêta privée.

@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Calendar, ChevronLeft, ChevronRight, Plus, X, Clock,
   AlertTriangle, Circle, CheckCircle, Zap, CalendarDays,
-  MapPin, User, ArrowRight, TrendingUp, Target
+  MapPin, User, ArrowRight, TrendingUp, Target, Wrench,
 } from 'lucide-react';
 import { useDossierStore, usePlanningStore } from '@/store';
+import { useDemandesStore } from '@/store/useDemandesStore';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
@@ -89,6 +90,20 @@ export default function PlanningPage() {
   const planningEvents  = usePlanningStore(s => s.planningEvents);
   const addPlanningEvent   = usePlanningStore(s => s.addPlanningEvent);
   const deletePlanningEvent = usePlanningStore(s => s.deletePlanningEvent);
+
+  // Demandes scheduledFor (interventions intervenants) — merge avec planning
+  const proDemandes = useDemandesStore(s => s.proDemandes);
+  const fetchProDemandes = useDemandesStore(s => s.fetchProDemandes);
+  useEffect(() => { fetchProDemandes(); }, [fetchProDemandes]);
+  const upcomingInterventions = useMemo(() => {
+    const now = Date.now();
+    const oneWeek = now + 7 * 86400_000;
+    return proDemandes
+      .filter(d => d.scheduledFor && new Date(d.scheduledFor).getTime() >= now && new Date(d.scheduledFor).getTime() <= oneWeek)
+      .filter(d => d.status !== 'REFUSEE' && d.status !== 'ANNULEE')
+      .sort((a, b) => new Date(a.scheduledFor!).getTime() - new Date(b.scheduledFor!).getTime())
+      .slice(0, 5);
+  }, [proDemandes]);
 
   const [weekOffset, setWeekOffset]   = useState(0);
   const [showAdd,    setShowAdd]      = useState(false);
@@ -371,6 +386,36 @@ export default function PlanningPage() {
           </div>
         }
       />
+
+      {/* ── BANNER : Prochaines interventions intervenants (cette semaine) ── */}
+      {upcomingInterventions.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-[#304035]/5 flex items-center gap-2">
+            <Wrench className="h-4 w-4 text-[#a67749]" />
+            <h3 className="text-xs font-bold text-[#304035] uppercase tracking-widest">Prochaines interventions intervenants ({upcomingInterventions.length})</h3>
+          </div>
+          <div className="p-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+            {upcomingInterventions.map(d => {
+              const dt = new Date(d.scheduledFor!);
+              const interName = d.intervenant?.companyName ?? [d.intervenant?.firstName, d.intervenant?.lastName].filter(Boolean).join(' ') ?? '—';
+              return (
+                <a
+                  key={d.id}
+                  href={`/intervenants?demande=${d.id}`}
+                  className="block rounded-xl border border-[#304035]/8 hover:border-[#a67749]/40 hover:shadow-sm p-3 transition-all"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-bold text-[#a67749] uppercase tracking-wider">{d.type}</span>
+                    <span className="text-[10px] text-[#304035]/55 font-bold">{dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} {dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  <p className="text-xs font-bold text-[#304035] truncate">{d.title}</p>
+                  <p className="text-[10px] text-[#304035]/55 mt-0.5 truncate">→ {interName}</p>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── MAIN : CALENDRIER + PANNEAU DROIT ── */}
       <div className="plan-main-layout flex gap-4 items-start">

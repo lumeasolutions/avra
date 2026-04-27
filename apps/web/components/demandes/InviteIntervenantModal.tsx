@@ -14,7 +14,7 @@ interface Props {
   intervenantId: string;
   intervenantName: string;
   defaultEmail?: string;
-  /** Invitation existante (PENDING) — si fournie, on affiche l'etat + bouton revoquer/copier. */
+  /** Invitation existante (PENDING ou EXPIRED) — si fournie, on affiche l'etat. */
   existingInvitation?: IntervenantInvitation | null;
   /** Callback apres creation/revocation reussie. */
   onChange?: (inv: IntervenantInvitation | null) => void;
@@ -61,7 +61,11 @@ export function InviteIntervenantModal({
 
   if (!open) return null;
 
-  const activeInvitation = created ?? existingInvitation ?? null;
+  // Une invitation EXPIRED ou REVOKED doit pouvoir etre renouvelee : on traite
+  // l'absence d'invitation PENDING comme "creer une nouvelle".
+  const isPendingActive = !!(existingInvitation && existingInvitation.status === 'PENDING');
+  const activeInvitation = created ?? (isPendingActive ? existingInvitation : null);
+  const showRenewalNotice = !created && existingInvitation && existingInvitation.status !== 'PENDING';
   const inviteUrl = activeInvitation
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/invitation/${activeInvitation.token}`
     : '';
@@ -178,6 +182,25 @@ export function InviteIntervenantModal({
           {!activeInvitation ? (
             // ─── Formulaire creation ────────────────────────────────────
             <>
+              {showRenewalNotice && existingInvitation && (
+                <div style={{
+                  padding: '10px 14px',
+                  background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10,
+                  marginBottom: 16, fontSize: 12, color: '#7c2d12',
+                  display: 'flex', alignItems: 'flex-start', gap: 8,
+                }}>
+                  <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <div>
+                    <div style={{ fontWeight: 700, marginBottom: 2 }}>
+                      Invitation precedente {existingInvitation.status === 'EXPIRED' ? 'expiree' : existingInvitation.status === 'REVOKED' ? 'revoquee' : 'inactive'}
+                    </div>
+                    <div>
+                      Une nouvelle invitation va etre envoyee. L'ancien lien
+                      sera revoque automatiquement.
+                    </div>
+                  </div>
+                </div>
+              )}
               <p style={{ fontSize: 13, color: '#5b5045', lineHeight: 1.5, margin: '0 0 18px' }}>
                 On va envoyer un lien securise par email a <strong>{intervenantName}</strong>.
                 A l'acceptation, son compte sera lie a votre espace et il pourra recevoir

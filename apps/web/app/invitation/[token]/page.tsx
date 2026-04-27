@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { CheckCircle2, XCircle, Mail, Building2, Calendar, AlertCircle, ShieldCheck, ArrowRight } from 'lucide-react';
+import { CheckCircle2, XCircle, Mail, Building2, Calendar, AlertCircle, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn } from 'lucide-react';
 import { useDemandesStore } from '@/store/useDemandesStore';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -197,16 +197,7 @@ export default function InvitationPage() {
 
         {/* Actions */}
         {!isAuthenticated ? (
-          <div>
-            <button onClick={goLogin} style={btnPrimary()}>
-              Se connecter pour accepter
-              <ArrowRight size={15} />
-            </button>
-            <p style={{ fontSize: 11, color: '#7c6c58', textAlign: 'center', marginTop: 12 }}>
-              Vous n'avez pas de compte ? Connectez-vous avec l'email <strong>{preview.email}</strong>
-              <br />ou créez-en un avec cet email.
-            </p>
-          </div>
+          <NotAuthenticatedActions token={token} previewEmail={preview.email} goLogin={goLogin} />
         ) : emailMismatch ? (
           <div style={{
             padding: 16,
@@ -294,6 +285,156 @@ function Row({ icon, label, children }: { icon: React.ReactNode; label: string; 
       </div>
     </div>
   );
+}
+
+/**
+ * Bloc actions quand l'intervenant n'est pas connecte.
+ * 2 modes : "Se connecter" (compte existant) OU "Creer mon compte"
+ * (nouveau, qui appelle /auth/register-intervenant et bypass beta gate).
+ */
+function NotAuthenticatedActions({
+  token, previewEmail, goLogin,
+}: { token: string; previewEmail: string; goLogin: () => void }) {
+  const [mode, setMode] = useState<'choose' | 'register'>('choose');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const router = useRouter();
+
+  const handleRegister = async () => {
+    setError(null);
+    if (password.length < 8) {
+      setError('Mot de passe : 8 caracteres minimum');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/v1/auth/register-intervenant', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password, firstName: firstName.trim() || undefined, lastName: lastName.trim() || undefined }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.message ?? 'Erreur lors de la creation du compte');
+      }
+      // Inscription + acceptation invitation OK → redirect vers /intervenant
+      window.location.href = '/intervenant';
+    } catch (e: any) {
+      setError(e?.message ?? 'Erreur inconnue');
+      setSubmitting(false);
+    }
+  };
+
+  if (mode === 'choose') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <button onClick={() => setMode('register')} style={btnPrimary()}>
+          <UserPlus size={16} />
+          Creer mon compte AVRA
+        </button>
+        <button onClick={goLogin} style={{ ...btnPrimary(), background: 'transparent', color: '#1a2a1e', border: '1px solid #ddd5c7' }}>
+          <LogIn size={16} />
+          J'ai deja un compte
+        </button>
+        <p style={{ fontSize: 11, color: '#7c6c58', textAlign: 'center', marginTop: 6 }}>
+          Email d'invitation : <strong>{previewEmail}</strong>
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <p style={{ fontSize: 13, color: '#5b5045', textAlign: 'center', margin: 0 }}>
+        Creation de votre compte AVRA pour <strong>{previewEmail}</strong>
+      </p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <input
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          placeholder="Prenom"
+          maxLength={100}
+          style={inputStyle()}
+        />
+        <input
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+          placeholder="Nom"
+          maxLength={100}
+          style={inputStyle()}
+        />
+      </div>
+
+      <div style={{ position: 'relative' }}>
+        <input
+          type={showPassword ? 'text' : 'password'}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Mot de passe (8 caracteres min.)"
+          minLength={8}
+          autoFocus
+          style={{ ...inputStyle(), paddingRight: 40 }}
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword(s => !s)}
+          style={{
+            position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: '#7c6c58',
+          }}
+          aria-label="Afficher/masquer mot de passe"
+        >
+          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{
+          padding: '10px 14px',
+          background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 8,
+          color: '#991b1b', fontSize: 13,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <AlertCircle size={15} /> {error}
+        </div>
+      )}
+
+      <button
+        onClick={handleRegister}
+        disabled={submitting || password.length < 8}
+        style={{ ...btnPrimary(), opacity: submitting || password.length < 8 ? 0.6 : 1 }}
+      >
+        <CheckCircle2 size={16} />
+        {submitting ? 'Creation…' : 'Creer mon compte et accepter'}
+      </button>
+
+      <button onClick={() => setMode('choose')} style={{
+        background: 'transparent', border: 'none', color: '#7c6c58',
+        fontSize: 12, cursor: 'pointer', textDecoration: 'underline',
+      }}>
+        Retour
+      </button>
+    </div>
+  );
+}
+
+function inputStyle(): React.CSSProperties {
+  return {
+    width: '100%',
+    padding: '11px 14px',
+    border: '1px solid #ddd5c7',
+    borderRadius: 10,
+    fontSize: 14, fontFamily: 'inherit',
+    outline: 'none', background: '#fff',
+  };
 }
 
 function Skeleton() {

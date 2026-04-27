@@ -156,6 +156,49 @@ export class DemandesEmailService {
   }
 
   /**
+   * Notification "nouveau message" envoyee au destinataire (pro ou intervenant).
+   * Limite a 1 par minute par demande pour eviter les spam quand plusieurs
+   * messages s'enchainent.
+   */
+  async notifyNewMessage(params: {
+    to: string;
+    recipientName: string;
+    senderName: string;
+    senderRole: 'pro' | 'intervenant';
+    demandeId: string;
+    demandeTitle: string;
+    messageBody: string;
+  }): Promise<void> {
+    // Tronque le message en preview (preview uniquement dans le mail)
+    const preview = params.messageBody.length > 280
+      ? params.messageBody.slice(0, 280) + '…'
+      : params.messageBody;
+    const link = params.senderRole === 'pro'
+      ? `${this.webUrl}/intervenant/demandes/${params.demandeId}`
+      : `${this.webUrl}/intervenants?demande=${params.demandeId}`;
+
+    const html = baseLayout({
+      title: 'Nouveau message',
+      preheader: `${params.senderName} : ${preview.slice(0, 60)}`,
+      body: `
+        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Nouveau message</h1>
+        <p style="color:#5b5045;margin:0 0 18px">
+          Bonjour ${escapeHtml(params.recipientName)},<br/>
+          <strong>${escapeHtml(params.senderName)}</strong> vous a envoye un message a propos de :
+        </p>
+        <div style="background:#fafaf8;padding:12px 14px;border-radius:8px;font-size:14px;font-weight:600;color:#1a2a1e;margin-bottom:14px">
+          ${escapeHtml(params.demandeTitle)}
+        </div>
+        <div style="background:#fff;border-left:4px solid #cbb98a;padding:14px 18px;border-radius:8px;margin:14px 0;color:#3D3328;white-space:pre-wrap;font-style:italic">
+          ${escapeHtml(preview)}
+        </div>
+        ${ctaButton(link, 'Voir et repondre')}
+      `,
+    });
+    return this.send({ to: params.to, subject: `[AVRA] Message de ${params.senderName} — ${params.demandeTitle}`, html });
+  }
+
+  /**
    * Notification au pro quand l'intervenant change le statut.
    * (Accept / Refuse / Start / Complete).
    */

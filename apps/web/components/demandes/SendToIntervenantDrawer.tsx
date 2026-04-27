@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Mail, UserPlus, CheckCircle2 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Mail, UserPlus, CheckCircle2, Paperclip, Trash2 } from 'lucide-react';
+import { api, apiUpload } from '@/lib/api';
 import {
   DEMANDE_TYPE_LABELS,
   DemandeType,
@@ -92,6 +92,14 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
   const [inviteMessage, setInviteMessage] = useState('');
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [invitations, setInvitations] = useState<Record<string, IntervenantInvitation>>({});
+
+  // Phase B-fix : Upload de fichiers ad-hoc (uniquement si projectId fourni)
+  const [uploads, setUploads] = useState<Array<{
+    dossierDocumentId?: string; documentId?: string;
+    displayName: string; mimeType?: string;
+    uploading?: boolean; error?: string;
+  }>>(prefill?.attachments ?? []);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const createInvitationStore = useDemandesStore((s) => s.createInvitation);
 
@@ -198,6 +206,16 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
     setSubmitting(true);
     setError(null);
     try {
+      // Filtre uploads finis (pas en cours / pas en erreur) avant envoi
+      const cleanAttachments = uploads
+        .filter((a) => !a.uploading && !a.error && (a.dossierDocumentId || a.documentId))
+        .map((a) => ({
+          dossierDocumentId: a.dossierDocumentId,
+          documentId: a.documentId,
+          displayName: a.displayName,
+          mimeType: a.mimeType,
+        }));
+
       const created = await apiCreateDemande({
         intervenantId: selectedId,
         type,
@@ -206,7 +224,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
         projectId: prefill?.projectId,
         eventId: prefill?.eventId,
         scheduledFor: scheduledFor || undefined,
-        attachments: prefill?.attachments,
+        attachments: cleanAttachments.length > 0 ? cleanAttachments : undefined,
       });
       setSentDemandeId(created.id);
       setStep('sent');
@@ -475,7 +493,33 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
               />
 
               {/* Notes */}
-              <Label style={{ marginTop: 14 }}>Notes / instructions</Label>
+              <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <Label style={{ marginBottom: 0 }}>Notes / instructions</Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Demande au store assistant d'ouvrir avec un prompt
+                    // structure pour rediger la demande.
+                    if (typeof window !== 'undefined') {
+                      const inter = selectedIntervenant?.companyName
+                        ?? [selectedIntervenant?.firstName, selectedIntervenant?.lastName].filter(Boolean).join(' ')
+                        ?? 'l\'intervenant';
+                      const prompt = `Aide-moi a rediger une demande "${DEMANDE_TYPE_LABELS[type]}" pour ${inter}${selectedIntervenant?.type ? ` (${selectedIntervenant.type})` : ''}. Titre actuel : "${title || '(vide)'}". Notes actuelles : "${notes || '(vides)'}". Propose un titre clair et des instructions concises et professionnelles.`;
+                      window.dispatchEvent(new CustomEvent('avra:assistant-seed', { detail: { prompt } }));
+                    }
+                  }}
+                  style={{
+                    background: 'transparent', border: '1px solid #ddd5c7',
+                    borderRadius: 6, padding: '3px 10px',
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    color: '#3D5449',
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                  }}
+                  title="Demander a l'assistant AVRA de rediger pour vous"
+                >
+                  ✨ Suggerer
+                </button>
+              </div>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -493,33 +537,96 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                 style={inputStyle()}
               />
 
-              {/* Attachments */}
-              {prefill?.attachments && prefill.attachments.length > 0 && (
-                <div style={{ marginTop: 14 }}>
-                  <Label>Pièces jointes ({prefill.attachments.length})</Label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {prefill.attachments.map((a, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          padding: '8px 12px',
-                          background: '#fafaf8',
-                          border: '1px solid #ece7df',
-                          borderRadius: 8,
-                          fontSize: 12,
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          color: '#1a2a1e',
-                        }}
-                      >
-                        <FileText size={14} style={{ color: '#3D5449' }} />
-                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {a.displayName}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+              {/* Attachments — upload + liste */}
+              <div style={{ marginTop: 14 }}>
+                <Label>Pièces jointes {uploads.length > 0 && `(${uploads.length})`}</Label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {uploads.map((a, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '8px 12px',
+                        background: a.error ? '#fff5f5' : a.uploading ? '#eff6ff' : '#fafaf8',
+                        border: `1px solid ${a.error ? '#fecaca' : a.uploading ? '#bfdbfe' : '#ece7df'}`,
+                        borderRadius: 8,
+                        fontSize: 12,
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        color: a.error ? '#991b1b' : '#1a2a1e',
+                      }}
+                    >
+                      <FileText size={14} style={{ color: a.error ? '#b91c1c' : '#3D5449' }} />
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {a.displayName}
+                        {a.uploading && <span style={{ color: '#1d4ed8', marginLeft: 6 }}>· upload…</span>}
+                        {a.error && <span style={{ color: '#b91c1c', marginLeft: 6 }}>· {a.error}</span>}
+                      </span>
+                      {!a.uploading && (
+                        <button
+                          onClick={() => setUploads(u => u.filter((_, i) => i !== idx))}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#7c6c58', padding: 2 }}
+                          aria-label="Retirer"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              )}
+
+                {/* Bouton upload — uniquement si projectId fourni (les attachments
+                    sont stockes via DossierDocument qui necessite un projet). */}
+                {prefill?.projectId ? (
+                  <label style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '8px 12px', marginTop: 8,
+                    background: 'transparent', border: '1px dashed #ddd5c7',
+                    borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#3D5449',
+                    cursor: uploadingFiles ? 'wait' : 'pointer',
+                  }}>
+                    <Paperclip size={13} />
+                    {uploadingFiles ? 'Upload en cours…' : 'Ajouter des fichiers'}
+                    <input
+                      type="file"
+                      multiple
+                      style={{ display: 'none' }}
+                      disabled={uploadingFiles}
+                      onChange={async (e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        e.target.value = '';
+                        if (files.length === 0 || !prefill.projectId) return;
+                        setUploadingFiles(true);
+                        for (const f of files) {
+                          // Push placeholder loading
+                          setUploads(u => [...u, { displayName: f.name, mimeType: f.type, uploading: true }]);
+                          try {
+                            const fd = new FormData();
+                            fd.append('file', f);
+                            fd.append('subfolderLabel', 'Demandes — pièces jointes');
+                            const doc = await apiUpload<any>(`/projects/${encodeURIComponent(prefill.projectId)}/dossier-documents`, fd);
+                            setUploads(u => u.map((x) =>
+                              x.displayName === f.name && x.uploading
+                                ? { displayName: f.name, mimeType: f.type, dossierDocumentId: doc.id }
+                                : x
+                            ));
+                          } catch (err: any) {
+                            setUploads(u => u.map((x) =>
+                              x.displayName === f.name && x.uploading
+                                ? { displayName: f.name, mimeType: f.type, error: err?.message ?? 'echec upload', uploading: false }
+                                : x
+                            ));
+                          }
+                        }
+                        setUploadingFiles(false);
+                      }}
+                    />
+                  </label>
+                ) : (
+                  <p style={{ fontSize: 11, color: '#7c6c58', marginTop: 8, fontStyle: 'italic' }}>
+                    Pour ajouter des fichiers, ouvrez ce drawer depuis un dossier client (les pièces jointes sont stockées avec ce dossier).
+                  </p>
+                )}
+              </div>
+
 
               {error && (
                 <div style={{

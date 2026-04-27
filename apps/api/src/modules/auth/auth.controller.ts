@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards, Get, Res, Req } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Get, Res, Req, BadRequestException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -177,6 +177,35 @@ export class AuthController {
       return safeResult;
     }
     return result;
+  }
+
+  /**
+   * Register specifique intervenant via token d'invitation.
+   * Contourne le beta gate (l'intervenant n'a pas besoin d'etre whitelist),
+   * ne cree pas de workspace propre, lie automatiquement l'Intervenant.
+   */
+  @Public()
+  @SkipCsrf()
+  @Throttle({ auth: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Post('register-intervenant')
+  async registerIntervenant(
+    @Body() dto: { token: string; password: string; firstName?: string; lastName?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!dto?.token || typeof dto.token !== 'string') throw new BadRequestException('Token requis');
+    if (!dto?.password || dto.password.length < 8) throw new BadRequestException('Mot de passe : 8 caracteres minimum');
+    const result = await this.auth.registerIntervenant({
+      token: dto.token,
+      password: dto.password,
+      firstName: typeof dto.firstName === 'string' ? dto.firstName.slice(0, 100) : undefined,
+      lastName: typeof dto.lastName === 'string' ? dto.lastName.slice(0, 100) : undefined,
+    });
+    setAuthCookies(res, {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      userId: result.userId,
+    });
+    return { userId: result.userId, intervenantId: result.intervenantId };
   }
 
   // ── Réinitialisation du mot de passe ────────────────────────────────────

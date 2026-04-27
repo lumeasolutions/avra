@@ -19,6 +19,7 @@ import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
 import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
+import { DemandesPanel } from '@/components/demandes/DemandesPanel';
 
 /** Normalise un document (string legacy ou objet) pour affichage. */
 const normalizeDoc = (d: SubFolderDocument): DocumentFile =>
@@ -960,6 +961,24 @@ export default function DossierDetailPage() {
 
         {/* ── COLONNE DROITE (1/3) — fiche client + actions ── */}
         <div className="col-span-1 col-right space-y-4">
+
+          {/* Demandes envoyées pour ce dossier */}
+          <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#304035]/5 flex items-center justify-between">
+              <h2 className="text-sm font-bold text-[#304035]">Demandes envoyées</h2>
+              <SendToIntervenantButton
+                variant="compact"
+                label="Nouvelle"
+                prefill={{
+                  projectId: dossier.id,
+                  title: `Intervention — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
+                }}
+              />
+            </div>
+            <div className="p-4">
+              <DemandesPanel projectId={dossier.id} limit={10} />
+            </div>
+          </div>
 
           {/* Fiche client */}
           <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
