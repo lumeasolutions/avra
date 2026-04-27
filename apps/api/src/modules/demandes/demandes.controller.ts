@@ -175,14 +175,26 @@ export class DemandesController {
    * Cron, GitHub Actions, EasyCron, etc.) avec header X-Cron-Key.
    * Pas de JwtAuthGuard ici, securise via CRON_SECRET en env.
    */
+  /**
+   * Endpoint cron auto-rappel — accepte 2 modes d'authentification :
+   *  1. Vercel Cron : header `Authorization: Bearer ${CRON_SECRET}` (auto)
+   *  2. Externe (GitHub Actions, EasyCron) : header `X-Cron-Key: ${CRON_SECRET}`
+   *
+   * @Get pour compatibilite Vercel Cron qui fait des requetes GET.
+   */
   @Public()
+  @Get('internal/auto-reminders')
   @Post('internal/auto-reminders')
   async runAutoReminders(@Req() req: Request) {
     const secret = process.env.CRON_SECRET;
-    const provided = (req.headers['x-cron-key'] ?? '') as string;
-    if (!secret || provided !== secret) {
-      throw new ForbiddenException('Cron key invalide');
-    }
+    if (!secret) throw new ForbiddenException('CRON_SECRET non configure');
+
+    const auth = (req.headers['authorization'] ?? '') as string;
+    const xKey = (req.headers['x-cron-key'] ?? '') as string;
+    const bearerToken = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    const ok = bearerToken === secret || xKey === secret;
+    if (!ok) throw new ForbiddenException('Cron key invalide');
+
     const daysParam = (req.query?.days as string) ?? '3';
     const days = Math.min(30, Math.max(1, parseInt(daysParam, 10) || 3));
     return this.demandes.sendAutoReminders(days);

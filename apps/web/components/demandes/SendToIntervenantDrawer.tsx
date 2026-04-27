@@ -78,6 +78,10 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
   const [loadingList, setLoadingList] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(prefill?.intervenantId ?? null);
+  // F6 : Broadcast a plusieurs intervenants
+  const [broadcastMode, setBroadcastMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [sentCount, setSentCount] = useState(0);
 
   const [type, setType] = useState<DemandeType>(prefill?.type ?? 'POSE');
   const [title, setTitle] = useState(prefill?.title ?? '');
@@ -200,14 +204,16 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
   };
 
   const handleSend = async () => {
-    if (!selectedId || !title.trim()) {
+    // En mode broadcast : envoyer a tous les selectedIds
+    // Sinon : envoyer au selectedId unique
+    const targets = broadcastMode ? selectedIds : (selectedId ? [selectedId] : []);
+    if (targets.length === 0 || !title.trim()) {
       setError('Destinataire et titre requis');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      // Filtre uploads finis (pas en cours / pas en erreur) avant envoi
       const cleanAttachments = uploads
         .filter((a) => !a.uploading && !a.error && (a.dossierDocumentId || a.documentId))
         .map((a) => ({
@@ -217,19 +223,35 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
           mimeType: a.mimeType,
         }));
 
-      const created = await apiCreateDemande({
-        intervenantId: selectedId,
-        type,
-        title: title.trim(),
-        notes: notes.trim() || undefined,
-        projectId: prefill?.projectId,
-        eventId: prefill?.eventId,
-        scheduledFor: scheduledFor || undefined,
-        attachments: cleanAttachments.length > 0 ? cleanAttachments : undefined,
-      });
-      setSentDemandeId(created.id);
-      setStep('sent');
-      onSent?.(created.id);
+      const results = await Promise.allSettled(
+        targets.map((tid) => apiCreateDemande({
+          intervenantId: tid,
+          type,
+          title: title.trim(),
+          notes: notes.trim() || undefined,
+          projectId: prefill?.projectId,
+          eventId: prefill?.eventId,
+          scheduledFor: scheduledFor || undefined,
+          attachments: cleanAttachments.length > 0 ? cleanAttachments : undefined,
+        }))
+      );
+      const successful = results.filter((r) => r.status === 'fulfilled');
+      const failed = results.filter((r) => r.status === 'rejected');
+      setSentCount(successful.length);
+
+      if (successful.length === 0) {
+        setError(`Echec d'envoi pour tous les destinataires (${failed.length}).`);
+      } else {
+        const firstId = (successful[0] as PromiseFulfilledResult<any>).value?.id;
+        if (firstId) {
+          setSentDemandeId(firstId);
+          onSent?.(firstId);
+        }
+        setStep('sent');
+        if (failed.length > 0) {
+          setError(`${successful.length} envoyes, ${failed.length} en echec.`);
+        }
+      }
     } catch (e: any) {
       setError(e?.message ?? "Erreur lors de l'envoi");
     } finally {
@@ -320,6 +342,39 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
           {/* ── STEP CHOOSE ────────────────────────────────────────── */}
           {step === 'choose' && (
             <>
+              {/* Toggle multi-select pour broadcast */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: 12, padding: '8px 12px',
+                background: broadcastMode ? '#f0fdf4' : 'transparent',
+                border: `1px solid ${broadcastMode ? '#bbf7d0' : '#ece7df'}`,
+                borderRadius: 10,
+              }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flex: 1 }}>
+                  <input
+                    type="checkbox"
+                    checked={broadcastMode}
+                    onChange={(e) => {
+                      setBroadcastMode(e.target.checked);
+                      if (!e.target.checked) setSelectedIds([]);
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#1a2a1e' }}>
+                    Envoyer a plusieurs intervenants
+                  </span>
+                </label>
+                {broadcastMode && selectedIds.length > 0 && (
+                  <span style={{
+                    fontSize: 11, fontWeight: 700,
+                    background: '#15803d', color: '#fff',
+                    padding: '3px 9px', borderRadius: 999,
+                  }}>
+                    {selectedIds.length} selectionne{selectedIds.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+
               <div style={{ position: 'relative', marginBottom: 14 }}>
                 <Search size={16} style={{
                   position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
@@ -355,10 +410,39 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                       key={i.id}
                       intervenant={i}
                       hasInvitation={!!invitations[i.id]}
-                      onClick={() => handleSelect(i)}
+                      multiSelect={broadcastMode}
+                      isSelected={broadcastMode && selectedIds.includes(i.id)}
+                      onClick={() => {
+                        if (broadcastMode) {
+                          setSelectedIds(prev =>
+                            prev.includes(i.id) ? prev.filter(x => x !== i.id) : [...prev, i.id]
+                          );
+                        } else {
+                          handleSelect(i);
+                        }
+                      }}
                     />
                   ))}
                 </div>
+              )}
+
+              {broadcastMode && selectedIds.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (!title) setTitle(DEMANDE_TYPE_LABELS[type]);
+                    setStep('compose');
+                  }}
+                  style={{
+                    marginTop: 14, width: '100%',
+                    padding: '12px 18px',
+                    background: '#1a2a1e', color: '#cbb98a',
+                    border: 'none', borderRadius: 10,
+                    fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  Composer pour {selectedIds.length} intervenant{selectedIds.length > 1 ? 's' : ''} →
+                </button>
               )}
             </>
           )}
@@ -664,11 +748,13 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
             }}>
               <CheckCircle2 size={56} style={{ color: '#15803d', margin: '0 auto 16px' }} />
               <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>
-                Demande envoyée
+                {sentCount > 1 ? `${sentCount} demandes envoyees` : 'Demande envoyée'}
               </h2>
               <p style={{ fontSize: 14, color: '#5b5045', lineHeight: 1.5 }}>
-                {selectedIntervenant?.companyName ?? selectedIntervenant?.firstName ?? "L'intervenant"} a été notifié·e.
-                {!intervenantHasAccount && intervenantHasPendingInvite && (
+                {sentCount > 1
+                  ? `${sentCount} intervenant${sentCount > 1 ? 's ont' : ' a'} été notifié${sentCount > 1 ? 's' : ''}·e.`
+                  : `${selectedIntervenant?.companyName ?? selectedIntervenant?.firstName ?? "L'intervenant"} a été notifié·e.`}
+                {sentCount === 1 && !intervenantHasAccount && intervenantHasPendingInvite && (
                   <><br />Il pourra consulter la demande après acceptation de l'invitation.</>
                 )}
               </p>
@@ -729,8 +815,14 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 function IntervenantCard({
-  intervenant: i, hasInvitation, onClick,
-}: { intervenant: IntervenantOption; hasInvitation: boolean; onClick: () => void }) {
+  intervenant: i, hasInvitation, onClick, multiSelect, isSelected,
+}: {
+  intervenant: IntervenantOption;
+  hasInvitation: boolean;
+  onClick: () => void;
+  multiSelect?: boolean;
+  isSelected?: boolean;
+}) {
   const fullName =
     i.companyName ??
     [i.firstName, i.lastName].filter(Boolean).join(' ') ??
@@ -743,14 +835,23 @@ function IntervenantCard({
       style={{
         textAlign: 'left',
         padding: '12px 14px',
-        background: '#fff',
-        border: '1px solid #ece7df',
+        background: isSelected ? '#f0fdf4' : '#fff',
+        border: `1px solid ${isSelected ? '#15803d' : '#ece7df'}`,
         borderRadius: 12,
         cursor: 'pointer',
         display: 'flex', alignItems: 'center', gap: 12,
         transition: 'all 0.15s',
       }}
     >
+      {multiSelect && (
+        <input
+          type="checkbox"
+          checked={!!isSelected}
+          onChange={() => {/* parent gere via onClick */}}
+          onClick={(e) => e.stopPropagation()}
+          style={{ flexShrink: 0, cursor: 'pointer' }}
+        />
+      )}
       <div style={{
         width: 38, height: 38, borderRadius: '50%',
         background: 'linear-gradient(135deg, #cbb98a 0%, #a08654 100%)',

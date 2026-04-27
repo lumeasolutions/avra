@@ -12,8 +12,8 @@
  */
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ChevronRight, Eye, Clock, CheckCircle2, XCircle, Send } from 'lucide-react';
-import { listDemandesPro, Demande, DemandeStatus, DEMANDE_STATUS_LABELS } from '@/lib/demandes-api';
+import { ChevronRight, Eye, Clock, CheckCircle2, XCircle, Send, Printer, Trash2, Edit3, Ban, MoreVertical } from 'lucide-react';
+import { listDemandesPro, Demande, DemandeStatus, DEMANDE_STATUS_LABELS, deleteDemandePro, updateDemandeStatusPro } from '@/lib/demandes-api';
 import { StatusBadge } from '@/app/intervenant/components/StatusBadge';
 import { TypeBadge } from '@/app/intervenant/components/TypeBadge';
 
@@ -99,19 +99,67 @@ export function DemandesPanel({ projectId, intervenantId, limit = 20, compact = 
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {filtered.map((d) => <DemandeRow key={d.id} demande={d} />)}
+        {filtered.map((d) => (
+          <DemandeRow
+            key={d.id}
+            demande={d}
+            onDeleted={(id) => setDemandes(prev => prev.filter(x => x.id !== id))}
+            onCancelled={(id) => setDemandes(prev => prev.map(x => x.id === id ? { ...x, status: 'ANNULEE' } : x))}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-function DemandeRow({ demande }: { demande: Demande }) {
+function DemandeRow({ demande, onDeleted, onCancelled }: {
+  demande: Demande;
+  onDeleted: (id: string) => void;
+  onCancelled: (id: string) => void;
+}) {
   // Indicateur "vu non repondu" : VUE = lu mais pas encore repondu
   const showSeen = demande.status === 'VUE';
   const isUnseen = demande.status === 'ENVOYEE'; // intervenant n'a pas ouvert
   const intervenantName = demande.intervenant?.companyName
     ?? [demande.intervenant?.firstName, demande.intervenant?.lastName].filter(Boolean).join(' ')
     ?? '—';
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const isTerminal = ['TERMINEE', 'REFUSEE', 'ANNULEE'].includes(demande.status);
+  const canCancel = !isTerminal && demande.status !== 'EN_COURS';
+  const canDelete = !['EN_COURS', 'TERMINEE'].includes(demande.status);
+
+  const handleCancel = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuOpen(false);
+    if (!confirm('Annuler cette demande ? L\'intervenant sera notifie.')) return;
+    setBusy(true);
+    try {
+      await updateDemandeStatusPro(demande.id, 'ANNULEE', 'Annulee par le pro');
+      onCancelled(demande.id);
+    } catch (err: any) {
+      alert(err?.message ?? 'Erreur annulation');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuOpen(false);
+    if (!confirm('Supprimer definitivement cette demande ? Cette action est irreversible.')) return;
+    setBusy(true);
+    try {
+      await deleteDemandePro(demande.id);
+      onDeleted(demande.id);
+    } catch (err: any) {
+      alert(err?.message ?? 'Erreur suppression');
+      setBusy(false);
+    }
+  };
 
   return (
     <Link
@@ -125,6 +173,8 @@ function DemandeRow({ demande }: { demande: Demande }) {
         textDecoration: 'none',
         color: 'inherit',
         transition: 'all 0.15s',
+        opacity: busy ? 0.5 : 1,
+        position: 'relative',
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
@@ -162,7 +212,66 @@ function DemandeRow({ demande }: { demande: Demande }) {
           )}
         </div>
       </div>
+      {/* Actions menu */}
+      <div style={{ position: 'relative', flexShrink: 0 }} onClick={(e) => e.preventDefault()}>
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMenuOpen(o => !o); }}
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            padding: 4, color: '#7c6c58', borderRadius: 6,
+          }}
+          aria-label="Actions"
+        >
+          <MoreVertical size={14} />
+        </button>
+        {menuOpen && (
+          <>
+            <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMenuOpen(false); }}
+              style={{ position: 'fixed', inset: 0, zIndex: 50 }} />
+            <div style={{
+              position: 'absolute', right: 0, top: '100%', marginTop: 4,
+              background: '#fff', border: '1px solid #ece7df', borderRadius: 8,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              minWidth: 180, zIndex: 51,
+              padding: 4,
+            }}>
+              <a
+                href={`/demandes/${demande.id}/print`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => { e.stopPropagation(); setMenuOpen(false); }}
+                style={menuItemStyle()}
+              >
+                <Printer size={13} /> Imprimer / PDF
+              </a>
+              {canCancel && (
+                <button onClick={handleCancel} style={menuItemStyle()}>
+                  <Ban size={13} /> Annuler
+                </button>
+              )}
+              {canDelete && (
+                <button onClick={handleDelete} style={{ ...menuItemStyle(), color: '#b91c1c' }}>
+                  <Trash2 size={13} /> Supprimer
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
       <ChevronRight size={14} style={{ color: '#cbb98a', flexShrink: 0 }} />
     </Link>
   );
+}
+
+function menuItemStyle(): React.CSSProperties {
+  return {
+    display: 'flex', alignItems: 'center', gap: 8,
+    width: '100%', textAlign: 'left',
+    padding: '8px 10px',
+    background: 'transparent', border: 'none',
+    fontSize: 12, fontWeight: 600, color: '#3D5449',
+    cursor: 'pointer', borderRadius: 6,
+    textDecoration: 'none',
+  };
 }

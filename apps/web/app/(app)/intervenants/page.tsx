@@ -472,16 +472,23 @@ export default function IntervenantsPage() {
   // Modal d'invitation : { intervenantId, name, email }
   const [invitingFor, setInvitingFor] = useState<{ id: string; name: string; email?: string } | null>(null);
 
-  // Charge les invitations PENDING au mount
+  // Charge les invitations (toutes, on ne filtre pas par PENDING ici pour
+  // permettre l'affichage du statut "Expire/Revoque" + bouton "Renouveler").
   useEffect(() => {
     let cancelled = false;
     listInvitations()
       .then((rawList) => {
         if (cancelled) return;
         const arr = Array.isArray(rawList) ? rawList : (Array.isArray((rawList as any)?.data) ? (rawList as any).data : []);
+        // Pour chaque intervenant : on garde la plus recente (createdAt desc)
         const byIntervenantId: Record<string, IntervenantInvitation> = {};
-        for (const inv of arr as IntervenantInvitation[]) {
-          if (inv.status === 'PENDING') byIntervenantId[inv.intervenantId] = inv;
+        const sorted = [...(arr as IntervenantInvitation[])].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        for (const inv of sorted) {
+          if (!byIntervenantId[inv.intervenantId]) {
+            byIntervenantId[inv.intervenantId] = inv;
+          }
         }
         setInvitations(byIntervenantId);
       })
@@ -873,10 +880,14 @@ export default function IntervenantsPage() {
             {filtered.map(i => {
               const c = cfg(i.type);
               const inv = invitations[i.id];
-              // Statut de liaison : invité PENDING > pas de compte (par defaut côté pro,
-              // on n'a pas l'info userId ici dans le store local — l'API est source de
-              // vérité pour le bouton "Inviter" qui se réafficherait après refresh).
-              const status: 'invited' | 'no-account' = inv ? 'invited' : 'no-account';
+              // Statut de liaison :
+              // - invited (PENDING) → bouton "Lien" pour voir/copier
+              // - expired/revoked → bouton "Renouveler" pour recreer
+              // - no-account → bouton "Inviter" pour envoyer un nouveau lien
+              const status: 'invited' | 'expired' | 'no-account' =
+                inv?.status === 'PENDING' ? 'invited'
+                : (inv && (inv.status === 'EXPIRED' || inv.status === 'REVOKED')) ? 'expired'
+                : 'no-account';
               return (
                 <div
                   key={i.id}
@@ -900,6 +911,10 @@ export default function IntervenantsPage() {
                       {status === 'invited' ? (
                         <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                           <Clock className="h-2.5 w-2.5" /> INVITÉ
+                        </span>
+                      ) : status === 'expired' ? (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                          {inv?.status === 'EXPIRED' ? 'EXPIRÉ' : 'RÉVOQUÉ'}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
@@ -932,7 +947,7 @@ export default function IntervenantsPage() {
 
                   {/* Actions rapides — toujours visibles pour l'invitation/demande */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {/* Bouton INVITER / VOIR INVITATION — toujours visible */}
+                    {/* Bouton INVITER / RENOUVELER / VOIR LIEN */}
                     <button
                       onClick={e => {
                         e.stopPropagation();
@@ -942,13 +957,19 @@ export default function IntervenantsPage() {
                         'flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold transition-all shadow-sm',
                         status === 'invited'
                           ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+                          : status === 'expired'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
                           : 'bg-[#a67749] text-white hover:bg-[#a67749]/85 hover:shadow-md'
                       )}
-                      title={status === 'invited' ? 'Voir / gérer l\'invitation' : 'Envoyer un lien d\'accès'}
+                      title={
+                        status === 'invited' ? 'Voir / gérer l\'invitation'
+                        : status === 'expired' ? 'Renouveler l\'invitation'
+                        : 'Envoyer un lien d\'accès'
+                      }
                     >
                       {status === 'invited' ? <Link2 className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
                       <span className="hidden sm:inline">
-                        {status === 'invited' ? 'Lien' : 'Inviter'}
+                        {status === 'invited' ? 'Lien' : status === 'expired' ? 'Renouveler' : 'Inviter'}
                       </span>
                     </button>
 

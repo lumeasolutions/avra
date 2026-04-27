@@ -16,6 +16,12 @@
                   "source": "/api/v1/:path*",
                   "destination": "/api/index"
           }
+    ],
+    "crons": [
+          {
+                  "path": "/api/v1/demandes/internal/auto-reminders?days=3",
+                  "schedule": "0 9 * * *"
+          }
     ]
 }
         
