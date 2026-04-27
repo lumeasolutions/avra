@@ -100,49 +100,9 @@ export default function ProfilPage() {
         )}
       </Section>
 
-      {/* Phase D : Planning iCal */}
-      <Section icon={<Calendar size={16} />} title="Planning iCal">
-        <p style={{ fontSize: 13, color: '#5b5045', lineHeight: 1.5, marginBottom: 12 }}>
-          Synchronisez automatiquement vos interventions AVRA avec Google Calendar,
-          Apple Calendar ou Outlook. Toutes les demandes planifiees apparaissent sur
-          votre agenda habituel.
-        </p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <a
-            href="/api/v1/intervenant-portal/planning.ics"
-            download="avra-planning.ics"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '10px 16px',
-              background: '#1a2a1e', color: '#cbb98a',
-              borderRadius: 10, fontSize: 13, fontWeight: 700,
-              textDecoration: 'none',
-            }}
-          >
-            <Download size={14} /> Telecharger le .ics
-          </a>
-          <button
-            onClick={async () => {
-              const url = `${window.location.origin}/api/v1/intervenant-portal/planning.ics`;
-              try { await navigator.clipboard.writeText(url); } catch {}
-              alert('Lien copie. Collez-le dans votre calendrier sous "Souscrire a un calendrier".');
-            }}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '10px 16px',
-              background: 'transparent', color: '#5b5045',
-              border: '1px solid #ddd5c7', borderRadius: 10,
-              fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            <Copy size={14} /> Copier le lien d'abonnement
-          </button>
-        </div>
-        <p style={{ fontSize: 11, color: '#7c6c58', marginTop: 10, lineHeight: 1.4 }}>
-          Mis a jour en temps reel cote serveur. L'abonnement permet une sync
-          automatique (vs telechargement = snapshot ponctuel).
-        </p>
-      </Section>
+      {/* Phase D : Planning iCal — URL publique HMAC (compatible Google/Apple Calendar) */}
+      <PlanningIcalSection />
+
 
       {/* Sécurité */}
       <Section icon={<ShieldCheck size={16} />} title="Sécurité">
@@ -164,6 +124,103 @@ export default function ProfilPage() {
         </div>
       </Section>
     </div>
+  );
+}
+
+function PlanningIcalSection() {
+  const [icalUrl, setIcalUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api<{ path: string }>('/intervenant-portal/ical-url')
+      .then((r) => {
+        if (cancelled) return;
+        // Construire URL absolue
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        setIcalUrl(`${origin}${r.path}`);
+      })
+      .catch(() => { if (!cancelled) setIcalUrl(null); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const copy = async () => {
+    if (!icalUrl) return;
+    try {
+      await navigator.clipboard.writeText(icalUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {/* noop */}
+  };
+
+  return (
+    <Section icon={<Calendar size={16} />} title="Planning iCal">
+      <p style={{ fontSize: 13, color: '#5b5045', lineHeight: 1.5, marginBottom: 12 }}>
+        Synchronisez automatiquement vos interventions AVRA avec Google Calendar,
+        Apple Calendar ou Outlook. Toutes les demandes planifiees apparaissent sur
+        votre agenda habituel et se mettent a jour en temps reel.
+      </p>
+      {loading ? (
+        <div style={{ height: 60, background: '#f5eee8', borderRadius: 10 }} />
+      ) : !icalUrl ? (
+        <div style={{ padding: 16, textAlign: 'center', color: '#7c6c58', fontSize: 13 }}>
+          Lien indisponible.
+        </div>
+      ) : (
+        <>
+          <div style={{
+            padding: '10px 14px', background: '#fafaf8',
+            border: '1px solid #ece7df', borderRadius: 10,
+            fontSize: 11, fontFamily: 'monospace',
+            color: '#3D5449',
+            marginBottom: 10,
+            wordBreak: 'break-all',
+          }}>
+            {icalUrl}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <a
+              href={icalUrl}
+              download="avra-planning.ics"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '10px 16px',
+                background: '#1a2a1e', color: '#cbb98a',
+                borderRadius: 10, fontSize: 13, fontWeight: 700,
+                textDecoration: 'none',
+              }}
+            >
+              <Download size={14} /> Telecharger maintenant
+            </a>
+            <button
+              onClick={copy}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '10px 16px',
+                background: copied ? '#15803d' : 'transparent',
+                color: copied ? '#fff' : '#5b5045',
+                border: copied ? 'none' : '1px solid #ddd5c7', borderRadius: 10,
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              <Copy size={14} /> {copied ? 'Copie !' : 'Copier le lien'}
+            </button>
+          </div>
+          <details style={{ marginTop: 12 }}>
+            <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#3D5449' }}>
+              Comment l'ajouter a votre calendrier ?
+            </summary>
+            <div style={{ marginTop: 8, fontSize: 12, color: '#5b5045', lineHeight: 1.5 }}>
+              <p style={{ marginBottom: 6 }}><strong>Google Calendar :</strong> "Autres agendas" + "À partir de l'URL" → coller le lien.</p>
+              <p style={{ marginBottom: 6 }}><strong>Apple Calendar :</strong> Fichier → "Nouvel abonnement à un calendrier" → coller le lien.</p>
+              <p><strong>Outlook :</strong> "Ajouter un calendrier" → "Souscrire à partir du Web" → coller le lien.</p>
+            </div>
+          </details>
+        </>
+      )}
+    </Section>
   );
 }
 

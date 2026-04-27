@@ -7,11 +7,30 @@ import { api } from '@/lib/api';
 
 interface Notification {
   id: string;
-  title: string;
+  /** Le backend ne renvoie pas de title dedie — on derive du type */
+  title?: string;
   message: string;
   isRead: boolean;
   type: string;
   createdAt: string;
+}
+
+/** Convertit un type technique en titre lisible. */
+function titleFromType(type: string): string {
+  const map: Record<string, string> = {
+    'demande:new': 'Nouvelle demande',
+    'demande:new-message': 'Nouveau message',
+    'demande:status:acceptee': 'Demande acceptée',
+    'demande:status:refusee': 'Demande refusée',
+    'demande:status:en_cours': 'Intervention démarrée',
+    'demande:status:terminee': 'Intervention terminée',
+  };
+  if (map[type]) return map[type];
+  // demande:status:foo → "Demande : foo"
+  if (type.startsWith('demande:')) return 'Demande';
+  if (type.startsWith('payment:')) return 'Paiement';
+  if (type.startsWith('signature:')) return 'Signature';
+  return 'Notification';
 }
 
 export const NotificationsDropdown = React.memo(function NotificationsDropdown() {
@@ -22,8 +41,12 @@ export const NotificationsDropdown = React.memo(function NotificationsDropdown()
 
   const load = () => {
     setLoading(true);
-    api<Notification[]>('/notifications')
-      .then(setItems)
+    // L'API renvoie { data, total, page, pageSize } — on deballe.
+    api<any>('/notifications')
+      .then((res) => {
+        const arr = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+        setItems(arr);
+      })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   };
@@ -89,7 +112,7 @@ export const NotificationsDropdown = React.memo(function NotificationsDropdown()
                   key={n.id}
                   className={`border-b border-avra-primary/5 px-4 py-3 last:border-0 ${!n.isRead ? 'bg-avra-surface/30' : ''}`}
                 >
-                  <p className="text-sm font-medium text-avra-primary">{n.title}</p>
+                  <p className="text-sm font-medium text-avra-primary">{n.title || titleFromType(n.type)}</p>
                   <p className="mt-0.5 text-xs text-avra-primary/70 line-clamp-2">{n.message}</p>
                   <div className="mt-2 flex items-center justify-between">
                     <span className="text-xs text-avra-primary/50">

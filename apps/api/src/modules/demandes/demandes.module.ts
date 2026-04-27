@@ -3,6 +3,7 @@ import {
   DemandesController,
   IntervenantPortalController,
   IntervenantInvitationController,
+  IntervenantPublicCalendarController,
 } from './demandes.controller';
 import { DemandesService } from './demandes.service';
 import { DemandesEmailService } from './demandes-email.service';
@@ -15,6 +16,7 @@ import { DossierDocumentsModule } from '../dossier-documents/dossier-documents.m
     DemandesController,
     IntervenantPortalController,
     IntervenantInvitationController,
+    IntervenantPublicCalendarController,
   ],
   providers: [DemandesService, DemandesEmailService, ICalFeedService],
   exports: [DemandesService],

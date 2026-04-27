@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Mail, UserPlus, CheckCircle2, Paperclip, Trash2 } from 'lucide-react';
+import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Mail, UserPlus, CheckCircle2, Paperclip, Trash2, Bookmark } from 'lucide-react';
 import { api, apiUpload } from '@/lib/api';
+import { useDemandeTemplatesStore } from '@/store/useDemandeTemplatesStore';
 import {
   DEMANDE_TYPE_LABELS,
   DemandeType,
@@ -454,6 +455,17 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                 </div>
               )}
 
+              {/* Templates rapides */}
+              <TemplatesPicker
+                onApply={(tpl) => {
+                  setType(tpl.type);
+                  setTitle(tpl.title);
+                  if (tpl.notes) setNotes(tpl.notes);
+                }}
+                onSave={() => ({ name: title || 'Nouveau template', type, title, notes })}
+                currentValid={!!title.trim()}
+              />
+
               {/* Type */}
               <Label>Type de demande</Label>
               <div style={{
@@ -851,3 +863,95 @@ function btnStyle(variant: 'primary' | 'secondary'): React.CSSProperties {
         display: 'inline-flex', alignItems: 'center', gap: 6,
       };
 }
+
+// ─── Templates picker ─────────────────────────────────────────────────────
+
+function TemplatesPicker({
+  onApply, onSave, currentValid,
+}: {
+  onApply: (t: { type: any; title: string; notes?: string }) => void;
+  onSave: () => { name: string; type: any; title: string; notes?: string };
+  currentValid: boolean;
+}) {
+  const templates = useDemandeTemplatesStore((s) => s.templates);
+  const addTemplate = useDemandeTemplatesStore((s) => s.addTemplate);
+  const removeTemplate = useDemandeTemplatesStore((s) => s.removeTemplate);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div style={{ marginBottom: 14, padding: 10, background: "#fafaf8", border: "1px solid #ece7df", borderRadius: 10 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", gap: 6,
+          background: "transparent", border: "none", cursor: "pointer",
+          fontSize: 12, fontWeight: 700, color: "#3D5449",
+          padding: 0,
+        }}
+      >
+        <Bookmark size={13} />
+        Templates ({templates.length})
+        <ChevronDown size={13} style={{ marginLeft: "auto", transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+          {templates.map((t) => (
+            <div key={t.id} style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "6px 10px",
+              background: "#fff", borderRadius: 6,
+              border: "1px solid #ece7df",
+            }}>
+              <button
+                type="button"
+                onClick={() => onApply({ type: t.type, title: t.title, notes: t.notes })}
+                style={{
+                  flex: 1, textAlign: "left",
+                  background: "transparent", border: "none", cursor: "pointer",
+                  fontSize: 12, color: "#1a2a1e",
+                }}
+              >
+                <div style={{ fontWeight: 700 }}>{t.name}</div>
+                <div style={{ fontSize: 10, color: "#7c6c58", marginTop: 1 }}>
+                  {t.type}{t.builtin ? " · par defaut" : ""}
+                </div>
+              </button>
+              {!t.builtin && (
+                <button
+                  type="button"
+                  onClick={() => removeTemplate(t.id)}
+                  style={{ background: "transparent", border: "none", cursor: "pointer", color: "#7c6c58", padding: 2 }}
+                  title="Supprimer ce template"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+
+          {currentValid && (
+            <button
+              type="button"
+              onClick={() => {
+                const data = onSave();
+                addTemplate({ name: data.name.slice(0, 60), type: data.type, title: data.title, notes: data.notes });
+              }}
+              style={{
+                marginTop: 4, padding: "6px 10px",
+                background: "#1a2a1e", color: "#cbb98a",
+                border: "none", borderRadius: 6,
+                fontSize: 11, fontWeight: 700, cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 4, alignSelf: "flex-start",
+              }}
+            >
+              + Sauvegarder le brouillon comme template
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+

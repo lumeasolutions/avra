@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { DemandesService } from './demandes.service';
-import { ICalFeedService } from './ical-feed.service';
+import { ICalFeedService, verifyIcalToken } from './ical-feed.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -30,11 +30,14 @@ export class DemandesController {
     @Query('type') type?: DemandeType,
     @Query('intervenantId') intervenantId?: string,
     @Query('projectId') projectId?: string,
+    @Query('q') q?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
     return this.demandes.listForWorkspace(user.workspaceId, {
-      status, type, intervenantId, projectId,
+      status, type, intervenantId, projectId, q, fromDate, toDate,
       page: page ? parseInt(page, 10) : 1,
       pageSize: pageSize ? parseInt(pageSize, 10) : 50,
     });
@@ -80,6 +83,22 @@ export class DemandesController {
     return this.demandes.updateStatus(
       user.workspaceId, id, 'pro', body.status, user.sub, body.comment,
     );
+  }
+
+  /** Modifier une demande (pro) — titre, notes, scheduledFor, type */
+  @Patch(':id')
+  updateDemande(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { title?: string; notes?: string | null; scheduledFor?: string | null; type?: DemandeType },
+  ) {
+    return this.demandes.updateDemande(user.workspaceId, id, body);
+  }
+
+  /** Supprimer une demande (pro) — bloque si EN_COURS/TERMINEE */
+  @Delete(':id')
+  removeDemande(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.demandes.removeDemande(user.workspaceId, id);
   }
 
   @Post(':id/messages')
@@ -149,6 +168,24 @@ export class DemandesController {
   @Delete('invitations/:invitationId')
   revokeInvitation(@CurrentUser() user: JwtPayload, @Param('invitationId') invitationId: string) {
     return this.demandes.revokeInvitation(user.workspaceId, invitationId);
+  }
+
+  /**
+   * Endpoint cron auto-rappel — declenche par un service externe (Vercel
+   * Cron, GitHub Actions, EasyCron, etc.) avec header X-Cron-Key.
+   * Pas de JwtAuthGuard ici, securise via CRON_SECRET en env.
+   */
+  @Public()
+  @Post('internal/auto-reminders')
+  async runAutoReminders(@Req() req: Request) {
+    const secret = process.env.CRON_SECRET;
+    const provided = (req.headers['x-cron-key'] ?? '') as string;
+    if (!secret || provided !== secret) {
+      throw new ForbiddenException('Cron key invalide');
+    }
+    const daysParam = (req.query?.days as string) ?? '3';
+    const days = Math.min(30, Math.max(1, parseInt(daysParam, 10) || 3));
+    return this.demandes.sendAutoReminders(days);
   }
 }
 
@@ -226,8 +263,20 @@ export class IntervenantPortalController {
 
   /** Profils Intervenant lies au User connecte (peut etre plusieurs). */
   @Get('profile')
-  profile(@CurrentUser() user: JwtPayload) {
-    return this.demandes.getIntervenantProfilesForUser(user.sub);
+  async profile(@CurrentUser() user: JwtPayload) {
+    const profiles = await this.demandes.getIntervenantProfilesForUser(user.sub);
+    return profiles;
+  }
+
+  /** URL publique du flux iCal pour le User connecte (a copier-coller dans
+   * Google/Apple Calendar). Le token est un HMAC, pas un secret aleatoire,
+   * donc on peut le regenerer a la volee a chaque requete. */
+  @Get('ical-url')
+  icalUrl(@CurrentUser() user: JwtPayload) {
+    // Import dynamique pour eviter import circulaire
+    const { buildIcalToken } = require('./ical-feed.service');
+    const token = buildIcalToken(user.sub);
+    return { userId: user.sub, token, path: `/api/v1/calendar/i/${user.sub}/${token}.ics` };
   }
 
   /**
@@ -321,6 +370,48 @@ export class IntervenantInvitationController {
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   async refuse(@Param('token') token: string) {
     return this.demandes.refuseInvitation(token);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * CALENDRIER PUBLIC — accessible sans auth (Google/Apple Calendar
+ * font des requetes anonymes). Securite via token HMAC dans l'URL.
+ * ───────────────────────────────────────────────────────────────────── */
+@Controller('calendar')
+export class IntervenantPublicCalendarController {
+  constructor(
+    private readonly demandes: DemandesService,
+    private readonly ical: ICalFeedService,
+  ) {}
+
+  /**
+   * GET /calendar/i/:userId/:token.ics
+   *
+   * Retourne le flux iCalendar des interventions d'un intervenant. Le token
+   * est un HMAC du userId + secret serveur, derivable cote pro mais non
+   * forgeable sans le secret. Pour invalider un lien partage, l'admin peut
+   * rotater ICAL_SECRET cote serveur.
+   *
+   * Pas de JwtAuthGuard car les apps de calendrier souscrivent anonymement.
+   */
+  @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Get('i/:userId/:token.ics')
+  async publicIcal(
+    @Param('userId') userId: string,
+    @Param('token') token: string,
+    @Res() res: Response,
+  ) {
+    if (!verifyIcalToken(userId, token)) {
+      // 404 plutot que 403 pour ne pas confirmer l'existence d'un user
+      res.status(404).send('Not found');
+      return;
+    }
+    const list = await this.demandes.getScheduledDemandesForIntervenant(userId);
+    const ics = this.ical.generate(list as any, 'AVRA — Mes interventions');
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300'); // 5min cache
+    res.send(ics);
   }
 }
 

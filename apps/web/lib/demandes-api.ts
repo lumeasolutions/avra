@@ -244,6 +244,22 @@ export async function createDemande(data: {
   });
 }
 
+export async function updateDemandePro(
+  id: string,
+  data: { title?: string; notes?: string | null; scheduledFor?: string | null; type?: DemandeType },
+): Promise<Demande> {
+  return api<Demande>(`/demandes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteDemandePro(id: string): Promise<{ ok: boolean }> {
+  return api<{ ok: boolean }>(`/demandes/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function updateDemandeStatusPro(
   id: string,
   status: DemandeStatus,

@@ -34,6 +34,8 @@ export class PaymentsService {
 
   async findByWorkspace(workspaceId: string, page = 1, pageSize = 50) {
     // OPTIMISATION: Ajouter pagination et select ciblé
+    // Fix : retire `reference` et `dueDate` qui n'existent pas dans le schema
+    // PaymentRequest (causait 500 prod sur GET /payments).
     const skip = (page - 1) * pageSize;
 
     const [data, total] = await Promise.all([
@@ -41,12 +43,11 @@ export class PaymentsService {
         where: { workspaceId },
         select: {
           id: true,
-          reference: true,
           type: true,
           amount: true,
           status: true,
-          dueDate: true,
           paidAt: true,
+          providerRef: true,
           createdAt: true,
           updatedAt: true,
           project: {

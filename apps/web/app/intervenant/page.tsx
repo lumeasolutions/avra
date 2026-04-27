@@ -55,6 +55,16 @@ export default function IntervenantHomePage() {
   const aTraiter = ordered.filter((d) => d.status === 'ENVOYEE' || d.status === 'VUE').slice(0, 5);
   const enCours = ordered.filter((d) => d.status === 'EN_COURS' || d.status === 'ACCEPTEE').slice(0, 5);
 
+  // Phase 9 : Prochaine intervention scheduledFor (active, futur, statut non terminal)
+  const nextIntervention = useMemo(() => {
+    const now = Date.now();
+    return ordered
+      .filter((d) => d.scheduledFor
+        && new Date(d.scheduledFor).getTime() >= now
+        && !['REFUSEE', 'ANNULEE', 'TERMINEE'].includes(d.status))
+      .sort((a, b) => new Date(a.scheduledFor!).getTime() - new Date(b.scheduledFor!).getTime())[0];
+  }, [ordered]);
+
   const greeting = useMemo(() => {
     const h = new Date().getHours();
     if (h < 6) return 'Bonsoir';
@@ -107,6 +117,74 @@ export default function IntervenantHomePage() {
           <KpiCard label="Total" value={myStats?.total ?? 0} icon={<Inbox size={18} />} accent="#cbb98a" />
         </div>
       </div>
+
+      {/* Phase 9 : Carte "Prochaine intervention" si scheduledFor */}
+      {nextIntervention && nextIntervention.scheduledFor && (
+        <Link
+          href={`/intervenant/demandes/${nextIntervention.id}`}
+          style={{
+            display: 'block',
+            background: 'linear-gradient(135deg, #fff8ef 0%, #fef3c7 100%)',
+            border: '1px solid #fde68a',
+            borderRadius: 18,
+            padding: '20px 24px',
+            marginBottom: 18,
+            textDecoration: 'none',
+            color: 'inherit',
+            boxShadow: '0 2px 12px rgba(251,191,36,0.15)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            {(() => {
+              const dt = new Date(nextIntervention.scheduledFor!);
+              const isToday = new Date().toDateString() === dt.toDateString();
+              const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+              const isTomorrow = tomorrow.toDateString() === dt.toDateString();
+              return (
+                <div style={{
+                  width: 72, minWidth: 72,
+                  textAlign: 'center',
+                  padding: '10px 4px',
+                  background: '#fff',
+                  borderRadius: 12,
+                  boxShadow: '0 1px 3px rgba(120,83,28,0.1)',
+                }}>
+                  <div style={{ fontSize: 11, color: '#92400e', fontWeight: 700, textTransform: 'uppercase' }}>
+                    {dt.toLocaleDateString('fr-FR', { month: 'short' })}
+                  </div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#7c4f1d', lineHeight: 1, margin: '2px 0' }}>
+                    {dt.getDate()}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#7c4f1d', fontWeight: 600 }}>
+                    {dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              );
+            })()}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                {(() => {
+                  const dt = new Date(nextIntervention.scheduledFor!);
+                  const today = new Date(); today.setHours(0,0,0,0);
+                  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+                  const dtDay = new Date(dt); dtDay.setHours(0,0,0,0);
+                  if (dtDay.getTime() === today.getTime()) return '🔥 Aujourd\'hui';
+                  if (dtDay.getTime() === tomorrow.getTime()) return 'Demain';
+                  return 'Prochaine intervention';
+                })()}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#1a2a1e', marginBottom: 4 }}>
+                {nextIntervention.title}
+              </div>
+              <div style={{ fontSize: 13, color: '#7c4f1d', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <span>{nextIntervention.type}</span>
+                {nextIntervention.project && <span>· 📂 {nextIntervention.project.name}</span>}
+              </div>
+            </div>
+            <div style={{ fontSize: 22, color: '#92400e' }}>→</div>
+          </div>
+        </Link>
+      )}
 
       {/* À traiter */}
       <Section
