@@ -12,7 +12,11 @@ import type { NextRequest } from 'next/server';
 
 type AdminCheckResult = { ok: true; email: string } | { ok: false };
 
+// HIGH-002: dev escape-hatches accepted only on local dev.
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const IS_LOCAL_DEV =
+  process.env.NODE_ENV === 'development' &&
+  (!process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development');
 
 /**
  * Extrait l'email du payload JWT sans vérifier la signature
@@ -55,13 +59,22 @@ function getAdminEmails(): Set<string> {
 
 /**
  * Vérifie si la requête provient d'un admin autorisé.
+ *
+ * MED-6 (passe-2): in production we REFUSE to fall back when
+ *   BETA_ADMIN_EMAILS is empty/unset. Previously an empty whitelist + a
+ *   forged cookie / dev branch could open admin routes. Now any prod env
+ *   without an explicit whitelist returns `{ ok: false }` immediately.
  */
 export function isAdminEmail(req: NextRequest): AdminCheckResult {
   const adminEmails = getAdminEmails();
 
-  // En dev, autoriser l'accès si aucune whitelist n'est configurée
-  // (pour ne pas bloquer les tests locaux)
-  if (!IS_PRODUCTION && adminEmails.size === 0) {
+  if (IS_PRODUCTION && adminEmails.size === 0) {
+    // Refuse outright — failing closed beats failing open in prod.
+    return { ok: false };
+  }
+
+  // En dev local strict, autoriser si aucune whitelist n'est configurée.
+  if (IS_LOCAL_DEV && adminEmails.size === 0) {
     return { ok: true, email: 'dev@local' };
   }
 
@@ -74,8 +87,8 @@ export function isAdminEmail(req: NextRequest): AdminCheckResult {
     }
   }
 
-  // En dev uniquement : cookie dev_admin=true (pour tester sans auth)
-  if (!IS_PRODUCTION) {
+  // En dev local UNIQUEMENT : cookie dev_admin=true (pour tester sans auth).
+  if (IS_LOCAL_DEV) {
     const devAdmin = req.cookies.get('dev_admin')?.value;
     if (devAdmin === 'true') {
       return { ok: true, email: 'dev@local' };

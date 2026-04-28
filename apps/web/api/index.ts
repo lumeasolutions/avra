@@ -21,11 +21,14 @@ async function bootstrapServer(): Promise<Express> {
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { AppModule } = require('../../api/dist/app.module');
+  // HIGH-5 (passe-2): scrubbed logger for the serverless path too.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { SanitizedLogger } = require('../../api/dist/common/logging/sanitized-logger');
 
   const expressApp = express();
   // ✅ rawBody enabled for HMAC webhook verification (YouSign).
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
-    logger: ['error', 'warn'],
+    logger: new SanitizedLogger(),
     rawBody: true,
   });
 

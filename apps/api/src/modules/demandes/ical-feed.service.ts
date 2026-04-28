@@ -87,9 +87,14 @@ export class IcalTokenService {
     //    transition window. We can't index on it, so we accept O(N) over the
     //    handful of intervenants exposed here, gated by the format check.
     if (/^[a-f0-9]{32}$/i.test(token)) {
+      // INFO-2 (passe-2): cap the legacy O(N) scan at 5000 intervenant users.
+      //   This path exists only for backwards-compat with HMAC tokens issued
+      //   before HIGH-3 introduced per-user random tokens stored in DB.
+      //   TODO(remove 30 days after passe-2 ships): drop legacy scheme entirely.
       const candidates: any[] = await (this.prisma as any).user.findMany({
         where: { isActive: true, intervenantProfiles: { some: {} } },
         select: { id: true },
+        take: 5000,
       });
       for (const c of candidates) {
         if (verifyIcalToken(c.id, token)) return c.id;

@@ -25,10 +25,20 @@ export class VirusScanService {
 
   async scanBuffer(buf: Buffer, filename = 'upload'): Promise<{ clean: boolean; skipped?: boolean; reason?: string }> {
     const apiKey = process.env.CLOUDMERSIVE_API_KEY;
+    // HIGH-3 (passe-2): in production (NODE_ENV=production && VERCEL_ENV=production)
+    //   we fail CLOSED when no AV is configured — refuse the upload rather than
+    //   pass it through unchecked. We don't throw at boot so preview deploys
+    //   without the key still come up; we only block at scan time.
+    const isHardProd =
+      process.env.NODE_ENV === 'production' && process.env.VERCEL_ENV === 'production';
     if (!apiKey) {
       if (!this.warned) {
-        this.logger.warn('VirusScan disabled (no CLOUDMERSIVE_API_KEY) — uploads pass through unchecked');
+        this.logger.warn('VirusScan disabled (no CLOUDMERSIVE_API_KEY) — preview/staging mode');
         this.warned = true;
+      }
+      if (isHardProd) {
+        // Refuse the upload — caller surfaces a generic 400/503 to the client.
+        return { clean: false, skipped: false, reason: 'no-api-key-prod' };
       }
       return { clean: true, skipped: true, reason: 'no-api-key' };
     }
@@ -36,7 +46,13 @@ export class VirusScanService {
     try {
       // Multipart form upload — minimal manual implementation to avoid an
       // extra runtime dependency.
-      const boundary = '----avra-' + Math.random().toString(16).slice(2);
+      // MED-2 (passe-2): use crypto.randomBytes for boundary instead of
+      //   Math.random() — boundary collision in multipart bodies is exotic
+      //   but the predictability was an unnecessary smell.
+      const boundary =
+        '----avra-' +
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        require('crypto').randomBytes(16).toString('hex');
       const head = Buffer.from(
         `--${boundary}\r\nContent-Disposition: form-data; name="inputFile"; filename="${filename.replace(/"/g, '')}"\r\nContent-Type: application/octet-stream\r\n\r\n`,
       );

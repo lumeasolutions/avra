@@ -1331,7 +1331,7 @@ function OngletEFacturation() {
                   >
                     {copiedToken === doc.token ? <><Check className="h-3.5 w-3.5" /> Copié !</> : <><Copy className="h-3.5 w-3.5" /> Copier le lien</>}
                   </button>
-                  <a href={`/e-facturation/${doc.token}`} target="_blank"
+                  <a href={`/e-facturation/${doc.token}`} target="_blank" rel="noopener noreferrer"
                     className="rounded-xl p-1.5 bg-violet-50 text-violet-600 hover:bg-violet-100 transition-colors">
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>

@@ -17,7 +17,15 @@ import { UsersModule } from '../users/users.module';
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>('JWT_SECRET'),
-        signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN', '15m') },
+        // LOW-2 (passe-2): pin HS256 explicitly. Without this, a malicious
+        //   token signed with `alg: none` (or HS-with-public-key confusion)
+        //   could be accepted by some upstream verifier. NestJS JwtService
+        //   defaults to HS256 already; making it explicit is defense-in-depth.
+        signOptions: {
+          algorithm: 'HS256',
+          expiresIn: config.get<string>('JWT_EXPIRES_IN', '15m'),
+        },
+        verifyOptions: { algorithms: ['HS256'] },
       }),
       inject: [ConfigService],
     }),

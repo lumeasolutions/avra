@@ -213,8 +213,12 @@ export class DemandesController {
    */
   @Post('internal/relance-all')
   @UseGuards(JwtAuthGuard)
-  async relanceAll(@CurrentUser() _user: JwtPayload) {
-    return this.demandes.sendAutoReminders(3);
+  async relanceAll(@CurrentUser() user: JwtPayload) {
+    // HIGH-6 (passe-2): scope reminder fan-out to the caller's workspace.
+    //   Previously this called sendAutoReminders(3) globally, meaning a single
+    //   authenticated pro could trigger emails on demandes belonging to other
+    //   workspaces. We now pass workspaceId so the service filters its query.
+    return this.demandes.sendAutoReminders(3, user.workspaceId);
   }
 
   /**
@@ -251,9 +255,12 @@ export class DemandesController {
     }
 
     // Idempotency — refuse if a recent run already happened.
+    // CRIT-002 (passe-2): direct method calls (no `?.`); helpers throw 503
+    //   if the underlying Prisma delegate is missing instead of silently
+    //   skipping the lock and letting the cron be replayed.
     const CRON_NAME = 'auto-reminders';
     const MIN_INTERVAL_MS = 60 * 60 * 1000;
-    const last = await (this.demandes as any).getCronLock?.(CRON_NAME);
+    const last = await this.demandes.getCronLock(CRON_NAME);
     if (last && Date.now() - new Date(last).getTime() < MIN_INTERVAL_MS) {
       throw new ForbiddenException('Cron déjà exécuté récemment');
     }
@@ -261,7 +268,7 @@ export class DemandesController {
     const daysParam = (req.query?.days as string) ?? '3';
     const days = Math.min(30, Math.max(1, parseInt(daysParam, 10) || 3));
     const result = await this.demandes.sendAutoReminders(days);
-    await (this.demandes as any).setCronLock?.(CRON_NAME, 'OK');
+    await this.demandes.setCronLock(CRON_NAME, 'OK');
     return result;
   }
 }

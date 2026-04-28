@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+// LOW-004: rely on Web Crypto for the per-request nonce instead of btoa()-of-join.
+// `crypto.randomUUID()` returns a 128-bit cryptographically random value with
+// no ambiguity around base64 alphabet edge-cases.
 
 /**
  * Middleware de protection des routes AVRA
@@ -89,9 +92,16 @@ function isJwtStructurallyValid(token: string): boolean {
  * Migrating styles to nonce/hash is non-trivial and out of scope here.
  */
 function buildCspWithNonce(nonce: string, isProd: boolean): string {
+  // CRIT-001 (passe-2 alternative pragmatique): we keep `'unsafe-inline'`
+  // alongside the nonce instead of `'strict-dynamic'`. Modern browsers honor
+  // the nonce and ignore `'unsafe-inline'` automatically (CSP3 backwards-compat
+  // semantics), while older browsers still get a non-trivial baseline. This
+  // avoids having to thread `nonce={nonce}` through every server component
+  // emitting `<script type="application/ld+json">` (~22 pages). Documented as
+  // a deliberate trade-off in AVRA security passe-2 report.
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://plausible.io${isProd ? '' : " 'unsafe-eval' 'unsafe-inline'"}`,
+    `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://plausible.io${isProd ? '' : " 'unsafe-eval'"}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com https://*.supabase.co",
     "font-src 'self' https://fonts.gstatic.com",
@@ -105,22 +115,45 @@ function buildCspWithNonce(nonce: string, isProd: boolean): string {
   return directives.join('; ');
 }
 
-function applyCsp(req: NextRequest, res: NextResponse): NextResponse {
-  // Generate a fresh nonce per request.
-  const nonce = btoa(crypto.getRandomValues(new Uint8Array(16)).join('-'));
-  // Make it available to RSC via request headers (read with `headers()`).
+function applyCspToResponse(
+  req: NextRequest,
+  res: NextResponse,
+  nonce: string,
+): NextResponse {
   res.headers.set('x-nonce', nonce);
   const isProd = process.env.NODE_ENV === 'production';
   res.headers.set('Content-Security-Policy', buildCspWithNonce(nonce, isProd));
   return res;
 }
 
+/**
+ * CRIT-001: produce a NextResponse.next() that ALSO injects the nonce into
+ * the *request* headers so server components / route handlers can read it
+ * via `headers().get('x-nonce')`. Without forwarding the nonce on the
+ * request object, RSC code has no way to attach `nonce={...}` on inline
+ * scripts and the CSP would silently block them in strict mode.
+ */
+function nextWithNonce(req: NextRequest, nonce: string): NextResponse {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set('x-nonce', nonce);
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
+
+function freshNonce(): string {
+  // LOW-004: crypto.randomUUID() is cryptographically secure and stable across
+  //   the Node and Edge runtimes Next 14 uses. We drop the legacy btoa(...) hack.
+  return crypto.randomUUID().replace(/-/g, '');
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const nonce = freshNonce();
 
   // Laisser passer les routes publiques
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-  if (isPublic) return applyCsp(request, NextResponse.next());
+  if (isPublic) {
+    return applyCspToResponse(request, nextWithNonce(request, nonce), nonce);
+  }
 
   // ── Vérification du JWT ──────────────────────────────────────────────────
   const accessToken = request.cookies.get('access_token')?.value;
@@ -128,7 +161,7 @@ export function middleware(request: NextRequest) {
   if (accessToken) {
     // JWT présent → vérifier structure + expiration
     if (isJwtStructurallyValid(accessToken)) {
-      return applyCsp(request, NextResponse.next());
+      return applyCspToResponse(request, nextWithNonce(request, nonce), nonce);
     }
     // JWT invalide ou expiré → rediriger vers login
     const loginUrl = new URL('/login', request.url);
@@ -142,7 +175,7 @@ export function middleware(request: NextRequest) {
   if (IS_LOCAL_DEV) {
     const loggedIn = request.cookies.get('logged_in')?.value;
     if (loggedIn === 'true') {
-      return applyCsp(request, NextResponse.next());
+      return applyCspToResponse(request, nextWithNonce(request, nonce), nonce);
     }
   }
 

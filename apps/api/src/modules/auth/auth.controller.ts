@@ -13,6 +13,12 @@ import type { JwtPayload } from '@avra/types';
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 const IS_SECURE = IS_PROD || process.env.FORCE_SECURE_COOKIES === 'true';
+// MED-5 (passe-2): the legacy `logged_in` cookie is non-HttpOnly and
+//   trivially forgeable; middleware only honors it on local dev. Avoid
+//   sending it at all in any deployed environment.
+const IS_LOCAL_DEV =
+  process.env.NODE_ENV === 'development' &&
+  (!process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development');
 
 /** Durée de vie du cookie access_token en ms (60 min — assez long pour que
  *  le refresh proactif ait largement le temps, court pour la sécurité). */
@@ -61,23 +67,37 @@ function setAuthCookies(res: Response, data: AuthCookieData) {
     });
   }
 
-  // Cookie readable by the frontend to know "is the session up?".
-  // NOTE: this is NOT a source of truth — middleware verifies access_token JWT.
-  res.cookie('logged_in', 'true', {
-    httpOnly: false,
-    secure: IS_SECURE,
-    sameSite: 'strict',
-    maxAge: SESSION_COOKIE_TTL,
-    path: '/',
-  });
+  // MED-5 (passe-2): legacy debug cookie — only set in real local dev. In
+  //   production / preview / staging, middleware ignores it anyway, so
+  //   shipping it is just useless surface for forgers to play with.
+  if (IS_LOCAL_DEV) {
+    res.cookie('logged_in', 'true', {
+      httpOnly: false,
+      secure: IS_SECURE,
+      sameSite: 'strict',
+      maxAge: SESSION_COOKIE_TTL,
+      path: '/',
+    });
+  }
 }
 
 function clearAuthCookies(res: Response) {
-  res.clearCookie('access_token', { path: '/' });
-  res.clearCookie('refresh_token', { path: '/' });
-  res.clearCookie('user_id', { path: '/' });
-  res.clearCookie('logged_in', { path: '/' });
-  res.clearCookie('csrf_token', { path: '/' });
+  // MED-8 (passe-2): mirror cookie attributes when clearing. Some browsers
+  //   (Safari especially) refuse to delete a cookie if `secure` / `sameSite`
+  //   don't match the original Set-Cookie. Without these options, logout
+  //   could leave a stale token sitting on disk.
+  const opts = {
+    httpOnly: true,
+    secure: IS_SECURE,
+    sameSite: 'strict' as const,
+    path: '/',
+  };
+  res.clearCookie('access_token', opts);
+  res.clearCookie('refresh_token', opts);
+  res.clearCookie('user_id', opts);
+  // logged_in is non-HttpOnly by design — clear with matching options.
+  res.clearCookie('logged_in', { ...opts, httpOnly: false });
+  res.clearCookie('csrf_token', { ...opts, httpOnly: false });
 }
 
 @Controller('auth')

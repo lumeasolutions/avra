@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import * as Sentry from '@sentry/node';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
-import { scrubForLog } from './common/logging/sanitized-logger';
+import { scrubForLog, SanitizedLogger } from './common/logging/sanitized-logger';
 
 async function bootstrap() {
   // ✅ Sentry — scrub PII before sending
@@ -32,6 +32,11 @@ async function bootstrap() {
   // ✅ rawBody enabled so HMAC webhook verifiers (YouSign etc.) can use the
   //    untouched bytes instead of a re-serialised JSON.
   const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  // HIGH-5 (passe-2): route NestJS logging through SanitizedLogger so secrets
+  //   (Bearer tokens, password fields, emails…) are scrubbed before they hit
+  //   stdout / Vercel logs / Sentry breadcrumbs.
+  app.useLogger(new SanitizedLogger());
 
   // ✅ Helmet
   app.use(helmet());

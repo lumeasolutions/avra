@@ -113,11 +113,11 @@ export class DossierDocumentsService {
         `Fichier trop volumineux (max ${Math.floor(MAX_FILE_BYTES / (1024 * 1024))} Mo)`,
       );
     }
-    // ✅ HIGH-009: best-effort magic-bytes validation. Activated when the
-    //   `file-type` package is installed (apps/api). Falls back to a no-op
-    //   if the import fails so we never break uploads in environments where
-    //   the dep isn't yet available.
-    // TODO: integrate ClamAV / cloud AV scan before persistence.
+    // ✅ HIGH-009 / HIGH-2 (passe-2): magic-bytes validation against declared
+    //   MIME type. file-type@16 is CJS so `require()` works directly; we also
+    //   support v17+ ESM fallback via `fileTypeFromBuffer`. We DO throw on
+    //   the explicit BadRequestException, but we no longer silently swallow
+    //   `application/octet-stream` masquerading as a PDF — see MED-1 below.
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const ft = require('file-type');
@@ -128,21 +128,27 @@ export class DossierDocumentsService {
         const claimed = file.mimetype;
         const ok =
           detected.mime === claimed ||
-          // Tolerate jpg/jpeg & similar aliases
-          (claimed === 'image/jpeg' && detected.mime === 'image/jpg') ||
-          // PDFs sometimes detect as application/octet-stream when crafted; reject those.
-          false;
+          // Tolerate jpg/jpeg & similar aliases.
+          (claimed === 'image/jpeg' && detected.mime === 'image/jpg');
         if (!ok) {
           throw new BadRequestException(
             `Le contenu du fichier (${detected.mime}) ne correspond pas au type déclaré (${claimed})`,
           );
         }
+      } else if (file.mimetype === 'application/pdf') {
+        // MED-1 (passe-2): a PDF must have a recognizable %PDF- header. If
+        //   file-type returned nothing for a claimed PDF, the buffer is most
+        //   likely either zero-byte or a forged document — reject.
+        const head = file.buffer.subarray(0, 5).toString('ascii');
+        if (head !== '%PDF-') {
+          throw new BadRequestException("Le fichier déclaré comme PDF n'a pas l'entête %PDF-");
+        }
       }
-      // If detected.mime is undefined (e.g. text/csv plain), skip — content-type
-      // declared by the client is treated as canonical for non-binary formats.
+      // If detected.mime is undefined (e.g. text/csv plain) and not PDF,
+      // skip — declared content-type is canonical for non-binary formats.
     } catch (e) {
       if (e instanceof BadRequestException) throw e;
-      // Module not installed yet — log once and proceed (declared MIME only).
+      // Module unavailable — proceed with declared MIME only.
     }
     if (!subfolderLabel || subfolderLabel.length > 200) {
       throw new BadRequestException('Sous-dossier invalide');
