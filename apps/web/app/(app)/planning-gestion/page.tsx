@@ -16,15 +16,28 @@ const CELL_H = 56;
 const START_HOUR = 8;
 const MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
-/* ── TYPES D'INTERVENTION ── */
+/* ── TYPES D'INTERVENTION ──
+ * Inclut les types "dual-planning" (Livraison, Suivi chantier, Reception
+ * travaux, Releve de mesures, Etat des lieux, RDV fournisseur) qui sont
+ * communs aux 3 metiers cuisiniste/architecte/menuisier + les types
+ * historiques propres au planning gestion (poses techniques, electriciens,
+ * etc.).
+ */
 const INTERVENTION_TYPES = [
-  { key: 'POSE CUISINE',     label: 'Pose Cuisine',      color: '#5b9bd5', icon: '🍳' },
-  { key: 'POSE GRANITE',     label: 'Pose Granite',      color: '#8B4513', icon: '🪨' },
-  { key: 'LIVRAISON',        label: 'Livraison',         color: '#e8a020', icon: '🚚' },
-  { key: 'ELECTRICIEN',      label: 'Électricien',       color: '#f0c040', icon: '⚡' },
-  { key: 'REUNION CHANTIER', label: 'Réunion Chantier',  color: '#e07050', icon: '👷' },
-  { key: 'PLOMBERIE',        label: 'Plomberie',         color: '#2ecc71', icon: '🔧' },
-  { key: 'CARRELAGE',        label: 'Carrelage',         color: '#9b59b6', icon: '🏠' },
+  // Dual-planning : visibles aussi sur /planning
+  { key: 'LIVRAISON',         label: 'Livraison',           color: '#e8a020', icon: '📦' },
+  { key: 'SUIVI_CHANTIER',    label: 'Suivi chantier',      color: '#7c4f1d', icon: '🏗' },
+  { key: 'RECEPTION',         label: 'Réception travaux',   color: '#2ecc71', icon: '✅' },
+  { key: 'MESURAGE',          label: 'Relevé de mesures',   color: '#e74c3c', icon: '📏' },
+  { key: 'ETAT_LIEUX',        label: 'État des lieux',      color: '#a78bfa', icon: '📋' },
+  { key: 'RDV_FOURNISSEUR',   label: 'RDV fournisseur',     color: '#f59e0b', icon: '🚚' },
+  // Historiques planning gestion (interventions techniques)
+  { key: 'POSE CUISINE',      label: 'Pose Cuisine',        color: '#5b9bd5', icon: '🍳' },
+  { key: 'POSE GRANITE',      label: 'Pose Granite',        color: '#8B4513', icon: '🪨' },
+  { key: 'ELECTRICIEN',       label: 'Électricien',         color: '#f0c040', icon: '⚡' },
+  { key: 'REUNION CHANTIER',  label: 'Réunion Chantier',    color: '#e07050', icon: '👷' },
+  { key: 'PLOMBERIE',         label: 'Plomberie',           color: '#2ecc71', icon: '🔧' },
+  { key: 'CARRELAGE',         label: 'Carrelage',           color: '#9b59b6', icon: '🏠' },
 ];
 
 /* ── INTERVENANTS ── */
@@ -455,11 +468,11 @@ export default function PlanningGestionPage() {
       {/* ── MODAL NOUVELLE INTERVENTION ── */}
       {showAdd && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm overflow-y-auto py-6"
           onClick={() => setShowAdd(false)}
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10"
+            className="w-full max-w-md rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10 max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">

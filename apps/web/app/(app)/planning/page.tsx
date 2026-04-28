@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useDossierStore, usePlanningStore } from '@/store';
 import { useDemandesStore } from '@/store/useDemandesStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
@@ -21,15 +22,105 @@ const CELL_H = 52;
 const START_HOUR = 8;
 const MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
-/* ── TYPES RDV ── */
-const RDV_TYPES = [
-  { key: 'VISITE',    label: 'Visite chantier',   color: '#e07050', icon: '🔨' },
-  { key: 'PLAN',      label: 'Remise plan',        color: '#5b9bd5', icon: '📐' },
-  { key: 'RECEPTION', label: 'Réception travaux',  color: '#2ecc71', icon: '✅' },
-  { key: 'CLIENT',    label: 'RDV client',         color: '#9b59b6', icon: '🤝' },
-  { key: 'LIVRAISON', label: 'Livraison',          color: '#e8a020', icon: '📦' },
-  { key: 'MESURAGE',  label: 'Relevé de mesures',  color: '#e74c3c', icon: '📏' },
+/* ── TYPES RDV — declares globalement, filtres par profession via getRdvTypes() ─ */
+type RdvTypeDef = {
+  key: string;
+  label: string;
+  color: string;
+  icon: string;
+  /** Si true, le RDV apparait aussi dans /planning-gestion (operationnel + gestion) */
+  dualPlanning?: boolean;
+};
+
+/**
+ * Types communs (livraison/suivi chantier/etc.) qui peuvent etre crees depuis
+ * les 2 plannings — tagges dualPlanning: true.
+ */
+const RDV_DUAL: RdvTypeDef[] = [
+  { key: 'LIVRAISON',     label: 'Livraison',           color: '#e8a020', icon: '📦', dualPlanning: true },
+  { key: 'SUIVI_CHANTIER',label: 'Suivi chantier',      color: '#7c4f1d', icon: '🏗', dualPlanning: true },
+  { key: 'RECEPTION',     label: 'Réception travaux',   color: '#2ecc71', icon: '✅', dualPlanning: true },
+  { key: 'MESURAGE',      label: 'Relevé de mesures',   color: '#e74c3c', icon: '📏', dualPlanning: true },
+  { key: 'ETAT_LIEUX',    label: 'État des lieux',      color: '#a78bfa', icon: '📋', dualPlanning: true },
+  { key: 'RDV_FOURNISSEUR',label: 'RDV fournisseur',    color: '#f59e0b', icon: '🚚', dualPlanning: true },
 ];
+
+/** Types specifiques cuisiniste */
+const RDV_CUISINISTE: RdvTypeDef[] = [
+  { key: 'COMMANDE',          label: 'Commande',                    color: '#1A3A5C', icon: '🛒' },
+  { key: 'PLAN_TECHNIQUE',    label: 'Plan technique',              color: '#5b9bd5', icon: '📐' },
+  { key: 'FICHE_POSE',        label: 'Fiche de pose',               color: '#0ea5e9', icon: '📝' },
+  { key: 'CLIENT',            label: 'RDV client',                  color: '#9b59b6', icon: '🤝' },
+  { key: 'MODIFS_DOSSIER',    label: 'Modifications dossier',       color: '#8b5cf6', icon: '✏️' },
+  { key: 'ADMIN',             label: 'Administratif',               color: '#64748b', icon: '🗂' },
+  { key: 'DESSIN_PROJET',     label: 'Dessin projet',               color: '#0891b2', icon: '🎨' },
+  { key: 'CONFIRM_COMMANDE',  label: 'Confirmation commande',       color: '#16a34a', icon: '✅' },
+  { key: 'ORG_LIVRAISON',     label: 'Organisation livraison',      color: '#ea580c', icon: '📦' },
+  { key: 'SAV',               label: 'Dossier SAV',                 color: '#dc2626', icon: '🛠' },
+];
+
+/** Types specifiques architecte d'interieur */
+const RDV_ARCHITECTE: RdvTypeDef[] = [
+  { key: 'APS',               label: 'APS',                         color: '#3D5449', icon: '📐' },
+  { key: 'APD',               label: 'APD',                         color: '#2C3E2F', icon: '📐' },
+  { key: 'MODIFS_APS',        label: 'Modifications APS',           color: '#6b8e73', icon: '✏️' },
+  { key: 'MODIFS_APD',        label: 'Modifications APD',           color: '#4a6951', icon: '✏️' },
+  { key: 'CLIENT',            label: 'RDV client',                  color: '#9b59b6', icon: '🤝' },
+  { key: 'DESSIN_PERMIS',     label: 'Dessin permis de construire', color: '#0891b2', icon: '🏛' },
+  { key: 'DCE',               label: 'DCE',                         color: '#0284c7', icon: '📑' },
+  { key: 'MODIFS_PERMIS',     label: 'Modifications permis',        color: '#0369a1', icon: '✏️' },
+  { key: 'MODIFS_DCE',        label: 'Modifications DCE',           color: '#075985', icon: '✏️' },
+  { key: 'MARCHE_SIGNATURE',  label: 'Marché / Signatures',         color: '#be185d', icon: '✍️' },
+  { key: 'COMMANDE_FOURNISSEUR',label: 'Commande fournisseur',      color: '#16a34a', icon: '🛒' },
+  { key: 'CONFIRM_COMMANDE',  label: 'Confirmation commande',       color: '#15803d', icon: '✅' },
+  { key: 'ORG_LIVRAISON',     label: 'Organisation livraison',      color: '#ea580c', icon: '📦' },
+  { key: 'SAV',               label: 'Dossier SAV',                 color: '#dc2626', icon: '🛠' },
+  { key: 'ADMIN',             label: 'Administratif',               color: '#64748b', icon: '🗂' },
+];
+
+/** Types specifiques menuisier */
+const RDV_MENUISIER: RdvTypeDef[] = [
+  { key: 'DOSSIER_FAB',       label: 'Dossier fabrication',         color: '#7B4F2E', icon: '🪚' },
+  { key: 'PLAN_TECHNIQUE',    label: 'Dossier plan technique',      color: '#a67749', icon: '📐' },
+  { key: 'CLIENT',            label: 'RDV client',                  color: '#9b59b6', icon: '🤝' },
+  { key: 'MODIFS_DOSSIER',    label: 'Modifications dossier',       color: '#8b5cf6', icon: '✏️' },
+  { key: 'ADMIN',             label: 'Administratif',               color: '#64748b', icon: '🗂' },
+  { key: 'DESSIN_PROJET',     label: 'Dessin projet',               color: '#0891b2', icon: '🎨' },
+  { key: 'CONFIRM_COMMANDE',  label: 'Confirmation commande',       color: '#16a34a', icon: '✅' },
+  { key: 'COMMANDE_FOURNISSEUR',label: 'Commande fournisseur',      color: '#15803d', icon: '🛒' },
+  { key: 'ORG_LIVRAISON',     label: 'Organisation livraison',      color: '#ea580c', icon: '📦' },
+  { key: 'SAV',               label: 'Dossier SAV',                 color: '#dc2626', icon: '🛠' },
+  { key: 'DEBIT_LISTE',       label: 'Débit-liste matériaux',       color: '#92400e', icon: '📦' },
+];
+
+/**
+ * Retourne la liste filtree des types selon la profession active.
+ * Pour /planning : tous les types (specifiques + dual).
+ * Pour /planning-gestion : uniquement les dualPlanning.
+ */
+function getRdvTypes(profession: string | null | undefined, viewKind: 'planning' | 'planning-gestion' = 'planning'): RdvTypeDef[] {
+  let specific: RdvTypeDef[] = [];
+  switch (profession) {
+    case 'cuisiniste': specific = RDV_CUISINISTE; break;
+    case 'architecte': specific = RDV_ARCHITECTE; break;
+    case 'menuisier':  specific = RDV_MENUISIER; break;
+    default:
+      // Fallback : ancienne liste generique
+      specific = [
+        { key: 'VISITE', label: 'Visite chantier', color: '#e07050', icon: '🔨' },
+        { key: 'PLAN',   label: 'Remise plan',     color: '#5b9bd5', icon: '📐' },
+        { key: 'CLIENT', label: 'RDV client',      color: '#9b59b6', icon: '🤝' },
+      ];
+  }
+  if (viewKind === 'planning-gestion') {
+    return RDV_DUAL;
+  }
+  // /planning : specifiques d'abord, puis dual (livraison/etc.)
+  return [...specific, ...RDV_DUAL];
+}
+
+// Backward compat : ancien export utilise dans le code
+const RDV_TYPES: RdvTypeDef[] = [...RDV_DUAL];
 
 /* ── STATUS COLORS ── */
 const STATUS_COLOR: Record<string, string> = {
@@ -90,6 +181,10 @@ export default function PlanningPage() {
   const planningEvents  = usePlanningStore(s => s.planningEvents);
   const addPlanningEvent   = usePlanningStore(s => s.addPlanningEvent);
   const deletePlanningEvent = usePlanningStore(s => s.deletePlanningEvent);
+
+  // Profession active → filtre les types de RDV proposes
+  const profession = useAuthStore(s => s.profession);
+  const rdvTypes = useMemo(() => getRdvTypes(profession, 'planning'), [profession]);
 
   // Demandes scheduledFor (interventions intervenants) — merge avec planning
   const proDemandes = useDemandesStore(s => s.proDemandes);
@@ -168,7 +263,7 @@ export default function PlanningPage() {
   const handleAdd = () => {
     if (!modalDate) return;
     const dossier = allDossiers.find(d => d.id === newEvent.dossierId);
-    const rdvType = RDV_TYPES.find(r => r.key === newEvent.type);
+    const rdvType = rdvTypes.find(r => r.key === newEvent.type) ?? RDV_TYPES.find(r => r.key === newEvent.type);
 
     // Calcule le weekOffset et le day (1=lun...7=dim) à partir de modalDate
     const chosen = new Date(modalDate + 'T00:00:00');
@@ -554,12 +649,13 @@ export default function PlanningPage() {
             ))}
           </div>
 
-          {/* Légende types */}
+          {/* Légende types — selon profession */}
           <div className="border-t border-[#304035]/5 px-4 py-3 flex flex-wrap gap-2">
-            {RDV_TYPES.map(t => (
+            {rdvTypes.map(t => (
               <span key={t.key} className="flex items-center gap-1.5 text-xs text-[#304035]/50">
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.color }} />
                 {t.label}
+                {t.dualPlanning && <span className="text-[9px] text-[#a67749]/60" title="Aussi visible sur Planning gestion">↔</span>}
               </span>
             ))}
           </div>
@@ -687,12 +783,12 @@ export default function PlanningPage() {
       {/* ── MODAL AJOUT ── */}
       {showAdd && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-6"
           style={{ background: 'rgba(30,30,30,0.45)', backdropFilter: 'blur(4px)' }}
           onClick={() => setShowAdd(false)}
         >
           <div
-            className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md mx-4"
+            className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
             style={{ animation: 'cardIn 0.2s ease both', boxShadow: '0 24px 64px rgba(48,64,53,0.2)' }}
             onClick={e => e.stopPropagation()}
           >
@@ -811,15 +907,21 @@ export default function PlanningPage() {
                 </div>
               </div>
 
-              {/* Type RDV */}
+              {/* Type RDV — adapte selon profession */}
               <div>
-                <label className="text-xs font-bold text-[#304035]/50 uppercase tracking-wider block mb-2">Type de RDV</label>
+                <label className="text-xs font-bold text-[#304035]/50 uppercase tracking-wider block mb-2">
+                  Type de RDV
+                  <span className="ml-2 text-[10px] font-normal text-[#304035]/35 normal-case">
+                    ({rdvTypes.length} options
+                    {profession ? ` · ${profession === 'cuisiniste' ? 'Cuisiniste' : profession === 'architecte' ? 'Architecte' : 'Menuisier'}` : ''})
+                  </span>
+                </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {RDV_TYPES.map(t => (
+                  {rdvTypes.map(t => (
                     <button
                       key={t.key}
                       onClick={() => setNewEvent(n => ({ ...n, type: t.key }))}
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-left transition-all text-sm font-medium"
+                      className="relative flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-left transition-all text-sm font-medium"
                       style={{
                         borderColor: newEvent.type === t.key ? t.color : 'transparent',
                         background: newEvent.type === t.key ? `${t.color}15` : '#f5f5f5',
@@ -827,10 +929,21 @@ export default function PlanningPage() {
                       }}
                     >
                       <span>{t.icon}</span>
-                      <span className="text-xs">{t.label}</span>
+                      <span className="text-xs flex-1">{t.label}</span>
+                      {t.dualPlanning && (
+                        <span
+                          className="text-[9px] font-bold opacity-60"
+                          title="Aussi visible sur Planning gestion"
+                        >
+                          ↔
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
+                <p className="text-[10px] text-[#304035]/40 mt-1.5 leading-snug">
+                  ↔ Visible sur les deux plannings (Planning + Planning gestion)
+                </p>
               </div>
 
               {/* Dossier */}
