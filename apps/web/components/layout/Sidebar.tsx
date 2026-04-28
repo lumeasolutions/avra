@@ -8,7 +8,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useDossierStore, useFacturationStore, useUIStore } from '@/store';
 import { AssistantPanel } from './AssistantPanel';
 import { useAuthStore } from '@/store/useAuthStore';
-import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { useDemandesStore } from '@/store/useDemandesStore';
 
 const PROFESSION_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
@@ -53,7 +52,7 @@ export function Sidebar() {
     return () => clearInterval(id);
   }, [fetchProStats]);
   const demandesActionCount = proStats?.actionRequiredCount ?? 0;
-  const savPendingCount = proStats?.byType?.SAV ?? 0;
+  // savPendingCount retire (sidebar SAV supprimee — voir /intervenants > demandes rapides)
 
   // ── Mobile open/close state ──────────────────────────────────────────────
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -314,23 +313,6 @@ export function Sidebar() {
 
       </Link>
 
-      {/* Action rapide globale : envoyer une demande a un intervenant */}
-      <div style={{ padding: '0 14px 8px' }} onClick={close}>
-        <SendToIntervenantButton
-          variant="secondary"
-          label="Envoyer une demande"
-          style={{
-            width: '100%',
-            justifyContent: 'center',
-            background: 'rgba(245,238,232,0.06)',
-            color: '#cbb98a',
-            border: '1px solid rgba(203,185,138,0.25)',
-            fontSize: 12,
-            padding: '9px 12px',
-          }}
-        />
-      </div>
-
       <nav className="menu-list">
         {profession && (
           <Link
@@ -393,11 +375,6 @@ export function Sidebar() {
           {demandesActionCount > 0 && (
             <span className="badge" title="Demandes en attente de réponse intervenant">{demandesActionCount}</span>
           )}
-        </Link>
-        <Link href="/sav" className={`menu-item ${pathname === '/sav' ? 'active' : ''}`} onClick={close}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-          SAV
-          {savPendingCount > 0 && <span className="badge" title="Tickets SAV ouverts">{savPendingCount}</span>}
         </Link>
       </nav>
     </div>

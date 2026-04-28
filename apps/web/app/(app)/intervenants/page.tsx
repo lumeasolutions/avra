@@ -5,11 +5,13 @@ import {
   Mail, Phone, Plus, Trash2, Search, Wrench, Users,
   X, Edit3, Check, FileText, ArrowUpDown,
   MessageSquare, ExternalLink, HardHat, Send, Link2, ShieldCheck, Clock,
+  ChevronRight,
 } from 'lucide-react';
 import { useDossierStore, useIntervenantStore, type Intervenant } from '@/store';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
+import { SendToIntervenantDrawer, type SendToIntervenantPrefill } from '@/components/demandes/SendToIntervenantDrawer';
 import { InviteIntervenantModal } from '@/components/demandes/InviteIntervenantModal';
 import { listInvitations, createInvitation, type IntervenantInvitation } from '@/lib/demandes-api';
 import { api } from '@/lib/api';
@@ -471,6 +473,8 @@ export default function IntervenantsPage() {
   const [invitations, setInvitations] = useState<Record<string, IntervenantInvitation>>({});
   // Modal d'invitation : { intervenantId, name, email }
   const [invitingFor, setInvitingFor] = useState<{ id: string; name: string; email?: string } | null>(null);
+  // Quick-actions drawer (chips Demandes rapides)
+  const [quickPrefill, setQuickPrefill] = useState<SendToIntervenantPrefill | null>(null);
 
   // Charge les invitations (toutes, on ne filtre pas par PENDING ici pour
   // permettre l'affichage du statut "Expire/Revoque" + bouton "Renouveler").
@@ -617,6 +621,9 @@ export default function IntervenantsPage() {
           </div>
         }
       />
+
+      {/* ── Demandes rapides — actions visibles en haut ── */}
+      <QuickDemandes onPick={(prefill) => setQuickPrefill(prefill)} />
 
       {/* ── Formulaire ajout ── */}
       {showForm && (
@@ -1031,6 +1038,106 @@ export default function IntervenantsPage() {
           }}
         />
       )}
+
+      {/* ── Drawer demandes rapides ── */}
+      <SendToIntervenantDrawer
+        open={!!quickPrefill}
+        onClose={() => setQuickPrefill(null)}
+        prefill={quickPrefill ?? undefined}
+      />
+    </div>
+  );
+}
+
+// ─── QuickDemandes : panneau actions rapides en haut de /intervenants ───────
+
+const QUICK_ACTIONS: Array<{
+  key: string;
+  label: string;
+  icon: string;
+  prefill: SendToIntervenantPrefill;
+}> = [
+  // PLANNING : pas un type Demande mais on cree une POSE en mettant l'accent
+  // sur la planification (l'utilisateur remplira scheduledFor dans le drawer)
+  { key: 'PLANNING',          label: 'Planning',              icon: '📅',
+    prefill: { type: 'POSE', title: 'Intervention planning — ' } },
+  { key: 'DEVIS',             label: 'Devis',                 icon: '📄',
+    prefill: { type: 'DEVIS', title: 'Demande de devis — ' } },
+  { key: 'LIVRAISON',         label: 'Livraison',             icon: '📦',
+    prefill: { type: 'LIVRAISON', title: 'Livraison — ' } },
+  { key: 'SAV',               label: 'SAV',                   icon: '🛠',
+    prefill: { type: 'SAV', title: 'SAV — ' } },
+  { key: 'PRISE_DE_MESURES',  label: 'Prise de mesures',      icon: '📏',
+    prefill: { type: 'MESURE', title: 'Prise de mesures — ' } },
+  { key: 'COMPTE_RENDU',      label: 'Compte rendu chantier', icon: '📝',
+    prefill: {
+      type: 'AUTRE',
+      title: 'Compte rendu chantier — ',
+      notes: 'Date de visite :\nPersonnes presentes :\nObservations :\nPoints d\'attention :\nProchaines etapes :',
+    } },
+  { key: 'COMPLEMENTS',       label: 'Compléments',           icon: '➕',
+    prefill: { type: 'COMPLEMENT', title: 'Complément — ' } },
+  { key: 'CONFIRMATIONS',     label: 'Confirmations commandes', icon: '✅',
+    prefill: { type: 'CONFIRMATION_COMMANDE', title: 'Confirmation commande — ' } },
+];
+
+function QuickDemandes({ onPick }: { onPick: (prefill: SendToIntervenantPrefill) => void }) {
+  return (
+    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm overflow-hidden">
+      <div className="px-5 py-3 border-b border-[#304035]/8 bg-gradient-to-r from-[#304035]/5 to-transparent">
+        <h3 className="text-xs font-bold text-[#304035] uppercase tracking-widest">
+          Demandes rapides
+        </h3>
+        <p className="text-[11px] text-[#304035]/55 mt-0.5">
+          Envoyer une demande prête à l'emploi à un intervenant
+        </p>
+      </div>
+
+      <div className="p-5 space-y-3">
+        {/* DEMANDE SPECIALE — bouton vert principal */}
+        <button
+          type="button"
+          onClick={() => onPick({
+            type: 'AUTRE',
+            title: '',
+            notes: 'Description detaillee de la demande :',
+          })}
+          className="group w-full rounded-2xl px-6 py-4 text-base font-bold text-white transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99]"
+          style={{
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            boxShadow: '0 4px 16px rgba(16,185,129,0.35)',
+          }}
+        >
+          <span className="flex items-center justify-center gap-2.5">
+            <span className="text-xl">✨</span>
+            <span className="tracking-wide">DEMANDE SPÉCIALE</span>
+            <span className="text-xs font-medium opacity-80">— libre / personnalisée</span>
+          </span>
+        </button>
+
+        {/* 8 chips orange */}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {QUICK_ACTIONS.map((a) => (
+            <button
+              key={a.key}
+              type="button"
+              onClick={() => onPick(a.prefill)}
+              className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left transition-all hover:shadow-md hover:-translate-y-0.5 group"
+              style={{
+                background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 100%)',
+                border: '1px solid #f59e0b40',
+                color: '#78350f',
+              }}
+            >
+              <ChevronRight className="h-4 w-4 shrink-0 text-[#78350f]/70 group-hover:translate-x-0.5 transition-transform" />
+              <span className="text-base">{a.icon}</span>
+              <span className="text-xs font-bold uppercase tracking-wide flex-1 truncate">
+                {a.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
