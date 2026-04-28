@@ -96,6 +96,12 @@ declare module '@prisma/client' {
   export type IntervenantInvitationStatus =
     | 'PENDING' | 'ACCEPTED' | 'REFUSED' | 'EXPIRED' | 'REVOKED';
 
+  export const IntervenantDossierStatut: { A_CLASSER: 'A_CLASSER'; CLASSE: 'CLASSE' };
+  export type IntervenantDossierStatut = 'A_CLASSER' | 'CLASSE';
+
+  export const IntervenantDossierItemStatut: { URGENT: 'URGENT'; EN_COURS: 'EN_COURS'; CLASSE: 'CLASSE' };
+  export type IntervenantDossierItemStatut = 'URGENT' | 'EN_COURS' | 'CLASSE';
+
   // PrismaClient avec tous les modèles du schema
   export class PrismaClient {
     $connect(): Promise<void>;
@@ -132,6 +138,8 @@ declare module '@prisma/client' {
     readonly intervenant: any;
     readonly intervenantRequest: any;
     readonly intervenantResponse: any;
+    readonly intervenantDossier: any;
+    readonly intervenantDossierItem: any;
     readonly supplier: any;
     readonly stockItem: any;
     readonly supplierOrder: any;

@@ -265,6 +265,7 @@ model Workspace {
   clients            Client[]
   projects           Project[]
   intervenants       Intervenant[]
+  intervenantDossiers IntervenantDossier[]
   documents          Document[]
   storedFiles        StoredFile[]
   events             Event[]
@@ -732,9 +733,70 @@ model Intervenant {
   requests            IntervenantRequest[]
   invitations         IntervenantInvitation[]
   demandes            Demande[]
+  intervenantDossiers IntervenantDossier[]
+  /// Note manuelle du pro (1-5) + commentaire, distincte du score auto.
+  rating              Int?
+  ratingComment       String?               @db.Text
+  /// Tags libres CSV pour categorisation fine (specialites, zones, etc.)
+  tagsCsv             String?
 
   @@index([workspaceId])
   @@index([userId])
+}
+
+/// Dossiers manuels créés par le pro pour un intervenant (workflow A
+/// CLASSER / CLASSE). Sert au drill-down côté /intervenants pour
+/// classer les retours d'intervention par client/projet.
+///
+/// Différent de la Demande (qui est un workflow de demande typée).
+/// Le Dossier est une boîte de classement libre côté pro qui peut
+/// agréger des items (clients, photos, etc.) à traiter.
+model IntervenantDossier {
+  id              String                  @id @default(cuid())
+  workspaceId     String
+  intervenantId   String
+  name            String
+  /// Date affichée (libre — souvent au format DD/MM/YYYY ou ISO)
+  date            String?
+  statut          IntervenantDossierStatut @default(A_CLASSER)
+  /// Flag "DOSSIER RAJOUTÉ" — true à la création, repassé à false
+  /// à la première ouverture par le pro (pour que l'alerte disparaisse).
+  rajoute         Boolean                 @default(true)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  workspace       Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  intervenant     Intervenant             @relation(fields: [intervenantId], references: [id], onDelete: Cascade)
+  items           IntervenantDossierItem[]
+
+  @@index([workspaceId])
+  @@index([intervenantId])
+}
+
+enum IntervenantDossierStatut {
+  A_CLASSER
+  CLASSE
+}
+
+/// Item dans un dossier intervenant (un client, une photo, un retour
+/// à classer). Statut individuel URGENT / EN_COURS / CLASSE.
+model IntervenantDossierItem {
+  id          String                       @id @default(cuid())
+  dossierId   String
+  name        String
+  statut      IntervenantDossierItemStatut @default(EN_COURS)
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
+
+  dossier     IntervenantDossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+
+  @@index([dossierId])
+}
+
+enum IntervenantDossierItemStatut {
+  URGENT
+  EN_COURS
+  CLASSE
 }
 
 /// Invitation envoyee a un intervenant pour creer (ou lier) son compte

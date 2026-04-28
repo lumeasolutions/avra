@@ -15,6 +15,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { TypeBadge } from '../../components/TypeBadge';
 import { MessageThread } from '../../components/MessageThread';
 import { AttachmentsList } from '../../components/AttachmentsList';
+import { EndOfInterventionModal } from '../../components/EndOfInterventionModal';
 
 /**
  * Détail d'une demande côté intervenant.
@@ -82,6 +83,11 @@ export default function DemandeDetailPage() {
       setConfirmComment({ to });
       return;
     }
+    // Phase 2 : modal compte-rendu obligatoire avant TERMINEE
+    if (to === 'TERMINEE') {
+      setShowEndModal(true);
+      return;
+    }
     setSubmitting(to);
     try {
       await updateMyStatus(id, to, comment.trim() || undefined);
@@ -90,6 +96,38 @@ export default function DemandeDetailPage() {
     } finally {
       setSubmitting(null);
     }
+  };
+
+  // Modal compte-rendu fin d'intervention
+  const [showEndModal, setShowEndModal] = useState(false);
+  const handleEndOfIntervention = async (payload: {
+    durationMinutes: number;
+    notes: string;
+    photos: File[];
+  }) => {
+    // Construit un message recap clair
+    const hours = Math.floor(payload.durationMinutes / 60);
+    const mins = payload.durationMinutes % 60;
+    const durationStr = hours > 0 ? `${hours}h${mins > 0 ? mins.toString().padStart(2, '0') : ''}` : `${mins}min`;
+    const recap = `🏁 Intervention terminée\n⏱ Durée réelle : ${durationStr}\n\n${payload.notes}`;
+
+    // 1. Envoie un message dans le thread
+    try {
+      await postMyMessage(id, recap);
+    } catch {/* fire-and-forget */}
+
+    // 2. Upload chaque photo dans un message separe (si projectId)
+    // Pour rester simple : on inclut juste le compte des photos dans le recap
+    // L'upload reel necessite un projectId qu'on n'a pas forcement.
+    if (payload.photos.length > 0) {
+      try {
+        await postMyMessage(id, `📸 ${payload.photos.length} photo${payload.photos.length > 1 ? 's' : ''} jointe${payload.photos.length > 1 ? 's' : ''} (upload non disponible cote intervenant pour le moment).`);
+      } catch {/* noop */}
+    }
+
+    // 3. Update statut TERMINEE avec recap court en commentaire
+    await updateMyStatus(id, 'TERMINEE', payload.notes.slice(0, 500));
+    setShowEndModal(false);
   };
 
   const handleSendMessage = async (body: string) => {
@@ -362,6 +400,13 @@ export default function DemandeDetailPage() {
           placeholder={isTerminal ? 'Cette demande est clôturée.' : undefined}
         />
       </section>
+
+      {/* Modal compte-rendu fin d'intervention */}
+      <EndOfInterventionModal
+        open={showEndModal}
+        onClose={() => setShowEndModal(false)}
+        onSubmit={handleEndOfIntervention}
+      />
     </div>
   );
 }

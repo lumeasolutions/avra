@@ -258,3 +258,16 @@ export const IntervenantInvitationStatus = {
   REVOKED: 'REVOKED',
 } as const;
 export type IntervenantInvitationStatus = typeof IntervenantInvitationStatus[keyof typeof IntervenantInvitationStatus];
+
+export const IntervenantDossierStatut = {
+  A_CLASSER: 'A_CLASSER',
+  CLASSE: 'CLASSE',
+} as const;
+export type IntervenantDossierStatut = typeof IntervenantDossierStatut[keyof typeof IntervenantDossierStatut];
+
+export const IntervenantDossierItemStatut = {
+  URGENT: 'URGENT',
+  EN_COURS: 'EN_COURS',
+  CLASSE: 'CLASSE',
+} as const;
+export type IntervenantDossierItemStatut = typeof IntervenantDossierItemStatut[keyof typeof IntervenantDossierItemStatut];
