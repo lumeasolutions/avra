@@ -7,7 +7,7 @@ import {
 } from './demandes.controller';
 import { DemandesService } from './demandes.service';
 import { DemandesEmailService } from './demandes-email.service';
-import { ICalFeedService } from './ical-feed.service';
+import { ICalFeedService, IcalTokenService } from './ical-feed.service';
 import { DossierDocumentsModule } from '../dossier-documents/dossier-documents.module';
 
 @Module({
@@ -18,7 +18,7 @@ import { DossierDocumentsModule } from '../dossier-documents/dossier-documents.m
     IntervenantInvitationController,
     IntervenantPublicCalendarController,
   ],
-  providers: [DemandesService, DemandesEmailService, ICalFeedService],
-  exports: [DemandesService],
+  providers: [DemandesService, DemandesEmailService, ICalFeedService, IcalTokenService],
+  exports: [DemandesService, IcalTokenService],
 })
 export class DemandesModule {}

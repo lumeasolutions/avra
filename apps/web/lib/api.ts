@@ -15,22 +15,38 @@ const API_BASE = typeof window !== 'undefined'
   ? '/api/v1'     // Same-origin → routé via vercel.json vers la Serverless Function NestJS
   : _rawApiUrl;   // SSR → même chemin relatif
 
-// ── CSRF Token Management ───────────────────────────────────────────────────
-// Le backend NestJS protège les mutations (POST/PUT/PATCH/DELETE) avec un
-// guard CSRF qui exige un header `X-CSRF-Token`. Le token est rotatif (one-time
-// use) : à chaque requête, le serveur en génère un nouveau qu'il expose via
-// le header de réponse `X-CSRF-Token`. On le mémorise en RAM et on l'envoie
-// sur la prochaine mutation.
+// ── CSRF Token Management (CRIT-002, double-submit cookie) ────────────────
+// The backend posts a NON-HttpOnly `csrf_token` cookie. For mutations we
+// MUST mirror that cookie value in the `X-CSRF-Token` header. No server
+// store, no rotation per request — the cookie is the single source of truth
+// for the duration of its lifetime (24h). Stateless, serverless-friendly.
+
 let currentCsrfToken: string | null = null;
 
-/** Lit le token CSRF retourné par une réponse et le met en cache mémoire. */
+/** Read csrf_token from document.cookie (browser-only). */
+function readCsrfCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const m = document.cookie.match(/(?:^|;\s*)csrf_token=([a-f0-9]+)/i);
+  return m ? m[1] : null;
+}
+
+/** Capture the token from a response — kept for back-compat with header-based clients. */
 function captureCsrfFromResponse(res: Response): void {
   const t = res.headers.get('x-csrf-token') ?? res.headers.get('X-CSRF-Token');
   if (t) currentCsrfToken = t;
+  // Always re-sync from cookie if available (it's the canonical source).
+  const fromCookie = readCsrfCookie();
+  if (fromCookie) currentCsrfToken = fromCookie;
 }
 
-/** Récupère un token CSRF frais via GET /security/csrf-token (bootstrap). */
+/** Bootstrap a CSRF cookie via the dedicated endpoint. */
 async function bootstrapCsrfToken(): Promise<string | null> {
+  // First try the cookie — maybe it's already there.
+  const cookieToken = readCsrfCookie();
+  if (cookieToken) {
+    currentCsrfToken = cookieToken;
+    return cookieToken;
+  }
   try {
     const res = await fetch(`${API_BASE}/security/csrf-token`, {
       method: 'GET',
@@ -38,7 +54,6 @@ async function bootstrapCsrfToken(): Promise<string | null> {
     });
     captureCsrfFromResponse(res);
     if (currentCsrfToken) return currentCsrfToken;
-    // Fallback : lire le body JSON si le header n'est pas exposé (preview vs prod)
     if (res.ok) {
       const json = await res.json().catch(() => null);
       if (json?.token && typeof json.token === 'string') {
@@ -50,7 +65,9 @@ async function bootstrapCsrfToken(): Promise<string | null> {
   return null;
 }
 
-export function getCsrfToken(): string | null { return currentCsrfToken; }
+export function getCsrfToken(): string | null {
+  return readCsrfCookie() ?? currentCsrfToken;
+}
 
 /** Récupère le token démo depuis le store Zustand (uniquement si pas de cookie serveur) */
 function getDemoToken(): string | null {
@@ -147,14 +164,14 @@ export async function api<T>(
   // En production, le cookie HttpOnly est envoyé automatiquement
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  // CSRF : ajoute le token sur les mutations (skip si l'appelant a deja
-  // pose son propre header).
+  // CSRF (double-submit): mirror the csrf_token cookie into the header.
   const method = (init.method ?? 'GET').toUpperCase();
   const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
-  const isAuthPath = path.startsWith('/auth/'); // login/register/refresh/etc. sont @SkipCsrf
+  const isAuthPath = path.startsWith('/auth/'); // @SkipCsrf — login/register/refresh
   if (isMutation && !isAuthPath && !headers['X-CSRF-Token']) {
-    if (!currentCsrfToken) await bootstrapCsrfToken();
-    if (currentCsrfToken) headers['X-CSRF-Token'] = currentCsrfToken;
+    let token = readCsrfCookie() ?? currentCsrfToken;
+    if (!token) token = await bootstrapCsrfToken();
+    if (token) headers['X-CSRF-Token'] = token;
   }
 
   let res = await fetch(`${API_BASE}${path}`, {
@@ -263,16 +280,17 @@ export async function apiUpload<T>(
     return h;
   };
 
-  // S'assure d'avoir un token CSRF avant l'upload (mutation = POST)
-  if (!currentCsrfToken && !path.startsWith('/auth/')) {
-    await bootstrapCsrfToken();
+  // Ensure a CSRF cookie exists before the upload.
+  let csrf = readCsrfCookie() ?? currentCsrfToken;
+  if (!csrf && !path.startsWith('/auth/')) {
+    csrf = await bootstrapCsrfToken();
   }
 
   let res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
     body: formData,
     credentials: 'include',
-    headers: buildHeaders(currentCsrfToken),
+    headers: buildHeaders(csrf),
   });
   captureCsrfFromResponse(res);
 
@@ -282,11 +300,12 @@ export async function apiUpload<T>(
       handleSessionExpired();
       throw new Error('Session expirée');
     }
+    csrf = readCsrfCookie() ?? currentCsrfToken;
     res = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
       body: formData,
       credentials: 'include',
-      headers: buildHeaders(currentCsrfToken),
+      headers: buildHeaders(csrf),
     });
     captureCsrfFromResponse(res);
     if (res.status === 401) {

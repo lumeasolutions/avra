@@ -40,7 +40,14 @@ const PUBLIC_PATHS = [
 
 const PORTAIL_PATHS = ['/portail-architecte', '/portail-menuisier', '/portail-cuisiniste'];
 
+// HIGH-002: gate the legacy `logged_in=true` demo cookie on the strictest
+// possible signal. We accept it ONLY when both NODE_ENV says non-prod AND
+// Vercel reports we are not running on a deployed env (preview/production).
+// On any Vercel deployment (`VERCEL_ENV` set), this fallback is denied.
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const IS_LOCAL_DEV =
+  process.env.NODE_ENV === 'development' &&
+  (!process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development');
 
 /**
  * Décode et valide un JWT (structure + expiration, signature vérifiée par le backend).
@@ -72,12 +79,48 @@ function isJwtStructurallyValid(token: string): boolean {
   }
 }
 
+/**
+ * HIGH-007: per-request CSP nonce. Generated here (Edge runtime) and pushed
+ * into both the request headers (so server components/route handlers can
+ * read it via `headers().get('x-nonce')`) and the response CSP. Inline
+ * scripts emitted by Next must carry `nonce={nonce}` to be allowed.
+ *
+ * NOTE: 'unsafe-inline' for styles is kept (Tailwind injects critical CSS).
+ * Migrating styles to nonce/hash is non-trivial and out of scope here.
+ */
+function buildCspWithNonce(nonce: string, isProd: boolean): string {
+  const directives = [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://plausible.io${isProd ? '' : " 'unsafe-eval' 'unsafe-inline'"}`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com https://*.supabase.co",
+    "font-src 'self' https://fonts.gstatic.com",
+    `connect-src 'self' https://fal.run https://*.fal.ai wss://fal.run https://*.sentry.io https://sentry.io https://plausible.io https://*.supabase.co${isProd ? '' : ' http://localhost:3001 ws://localhost:3002'}`,
+    "frame-src 'self' https://*.supabase.co",
+    "frame-ancestors 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ];
+  return directives.join('; ');
+}
+
+function applyCsp(req: NextRequest, res: NextResponse): NextResponse {
+  // Generate a fresh nonce per request.
+  const nonce = btoa(crypto.getRandomValues(new Uint8Array(16)).join('-'));
+  // Make it available to RSC via request headers (read with `headers()`).
+  res.headers.set('x-nonce', nonce);
+  const isProd = process.env.NODE_ENV === 'production';
+  res.headers.set('Content-Security-Policy', buildCspWithNonce(nonce, isProd));
+  return res;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Laisser passer les routes publiques
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-  if (isPublic) return NextResponse.next();
+  if (isPublic) return applyCsp(request, NextResponse.next());
 
   // ── Vérification du JWT ──────────────────────────────────────────────────
   const accessToken = request.cookies.get('access_token')?.value;
@@ -85,7 +128,7 @@ export function middleware(request: NextRequest) {
   if (accessToken) {
     // JWT présent → vérifier structure + expiration
     if (isJwtStructurallyValid(accessToken)) {
-      return NextResponse.next();
+      return applyCsp(request, NextResponse.next());
     }
     // JWT invalide ou expiré → rediriger vers login
     const loginUrl = new URL('/login', request.url);
@@ -94,14 +137,12 @@ export function middleware(request: NextRequest) {
   }
 
   // ── Fallback cookie `logged_in` ────────────────────────────────────────
-  // SÉCURITÉ : Ce cookie est non-HttpOnly et non-signé. Il est donc TRIVIAL
-  // à forger (un attaquant peut simplement `document.cookie = "logged_in=true"`
-  // et accéder aux pages authentifiées). On l'accepte UNIQUEMENT en dev,
-  // pour le mode démo sans backend. En production, un JWT access_token est requis.
-  if (!IS_PRODUCTION) {
+  // SÉCURITÉ : Ce cookie est non-HttpOnly et trivialement forgeable. On
+  // l'accepte UNIQUEMENT en dev local sans déploiement Vercel.
+  if (IS_LOCAL_DEV) {
     const loggedIn = request.cookies.get('logged_in')?.value;
     if (loggedIn === 'true') {
-      return NextResponse.next();
+      return applyCsp(request, NextResponse.next());
     }
   }
 

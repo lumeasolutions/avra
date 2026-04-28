@@ -2,6 +2,14 @@ generator client {
   provider = "prisma-client-js"
 }
 
+/// ✅ SEC CRIT-003: idempotency lock for cron endpoints (single-row table per name).
+/// Prevents replay of cron jobs invoked multiple times within a short window.
+model CronRun {
+  name        String   @id
+  lastRunAt   DateTime
+  lastStatus  String?
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -296,6 +304,11 @@ model User {
   lastLoginAt             DateTime?
   refreshToken            String?   // ✅ Hashed refresh token
   refreshTokenExpiresAt   DateTime? // ✅ Refresh token expiry
+  // ✅ SEC HIGH-005: dedicated password-reset fields (no longer abuse refreshToken)
+  passwordResetTokenHash  String?
+  passwordResetExpiresAt  DateTime?
+  // ✅ SEC HIGH-003: per-user iCal feed token (rotatable). Null = generate on first access.
+  icalToken               String?   @unique
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 

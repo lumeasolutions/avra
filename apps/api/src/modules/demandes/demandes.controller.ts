@@ -1,13 +1,15 @@
 import {
   Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res,
-  UseGuards, BadRequestException, ForbiddenException,
+  UseGuards, BadRequestException, ForbiddenException, UploadedFile, UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
 import { DemandesService } from './demandes.service';
-import { ICalFeedService, verifyIcalToken } from './ical-feed.service';
+import { ICalFeedService, IcalTokenService, verifyIcalToken } from './ical-feed.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { SkipCsrf } from '../../common/guards/csrf.guard';
 import type { JwtPayload } from '@avra/types';
 import { DemandeStatus, DemandeType } from '../../prisma-enums';
 import { Request, Response } from 'express';
@@ -119,6 +121,35 @@ export class DemandesController {
     return this.demandes.listMessages(user.workspaceId, id, 'pro');
   }
 
+  /** Upload photo dans message chat (pro). */
+  @Post(':id/messages/photo')
+  @UseInterceptors(FileInterceptor('photo'))
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  postMessagePhoto(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @UploadedFile() file: any,
+    @Body('text') text?: string,
+  ) {
+    if (!file) throw new BadRequestException('Photo manquante');
+    const authorName = `${user.email}`;
+    return this.demandes.addMessagePhoto(
+      user.workspaceId, id, 'pro', user.sub, authorName,
+      file.buffer, file.mimetype, text,
+    );
+  }
+
+  /** Resout signed URL d'une photo de message (pro). */
+  @Get(':id/messages/photo/:storagePath(*)')
+  async getMessagePhotoUrl(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('storagePath') storagePath: string,
+  ) {
+    const signedUrl = await this.demandes.getMessagePhotoUrl(user.workspaceId, id, 'pro', storagePath);
+    return { signedUrl };
+  }
+
   @Delete(':id/attachments/:attachmentId')
   removeAttachment(
     @CurrentUser() user: JwtPayload,
@@ -187,14 +218,20 @@ export class DemandesController {
   }
 
   /**
-   * Endpoint cron auto-rappel — accepte 2 modes d'authentification :
-   *  1. Vercel Cron : header `Authorization: Bearer ${CRON_SECRET}` (auto)
-   *  2. Externe (GitHub Actions, EasyCron) : header `X-Cron-Key: ${CRON_SECRET}`
+   * Endpoint cron auto-rappel.
    *
-   * @Get pour compatibilite Vercel Cron qui fait des requetes GET.
+   * SEC CRIT-003:
+   *   • POST only (was GET+POST — GET makes the side-effect trivially
+   *     replayable from a stray browser fetch, prefetcher, or shared link).
+   *   • Auth via constant-time compare on `Authorization: Bearer <CRON_SECRET>`
+   *     OR `X-Cron-Key: <CRON_SECRET>`.
+   *   • Vercel Cron requests carry `x-vercel-cron: 1` — we require either that
+   *     header OR the X-Cron-Key for external schedulers.
+   *   • Idempotency lock: persists last run in CronRun and rejects if the
+   *     last successful run is < 1 hour old (HTTP 429).
    */
   @Public()
-  @Get('internal/auto-reminders')
+  @SkipCsrf()
   @Post('internal/auto-reminders')
   async runAutoReminders(@Req() req: Request) {
     const secret = process.env.CRON_SECRET;
@@ -202,14 +239,38 @@ export class DemandesController {
 
     const auth = (req.headers['authorization'] ?? '') as string;
     const xKey = (req.headers['x-cron-key'] ?? '') as string;
+    const isVercelCron = req.headers['x-vercel-cron'] === '1';
     const bearerToken = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    const ok = bearerToken === secret || xKey === secret;
-    if (!ok) throw new ForbiddenException('Cron key invalide');
+
+    const okSecret = constantTimeCompare(bearerToken, secret) || constantTimeCompare(xKey, secret);
+    if (!okSecret) throw new ForbiddenException('Cron key invalide');
+    // Vercel-Cron requests come with the trusted bearer + the marker header.
+    // External callers (GitHub Actions, EasyCron) must use X-Cron-Key.
+    if (!isVercelCron && !xKey) {
+      throw new ForbiddenException('Cron source non reconnue');
+    }
+
+    // Idempotency — refuse if a recent run already happened.
+    const CRON_NAME = 'auto-reminders';
+    const MIN_INTERVAL_MS = 60 * 60 * 1000;
+    const last = await (this.demandes as any).getCronLock?.(CRON_NAME);
+    if (last && Date.now() - new Date(last).getTime() < MIN_INTERVAL_MS) {
+      throw new ForbiddenException('Cron déjà exécuté récemment');
+    }
 
     const daysParam = (req.query?.days as string) ?? '3';
     const days = Math.min(30, Math.max(1, parseInt(daysParam, 10) || 3));
-    return this.demandes.sendAutoReminders(days);
+    const result = await this.demandes.sendAutoReminders(days);
+    await (this.demandes as any).setCronLock?.(CRON_NAME, 'OK');
+    return result;
   }
+}
+
+function constantTimeCompare(a: string, b: string): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  const buf1 = Buffer.from(a);
+  const buf2 = Buffer.from(b);
+  try { return require('crypto').timingSafeEqual(buf1, buf2); } catch { return false; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -224,6 +285,7 @@ export class IntervenantPortalController {
   constructor(
     private readonly demandes: DemandesService,
     private readonly ical: ICalFeedService,
+    private readonly icalTokens: IcalTokenService,
   ) {}
 
   @Get('demandes')
@@ -284,6 +346,34 @@ export class IntervenantPortalController {
     return this.demandes.listMessages(user.sub, id, 'intervenant');
   }
 
+  /** Upload photo dans message chat (intervenant). */
+  @Post('demandes/:id/messages/photo')
+  @UseInterceptors(FileInterceptor('photo'))
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  postMessagePhoto(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @UploadedFile() file: any,
+    @Body('text') text?: string,
+  ) {
+    if (!file) throw new BadRequestException('Photo manquante');
+    return this.demandes.addMessagePhoto(
+      user.sub, id, 'intervenant', user.sub, user.email,
+      file.buffer, file.mimetype, text,
+    );
+  }
+
+  /** Resout signed URL d'une photo de message (intervenant). */
+  @Get('demandes/:id/messages/photo/:storagePath(*)')
+  async getMessagePhotoUrl(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Param('storagePath') storagePath: string,
+  ) {
+    const signedUrl = await this.demandes.getMessagePhotoUrl(user.sub, id, 'intervenant', storagePath);
+    return { signedUrl };
+  }
+
   /** Profils Intervenant lies au User connecte (peut etre plusieurs). */
   @Get('profile')
   async profile(@CurrentUser() user: JwtPayload) {
@@ -291,15 +381,21 @@ export class IntervenantPortalController {
     return profiles;
   }
 
-  /** URL publique du flux iCal pour le User connecte (a copier-coller dans
-   * Google/Apple Calendar). Le token est un HMAC, pas un secret aleatoire,
-   * donc on peut le regenerer a la volee a chaque requete. */
+  /**
+   * URL publique du flux iCal pour le User connecté.
+   * HIGH-003: token aléatoire 256 bits stocké en DB, rotatable.
+   */
   @Get('ical-url')
-  icalUrl(@CurrentUser() user: JwtPayload) {
-    // Import dynamique pour eviter import circulaire
-    const { buildIcalToken } = require('./ical-feed.service');
-    const token = buildIcalToken(user.sub);
-    return { userId: user.sub, token, path: `/api/v1/calendar/i/${user.sub}/${token}.ics` };
+  async icalUrl(@CurrentUser() user: JwtPayload) {
+    const token = await this.icalTokens.ensureToken(user.sub);
+    return { userId: user.sub, token, path: `/api/v1/calendar/i/${token}.ics` };
+  }
+
+  /** HIGH-003: rotate the user's iCal token (invalidates any shared URL). */
+  @Post('ical-url/rotate')
+  async rotateIcal(@CurrentUser() user: JwtPayload) {
+    const token = await this.icalTokens.rotateToken(user.sub);
+    return { userId: user.sub, token, path: `/api/v1/calendar/i/${token}.ics` };
   }
 
   /**
@@ -405,19 +501,37 @@ export class IntervenantPublicCalendarController {
   constructor(
     private readonly demandes: DemandesService,
     private readonly ical: ICalFeedService,
+    private readonly icalTokens: IcalTokenService,
   ) {}
 
   /**
-   * GET /calendar/i/:userId/:token.ics
+   * GET /calendar/i/:token.ics  (preferred — token-only)
+   * GET /calendar/i/:userId/:token.ics  (legacy HMAC — kept for compat)
    *
-   * Retourne le flux iCalendar des interventions d'un intervenant. Le token
-   * est un HMAC du userId + secret serveur, derivable cote pro mais non
-   * forgeable sans le secret. Pour invalider un lien partage, l'admin peut
-   * rotater ICAL_SECRET cote serveur.
-   *
-   * Pas de JwtAuthGuard car les apps de calendrier souscrivent anonymement.
+   * HIGH-003: token is now a per-user random secret stored in DB. Lookups go
+   * through IcalTokenService which falls back to the legacy HMAC scheme so
+   * subscriptions taken before this deploy keep working until the user rotates.
    */
   @Public()
+  @SkipCsrf()
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Get('i/:token.ics')
+  async publicIcalByToken(@Param('token') token: string, @Res() res: Response) {
+    const userId = await this.icalTokens.findUserIdByToken(token);
+    if (!userId) {
+      res.status(404).send('Not found');
+      return;
+    }
+    const list = await this.demandes.getScheduledDemandesForIntervenant(userId);
+    const ics = this.ical.generate(list as any, 'AVRA — Mes interventions');
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="avra-planning.ics"');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    res.send(ics);
+  }
+
+  @Public()
+  @SkipCsrf()
   @Throttle({ default: { ttl: 60_000, limit: 30 } })
   @Get('i/:userId/:token.ics')
   async publicIcal(

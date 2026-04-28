@@ -177,65 +177,83 @@ export class AuthService {
     });
   }
 
-  // ── Réinitialisation du mot de passe (depuis le lien email) ─────────────
+  // ── HIGH-005: Password reset uses DEDICATED columns (no longer overrides
+  //    the refresh token). passwordResetTokenHash + passwordResetExpiresAt.
   async resetPassword(userId: string, token: string, newPassword: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({
+    const user = await (this.prisma as any).user.findUnique({
       where: { id: userId, isActive: true },
     });
-    if (!user || !user.refreshToken || !user.refreshTokenExpiresAt) {
+    if (!user || !user.passwordResetTokenHash || !user.passwordResetExpiresAt) {
       throw new UnauthorizedException('Lien invalide ou expiré');
     }
-
-    // Vérifier que le token n'a pas expiré
-    if (new Date() > user.refreshTokenExpiresAt) {
+    if (new Date() > user.passwordResetExpiresAt) {
       throw new UnauthorizedException('Lien de réinitialisation expiré. Demandez un nouveau lien.');
     }
 
-    // Vérifier le hash du token (constant-time)
+    // Constant-time compare against the stored sha256 hash.
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-    if (!crypto.timingSafeEqual(Buffer.from(hashedToken), Buffer.from(user.refreshToken))) {
+    const stored = Buffer.from(user.passwordResetTokenHash);
+    const incoming = Buffer.from(hashedToken);
+    if (stored.length !== incoming.length || !crypto.timingSafeEqual(incoming, stored)) {
       throw new UnauthorizedException('Lien invalide ou déjà utilisé');
     }
 
-    // Mettre à jour le mot de passe et invalider le token
     const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_COST);
-    await this.prisma.user.update({
+    await (this.prisma as any).user.update({
       where: { id: userId },
       data: {
         passwordHash: hashedPassword,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        // Invalidate any active session — force re-login.
         refreshToken: null,
         refreshTokenExpiresAt: null,
       },
     });
   }
 
-  // ── Mot de passe oublié (envoi de lien de réinitialisation) ──────────────
   async forgotPassword(email: string): Promise<void> {
-    // Par sécurité, on ne révèle jamais si l'email existe ou non
-    const user = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase(), isActive: true },
-    });
-    if (!user) return; // Silently ignore — don't reveal account existence
+    // MED-010: equalize timing whether the email exists or not.
+    const startedAt = Date.now();
+    const TARGET_MS = 250;
 
-    // Génère un token de réinitialisation à usage unique
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 heure
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { email: email.toLowerCase(), isActive: true },
+      });
 
-    // Stocke le hash du token (sécurité)
-    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+      if (user) {
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1h
+        const hashed = crypto.createHash('sha256').update(resetToken).digest('hex');
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        refreshToken: hashedToken,           // Réutilise le champ refreshToken temporairement
-        refreshTokenExpiresAt: resetTokenExpiry,
-      },
-    });
+        await (this.prisma as any).user.update({
+          where: { id: user.id },
+          data: {
+            passwordResetTokenHash: hashed,
+            passwordResetExpiresAt: expiry,
+          },
+        });
 
-    // TODO: envoyer l'email avec le lien /reset-password?token=<resetToken>&id=<user.id>
-    // Pour l'instant on logue le lien (dev uniquement)
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[DEV] Reset link: /reset-password?token=${resetToken}&id=${user.id}`);
+        // MED-003: dev-only logging gated by an explicit env flag.
+        if (process.env.DEBUG_PASSWORD_RESET === '1') {
+          // Use console.log here intentionally — gated, dev-only.
+          // eslint-disable-next-line no-console
+          console.log(`[DEBUG_PASSWORD_RESET] /reset-password?token=${resetToken}&id=${user.id}`);
+        }
+
+        // TODO: wire to Resend (apps/web/lib/server/email.ts) — out of scope
+        // for the security-hardening pass.
+      } else {
+        // Burn ~ the same time as a real bcrypt hashing pass to flatten the
+        // signal (no DB write to leak via timing).
+        await bcrypt.hash(crypto.randomBytes(16).toString('hex'), BCRYPT_COST);
+      }
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < TARGET_MS) {
+        await new Promise((r) => setTimeout(r, TARGET_MS - elapsed));
+      }
     }
   }
 
@@ -322,10 +340,13 @@ export class AuthService {
         },
       });
 
-      // 4. JWT — pas de workspaceId puisque l'intervenant n'a pas son propre workspace
+      // 4. JWT — short-lived (HIGH-006: aligned with regular access token).
+      //    workspaceId is intentionally null (intervenants are scoped via
+      //    Intervenant.userId, not a workspace ownership). Downstream code
+      //    must treat null/empty workspaceId for INTERVENANT role as expected.
       const accessToken = await this.jwt.signAsync(
-        { sub: user.id, email: user.email, workspaceId: '', role: 'INTERVENANT' } as any,
-        { expiresIn: '1h' },
+        { sub: user.id, email: user.email, workspaceId: null, role: 'INTERVENANT' } as any,
+        { expiresIn: '15m' },
       );
 
       return {

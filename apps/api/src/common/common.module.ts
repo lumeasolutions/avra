@@ -8,6 +8,7 @@ import { WorkspaceGuard } from './permissions/workspace.guard';
 import { GdprConsentGuard } from './logging/gdpr-consent.guard';
 import { AppCacheModule } from './cache/cache.module';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
+import { VirusScanService } from './security/virus-scan.service';
 
 /**
  * Common Module
@@ -52,7 +53,9 @@ import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
       provide: APP_GUARD,
       useClass: PermissionGuard,
     },
+    // ✅ SECURITY: Virus scanning facade (Cloudmersive-backed when key set)
+    VirusScanService,
   ],
-  exports: [AppCacheModule],
+  exports: [AppCacheModule, VirusScanService],
 })
 export class CommonModule {}

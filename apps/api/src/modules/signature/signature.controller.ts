@@ -39,11 +39,17 @@ export class SignatureController {
 
     if (secret) {
       const signature = (req.get('X-Yousign-Signature-256') || req.get('x-yousign-signature-256') || '').replace(/^sha256=/, '');
-      // Le corps est déjà parsé par Nest → on recalcule depuis la représentation JSON canonique.
-      // Pour une vérification 100 % fiable il faut un raw-body middleware — à défaut, on vérifie
-      // sur le JSON ré-sérialisé (stable car YouSign envoie du JSON plat).
-      const rawBody = (req as any).rawBody ? (req as any).rawBody.toString('utf8') : JSON.stringify(body);
-      const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+      // ✅ HIGH-001: HMAC must run on the EXACT bytes received, never on a
+      //    re-serialised JSON (key order, whitespace, unicode escaping all
+      //    diverge). NestJS bootstrap is now `rawBody: true`, so req.rawBody
+      //    contains the original buffer.
+      const raw: Buffer | undefined = (req as any).rawBody;
+      if (!raw || !Buffer.isBuffer(raw)) {
+        // Refuse rather than fall back: a missing rawBody means the platform
+        // pre-parsed and we cannot trust the HMAC.
+        throw new ForbiddenException('Webhook raw body unavailable — HMAC cannot be verified');
+      }
+      const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
       const sigBuf = Buffer.from(signature, 'hex');
       const expBuf = Buffer.from(expected, 'hex');
       if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {

@@ -24,9 +24,13 @@ export class EnvironmentVariables {
   @IsString()
   JWT_EXPIRES_IN: string = '7d';
 
+  /** @deprecated kept for backwards compat — refresh tokens are random opaque
+   *  secrets hashed in DB (no JWT signing). Safe to remove from env once all
+   *  callers stop reading it. */
   @IsString()
   JWT_REFRESH_SECRET?: string;
 
+  /** @deprecated see JWT_REFRESH_SECRET. */
   @IsString()
   JWT_REFRESH_EXPIRES_IN?: string = '30d';
 

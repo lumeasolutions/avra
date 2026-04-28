@@ -1,9 +1,8 @@
 /**
  * Vercel Serverless Function — NestJS API Handler
  *
- * This file bootstraps the @avra/api NestJS application as a Vercel
- * Serverless Function. All requests to /api/* on the Vercel deployment
- * are routed here and handled by NestJS.
+ * Bootstraps @avra/api as a Vercel Serverless Function. All requests to
+ * /api/v1/* on the Vercel deployment are routed here.
  */
 
 import 'reflect-metadata';
@@ -13,8 +12,8 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import express, { Express } from 'express';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 
-// Lazy-load the AppModule to avoid cold-start issues with circular deps
 let cachedServer: Express | null = null;
 
 async function bootstrapServer(): Promise<Express> {
@@ -24,14 +23,19 @@ async function bootstrapServer(): Promise<Express> {
   const { AppModule } = require('../../api/dist/app.module');
 
   const expressApp = express();
+  // ✅ rawBody enabled for HMAC webhook verification (YouSign).
   const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
     logger: ['error', 'warn'],
+    rawBody: true,
   });
 
-  // Helmet (relaxed for serverless)
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // ✅ Helmet — keep default CSP (responses are mostly JSON; no inline scripts to bother).
+  //    Only keep CSP off if explicitly opted out (rare, e.g. Swagger in dev).
+  app.use(helmet());
 
-  // Global API prefix to match the original NestJS bootstrap
+  // ✅ Cookie parser (auth + CSRF guards depend on req.cookies).
+  app.use(cookieParser());
+
   app.setGlobalPrefix('api/v1');
 
   app.useGlobalPipes(
@@ -42,26 +46,25 @@ async function bootstrapServer(): Promise<Express> {
     }),
   );
 
-  // CORS — same-origin since frontend lives on the same Vercel deployment,
-  // but still whitelist explicitly configured origins for any external clients.
-  const allowedOrigins = (
-    process.env.CORS_ALLOWED_ORIGINS ??
-    process.env.WEB_URL ??
-    'https://avra-kappa.vercel.app'
-  )
+  // ✅ MED-004: in production, fail fast if no origin is configured (no hardcoded fallback).
+  const corsRaw = process.env.CORS_ALLOWED_ORIGINS ?? process.env.WEB_URL;
+  if (process.env.NODE_ENV === 'production' && !corsRaw) {
+    throw new Error('CORS_ALLOWED_ORIGINS or WEB_URL must be set in production');
+  }
+  const allowedOrigins = (corsRaw ?? 'http://localhost:3000')
     .split(',')
-    .map((origin) => origin.trim());
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+    exposedHeaders: ['X-Total-Count', 'X-Page-Count', 'X-CSRF-Token'],
     maxAge: 86400,
   });
 
-  // Healthcheck endpoint (same as standalone bootstrap)
   app.getHttpAdapter().get('/api/v1/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
@@ -85,7 +88,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-// Tell Vercel this is a Node serverless function (not Edge)
 export const config = {
   api: {
     bodyParser: false, // Let NestJS/Express handle body parsing

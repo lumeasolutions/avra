@@ -29,28 +29,25 @@ interface AuthCookieData {
 }
 
 function setAuthCookies(res: Response, data: AuthCookieData) {
-  // 🔒 Cookie HttpOnly — inaccessible au JavaScript, résiste aux XSS
-  // 🔒 Secure flag — cookies uniquement en HTTPS (sauf local development)
-  // 🔒 SameSite=Lax — fonctionne pour les redirections OAuth-like, protège
-  //    contre CSRF en lecture cross-site mais autorise les navigations directes.
-  //    'Strict' bloquait certains scenarios (refresh post-redirect).
+  // 🔒 HttpOnly — JS cannot read it (XSS-safe).
+  // 🔒 Secure — HTTPS only (auto-relaxed in dev).
+  // 🔒 SameSite=Strict (HIGH-008) — refuses cross-site sends entirely.
+  //    Cross-site magic-link flows that must land authenticated should use a
+  //    dedicated cookie; the default auth surface stays Strict.
   res.cookie('access_token', data.accessToken, {
     httpOnly: true,
     secure: IS_SECURE,
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: ACCESS_COOKIE_TTL,
     path: '/',
   });
 
-  // Refresh token + user id en HttpOnly long-lived. Permettent au endpoint
-  // /auth/refresh de regénérer un access_token sans exiger d'auth préalable.
   if (data.refreshToken) {
     res.cookie('refresh_token', data.refreshToken, {
       httpOnly: true,
       secure: IS_SECURE,
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: REFRESH_COOKIE_TTL,
-      // Limité à /api/v1/auth pour minimiser la surface d'envoi
       path: '/',
     });
   }
@@ -58,17 +55,18 @@ function setAuthCookies(res: Response, data: AuthCookieData) {
     res.cookie('user_id', data.userId, {
       httpOnly: true,
       secure: IS_SECURE,
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: REFRESH_COOKIE_TTL,
       path: '/',
     });
   }
 
-  // Cookie lisible par le frontend pour savoir si l'utilisateur est connecté
+  // Cookie readable by the frontend to know "is the session up?".
+  // NOTE: this is NOT a source of truth — middleware verifies access_token JWT.
   res.cookie('logged_in', 'true', {
     httpOnly: false,
     secure: IS_SECURE,
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: SESSION_COOKIE_TTL,
     path: '/',
   });
@@ -79,6 +77,7 @@ function clearAuthCookies(res: Response) {
   res.clearCookie('refresh_token', { path: '/' });
   res.clearCookie('user_id', { path: '/' });
   res.clearCookie('logged_in', { path: '/' });
+  res.clearCookie('csrf_token', { path: '/' });
 }
 
 @Controller('auth')
@@ -110,6 +109,15 @@ export class AuthController {
    * Lit refresh_token et user_id depuis les cookies HttpOnly posés au login.
    * Régénère un access_token + nouveau refresh_token (rotation) et les
    * renvoie en cookies. Le client n'a rien à fournir (body vide accepté).
+   *
+   * TODO(MED-009): refacto pour supprimer le cookie `user_id` séparé.
+   *   Approche : refresh_token devient un JWT signé contenant
+   *   `{ sub: userId, jti }`, et User.refreshTokenJtiHash stocke bcrypt(jti).
+   *   Avantages : 1 seul cookie, pas de risque de désynchro userId/token, pas
+   *   d'IDOR si un attaquant spoof user_id sans le bon refresh_token.
+   *   Risques actuels : token rotation existant + multi-device exigent un
+   *   modèle ActiveSession[] (déjà présent ?). Refacto à planifier sur sprint
+   *   dédié avec migration progressive (lire JWT d'abord, fallback cookie 1 release).
    */
   @Public()
   @SkipCsrf()

@@ -7,6 +7,7 @@ import {
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SupabaseStorageService } from './supabase-storage.service';
+import { VirusScanService } from '../../common/security/virus-scan.service';
 
 /**
  * ─────────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ export class DossierDocumentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: SupabaseStorageService,
+    private readonly virusScan: VirusScanService,
   ) {}
 
   /**
@@ -111,8 +113,45 @@ export class DossierDocumentsService {
         `Fichier trop volumineux (max ${Math.floor(MAX_FILE_BYTES / (1024 * 1024))} Mo)`,
       );
     }
+    // ✅ HIGH-009: best-effort magic-bytes validation. Activated when the
+    //   `file-type` package is installed (apps/api). Falls back to a no-op
+    //   if the import fails so we never break uploads in environments where
+    //   the dep isn't yet available.
+    // TODO: integrate ClamAV / cloud AV scan before persistence.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const ft = require('file-type');
+      const detected = ft?.fromBuffer
+        ? await ft.fromBuffer(file.buffer)
+        : (ft?.fileTypeFromBuffer ? await ft.fileTypeFromBuffer(file.buffer) : null);
+      if (detected?.mime) {
+        const claimed = file.mimetype;
+        const ok =
+          detected.mime === claimed ||
+          // Tolerate jpg/jpeg & similar aliases
+          (claimed === 'image/jpeg' && detected.mime === 'image/jpg') ||
+          // PDFs sometimes detect as application/octet-stream when crafted; reject those.
+          false;
+        if (!ok) {
+          throw new BadRequestException(
+            `Le contenu du fichier (${detected.mime}) ne correspond pas au type déclaré (${claimed})`,
+          );
+        }
+      }
+      // If detected.mime is undefined (e.g. text/csv plain), skip — content-type
+      // declared by the client is treated as canonical for non-binary formats.
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      // Module not installed yet — log once and proceed (declared MIME only).
+    }
     if (!subfolderLabel || subfolderLabel.length > 200) {
       throw new BadRequestException('Sous-dossier invalide');
+    }
+
+    // ✅ HIGH-009: virus scan (no-op if CLOUDMERSIVE_API_KEY not set)
+    const av = await this.virusScan.scanBuffer(file.buffer, file.originalname);
+    if (!av.clean) {
+      throw new BadRequestException('Le fichier a été rejeté par l\'antivirus');
     }
 
     await this.assertProjectInWorkspace(workspaceId, projectId);

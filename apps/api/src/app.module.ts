@@ -31,8 +31,14 @@ import { DossierDocumentsModule } from './modules/dossier-documents/dossier-docu
     // ✅ Validate environment variables at startup
     ConfigModule.forRoot({ isGlobal: true, validate, envFilePath: ['../../.env', '.env'] }),
     // ✅ SECURITY: Enhanced rate limiting with multiple profiles
-    // Global: 60 req/min per IP
+    // Global: 300 req/min per IP
     // Login/Register: 5 req/15 min per IP (brute-force protection)
+    //
+    // TODO(MED-011): swap to Redis-backed storage for multi-instance / serverless.
+    //   When `REDIS_URL` (or UPSTASH_REDIS_*) is set in env, configure
+    //   `@nestjs/throttler-storage-redis` with `new Redis(process.env.REDIS_URL)`.
+    //   In current Vercel serverless setup, in-memory throttle resets per cold-start
+    //   — acceptable for soft rate-limiting, NOT for strict brute-force protection.
     ThrottlerModule.forRoot([
       { name: 'default', ttl: 60000, limit: 300 },
       { name: 'auth', ttl: 15 * 60 * 1000, limit: 5 }, // 5 requests per 15 minutes

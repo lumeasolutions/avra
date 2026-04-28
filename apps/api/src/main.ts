@@ -3,22 +3,42 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import * as Sentry from '@sentry/node';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { scrubForLog } from './common/logging/sanitized-logger';
 
 async function bootstrap() {
-  // ✅ Initialize Sentry for error monitoring
+  // ✅ Sentry — scrub PII before sending
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV || 'development',
     tracesSampleRate: 1.0,
+    sendDefaultPii: false,
+    beforeSend(event) {
+      try {
+        if (event.request?.headers) {
+          delete (event.request.headers as Record<string, unknown>).authorization;
+          delete (event.request.headers as Record<string, unknown>).cookie;
+          delete (event.request.headers as Record<string, unknown>)['x-csrf-token'];
+        }
+        if (event.request?.data && typeof event.request.data === 'object') {
+          event.request.data = scrubForLog(event.request.data);
+        }
+      } catch {/* never break Sentry */}
+      return event;
+    },
   });
 
-  const app = await NestFactory.create(AppModule);
+  // ✅ rawBody enabled so HMAC webhook verifiers (YouSign etc.) can use the
+  //    untouched bytes instead of a re-serialised JSON.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
-  // ✅ Security: Helmet protects against XSS, clickjacking, MIME sniffing, etc.
+  // ✅ Helmet
   app.use(helmet());
 
-  // ✅ Global pipes
+  // ✅ Cookie parser (req.cookies populated for auth + CSRF guards)
+  app.use(cookieParser());
+
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({
@@ -28,16 +48,15 @@ async function bootstrap() {
     }),
   );
 
-  // ✅ SECURITY: Rate limiting — Enhance ThrottlerModule configuration in app.module
-  // Login endpoint: 5 requests per 15 minutes (brute-force protection)
-  // Global: 60 requests per 60 seconds as fallback
-
-  // ✅ Sentry error handler (added as exception filter in app.module)
-
-  // ✅ CORS — Whitelist origins
-  const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? process.env.WEB_URL ?? 'http://localhost:3000')
+  // ✅ MED-004: in production, refuse to start if no allowed origin is configured.
+  const corsRaw = process.env.CORS_ALLOWED_ORIGINS ?? process.env.WEB_URL;
+  if (process.env.NODE_ENV === 'production' && !corsRaw) {
+    throw new Error('CORS_ALLOWED_ORIGINS or WEB_URL must be set in production');
+  }
+  const allowedOrigins = (corsRaw ?? 'http://localhost:3000')
     .split(',')
-    .map((origin) => origin.trim());
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
   app.enableCors({
     origin: allowedOrigins,
@@ -45,17 +64,15 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
     exposedHeaders: ['X-Total-Count', 'X-Page-Count', 'X-CSRF-Token'],
-    maxAge: 86400, // 24 hours
+    maxAge: 86400,
   });
 
-  // ✅ Healthcheck endpoint
-  app.getHttpAdapter().get('/health', (req, res) => {
+  app.getHttpAdapter().get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
   const port = process.env.PORT ?? 3001;
 
-  // 🔒 Swagger uniquement en développement — désactivé en production
   if (process.env.NODE_ENV !== 'production') {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('AVRA API')
@@ -70,7 +87,6 @@ async function bootstrap() {
 
   await app.listen(port);
   console.log(`✅ AVRA API running on http://localhost:${port}/api`);
-  console.log(`📊 Healthcheck: http://localhost:${port}/health`);
 }
 bootstrap().catch((err) => {
   console.error('❌ Failed to start AVRA API:', err);

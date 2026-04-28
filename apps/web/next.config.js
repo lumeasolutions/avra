@@ -24,29 +24,21 @@ const securityHeaders = [
     key: 'Strict-Transport-Security',
     value: 'max-age=31536000; includeSubDomains; preload',
   }] : []),
-  // Content Security Policy
+  // ⚠️ HIGH-007: CSP est désormais posée dynamiquement par middleware.ts
+  // (nonce per-request + 'strict-dynamic'). On garde ici un fallback minimal
+  // pour les routes/assets non couvertes par le middleware (images statiques,
+  // robots.txt, etc.). Le middleware OVERRIDE cette valeur sur les pages.
   {
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      // Scripts : self + unsafe-inline pour Next.js hydration + Plausible analytics + unsafe-eval en dev
-      `script-src 'self' 'unsafe-inline' https://plausible.io${isProd ? '' : " 'unsafe-eval'"}`,
-      // Styles : self + unsafe-inline pour Tailwind
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      // Images : self + data: (pour logos base64) + blob: (pour canvas/génération IA) + fal.ai CDN + Supabase Storage (preview images via URL signée)
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com https://*.supabase.co",
-      // Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // API fetch : self + fal.ai + Sentry + Plausible + Supabase Storage (download direct via URL signée) (+ localhost en dev)
-      `connect-src 'self' https://fal.run https://*.fal.ai wss://fal.run https://*.sentry.io https://sentry.io https://plausible.io https://*.supabase.co${isProd ? '' : ' http://localhost:3001 ws://localhost:3002'}`,
-      // Frames : Supabase Storage (iframe preview PDF via URL signée)
-      "frame-src 'self' https://*.supabase.co",
       "frame-ancestors 'self'",
-      // Objects interdits
       "object-src 'none'",
-      // Base URI restreinte
       "base-uri 'self'",
-      // Forms : self uniquement
       "form-action 'self'",
     ].join('; '),
   },
