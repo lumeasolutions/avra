@@ -1,1108 +1,619 @@
 'use client';
 
+/**
+ * Hub /intervenants — drill-down 3 niveaux
+ *
+ * NIVEAU 0 : Vue d'accueil
+ *   - Filtres types (FILTRES : POSEUR / ELECTRICIEN / ...)
+ *   - Liste intervenants avec ALERTES dynamiques (DOSSIER RAJOUTE,
+ *     ATTENTE RELEVE, SAV ENVOYE, EN ATTENTE PLANNING)
+ *   - Demandes rapides (DEMANDE SPECIALE + 8 chips)
+ *   - 4 boutons d'action (RAJOUTER / DEMANDE SPECIALE / DONNER ACCES / RELANCE)
+ *
+ * NIVEAU 1a : Drill-down chip (clic sur DEVIS, LIVRAISON, etc.)
+ *   - UI specifique au type
+ *
+ * NIVEAU 1b : Drill-down intervenant (clic sur un nom)
+ *   - Liste de ses dossiers avec statut A CLASSER / CLASSE
+ *
+ * NIVEAU 2 : Drill-down dossier (clic sur un dossier dans 1b)
+ *   - Liste des items avec statut URGENT / EN COURS / CLASSE
+ */
+
 import { useState, useMemo, useEffect } from 'react';
 import {
   Mail, Phone, Plus, Trash2, Search, Wrench, Users,
   X, Edit3, Check, FileText, ArrowUpDown,
   MessageSquare, ExternalLink, HardHat, Send, Link2, ShieldCheck, Clock,
-  ChevronRight,
+  ChevronRight, ChevronLeft, AlertTriangle, FolderPlus, RefreshCw,
+  CheckCircle2, AlertCircle, Hourglass, FolderOpen, ArrowLeft, Folder,
 } from 'lucide-react';
-import { useDossierStore, useIntervenantStore, type Intervenant } from '@/store';
+import {
+  useIntervenantStore,
+  type Intervenant,
+  type IntervenantDossier,
+  type DossierItemStatut,
+} from '@/store';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { SendToIntervenantDrawer, type SendToIntervenantPrefill } from '@/components/demandes/SendToIntervenantDrawer';
 import { InviteIntervenantModal } from '@/components/demandes/InviteIntervenantModal';
-import { listInvitations, createInvitation, type IntervenantInvitation } from '@/lib/demandes-api';
+import { DonnerAccesModal } from '@/components/demandes/DonnerAccesModal';
+import { MiniCalendarWeek } from '@/components/demandes/MiniCalendarWeek';
+import {
+  listInvitations, listDemandesPro,
+  type IntervenantInvitation, type Demande, type DemandeType,
+} from '@/lib/demandes-api';
 import { api } from '@/lib/api';
 
-// ─── Config types ─────────────────────────────────────────────────────────────
+// ─── Types & config ──────────────────────────────────────────────────────────
 
-const TYPE_CONFIG: Record<string, { color: string; bg: string; avatar: string; ring: string }> = {
-  POSEUR:      { color: 'text-white', bg: 'bg-[#304035]',   avatar: 'bg-[#304035]/12 text-[#304035]',    ring: 'ring-[#304035]/20' },
-  ELECTRICIEN: { color: 'text-white', bg: 'bg-amber-500',   avatar: 'bg-amber-50 text-amber-600',        ring: 'ring-amber-200' },
-  MACON:       { color: 'text-white', bg: 'bg-stone-500',   avatar: 'bg-stone-100 text-stone-600',       ring: 'ring-stone-200' },
-  MARBRIER:    { color: 'text-white', bg: 'bg-slate-500',   avatar: 'bg-slate-100 text-slate-600',       ring: 'ring-slate-200' },
-  PLOMBIER:    { color: 'text-white', bg: 'bg-blue-500',    avatar: 'bg-blue-50 text-blue-600',          ring: 'ring-blue-200' },
-  CARRELEUR:   { color: 'text-white', bg: 'bg-orange-500',  avatar: 'bg-orange-50 text-orange-600',      ring: 'ring-orange-200' },
-  PEINTRE:     { color: 'text-white', bg: 'bg-rose-500',    avatar: 'bg-rose-50 text-rose-600',          ring: 'ring-rose-200' },
-  MENUISIER:   { color: 'text-white', bg: 'bg-lime-700',    avatar: 'bg-lime-50 text-lime-700',          ring: 'ring-lime-200' },
-  AUTRE:       { color: 'text-[#304035]/70', bg: 'bg-[#304035]/10', avatar: 'bg-[#304035]/6 text-[#304035]/50', ring: 'ring-[#304035]/10' },
+const TYPES = ['POSEUR', 'ELECTRICIEN', 'MACON', 'MARBRIER', 'CUISINISTES', 'PLOMBIER', 'CARRELEUR', 'PEINTRE', 'AUTRE'];
+
+const TYPE_COLORS: Record<string, { bg: string; ring: string; avatar: string }> = {
+  POSEUR:      { bg: 'bg-[#304035]',   ring: 'ring-[#304035]/20', avatar: 'bg-[#304035]/10 text-[#304035]' },
+  ELECTRICIEN: { bg: 'bg-amber-500',   ring: 'ring-amber-200',    avatar: 'bg-amber-50 text-amber-600' },
+  MACON:       { bg: 'bg-stone-500',   ring: 'ring-stone-200',    avatar: 'bg-stone-100 text-stone-600' },
+  MARBRIER:    { bg: 'bg-slate-500',   ring: 'ring-slate-200',    avatar: 'bg-slate-100 text-slate-600' },
+  CUISINISTES: { bg: 'bg-blue-500',    ring: 'ring-blue-200',     avatar: 'bg-blue-50 text-blue-600' },
+  PLOMBIER:    { bg: 'bg-cyan-500',    ring: 'ring-cyan-200',     avatar: 'bg-cyan-50 text-cyan-600' },
+  CARRELEUR:   { bg: 'bg-orange-500',  ring: 'ring-orange-200',   avatar: 'bg-orange-50 text-orange-600' },
+  PEINTRE:     { bg: 'bg-rose-500',    ring: 'ring-rose-200',     avatar: 'bg-rose-50 text-rose-600' },
+  AUTRE:       { bg: 'bg-[#304035]/10', ring: 'ring-[#304035]/10', avatar: 'bg-[#304035]/5 text-[#304035]/60' },
 };
 
-const TYPES = ['POSEUR', 'ELECTRICIEN', 'MACON', 'MARBRIER', 'PLOMBIER', 'CARRELEUR', 'PEINTRE', 'MENUISIER', 'AUTRE'];
-
-function cfg(type: string) {
-  return TYPE_CONFIG[type] ?? TYPE_CONFIG['AUTRE'];
+function typeColor(t: string) {
+  return TYPE_COLORS[t] ?? TYPE_COLORS.AUTRE;
 }
 
-// ─── Badge type ───────────────────────────────────────────────────────────────
+// ─── Quick demandes config ──────────────────────────────────────────────────
 
-function TypeBadge({ type, size = 'sm' }: { type: string; size?: 'xs' | 'sm' }) {
-  const c = cfg(type);
-  return (
-    <span className={cn(
-      'rounded-full font-bold tracking-wide shrink-0 uppercase',
-      c.bg, c.color,
-      size === 'xs' ? 'px-2 py-0.5 text-[9px]' : 'px-2.5 py-0.5 text-[10px]'
-    )}>
-      {type}
-    </span>
-  );
+interface QuickDemandeDef {
+  key: string;
+  label: string;
+  icon: string;
+  /** Type Demande sous-jacent. */
+  type: DemandeType;
+  /** Title pre-rempli. */
+  titlePrefix: string;
+  /** Notes template. */
+  notesTemplate?: string;
+  /** UI mode dans le drill-down. */
+  uiMode: 'list-projects' | 'calendar' | 'list-tickets' | 'form';
 }
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
+const QUICK_DEMANDES: QuickDemandeDef[] = [
+  { key: 'PLANNING',   label: 'Planning',                icon: '📅', type: 'POSE',
+    titlePrefix: 'Intervention planning — ', uiMode: 'calendar' },
+  { key: 'DEVIS',      label: 'Devis',                   icon: '📄', type: 'DEVIS',
+    titlePrefix: 'Demande de devis — ', uiMode: 'list-projects' },
+  { key: 'LIVRAISON',  label: 'Livraison',               icon: '📦', type: 'LIVRAISON',
+    titlePrefix: 'Livraison — ', uiMode: 'calendar' },
+  { key: 'SAV',        label: 'SAV',                     icon: '🛠', type: 'SAV',
+    titlePrefix: 'SAV — ', uiMode: 'list-tickets' },
+  { key: 'MESURE',     label: 'Prise de mesures',        icon: '📏', type: 'MESURE',
+    titlePrefix: 'Prise de mesures — ', uiMode: 'list-tickets' },
+  { key: 'COMPTE_RENDU', label: 'Compte rendu chantier', icon: '📝', type: 'AUTRE',
+    titlePrefix: 'Compte rendu chantier — ',
+    notesTemplate: 'Date de visite :\nPersonnes presentes :\nObservations :\nPoints d\'attention :\nProchaines etapes :',
+    uiMode: 'list-tickets' },
+  { key: 'COMPLEMENT', label: 'Compléments',             icon: '➕', type: 'COMPLEMENT',
+    titlePrefix: 'Complément — ', uiMode: 'form' },
+  { key: 'CONFIRMATION', label: 'Confirmations commandes', icon: '✅', type: 'CONFIRMATION_COMMANDE',
+    titlePrefix: 'Confirmation commande — ', uiMode: 'list-tickets' },
+];
 
-function Avatar({ name, type, size = 'md' }: { name: string; type: string; size?: 'sm' | 'md' | 'lg' }) {
-  const c = cfg(type);
-  return (
-    <div className={cn(
-      'flex items-center justify-center rounded-2xl font-bold shrink-0 ring-2 transition-transform',
-      c.avatar, c.ring,
-      size === 'sm'  && 'h-9 w-9 text-sm',
-      size === 'md'  && 'h-11 w-11 text-base',
-      size === 'lg'  && 'h-16 w-16 text-2xl rounded-3xl',
-    )}>
-      {name.charAt(0).toUpperCase()}
-    </div>
-  );
-}
-
-// Format duration (minutes) → human "2h", "30min", "3j"
-function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`;
-  if (minutes < 60 * 24) return `${Math.round(minutes / 60)}h`;
-  return `${Math.round(minutes / 60 / 24)}j`;
-}
-
-// ─── Fiche slide-over ─────────────────────────────────────────────────────────
-
-function FicheIntervenant({
-  intervenant,
-  onClose,
-  onDelete,
-}: {
-  intervenant: Intervenant;
-  onClose: () => void;
-  onDelete: () => void;
-}) {
-  const updateIntervenant = useIntervenantStore(s => s.updateIntervenant);
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({
-    type: intervenant.type,
-    name: intervenant.name,
-    phone: intervenant.phone ?? '',
-    email: intervenant.email ?? '',
-    notes: intervenant.notes ?? '',
-  });
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const c = cfg(intervenant.type);
-
-  // Phase E : charge stats + historique a l'ouverture
-  const [stats, setStats] = useState<import('@/lib/demandes-api').IntervenantStats | null>(null);
-  const [loadingStats, setLoadingStats] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    setLoadingStats(true);
-    import('@/lib/demandes-api').then(({ getIntervenantStats }) =>
-      getIntervenantStats(intervenant.id)
-    )
-      .then((s) => { if (!cancelled) setStats(s); })
-      .catch(() => { if (!cancelled) setStats(null); })
-      .finally(() => { if (!cancelled) setLoadingStats(false); });
-    return () => { cancelled = true; };
-  }, [intervenant.id]);
-
-  const saveEdit = () => {
-    if (!form.name.trim()) return;
-    updateIntervenant(intervenant.id, form);
-    setEditing(false);
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative ml-auto h-full w-full max-w-[420px] bg-white shadow-2xl flex flex-col overflow-hidden">
-
-        {/* ── Header coloré selon le type ── */}
-        <div className={cn('relative px-6 pt-7 pb-6 overflow-hidden', c.bg)}>
-          {/* Cercle déco en fond */}
-          <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10" />
-          <div className="absolute -right-2 top-16 h-20 w-20 rounded-full bg-white/8" />
-
-          <div className="relative flex items-start justify-between gap-3">
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-2xl bg-white/20 ring-2 ring-white/30 flex items-center justify-center text-2xl font-bold text-white shrink-0">
-                {intervenant.name.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <p className="font-bold text-white text-xl leading-tight">{intervenant.name}</p>
-                <p className="text-white/60 text-sm mt-0.5">{intervenant.type}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setEditing(!editing)}
-                className="rounded-xl p-2 hover:bg-white/15 text-white/70 hover:text-white transition-colors"
-                title="Modifier"
-              >
-                <Edit3 className="h-4 w-4" />
-              </button>
-              <button
-                onClick={onClose}
-                className="rounded-xl p-2 hover:bg-white/15 text-white/70 hover:text-white transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="relative flex gap-3 mt-5">
-            {[
-              { val: intervenant.dossiers.length, label: 'dossier(s)' },
-              { val: intervenant.dossiers.filter(d => d.statut === 'CLASSE').length, label: 'classé(s)' },
-              { val: intervenant.dossiers.filter(d => d.statut === 'A CLASSER').length, label: 'à classer' },
-            ].map((s, i) => (
-              <div key={i} className="flex-1 rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2.5 text-center">
-                <p className="text-xl font-bold text-white">{s.val}</p>
-                <p className="text-[10px] text-white/60 font-medium mt-0.5">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Corps ── */}
-        <div className="flex-1 overflow-y-auto">
-          {editing ? (
-            /* Mode édition */
-            <div className="p-5 space-y-4">
-              <p className="text-xs font-bold text-[#304035]/40 uppercase tracking-widest">Modifier</p>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-semibold text-[#304035]/50 mb-1.5 block">Type</label>
-                  <select
-                    value={form.type}
-                    onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-                    className="w-full rounded-xl border border-[#304035]/12 bg-[#304035]/3 px-3.5 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20 appearance-none"
-                  >
-                    {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#304035]/50 mb-1.5 block">Nom *</label>
-                  <input
-                    value={form.name}
-                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full rounded-xl border border-[#304035]/12 bg-[#304035]/3 px-3.5 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-[#304035]/50 mb-1.5 block">Téléphone</label>
-                    <input
-                      value={form.phone}
-                      onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                      className="w-full rounded-xl border border-[#304035]/12 bg-[#304035]/3 px-3.5 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-[#304035]/50 mb-1.5 block">Email</label>
-                    <input
-                      value={form.email}
-                      onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                      className="w-full rounded-xl border border-[#304035]/12 bg-[#304035]/3 px-3.5 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-[#304035]/50 mb-1.5 block">Notes</label>
-                  <textarea
-                    value={form.notes}
-                    onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                    rows={2}
-                    placeholder="Infos complémentaires…"
-                    className="w-full rounded-xl border border-[#304035]/12 bg-[#304035]/3 px-3.5 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/25 focus:outline-none focus:ring-2 focus:ring-[#304035]/20 resize-none"
-                  />
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={saveEdit}
-                    disabled={!form.name.trim()}
-                    className="flex items-center gap-1.5 rounded-xl bg-[#304035] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#304035]/85 disabled:opacity-40 transition-all"
-                  >
-                    <Check className="h-3.5 w-3.5" /> Enregistrer
-                  </button>
-                  <button
-                    onClick={() => { setEditing(false); setForm({ type: intervenant.type, name: intervenant.name, phone: intervenant.phone ?? '', email: intervenant.email ?? '', notes: intervenant.notes ?? '' }); }}
-                    className="rounded-xl border border-[#304035]/12 px-5 py-2.5 text-xs font-semibold text-[#304035]/60 hover:bg-[#304035]/5 transition-all"
-                  >
-                    Annuler
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="p-5 space-y-5">
-              {/* Contact */}
-              <div>
-                <p className="text-[10px] font-bold text-[#304035]/35 uppercase tracking-widest mb-3">Contact</p>
-                <div className="space-y-2">
-                  {intervenant.phone ? (
-                    <a href={`tel:${intervenant.phone.replace(/\s/g, '')}`}
-                      className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 bg-[#304035]/4 hover:bg-[#304035]/8 transition-colors group border border-[#304035]/6">
-                      <div className="h-9 w-9 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0">
-                        <Phone className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-[#304035]/40 font-medium">Téléphone</p>
-                        <p className="text-sm text-[#304035] font-semibold">{intervenant.phone}</p>
-                      </div>
-                      <ExternalLink className="h-3.5 w-3.5 text-[#304035]/20 group-hover:text-emerald-500 transition-colors shrink-0" />
-                    </a>
-                  ) : (
-                    <div className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 bg-[#304035]/3 border border-[#304035]/5 border-dashed">
-                      <div className="h-9 w-9 rounded-xl bg-[#304035]/8 flex items-center justify-center shrink-0">
-                        <Phone className="h-4 w-4 text-[#304035]/25" />
-                      </div>
-                      <p className="text-sm text-[#304035]/30 italic">Pas de téléphone</p>
-                    </div>
-                  )}
-                  {intervenant.email ? (
-                    <a href={`mailto:${intervenant.email}`}
-                      className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 bg-[#304035]/4 hover:bg-[#304035]/8 transition-colors group border border-[#304035]/6">
-                      <div className="h-9 w-9 rounded-xl bg-blue-500 flex items-center justify-center shrink-0">
-                        <Mail className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-[#304035]/40 font-medium">Email</p>
-                        <p className="text-sm text-[#304035] font-semibold truncate">{intervenant.email}</p>
-                      </div>
-                      <ExternalLink className="h-3.5 w-3.5 text-[#304035]/20 group-hover:text-blue-500 transition-colors shrink-0" />
-                    </a>
-                  ) : (
-                    <div className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 bg-[#304035]/3 border border-[#304035]/5 border-dashed">
-                      <div className="h-9 w-9 rounded-xl bg-[#304035]/8 flex items-center justify-center shrink-0">
-                        <Mail className="h-4 w-4 text-[#304035]/25" />
-                      </div>
-                      <p className="text-sm text-[#304035]/30 italic">Pas d'email</p>
-                    </div>
-                  )}
-                  {intervenant.notes && (
-                    <div className="flex items-start gap-3.5 rounded-2xl px-4 py-3.5 bg-violet-50 border border-violet-100">
-                      <div className="h-9 w-9 rounded-xl bg-violet-500 flex items-center justify-center shrink-0 mt-0.5">
-                        <MessageSquare className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-violet-400 font-medium">Notes</p>
-                        <p className="text-sm text-violet-800 leading-relaxed">{intervenant.notes}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Action principale : envoyer une demande */}
-              <div className="mb-2">
-                <SendToIntervenantButton
-                  variant="primary"
-                  label={`Envoyer une demande à ${intervenant.name.split(' ')[0]}`}
-                  prefill={{ intervenantId: intervenant.id }}
-                  style={{ width: '100%', justifyContent: 'center' }}
-                />
-              </div>
-
-              {/* Phase E : Stats + Historique */}
-              {loadingStats ? (
-                <div className="rounded-xl bg-[#304035]/4 p-4 animate-pulse">
-                  <div className="h-3 w-24 bg-[#304035]/12 rounded mb-3" />
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="h-12 bg-[#304035]/8 rounded-lg" />
-                    <div className="h-12 bg-[#304035]/8 rounded-lg" />
-                    <div className="h-12 bg-[#304035]/8 rounded-lg" />
-                  </div>
-                </div>
-              ) : stats && stats.total > 0 ? (
-                <div>
-                  <p className="text-[10px] font-bold text-[#304035]/35 uppercase tracking-widest mb-3">
-                    Statistiques de collaboration
-                  </p>
-
-                  {/* Réputation score */}
-                  {stats.reputationScore !== null && (
-                    <div className="rounded-xl bg-gradient-to-r from-[#a67749]/8 to-emerald-50 border border-[#a67749]/20 p-4 mb-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold text-[#304035]/55 uppercase tracking-widest">Score de fiabilité</span>
-                        <span className="text-2xl font-black text-[#a67749]">{stats.reputationScore}<span className="text-sm text-[#a67749]/60">/100</span></span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-[#304035]/8 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-[#a67749] to-emerald-500 transition-all"
-                          style={{ width: `${stats.reputationScore}%` }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-[#304035]/45 mt-2 leading-snug">
-                        Calculé sur le taux d'acceptation et de complétion des demandes envoyées.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* KPIs */}
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    <div className="rounded-xl bg-white border border-[#304035]/8 p-3 text-center">
-                      <p className="text-xl font-bold text-[#304035]">{stats.total}</p>
-                      <p className="text-[9px] font-semibold text-[#304035]/45 uppercase tracking-wider mt-0.5">Demandes</p>
-                    </div>
-                    <div className="rounded-xl bg-white border border-emerald-100 p-3 text-center">
-                      <p className="text-xl font-bold text-emerald-600">{stats.acceptanceRate ?? '—'}{stats.acceptanceRate !== null ? '%' : ''}</p>
-                      <p className="text-[9px] font-semibold text-emerald-700/60 uppercase tracking-wider mt-0.5">Acceptation</p>
-                    </div>
-                    <div className="rounded-xl bg-white border border-blue-100 p-3 text-center">
-                      <p className="text-xl font-bold text-blue-600">{stats.avgResponseMinutes !== null ? formatDuration(stats.avgResponseMinutes) : '—'}</p>
-                      <p className="text-[9px] font-semibold text-blue-700/60 uppercase tracking-wider mt-0.5">Délai réponse</p>
-                    </div>
-                  </div>
-
-                  {/* Historique compact */}
-                  {stats.history.length > 0 && (
-                    <details className="group rounded-xl bg-[#304035]/3 border border-[#304035]/6 overflow-hidden">
-                      <summary className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[#304035]/5 transition-colors">
-                        <span className="text-xs font-bold text-[#304035]/70">Historique ({stats.history.length})</span>
-                        <ArrowUpDown className="h-3.5 w-3.5 text-[#304035]/40 group-open:rotate-180 transition-transform" />
-                      </summary>
-                      <div className="max-h-64 overflow-y-auto divide-y divide-[#304035]/6">
-                        {stats.history.slice(0, 10).map((h) => {
-                          const statusColor = h.status === 'TERMINEE' ? 'bg-emerald-100 text-emerald-700' :
-                                              h.status === 'EN_COURS' ? 'bg-orange-100 text-orange-700' :
-                                              h.status === 'ACCEPTEE' ? 'bg-blue-100 text-blue-700' :
-                                              h.status === 'REFUSEE' ? 'bg-red-100 text-red-700' :
-                                              'bg-[#304035]/10 text-[#304035]/60';
-                          return (
-                            <div key={h.id} className="px-4 py-2.5 hover:bg-white/50 transition-colors">
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="text-[10px] font-bold text-[#304035]/40 uppercase">{h.type}</span>
-                                <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-bold', statusColor)}>{h.status}</span>
-                              </div>
-                              <p className="text-xs font-semibold text-[#304035] truncate">{h.title}</p>
-                              <p className="text-[10px] text-[#304035]/45 mt-0.5">
-                                {new Date(h.createdAt).toLocaleDateString('fr-FR')}
-                                {h.project?.name ? ` · ${h.project.name}` : ''}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </details>
-                  )}
-                </div>
-              ) : null}
-
-              {/* Dossiers */}
-              {intervenant.dossiers.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-bold text-[#304035]/35 uppercase tracking-widest mb-3">Dossiers associés</p>
-                  <div className="space-y-1.5">
-                    {intervenant.dossiers.map((d, i) => (
-                      <div key={i} className="flex items-center justify-between rounded-xl px-4 py-3 bg-[#304035]/4 border border-[#304035]/6">
-                        <div className="flex items-center gap-2.5">
-                          <FileText className="h-4 w-4 text-[#304035]/35 shrink-0" />
-                          <span className="text-sm font-semibold text-[#304035]">{d.name}</span>
-                        </div>
-                        <span className={cn('rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide',
-                          d.statut === 'CLASSE' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                        )}>
-                          {d.statut}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ── Footer suppression ── */}
-        <div className="px-5 py-4 border-t border-[#304035]/8 bg-white">
-          {confirmDelete ? (
-            <div className="rounded-2xl bg-red-50 border border-red-100 p-4">
-              <p className="text-sm font-bold text-red-700 mb-1">Supprimer {intervenant.name} ?</p>
-              <p className="text-xs text-red-400 mb-3">Cette action est irréversible.</p>
-              <div className="flex gap-2">
-                <button onClick={onDelete}
-                  className="rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 transition-colors">
-                  Confirmer
-                </button>
-                <button onClick={() => setConfirmDelete(false)}
-                  className="rounded-xl border border-red-200 px-4 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors">
-                  Annuler
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button onClick={() => setConfirmDelete(true)}
-              className="flex items-center gap-2 text-xs text-[#304035]/35 hover:text-red-500 font-semibold transition-colors group">
-              <Trash2 className="h-3.5 w-3.5 group-hover:text-red-500 transition-colors" />
-              Supprimer cet intervenant
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Page principale ──────────────────────────────────────────────────────────
+// ─── Page principale ─────────────────────────────────────────────────────────
 
 type SortKey = 'name' | 'dossiers';
 
-export default function IntervenantsPage() {
+export default function IntervenantsHubPage() {
   const intervenants = useIntervenantStore(s => s.intervenants);
   const addIntervenant = useIntervenantStore(s => s.addIntervenant);
   const removeIntervenant = useIntervenantStore(s => s.removeIntervenant);
+  const updateIntervenant = useIntervenantStore(s => s.updateIntervenant);
+  const addDossier = useIntervenantStore(s => s.addDossier);
+  const removeDossier = useIntervenantStore(s => s.removeDossier);
+  const markDossierVu = useIntervenantStore(s => s.markDossierVu);
+  const addDossierItem = useIntervenantStore(s => s.addDossierItem);
+  const removeDossierItem = useIntervenantStore(s => s.removeDossierItem);
+  const updateDossierItemStatut = useIntervenantStore(s => s.updateDossierItemStatut);
+  const updateIntervenantDossierStatut = useIntervenantStore(s => s.updateIntervenantDossierStatut);
 
+  // Filtres
+  const [filterType, setFilterType] = useState<string>('POSEUR');
   const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>('name');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ type: 'POSEUR', name: '', phone: '', email: '', notes: '' });
-  const [selected, setSelected] = useState<string | null>(null);
 
-  // Invitations PENDING par intervenantId — affichees comme badges "Invite"
-  const [invitations, setInvitations] = useState<Record<string, IntervenantInvitation>>({});
-  // Modal d'invitation : { intervenantId, name, email }
+  // Drill-down state
+  const [selectedChipKey, setSelectedChipKey] = useState<string | null>(null);
+  const [selectedIntervenantId, setSelectedIntervenantId] = useState<string | null>(null);
+  const [selectedDossierId, setSelectedDossierId] = useState<string | null>(null);
+
+  // Modals
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showDonnerAcces, setShowDonnerAcces] = useState(false);
+  const [drawerPrefill, setDrawerPrefill] = useState<SendToIntervenantPrefill | null>(null);
   const [invitingFor, setInvitingFor] = useState<{ id: string; name: string; email?: string } | null>(null);
-  // Quick-actions drawer (chips Demandes rapides)
-  const [quickPrefill, setQuickPrefill] = useState<SendToIntervenantPrefill | null>(null);
+  const [confirmDeleteIntervenant, setConfirmDeleteIntervenant] = useState<string | null>(null);
 
-  // Charge les invitations (toutes, on ne filtre pas par PENDING ici pour
-  // permettre l'affichage du statut "Expire/Revoque" + bouton "Renouveler").
+  // Backend state
+  const [invitations, setInvitations] = useState<Record<string, IntervenantInvitation>>({});
+  const [proDemandes, setProDemandes] = useState<Demande[]>([]);
+  const [relanceLoading, setRelanceLoading] = useState(false);
+
+  // Charge demandes + invitations au mount
   useEffect(() => {
     let cancelled = false;
-    listInvitations()
-      .then((rawList) => {
+    Promise.all([
+      listDemandesPro({ pageSize: 100 }),
+      listInvitations(),
+    ])
+      .then(([dem, rawInvs]) => {
         if (cancelled) return;
-        const arr = Array.isArray(rawList) ? rawList : (Array.isArray((rawList as any)?.data) ? (rawList as any).data : []);
-        // Pour chaque intervenant : on garde la plus recente (createdAt desc)
-        const byIntervenantId: Record<string, IntervenantInvitation> = {};
+        setProDemandes(dem.data ?? []);
+        const arr = Array.isArray(rawInvs) ? rawInvs : (Array.isArray((rawInvs as any)?.data) ? (rawInvs as any).data : []);
         const sorted = [...(arr as IntervenantInvitation[])].sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
-        for (const inv of sorted) {
-          if (!byIntervenantId[inv.intervenantId]) {
-            byIntervenantId[inv.intervenantId] = inv;
-          }
-        }
-        setInvitations(byIntervenantId);
+        const m: Record<string, IntervenantInvitation> = {};
+        for (const inv of sorted) if (!m[inv.intervenantId]) m[inv.intervenantId] = inv;
+        setInvitations(m);
       })
-      .catch(() => {/* noop : auth/network — on affiche juste sans badge */});
+      .catch(() => { /* silencieux : auth/network */ });
     return () => { cancelled = true; };
   }, []);
 
-  const selectedIntervenant = intervenants.find(i => i.id === selected) ?? null;
-
-  const typesPresents = useMemo(() => {
-    const s = new Set(intervenants.map(i => i.type));
-    return TYPES.filter(t => s.has(t));
-  }, [intervenants]);
-
-  // Phase G : filtre par statut compte
-  const [filterAccount, setFilterAccount] = useState<'all' | 'active' | 'invited' | 'none'>('all');
-
+  // Liste filtrée
   const filtered = useMemo(() => {
-    let list = intervenants.filter(i => {
+    let list = intervenants.filter(i => i.type === filterType);
+    if (search.trim()) {
       const q = search.toLowerCase();
-      const matchSearch = !q || i.name.toLowerCase().includes(q) || i.email?.toLowerCase().includes(q) || i.phone?.includes(q) || i.type.toLowerCase().includes(q);
-      const matchType = !filterType || i.type === filterType;
-      // Filter par compte. Note: on n'a pas userId dans le store local,
-      // donc 'active' n'est pas distinct de 'none' sans donnees backend.
-      // Pour distinguer, on regarde les invitations PENDING.
-      const inv = invitations[i.id];
-      let matchAccount = true;
-      if (filterAccount === 'invited') matchAccount = !!inv;
-      else if (filterAccount === 'none') matchAccount = !inv;
-      // 'active' : pas implementable cote local — fallback all
-      return matchSearch && matchType && matchAccount;
-    });
-    return [...list].sort((a, b) => {
-      const cmp = sortKey === 'name' ? a.name.localeCompare(b.name) : a.dossiers.length - b.dossiers.length;
-      return sortDir === 'asc' ? cmp : -cmp;
-    });
-  }, [intervenants, search, filterType, sortKey, sortDir, filterAccount, invitations]);
+      list = list.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        i.email?.toLowerCase().includes(q) ||
+        i.phone?.includes(q)
+      );
+    }
+    return list;
+  }, [intervenants, filterType, search]);
 
-  // Phase B : checkbox "Envoyer une invitation tout de suite"
-  const [sendInviteOnCreate, setSendInviteOnCreate] = useState(false);
-  const [creatingError, setCreatingError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  // Indices intervenants pour drill-down
+  const selectedIntervenant = useMemo(
+    () => intervenants.find(i => i.id === selectedIntervenantId) ?? null,
+    [intervenants, selectedIntervenantId]
+  );
+  const selectedDossier = useMemo(
+    () => selectedIntervenant?.dossiers.find(d => (d.id ?? d.name) === selectedDossierId) ?? null,
+    [selectedIntervenant, selectedDossierId]
+  );
 
-  const handleAdd = async () => {
-    if (!form.name.trim()) return;
-    setCreatingError(null);
-    setCreating(true);
-    try {
-      // 1. Cree l'intervenant en backend (besoin d'un ID stable pour l'invitation)
-      const parts = form.name.trim().split(/\s+/);
-      const created = await api<any>('/intervenants', {
-        method: 'POST',
-        body: JSON.stringify({
-          type: form.type,
-          companyName: parts.length > 1 ? form.name.trim() : undefined,
-          firstName: parts.length === 1 ? parts[0] : undefined,
-          lastName: undefined,
-          email: form.email || undefined,
-          phone: form.phone || undefined,
-          notes: form.notes || undefined,
-        }),
-      });
-
-      // 2. Mise a jour optimiste du store local avec l'ID backend
-      addIntervenant(form);
-      // Sync best-effort : le useDataSync recharge la liste backend dans la foulee
-      // (sinon le badge "INVITE" ne saura pas que cet intervenant est lie a une invite).
-
-      // 3. Si checkbox cochee + email present : creer l'invitation
-      if (sendInviteOnCreate && form.email && created?.id) {
-        try {
-          const inv = await createInvitation({
-            intervenantId: created.id,
-            email: form.email.trim().toLowerCase(),
-            expiresInDays: 14,
-          });
-          if (inv) {
-            setInvitations(prev => ({ ...prev, [inv.intervenantId]: inv }));
-          }
-        } catch (e: any) {
-          console.warn('[create+invite] invitation failed', e);
-        }
+  // Compute alertes par intervenant (pour la liste niveau 0)
+  const alertsByIntervenantId = useMemo(() => {
+    const map: Record<string, IntervenantAlert[]> = {};
+    for (const inter of intervenants) {
+      const alerts: IntervenantAlert[] = [];
+      // 1. DOSSIER RAJOUTE — si l'intervenant a au moins un dossier flag rajoute
+      if (inter.dossiers.some(d => d.rajoute)) {
+        alerts.push({ key: 'DOSSIER_RAJOUTE', label: 'DOSSIER RAJOUTÉ', tone: 'red' });
       }
+      // 2. Filtre demandes par intervenantId
+      const myDemandes = proDemandes.filter(d => d.intervenant?.id === inter.id);
+      // ATTENTE RELEVE = demande MESURE en cours
+      if (myDemandes.some(d => d.type === 'MESURE' && ['ENVOYEE', 'VUE'].includes(d.status))) {
+        alerts.push({ key: 'ATTENTE_RELEVE', label: 'ATTENTE RELEVÉ', tone: 'orange' });
+      }
+      // SAV ENVOYE = demande SAV recente (< 30j)
+      const recentSAV = myDemandes.find(d =>
+        d.type === 'SAV'
+        && new Date(d.createdAt).getTime() > Date.now() - 30 * 86400_000
+      );
+      if (recentSAV) {
+        alerts.push({ key: 'SAV_ENVOYE', label: 'SAV ENVOYÉ', tone: 'amber' });
+      }
+      // EN ATTENTE REPONSE PLANNING = demande POSE/LIVRAISON scheduledFor sans reponse
+      if (myDemandes.some(d =>
+        ['POSE', 'LIVRAISON'].includes(d.type)
+        && d.scheduledFor
+        && ['ENVOYEE', 'VUE'].includes(d.status)
+      )) {
+        alerts.push({ key: 'ATTENTE_PLANNING', label: 'EN ATTENTE RÉPONSE PLANNING', tone: 'red' });
+      }
+      map[inter.id] = alerts;
+    }
+    return map;
+  }, [intervenants, proDemandes]);
 
-      // 4. Reset form
-      setForm({ type: 'POSEUR', name: '', phone: '', email: '', notes: '' });
-      setSendInviteOnCreate(false);
-      setShowForm(false);
-    } catch (e: any) {
-      setCreatingError(e?.message ?? "Erreur lors de la creation");
-    } finally {
-      setCreating(false);
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
+  const handlePickChip = (chipKey: string) => {
+    setSelectedChipKey(chipKey === selectedChipKey ? null : chipKey);
+    // Reset intervenant/dossier quand on change de chip
+    if (chipKey !== selectedChipKey) {
+      setSelectedIntervenantId(null);
+      setSelectedDossierId(null);
     }
   };
 
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(key); setSortDir('asc'); }
+  const handlePickIntervenantInChip = (id: string) => {
+    setSelectedIntervenantId(id);
+    setSelectedDossierId(null);
   };
 
-  return (
-    <div className="space-y-5">
+  const handleOpenIntervenant = (id: string) => {
+    setSelectedChipKey(null);
+    setSelectedIntervenantId(id);
+    setSelectedDossierId(null);
+  };
 
-      {/* ── Header ── */}
-      <PageHeader
-        icon={<Users className="h-7 w-7" />}
-        title="Intervenants"
-        subtitle={filtered.length !== intervenants.length
-          ? `${filtered.length} sur ${intervenants.length} · filtrés`
-          : `${intervenants.length} intervenant${intervenants.length > 1 ? 's' : ''}`}
-        actions={
-          <div className="flex items-center gap-2">
-            <SendToIntervenantButton variant="primary" label="Envoyer une demande" />
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className={cn(
-                'flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all shadow-sm',
-                showForm
-                  ? 'bg-white/15 text-white border border-white/20'
-                  : 'bg-[#a67749] text-white hover:bg-[#a67749]/85 shadow-md hover:shadow-lg hover:-translate-y-px'
-              )}
-            >
-              {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {showForm ? 'Fermer' : 'Ajouter'}
-            </button>
-          </div>
-        }
-      />
+  const handleBack = () => {
+    if (selectedDossierId) setSelectedDossierId(null);
+    else if (selectedIntervenantId) setSelectedIntervenantId(null);
+    else if (selectedChipKey) setSelectedChipKey(null);
+  };
 
-      {/* ── Demandes rapides — actions visibles en haut ── */}
-      <QuickDemandes onPick={(prefill) => setQuickPrefill(prefill)} />
+  const handleRelanceAll = async () => {
+    setRelanceLoading(true);
+    try {
+      const res = await api<{ sent: number }>('/demandes/internal/relance-all', { method: 'POST' });
+      alert(`Relance envoyee a ${res.sent ?? 0} intervenant(s).`);
+    } catch (err: any) {
+      alert(`Erreur relance : ${err?.message ?? 'inconnu'}`);
+    } finally {
+      setRelanceLoading(false);
+    }
+  };
 
-      {/* ── Formulaire ajout ── */}
-      {showForm && (
-        <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-lg overflow-hidden">
-          <div className="px-6 py-4 bg-gradient-to-r from-[#304035]/5 to-transparent border-b border-[#304035]/8 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="h-7 w-7 rounded-lg bg-[#304035] flex items-center justify-center">
-                <Plus className="h-3.5 w-3.5 text-white" />
-              </div>
-              <h2 className="font-bold text-[#304035]">Nouvel intervenant</h2>
-            </div>
-            <button onClick={() => setShowForm(false)} className="rounded-lg p-1.5 hover:bg-[#304035]/8 text-[#304035]/40 transition-colors">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="p-6 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="text-xs font-semibold text-[#304035]/50 mb-1.5 block">Type *</label>
-                <select
-                  value={form.type}
-                  onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-                  className="w-full rounded-xl border border-[#304035]/12 bg-[#304035]/3 px-4 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/25 appearance-none cursor-pointer"
-                >
-                  {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[#304035]/50 mb-1.5 block">Nom *</label>
-                <input
-                  value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Nom complet ou entreprise"
-                  className="w-full rounded-xl border border-[#304035]/12 bg-[#304035]/3 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/25 focus:outline-none focus:ring-2 focus:ring-[#304035]/25"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[#304035]/50 mb-1.5 block">Téléphone</label>
-                <input
-                  value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  placeholder="06 xx xx xx xx"
-                  className="w-full rounded-xl border border-[#304035]/12 bg-[#304035]/3 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/25 focus:outline-none focus:ring-2 focus:ring-[#304035]/25"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[#304035]/50 mb-1.5 block">Email</label>
-                <input
-                  value={form.email}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  placeholder="contact@exemple.fr"
-                  className="w-full rounded-xl border border-[#304035]/12 bg-[#304035]/3 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/25 focus:outline-none focus:ring-2 focus:ring-[#304035]/25"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-[#304035]/50 mb-1.5 block">Notes / Spécialité</label>
-                <input
-                  value={form.notes}
-                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="Ex : spécialiste parquet, zone Île-de-France…"
-                  className="w-full rounded-xl border border-[#304035]/12 bg-[#304035]/3 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/25 focus:outline-none focus:ring-2 focus:ring-[#304035]/25"
-                />
-              </div>
-            </div>
-            {/* Checkbox "Envoyer invitation tout de suite" */}
-            <label
-              className={cn(
-                'flex items-start gap-3 rounded-xl border p-4 transition-all cursor-pointer',
-                sendInviteOnCreate
-                  ? 'border-[#a67749] bg-[#fff8ef]'
-                  : 'border-[#304035]/12 bg-[#304035]/2 hover:border-[#a67749]/40',
-                !form.email.trim() && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={sendInviteOnCreate}
-                onChange={(e) => setSendInviteOnCreate(e.target.checked)}
-                disabled={!form.email.trim()}
-                className="mt-1 h-4 w-4 rounded border-[#a67749] text-[#a67749] cursor-pointer"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Send className="h-3.5 w-3.5 text-[#a67749]" />
-                  <span className="text-sm font-bold text-[#304035]">Envoyer un lien d'accès AVRA tout de suite</span>
-                </div>
-                <p className="text-xs text-[#304035]/55 leading-relaxed">
-                  {form.email.trim()
-                    ? `Un email avec un lien sécurisé sera envoyé à ${form.email}. À l'acceptation, son compte sera lié au vôtre et il recevra vos demandes (pose, livraison, SAV…).`
-                    : 'Renseignez un email pour activer cette option.'}
-                </p>
-              </div>
-            </label>
+  const handleDemandeSpeciale = () => {
+    setDrawerPrefill({
+      type: 'AUTRE',
+      title: '',
+      notes: 'Description detaillee de la demande :',
+    });
+  };
 
-            {creatingError && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {creatingError}
-              </div>
-            )}
+  // ── Vue d'accueil (NIVEAU 0) ───────────────────────────────────────────────
 
-            <div className="flex gap-3 pt-1">
-              <button
-                onClick={handleAdd}
-                disabled={!form.name.trim() || creating}
-                className="rounded-xl bg-[#304035] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#304035]/85 transition-all disabled:opacity-35 shadow-sm flex items-center gap-2"
-              >
-                {creating ? (
-                  <>
-                    <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Création…
-                  </>
-                ) : sendInviteOnCreate ? (
-                  <>
-                    <Send className="h-3.5 w-3.5" />
-                    Enregistrer + Inviter
-                  </>
-                ) : (
-                  'Enregistrer'
-                )}
-              </button>
-              <button
-                onClick={() => setShowForm(false)}
-                disabled={creating}
-                className="rounded-xl border border-[#304035]/12 px-6 py-2.5 text-sm font-semibold text-[#304035]/60 hover:bg-[#304035]/5 transition-all"
-              >
-                Annuler
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Recherche ── */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#304035]/35 pointer-events-none" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher par nom, email, téléphone, type…"
-          className="w-full rounded-2xl border border-[#304035]/12 bg-white pl-11 pr-10 py-3.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#304035]/20 shadow-sm"
+  if (!selectedChipKey && !selectedIntervenantId) {
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          icon={<HardHat className="h-7 w-7" />}
+          title="Intervenants"
+          subtitle={`${filtered.length} ${filterType.toLowerCase()}${filtered.length > 1 ? 's' : ''}`}
         />
-        {search && (
-          <button onClick={() => setSearch('')}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded-lg p-1 hover:bg-[#304035]/8 text-[#304035]/35 transition-colors">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
 
-      {/* ── Filtres par statut compte ── */}
-      <div className="flex gap-2 flex-wrap">
-        {([
-          { id: 'all', label: 'Tous comptes', count: intervenants.length },
-          { id: 'invited', label: 'Invités', count: Object.keys(invitations).length },
-          { id: 'none', label: 'Sans invitation', count: intervenants.filter(i => !invitations[i.id]).length },
-        ] as const).map(opt => {
-          const active = filterAccount === opt.id;
+        {/* Bandeau filtres style screenshot : "FILTRES :" + types soulignés */}
+        <FiltersBar
+          types={TYPES}
+          activeType={filterType}
+          onPick={setFilterType}
+        />
+
+        {/* Demandes rapides */}
+        <QuickDemandesSection
+          onPickChip={handlePickChip}
+          onDemandeSpeciale={handleDemandeSpeciale}
+        />
+
+        {/* Liste intervenants */}
+        <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-[#304035]/8 flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#304035]/40" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher par nom, email…"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-[#304035]/12 text-sm focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
+              />
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="p-10 text-center">
+              <HardHat className="h-10 w-10 text-[#304035]/20 mx-auto mb-3" />
+              <p className="text-sm font-bold text-[#304035] mb-1">Aucun {filterType.toLowerCase()}</p>
+              <p className="text-xs text-[#304035]/55">
+                Cliquez sur "RAJOUTER UN {filterType}" pour en créer un.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#304035]/5">
+              {filtered.map(i => (
+                <IntervenantRow
+                  key={i.id}
+                  intervenant={i}
+                  alerts={alertsByIntervenantId[i.id] ?? []}
+                  onClick={() => handleOpenIntervenant(i.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 4 boutons d'actions globales */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <ActionButton
+            color="emerald"
+            label={`RAJOUTER UN ${filterType}`}
+            icon={<Plus className="h-5 w-5" />}
+            onClick={() => setShowAddForm(true)}
+          />
+          <ActionButton
+            color="emerald"
+            label="DEMANDE SPÉCIALE"
+            icon={<Send className="h-5 w-5" />}
+            onClick={handleDemandeSpeciale}
+          />
+          <ActionButton
+            color="emerald"
+            label="DONNER ACCÈS"
+            icon={<Mail className="h-5 w-5" />}
+            onClick={() => setShowDonnerAcces(true)}
+          />
+          <ActionButton
+            color="emerald"
+            label={relanceLoading ? 'RELANCE…' : 'RELANCE'}
+            icon={<RefreshCw className={`h-5 w-5 ${relanceLoading ? 'animate-spin' : ''}`} />}
+            onClick={handleRelanceAll}
+            disabled={relanceLoading}
+          />
+        </div>
+
+        {/* ── Modals & drawers ── */}
+        {showAddForm && (
+          <AddIntervenantModal
+            defaultType={filterType}
+            onClose={() => setShowAddForm(false)}
+            onCreate={(data) => {
+              addIntervenant(data);
+              setShowAddForm(false);
+            }}
+          />
+        )}
+
+        {showDonnerAcces && (
+          <DonnerAccesModal
+            open={showDonnerAcces}
+            onClose={() => setShowDonnerAcces(false)}
+            intervenants={intervenants.map(i => ({
+              id: i.id, type: i.type, name: i.name, email: i.email,
+            }))}
+            existingInvitations={invitations}
+            onSent={() => {
+              // Refresh invitations
+              listInvitations()
+                .then(rawList => {
+                  const arr = Array.isArray(rawList) ? rawList : (Array.isArray((rawList as any)?.data) ? (rawList as any).data : []);
+                  const sorted = [...(arr as IntervenantInvitation[])].sort(
+                    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                  );
+                  const m: Record<string, IntervenantInvitation> = {};
+                  for (const inv of sorted) if (!m[inv.intervenantId]) m[inv.intervenantId] = inv;
+                  setInvitations(m);
+                })
+                .catch(() => {/* noop */});
+            }}
+          />
+        )}
+
+        <SendToIntervenantDrawer
+          open={!!drawerPrefill}
+          onClose={() => setDrawerPrefill(null)}
+          prefill={drawerPrefill ?? undefined}
+        />
+      </div>
+    );
+  }
+
+  // ── Drill-down chip (NIVEAU 1a) ────────────────────────────────────────────
+
+  if (selectedChipKey) {
+    const chip = QUICK_DEMANDES.find(q => q.key === selectedChipKey)!;
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          icon={<HardHat className="h-7 w-7" />}
+          title="Intervenants"
+        />
+
+        <button
+          onClick={handleBack}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#304035]/60 hover:text-[#304035]"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Retour
+        </button>
+
+        {/* Demande spéciale + chips (le chip selectionne est highlight) */}
+        <QuickDemandesSection
+          activeChip={selectedChipKey}
+          onPickChip={handlePickChip}
+          onDemandeSpeciale={handleDemandeSpeciale}
+        />
+
+        {/* Drill-down content */}
+        <ChipDrilldown
+          chip={chip}
+          intervenants={intervenants}
+          selectedIntervenant={selectedIntervenant}
+          onPickIntervenant={handlePickIntervenantInChip}
+          proDemandes={proDemandes}
+          onAddDossier={(intId, name) => addDossier(intId, { name, date: new Date().toLocaleDateString('fr-FR') })}
+          onSendDemande={(prefill) => setDrawerPrefill(prefill)}
+        />
+
+        <SendToIntervenantDrawer
+          open={!!drawerPrefill}
+          onClose={() => setDrawerPrefill(null)}
+          prefill={drawerPrefill ?? undefined}
+        />
+      </div>
+    );
+  }
+
+  // ── Drill-down intervenant + dossier (NIVEAUX 1b et 2) ─────────────────────
+
+  if (selectedIntervenant) {
+    const alerts = alertsByIntervenantId[selectedIntervenant.id] ?? [];
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          icon={<HardHat className="h-7 w-7" />}
+          title="Intervenants"
+        />
+
+        <button
+          onClick={handleBack}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#304035]/60 hover:text-[#304035]"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Retour
+        </button>
+
+        <FiltersBar
+          types={TYPES}
+          activeType={filterType}
+          onPick={(t) => { setFilterType(t); setSelectedIntervenantId(null); }}
+        />
+
+        {/* Header intervenant avec alerte principale */}
+        <IntervenantDetailHeader
+          intervenant={selectedIntervenant}
+          alerts={alerts}
+          onSendDemande={() => setDrawerPrefill({ intervenantId: selectedIntervenant.id })}
+          onInvite={() => setInvitingFor({
+            id: selectedIntervenant.id, name: selectedIntervenant.name, email: selectedIntervenant.email,
+          })}
+          onDelete={() => setConfirmDeleteIntervenant(selectedIntervenant.id)}
+        />
+
+        {selectedDossier ? (
+          // ─ NIVEAU 2 : items du dossier ─
+          <DossierItemsView
+            dossier={selectedDossier}
+            onAddItem={(name) => addDossierItem(selectedIntervenant.id, selectedDossier.id ?? selectedDossier.name, { name })}
+            onRemoveItem={(itemId) => removeDossierItem(selectedIntervenant.id, selectedDossier.id ?? selectedDossier.name, itemId)}
+            onUpdateItemStatut={(itemId, statut) =>
+              updateDossierItemStatut(selectedIntervenant.id, selectedDossier.id ?? selectedDossier.name, itemId, statut)
+            }
+            onBack={() => setSelectedDossierId(null)}
+            onMarkClassed={() => updateIntervenantDossierStatut(selectedIntervenant.id, selectedDossier.name, 'CLASSE')}
+          />
+        ) : (
+          // ─ NIVEAU 1b : liste dossiers de l'intervenant ─
+          <DossiersListView
+            intervenantId={selectedIntervenant.id}
+            dossiers={selectedIntervenant.dossiers}
+            onPick={(d) => {
+              const did = d.id ?? d.name;
+              setSelectedDossierId(did);
+              if (d.rajoute) markDossierVu(selectedIntervenant.id, did);
+            }}
+            onAddDossier={(name) => addDossier(selectedIntervenant.id, { name, date: new Date().toLocaleDateString('fr-FR') })}
+            onRemoveDossier={(d) => removeDossier(selectedIntervenant.id, d.id ?? d.name)}
+            onToggleStatut={(d) =>
+              updateIntervenantDossierStatut(selectedIntervenant.id, d.name, d.statut === 'CLASSE' ? 'A CLASSER' : 'CLASSE')
+            }
+          />
+        )}
+
+        {/* ── Modals associés au détail ── */}
+        {invitingFor && (
+          <InviteIntervenantModal
+            open={!!invitingFor}
+            onClose={() => setInvitingFor(null)}
+            intervenantId={invitingFor.id}
+            intervenantName={invitingFor.name}
+            defaultEmail={invitingFor.email}
+            existingInvitation={invitations[invitingFor.id] ?? null}
+            onChange={(inv) => {
+              setInvitations(prev => {
+                const next = { ...prev };
+                if (inv && inv.status === 'PENDING') next[invitingFor.id] = inv;
+                else delete next[invitingFor.id];
+                return next;
+              });
+            }}
+          />
+        )}
+
+        {confirmDeleteIntervenant && (
+          <ConfirmDeleteModal
+            name={selectedIntervenant.name}
+            onCancel={() => setConfirmDeleteIntervenant(null)}
+            onConfirm={() => {
+              removeIntervenant(selectedIntervenant.id);
+              setConfirmDeleteIntervenant(null);
+              setSelectedIntervenantId(null);
+            }}
+          />
+        )}
+
+        <SendToIntervenantDrawer
+          open={!!drawerPrefill}
+          onClose={() => setDrawerPrefill(null)}
+          prefill={drawerPrefill ?? undefined}
+        />
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Sous-composants
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface IntervenantAlert {
+  key: string;
+  label: string;
+  tone: 'red' | 'orange' | 'amber';
+}
+
+// ─── FiltersBar (style FILTRES : POSEUR ELECTRICIEN ...) ────────────────────
+
+function FiltersBar({ types, activeType, onPick }: { types: string[]; activeType: string; onPick: (t: string) => void }) {
+  return (
+    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm px-5 py-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-bold text-[#304035] underline mr-2">FILTRES :</span>
+        {types.map(t => {
+          const active = t === activeType;
           return (
             <button
-              key={opt.id}
-              onClick={() => setFilterAccount(opt.id)}
+              key={t}
+              onClick={() => onPick(t)}
               className={cn(
-                'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all border',
+                'text-xs font-bold uppercase tracking-wider px-1.5 py-1 transition-colors underline-offset-4',
                 active
-                  ? 'bg-[#a67749] text-white border-[#a67749] shadow-sm'
-                  : 'bg-white text-[#304035]/55 border-[#304035]/12 hover:border-[#304035]/25 hover:text-[#304035]'
+                  ? 'text-[#304035] font-extrabold underline decoration-2'
+                  : 'text-[#304035]/55 hover:text-[#304035] underline'
               )}
             >
-              {opt.label} ({opt.count})
+              {t}
             </button>
           );
         })}
       </div>
-
-      {/* ── Chips filtres type ── */}
-      {typesPresents.length > 1 && (
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setFilterType(null)}
-            className={cn(
-              'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all border',
-              !filterType
-                ? 'bg-[#304035] text-white border-[#304035] shadow-sm'
-                : 'bg-white text-[#304035]/55 border-[#304035]/12 hover:border-[#304035]/25 hover:text-[#304035]'
-            )}
-          >
-            Tous ({intervenants.length})
-          </button>
-          {typesPresents.map(t => {
-            const count = intervenants.filter(i => i.type === t).length;
-            const c = cfg(t);
-            const active = filterType === t;
-            return (
-              <button
-                key={t}
-                onClick={() => setFilterType(active ? null : t)}
-                className={cn(
-                  'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all border',
-                  active
-                    ? cn(c.bg, c.color, 'border-transparent shadow-sm')
-                    : 'bg-white text-[#304035]/55 border-[#304035]/12 hover:border-[#304035]/25 hover:text-[#304035]'
-                )}
-              >
-                {t} ({count})
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Liste ── */}
-      <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm overflow-hidden">
-        {/* En-tête tri */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#304035]/6 bg-[#304035]/[0.02]">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => toggleSort('name')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all',
-                sortKey === 'name'
-                  ? 'bg-[#304035]/8 text-[#304035]'
-                  : 'text-[#304035]/40 hover:text-[#304035]/70 hover:bg-[#304035]/5'
-              )}
-            >
-              <ArrowUpDown className="h-3 w-3" />
-              Nom {sortKey === 'name' && (sortDir === 'asc' ? '↑' : '↓')}
-            </button>
-            <button
-              onClick={() => toggleSort('dossiers')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all',
-                sortKey === 'dossiers'
-                  ? 'bg-[#304035]/8 text-[#304035]'
-                  : 'text-[#304035]/40 hover:text-[#304035]/70 hover:bg-[#304035]/5'
-              )}
-            >
-              <Wrench className="h-3 w-3" />
-              Dossiers {sortKey === 'dossiers' && (sortDir === 'asc' ? '↑' : '↓')}
-            </button>
-          </div>
-          <span className="text-[11px] text-[#304035]/35 font-medium">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</span>
-        </div>
-
-        {filtered.length === 0 ? (
-          <div className="py-16 text-center">
-            <div className="h-14 w-14 rounded-2xl bg-[#304035]/5 flex items-center justify-center mx-auto mb-4">
-              <HardHat className="h-7 w-7 text-[#304035]/20" />
-            </div>
-            <p className="text-[#304035]/40 text-sm font-medium">
-              {search || filterType ? 'Aucun résultat' : 'Aucun intervenant'}
-            </p>
-            {(search || filterType) && (
-              <button onClick={() => { setSearch(''); setFilterType(null); }}
-                className="mt-3 text-xs text-[#a67749] font-bold hover:underline">
-                Effacer les filtres
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-[#304035]/5">
-            {filtered.map(i => {
-              const c = cfg(i.type);
-              const inv = invitations[i.id];
-              // Statut de liaison :
-              // - invited (PENDING) → bouton "Lien" pour voir/copier
-              // - expired/revoked → bouton "Renouveler" pour recreer
-              // - no-account → bouton "Inviter" pour envoyer un nouveau lien
-              const status: 'invited' | 'expired' | 'no-account' =
-                inv?.status === 'PENDING' ? 'invited'
-                : (inv && (inv.status === 'EXPIRED' || inv.status === 'REVOKED')) ? 'expired'
-                : 'no-account';
-              return (
-                <div
-                  key={i.id}
-                  onClick={() => setSelected(i.id)}
-                  className="flex items-center gap-4 px-5 py-4 hover:bg-[#f5eee8]/40 transition-colors group cursor-pointer"
-                >
-                  {/* Avatar */}
-                  <div className={cn(
-                    'h-11 w-11 rounded-2xl flex items-center justify-center text-base font-bold shrink-0 ring-2 transition-transform group-hover:scale-105',
-                    c.avatar, c.ring
-                  )}>
-                    {i.name.charAt(0).toUpperCase()}
-                  </div>
-
-                  {/* Infos */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-[#304035] group-hover:text-[#a67749] transition-colors text-[15px]">{i.name}</p>
-                      <TypeBadge type={i.type} size="xs" />
-                      {/* Badge statut compte */}
-                      {status === 'invited' ? (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                          <Clock className="h-2.5 w-2.5" /> INVITÉ
-                        </span>
-                      ) : status === 'expired' ? (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                          {inv?.status === 'EXPIRED' ? 'EXPIRÉ' : 'RÉVOQUÉ'}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                          PAS DE COMPTE
-                        </span>
-                      )}
-                      {i.notes && (
-                        <span className="text-[10px] text-[#304035]/35 italic truncate max-w-[130px] hidden sm:block">{i.notes}</span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-4 mt-1">
-                      {i.phone && (
-                        <span className="flex items-center gap-1 text-xs text-[#304035]/45">
-                          <Phone className="h-3 w-3" /> {i.phone}
-                        </span>
-                      )}
-                      {i.email && (
-                        <span className="flex items-center gap-1 text-xs text-[#304035]/45">
-                          <Mail className="h-3 w-3" /> {i.email}
-                        </span>
-                      )}
-                      {i.dossiers.length > 0 && (
-                        <span className="flex items-center gap-1 text-xs text-[#304035]/45">
-                          <Wrench className="h-3 w-3" />
-                          {i.dossiers.length} dossier{i.dossiers.length > 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Actions rapides — toujours visibles pour l'invitation/demande */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {/* Bouton INVITER / RENOUVELER / VOIR LIEN */}
-                    <button
-                      onClick={e => {
-                        e.stopPropagation();
-                        setInvitingFor({ id: i.id, name: i.name, email: i.email || undefined });
-                      }}
-                      className={cn(
-                        'flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold transition-all shadow-sm',
-                        status === 'invited'
-                          ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
-                          : status === 'expired'
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
-                          : 'bg-[#a67749] text-white hover:bg-[#a67749]/85 hover:shadow-md'
-                      )}
-                      title={
-                        status === 'invited' ? 'Voir / gérer l\'invitation'
-                        : status === 'expired' ? 'Renouveler l\'invitation'
-                        : 'Envoyer un lien d\'accès'
-                      }
-                    >
-                      {status === 'invited' ? <Link2 className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
-                      <span className="hidden sm:inline">
-                        {status === 'invited' ? 'Lien' : status === 'expired' ? 'Renouveler' : 'Inviter'}
-                      </span>
-                    </button>
-
-                    {/* Actions rapides hover */}
-                    <div className="hidden md:flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {i.phone && (
-                        <a href={`tel:${i.phone.replace(/\s/g, '')}`} onClick={e => e.stopPropagation()}
-                          className="h-8 w-8 rounded-xl bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center text-white transition-colors shadow-sm"
-                          title="Appeler">
-                          <Phone className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                      {i.email && (
-                        <a href={`mailto:${i.email}`} onClick={e => e.stopPropagation()}
-                          className="h-8 w-8 rounded-xl bg-blue-500 hover:bg-blue-600 flex items-center justify-center text-white transition-colors shadow-sm"
-                          title="Envoyer un email">
-                          <Mail className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                      <button onClick={e => { e.stopPropagation(); setSelected(i.id); }}
-                        className="h-8 w-8 rounded-xl bg-[#304035]/8 hover:bg-[#304035]/15 flex items-center justify-center text-[#304035]/60 transition-colors"
-                        title="Voir la fiche">
-                        <Edit3 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ── Slide-over fiche ── */}
-      {selectedIntervenant && (
-        <FicheIntervenant
-          intervenant={selectedIntervenant}
-          onClose={() => setSelected(null)}
-          onDelete={() => { removeIntervenant(selectedIntervenant.id); setSelected(null); }}
-        />
-      )}
-
-      {/* ── Modal invitation ── */}
-      {invitingFor && (
-        <InviteIntervenantModal
-          open={!!invitingFor}
-          onClose={() => setInvitingFor(null)}
-          intervenantId={invitingFor.id}
-          intervenantName={invitingFor.name}
-          defaultEmail={invitingFor.email}
-          existingInvitation={invitations[invitingFor.id] ?? null}
-          onChange={(inv) => {
-            setInvitations(prev => {
-              const next = { ...prev };
-              if (inv && inv.status === 'PENDING') next[invitingFor.id] = inv;
-              else delete next[invitingFor.id];
-              return next;
-            });
-          }}
-        />
-      )}
-
-      {/* ── Drawer demandes rapides ── */}
-      <SendToIntervenantDrawer
-        open={!!quickPrefill}
-        onClose={() => setQuickPrefill(null)}
-        prefill={quickPrefill ?? undefined}
-      />
     </div>
   );
 }
 
-// ─── QuickDemandes : panneau actions rapides en haut de /intervenants ───────
+// ─── QuickDemandesSection (DEMANDE SPECIALE + 8 chips) ──────────────────────
 
-const QUICK_ACTIONS: Array<{
-  key: string;
-  label: string;
-  icon: string;
-  prefill: SendToIntervenantPrefill;
-}> = [
-  // PLANNING : pas un type Demande mais on cree une POSE en mettant l'accent
-  // sur la planification (l'utilisateur remplira scheduledFor dans le drawer)
-  { key: 'PLANNING',          label: 'Planning',              icon: '📅',
-    prefill: { type: 'POSE', title: 'Intervention planning — ' } },
-  { key: 'DEVIS',             label: 'Devis',                 icon: '📄',
-    prefill: { type: 'DEVIS', title: 'Demande de devis — ' } },
-  { key: 'LIVRAISON',         label: 'Livraison',             icon: '📦',
-    prefill: { type: 'LIVRAISON', title: 'Livraison — ' } },
-  { key: 'SAV',               label: 'SAV',                   icon: '🛠',
-    prefill: { type: 'SAV', title: 'SAV — ' } },
-  { key: 'PRISE_DE_MESURES',  label: 'Prise de mesures',      icon: '📏',
-    prefill: { type: 'MESURE', title: 'Prise de mesures — ' } },
-  { key: 'COMPTE_RENDU',      label: 'Compte rendu chantier', icon: '📝',
-    prefill: {
-      type: 'AUTRE',
-      title: 'Compte rendu chantier — ',
-      notes: 'Date de visite :\nPersonnes presentes :\nObservations :\nPoints d\'attention :\nProchaines etapes :',
-    } },
-  { key: 'COMPLEMENTS',       label: 'Compléments',           icon: '➕',
-    prefill: { type: 'COMPLEMENT', title: 'Complément — ' } },
-  { key: 'CONFIRMATIONS',     label: 'Confirmations commandes', icon: '✅',
-    prefill: { type: 'CONFIRMATION_COMMANDE', title: 'Confirmation commande — ' } },
-];
-
-function QuickDemandes({ onPick }: { onPick: (prefill: SendToIntervenantPrefill) => void }) {
+function QuickDemandesSection({
+  activeChip, onPickChip, onDemandeSpeciale,
+}: {
+  activeChip?: string | null;
+  onPickChip: (key: string) => void;
+  onDemandeSpeciale: () => void;
+}) {
   return (
     <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm overflow-hidden">
-      <div className="px-5 py-3 border-b border-[#304035]/8 bg-gradient-to-r from-[#304035]/5 to-transparent">
-        <h3 className="text-xs font-bold text-[#304035] uppercase tracking-widest">
-          Demandes rapides
-        </h3>
-        <p className="text-[11px] text-[#304035]/55 mt-0.5">
-          Envoyer une demande prête à l'emploi à un intervenant
-        </p>
-      </div>
-
       <div className="p-5 space-y-3">
-        {/* DEMANDE SPECIALE — bouton vert principal */}
         <button
-          type="button"
-          onClick={() => onPick({
-            type: 'AUTRE',
-            title: '',
-            notes: 'Description detaillee de la demande :',
-          })}
-          className="group w-full rounded-2xl px-6 py-4 text-base font-bold text-white transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99]"
+          onClick={onDemandeSpeciale}
+          className="group w-full rounded-2xl px-6 py-4 text-base font-bold text-white transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
           style={{
             background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
             boxShadow: '0 4px 16px rgba(16,185,129,0.35)',
@@ -1111,31 +622,689 @@ function QuickDemandes({ onPick }: { onPick: (prefill: SendToIntervenantPrefill)
           <span className="flex items-center justify-center gap-2.5">
             <span className="text-xl">✨</span>
             <span className="tracking-wide">DEMANDE SPÉCIALE</span>
-            <span className="text-xs font-medium opacity-80">— libre / personnalisée</span>
           </span>
         </button>
 
-        {/* 8 chips orange */}
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {QUICK_ACTIONS.map((a) => (
-            <button
-              key={a.key}
-              type="button"
-              onClick={() => onPick(a.prefill)}
-              className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left transition-all hover:shadow-md hover:-translate-y-0.5 group"
-              style={{
-                background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 100%)',
-                border: '1px solid #f59e0b40',
-                color: '#78350f',
-              }}
-            >
-              <ChevronRight className="h-4 w-4 shrink-0 text-[#78350f]/70 group-hover:translate-x-0.5 transition-transform" />
-              <span className="text-base">{a.icon}</span>
-              <span className="text-xs font-bold uppercase tracking-wide flex-1 truncate">
-                {a.label}
+          {QUICK_DEMANDES.map(a => {
+            const active = activeChip === a.key;
+            return (
+              <button
+                key={a.key}
+                onClick={() => onPickChip(a.key)}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left transition-all hover:shadow-md hover:-translate-y-0.5 group border-2',
+                  active ? 'border-[#15803d]' : 'border-transparent'
+                )}
+                style={{
+                  background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 100%)',
+                  color: '#78350f',
+                }}
+              >
+                <ChevronRight className="h-4 w-4 shrink-0 text-[#78350f]/70 group-hover:translate-x-0.5 transition-transform" />
+                <span className="text-base">{a.icon}</span>
+                <span className="text-xs font-bold uppercase tracking-wide flex-1 truncate">
+                  {a.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── IntervenantRow avec alertes ────────────────────────────────────────────
+
+function IntervenantRow({
+  intervenant, alerts, onClick,
+}: { intervenant: Intervenant; alerts: IntervenantAlert[]; onClick: () => void }) {
+  const c = typeColor(intervenant.type);
+  return (
+    <div
+      onClick={onClick}
+      className="flex items-center gap-4 px-5 py-4 hover:bg-[#f5eee8]/40 transition-colors group cursor-pointer"
+    >
+      <div className={cn('h-11 w-11 rounded-2xl flex items-center justify-center text-base font-bold shrink-0 ring-2', c.avatar, c.ring)}>
+        {(intervenant.name[0] ?? '?').toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-[#304035] group-hover:text-[#a67749] transition-colors text-[15px] underline underline-offset-2">
+          {intervenant.name}
+        </p>
+        <div className="flex flex-wrap gap-3 mt-0.5">
+          {intervenant.phone && <span className="flex items-center gap-1 text-xs text-[#304035]/45"><Phone className="h-3 w-3" /> {intervenant.phone}</span>}
+          {intervenant.email && <span className="flex items-center gap-1 text-xs text-[#304035]/45"><Mail className="h-3 w-3" /> {intervenant.email}</span>}
+        </div>
+      </div>
+      {/* Alertes */}
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        {alerts.map(a => (
+          <AlertBadge key={a.key} label={a.label} tone={a.tone} />
+        ))}
+      </div>
+      <ChevronRight className="h-4 w-4 text-[#304035]/30 shrink-0" />
+    </div>
+  );
+}
+
+function AlertBadge({ label, tone }: { label: string; tone: 'red' | 'orange' | 'amber' }) {
+  const config = {
+    red:    { bg: 'bg-red-50',    text: 'text-red-700',    icon: <AlertCircle className="h-3 w-3" /> },
+    orange: { bg: 'bg-orange-50', text: 'text-orange-700', icon: <Hourglass className="h-3 w-3" /> },
+    amber:  { bg: 'bg-amber-50',  text: 'text-amber-700',  icon: <AlertTriangle className="h-3 w-3" /> },
+  }[tone];
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold', config.bg, config.text)}>
+      {config.icon} {label}
+    </span>
+  );
+}
+
+// ─── ActionButton (4 grands boutons en bas) ─────────────────────────────────
+
+function ActionButton({
+  color, label, icon, onClick, disabled,
+}: {
+  color: 'emerald';
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded-2xl px-6 py-4 text-base font-bold text-white transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+      style={{
+        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+        boxShadow: '0 4px 16px rgba(16,185,129,0.35)',
+      }}
+    >
+      <span className="flex items-center justify-center gap-2.5">
+        {icon}
+        <span className="tracking-wide">{label}</span>
+      </span>
+    </button>
+  );
+}
+
+// ─── ChipDrilldown ──────────────────────────────────────────────────────────
+
+function ChipDrilldown({
+  chip, intervenants, selectedIntervenant, onPickIntervenant,
+  proDemandes, onAddDossier, onSendDemande,
+}: {
+  chip: QuickDemandeDef;
+  intervenants: Intervenant[];
+  selectedIntervenant: Intervenant | null;
+  onPickIntervenant: (id: string) => void;
+  proDemandes: Demande[];
+  onAddDossier: (intervenantId: string, name: string) => void;
+  onSendDemande: (prefill: SendToIntervenantPrefill) => void;
+}) {
+  return (
+    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm overflow-hidden">
+      <div className="px-5 py-3 border-b border-[#304035]/8 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-bold text-[#304035] flex items-center gap-2">
+            <span>{chip.icon}</span> {chip.label}
+          </h2>
+        </div>
+        {selectedIntervenant && (
+          <AddDossierInline
+            onAdd={(name) => onAddDossier(selectedIntervenant.id, name)}
+          />
+        )}
+      </div>
+
+      <div className="p-5">
+        {!selectedIntervenant ? (
+          // Choix de l'intervenant
+          <div>
+            <p className="text-xs text-[#304035]/55 mb-3">Choisir un intervenant pour cette demande :</p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {intervenants.length === 0 ? (
+                <p className="col-span-full text-sm text-[#304035]/55 italic">Aucun intervenant. Ajoutez-en depuis la vue principale.</p>
+              ) : (
+                intervenants.map(i => (
+                  <button
+                    key={i.id}
+                    onClick={() => onPickIntervenant(i.id)}
+                    className="text-left p-3 rounded-xl border border-[#304035]/10 hover:border-[#a67749] hover:shadow-sm transition-all"
+                  >
+                    <p className="text-sm font-bold text-[#304035] truncate">{i.name}</p>
+                    <p className="text-xs text-[#304035]/55">{i.type}</p>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Header intervenant */}
+            <div className="flex items-center gap-3 pb-3 border-b border-[#304035]/8">
+              <HardHat className="h-5 w-5 text-[#304035]/55" />
+              <p className="text-base font-bold text-[#304035] underline underline-offset-2">{selectedIntervenant.name}</p>
+            </div>
+
+            {/* UI specifique au type */}
+            {chip.uiMode === 'list-projects' && (
+              <DevisDrilldown
+                intervenant={selectedIntervenant}
+                onSend={() => onSendDemande({
+                  type: chip.type, title: chip.titlePrefix, intervenantId: selectedIntervenant.id,
+                })}
+              />
+            )}
+            {chip.uiMode === 'calendar' && (
+              <CalendarDrilldown
+                intervenant={selectedIntervenant}
+                proDemandes={proDemandes}
+                filterType={chip.type}
+                onSlotClick={(date, hour) => {
+                  const iso = new Date(date);
+                  iso.setHours(hour, 0, 0, 0);
+                  onSendDemande({
+                    type: chip.type,
+                    title: chip.titlePrefix,
+                    scheduledFor: iso.toISOString().slice(0, 16),
+                    intervenantId: selectedIntervenant.id,
+                  });
+                }}
+              />
+            )}
+            {chip.uiMode === 'list-tickets' && (
+              <TicketsDrilldown
+                intervenant={selectedIntervenant}
+                proDemandes={proDemandes}
+                filterType={chip.type}
+                onSend={() => onSendDemande({
+                  type: chip.type,
+                  title: chip.titlePrefix,
+                  notes: chip.notesTemplate,
+                  intervenantId: selectedIntervenant.id,
+                })}
+              />
+            )}
+            {chip.uiMode === 'form' && (
+              <button
+                onClick={() => onSendDemande({
+                  type: chip.type,
+                  title: chip.titlePrefix,
+                  notes: chip.notesTemplate,
+                  intervenantId: selectedIntervenant.id,
+                })}
+                className="w-full py-3 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white font-bold text-sm transition-colors"
+              >
+                <Send className="inline h-4 w-4 mr-2" />
+                Composer la demande {chip.label}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Variantes de drill-down par type ────────────────────────────────────────
+
+function DevisDrilldown({ intervenant, onSend }: { intervenant: Intervenant; onSend: () => void }) {
+  return (
+    <div className="space-y-3">
+      <button
+        onClick={onSend}
+        className="text-blue-600 hover:underline text-sm font-bold flex items-center gap-2"
+      >
+        <ChevronRight className="h-4 w-4" />
+        Envoyer la demande de devis
+      </button>
+
+      <div className="pl-2 space-y-2">
+        <div className="flex items-center gap-2 text-sm font-bold text-[#304035]">
+          <Folder className="h-4 w-4" />
+          <span className="underline">PROJETS DESCRIPTIFS</span>
+        </div>
+        {intervenant.dossiers.length === 0 ? (
+          <p className="text-xs text-[#304035]/55 italic pl-6">Aucun projet — ajoutez-en avec "+ DOSSIER".</p>
+        ) : (
+          <ul className="pl-6 space-y-1">
+            {intervenant.dossiers.map((d, i) => (
+              <li key={i} className="text-sm text-[#304035]">{d.name}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CalendarDrilldown({
+  intervenant, proDemandes, filterType, onSlotClick,
+}: {
+  intervenant: Intervenant;
+  proDemandes: Demande[];
+  filterType: DemandeType;
+  onSlotClick: (date: Date, hour: number) => void;
+}) {
+  const myDemandes = proDemandes.filter(d => d.intervenant?.id === intervenant.id);
+  return (
+    <MiniCalendarWeek
+      demandes={myDemandes}
+      filterType={filterType}
+      onCellClick={onSlotClick}
+    />
+  );
+}
+
+function TicketsDrilldown({
+  intervenant, proDemandes, filterType, onSend,
+}: {
+  intervenant: Intervenant;
+  proDemandes: Demande[];
+  filterType: DemandeType;
+  onSend: () => void;
+}) {
+  const myDemandes = proDemandes
+    .filter(d => d.intervenant?.id === intervenant.id && d.type === filterType)
+    .slice(0, 10);
+  return (
+    <div className="space-y-3">
+      <button
+        onClick={onSend}
+        className="text-blue-600 hover:underline text-sm font-bold flex items-center gap-2"
+      >
+        <ChevronRight className="h-4 w-4" />
+        Nouvelle demande {filterType}
+      </button>
+
+      {myDemandes.length === 0 ? (
+        <p className="text-xs text-[#304035]/55 italic">Aucun ticket {filterType} pour cet intervenant.</p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs font-bold text-[#304035]/55 uppercase tracking-wider">Tickets récents</p>
+          {myDemandes.map(d => (
+            <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border border-[#304035]/10">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[#304035] truncate">{d.title}</p>
+                <p className="text-xs text-[#304035]/55">{new Date(d.createdAt).toLocaleDateString('fr-FR')}</p>
+              </div>
+              <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 bg-[#304035]/8 text-[#304035]">
+                {d.status}
               </span>
-            </button>
+            </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Détail intervenant ─────────────────────────────────────────────────────
+
+function IntervenantDetailHeader({
+  intervenant, alerts, onSendDemande, onInvite, onDelete,
+}: {
+  intervenant: Intervenant;
+  alerts: IntervenantAlert[];
+  onSendDemande: () => void;
+  onInvite: () => void;
+  onDelete: () => void;
+}) {
+  const c = typeColor(intervenant.type);
+  return (
+    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm p-5">
+      <div className="flex items-start gap-4 flex-wrap">
+        <div className={cn('h-14 w-14 rounded-2xl flex items-center justify-center text-xl font-bold ring-2', c.avatar, c.ring)}>
+          {(intervenant.name[0] ?? '?').toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-xl font-bold text-[#304035] underline underline-offset-2">{intervenant.name}</h2>
+            <span className="text-xs font-bold uppercase tracking-wider text-[#304035]/55">{intervenant.type}</span>
+          </div>
+          <div className="flex flex-wrap gap-3 mt-1">
+            {intervenant.phone && <span className="text-xs text-[#304035]/55"><Phone className="inline h-3 w-3 mr-1" />{intervenant.phone}</span>}
+            {intervenant.email && <span className="text-xs text-[#304035]/55"><Mail className="inline h-3 w-3 mr-1" />{intervenant.email}</span>}
+          </div>
+          {alerts.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {alerts.map(a => <AlertBadge key={a.key} label={a.label} tone={a.tone} />)}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={onSendDemande} className="text-xs font-bold rounded-lg px-3 py-2 bg-[#1a2a1e] text-[#cbb98a] hover:bg-[#3D5449] transition-colors">
+            <Send className="inline h-3.5 w-3.5 mr-1" /> Envoyer demande
+          </button>
+          <button onClick={onInvite} className="text-xs font-bold rounded-lg px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200">
+            <Mail className="inline h-3.5 w-3.5 mr-1" /> Donner accès
+          </button>
+          <button onClick={onDelete} className="text-xs font-bold rounded-lg px-3 py-2 text-red-600 hover:bg-red-50 border border-red-200">
+            <Trash2 className="inline h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DossiersListView({
+  intervenantId, dossiers, onPick, onAddDossier, onRemoveDossier, onToggleStatut,
+}: {
+  intervenantId: string;
+  dossiers: IntervenantDossier[];
+  onPick: (d: IntervenantDossier) => void;
+  onAddDossier: (name: string) => void;
+  onRemoveDossier: (d: IntervenantDossier) => void;
+  onToggleStatut: (d: IntervenantDossier) => void;
+}) {
+  return (
+    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm overflow-hidden">
+      <div className="px-5 py-3 border-b border-[#304035]/8 flex items-center justify-between">
+        <h3 className="text-sm font-bold text-[#304035]">Dossiers de cet intervenant</h3>
+        <AddDossierInline onAdd={onAddDossier} />
+      </div>
+      <div className="divide-y divide-[#304035]/5">
+        {dossiers.length === 0 ? (
+          <div className="p-8 text-center">
+            <FolderOpen className="h-8 w-8 text-[#304035]/20 mx-auto mb-2" />
+            <p className="text-xs text-[#304035]/55">Aucun dossier — ajoutez-en avec "+ Dossier".</p>
+          </div>
+        ) : (
+          dossiers.map((d, i) => {
+            const isClasse = d.statut === 'CLASSE';
+            return (
+              <div key={d.id ?? d.name} className="flex items-center gap-3 px-5 py-3 hover:bg-[#f5eee8]/30 transition-colors">
+                <button onClick={() => onPick(d)} className="flex-1 flex items-center gap-3 text-left">
+                  <Folder className={cn('h-4 w-4', isClasse ? 'text-emerald-600' : 'text-[#a67749]')} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-[#304035] underline truncate">
+                      {d.name}{d.date ? ` – ${d.date}` : ''}
+                    </p>
+                    {(d.items?.length ?? 0) > 0 && (
+                      <p className="text-[10px] text-[#304035]/55 mt-0.5">
+                        {d.items!.length} élément{d.items!.length > 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </div>
+                </button>
+                <ChevronRight className="h-4 w-4 text-[#304035]/30" />
+                <button
+                  onClick={() => onToggleStatut(d)}
+                  className={cn(
+                    'rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors',
+                    isClasse
+                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                      : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                  )}
+                  title="Cliquez pour basculer le statut"
+                >
+                  {isClasse ? 'CLASSÉ' : 'À CLASSER'}
+                </button>
+                <button
+                  onClick={() => { if (confirm(`Supprimer le dossier "${d.name}" ?`)) onRemoveDossier(d); }}
+                  className="rounded-lg p-1.5 text-red-500/60 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  title="Supprimer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+                {d.rajoute && (
+                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold bg-red-50 text-red-700 border border-red-200">
+                    NOUVEAU
+                  </span>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DossierItemsView({
+  dossier, onAddItem, onRemoveItem, onUpdateItemStatut, onBack, onMarkClassed,
+}: {
+  dossier: IntervenantDossier;
+  onAddItem: (name: string) => void;
+  onRemoveItem: (id: string) => void;
+  onUpdateItemStatut: (id: string, statut: DossierItemStatut) => void;
+  onBack: () => void;
+  onMarkClassed: () => void;
+}) {
+  const [newItem, setNewItem] = useState('');
+  const items = dossier.items ?? [];
+  const allClasse = items.length > 0 && items.every(it => it.statut === 'CLASSE');
+
+  return (
+    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm overflow-hidden">
+      <div className="px-5 py-3 border-b border-[#304035]/8 flex items-center gap-3">
+        <button onClick={onBack} className="text-[#304035]/55 hover:text-[#304035]">
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <Folder className="h-5 w-5 text-[#a67749]" />
+        <div className="flex-1">
+          <h3 className="text-sm font-bold text-[#304035] underline">
+            {dossier.name}{dossier.date ? ` – ${dossier.date}` : ''}
+          </h3>
+          <p className="text-[10px] text-[#304035]/55">{items.length} élément{items.length > 1 ? 's' : ''}</p>
+        </div>
+        {allClasse && (
+          <button
+            onClick={onMarkClassed}
+            className="text-xs font-bold rounded-lg px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+          >
+            <CheckCircle2 className="inline h-3.5 w-3.5 mr-1" /> Marquer dossier classé
+          </button>
+        )}
+      </div>
+
+      {/* Ajout d'un item */}
+      <div className="px-5 py-3 border-b border-[#304035]/5 flex gap-2">
+        <input
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && newItem.trim()) { onAddItem(newItem.trim()); setNewItem(''); } }}
+          placeholder="Nom du client / item à ajouter…"
+          className="flex-1 rounded-lg border border-[#304035]/12 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
+        />
+        <button
+          onClick={() => { if (newItem.trim()) { onAddItem(newItem.trim()); setNewItem(''); } }}
+          disabled={!newItem.trim()}
+          className="rounded-lg bg-[#1a2a1e] text-[#cbb98a] px-4 py-2 text-xs font-bold disabled:opacity-50"
+        >
+          + Ajouter
+        </button>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="p-8 text-center">
+          <p className="text-xs text-[#304035]/55">Aucun élément. Ajoutez-en ci-dessus.</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-[#304035]/5">
+          {items.map(it => (
+            <DossierItemRow
+              key={it.id}
+              item={it}
+              onUpdateStatut={(statut) => onUpdateItemStatut(it.id, statut)}
+              onRemove={() => onRemoveItem(it.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DossierItemRow({
+  item, onUpdateStatut, onRemove,
+}: {
+  item: { id: string; name: string; statut: DossierItemStatut };
+  onUpdateStatut: (statut: DossierItemStatut) => void;
+  onRemove: () => void;
+}) {
+  const config: Record<DossierItemStatut, { bg: string; text: string }> = {
+    URGENT:    { bg: 'bg-red-100',    text: 'text-red-700' },
+    'EN COURS': { bg: 'bg-amber-100', text: 'text-amber-700' },
+    CLASSE:    { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  };
+  const c = config[item.statut];
+
+  return (
+    <div className="flex items-center gap-3 px-5 py-2.5">
+      <span className="text-sm font-medium text-[#304035] flex-1 truncate">{item.name}</span>
+      <div className="flex gap-1">
+        {(['URGENT', 'EN COURS', 'CLASSE'] as DossierItemStatut[]).map(s => (
+          <button
+            key={s}
+            onClick={() => onUpdateStatut(s)}
+            className={cn(
+              'rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase transition-colors',
+              item.statut === s
+                ? `${config[s].bg} ${config[s].text}`
+                : 'bg-[#304035]/5 text-[#304035]/40 hover:bg-[#304035]/10'
+            )}
+          >
+            {s === 'CLASSE' ? 'CLASSÉ' : s}
+          </button>
+        ))}
+      </div>
+      <button onClick={onRemove} className="rounded-lg p-1.5 text-red-500/60 hover:bg-red-50 hover:text-red-600">
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+// ─── AddDossierInline (bouton "+ DOSSIER") ──────────────────────────────────
+
+function AddDossierInline({ onAdd }: { onAdd: (name: string) => void }) {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  if (!adding) {
+    return (
+      <button
+        onClick={() => setAdding(true)}
+        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold bg-[#a67749]/10 text-[#a67749] hover:bg-[#a67749]/20"
+      >
+        <Plus className="h-3.5 w-3.5" /> DOSSIER
+      </button>
+    );
+  }
+  return (
+    <div className="flex gap-1">
+      <input
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && name.trim()) { onAdd(name.trim()); setName(''); setAdding(false); }
+          if (e.key === 'Escape') { setAdding(false); setName(''); }
+        }}
+        placeholder="Nom du dossier"
+        className="rounded-lg border border-[#304035]/12 px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[#304035]/20"
+      />
+      <button
+        onClick={() => { if (name.trim()) { onAdd(name.trim()); setName(''); setAdding(false); } }}
+        className="rounded-lg bg-[#a67749] text-white px-2.5 py-1 text-xs font-bold"
+      >
+        ✓
+      </button>
+      <button
+        onClick={() => { setAdding(false); setName(''); }}
+        className="rounded-lg p-1 text-[#304035]/40 hover:bg-[#304035]/5"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+// ─── AddIntervenantModal ────────────────────────────────────────────────────
+
+function AddIntervenantModal({
+  defaultType, onClose, onCreate,
+}: {
+  defaultType: string;
+  onClose: () => void;
+  onCreate: (data: { type: string; name: string; phone: string; email: string; notes?: string }) => void;
+}) {
+  const [form, setForm] = useState({ type: defaultType, name: '', phone: '', email: '', notes: '' });
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-90 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+        <h2 className="text-lg font-bold text-[#304035] mb-4">Nouvel intervenant ({defaultType})</h2>
+        <div className="space-y-3">
+          <select
+            value={form.type}
+            onChange={(e) => setForm(f => ({ ...f, type: e.target.value }))}
+            className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm"
+          >
+            {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <input
+            value={form.name}
+            onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
+            placeholder="Nom *"
+            className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm"
+            autoFocus
+          />
+          <input
+            value={form.phone}
+            onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))}
+            placeholder="Téléphone"
+            className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm"
+          />
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
+            placeholder="Email"
+            className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm"
+          />
+          <textarea
+            value={form.notes}
+            onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+            placeholder="Notes / spécialité"
+            rows={2}
+            className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm"
+          />
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60">
+            Annuler
+          </button>
+          <button
+            onClick={() => form.name.trim() && onCreate(form)}
+            disabled={!form.name.trim()}
+            className="flex-1 rounded-lg bg-[#10b981] text-white px-4 py-2 text-sm font-bold disabled:opacity-50"
+          >
+            Créer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDeleteModal({ name, onCancel, onConfirm }: { name: string; onCancel: () => void; onConfirm: () => void }) {
+  return (
+    <div onClick={onCancel} className="fixed inset-0 z-90 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+        <h2 className="text-lg font-bold text-[#304035] mb-2">Supprimer {name} ?</h2>
+        <p className="text-sm text-[#304035]/60 mb-5">Cette action est irréversible (côté frontend local — le backend n'est pas touché).</p>
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60">
+            Annuler
+          </button>
+          <button onClick={onConfirm} className="flex-1 rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-bold">
+            Supprimer
+          </button>
         </div>
       </div>
     </div>

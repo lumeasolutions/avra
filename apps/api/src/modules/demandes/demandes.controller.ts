@@ -176,6 +176,17 @@ export class DemandesController {
    * Pas de JwtAuthGuard ici, securise via CRON_SECRET en env.
    */
   /**
+   * Endpoint manuel "Relance" — declenche par un user authentifie depuis
+   * la page /intervenants (bouton RELANCE). Verifie JWT (pas Cron secret).
+   * Cible toutes les demandes en attente de l'intervenant connecte.
+   */
+  @Post('internal/relance-all')
+  @UseGuards(JwtAuthGuard)
+  async relanceAll(@CurrentUser() _user: JwtPayload) {
+    return this.demandes.sendAutoReminders(3);
+  }
+
+  /**
    * Endpoint cron auto-rappel — accepte 2 modes d'authentification :
    *  1. Vercel Cron : header `Authorization: Bearer ${CRON_SECRET}` (auto)
    *  2. Externe (GitHub Actions, EasyCron) : header `X-Cron-Key: ${CRON_SECRET}`
