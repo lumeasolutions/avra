@@ -8,6 +8,7 @@ import { useDossierStore } from '@/store';
 import { ValidationDashboard } from '@/components/dossiers/ValidationDashboard';
 import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
 import { useProjectActions } from '@/hooks/useProjectActions';
+import { DashboardTriggerButton } from '@/components/layout/DashboardTriggerButton';
 
 const STATUS_CONFIG: Record<string, {
   label: string;
@@ -211,22 +212,13 @@ export default function DossiersPage() {
               <FilePlus className="h-4 w-4" />
               Nouveau dossier
             </Link>
-            {/* Bouton Tableau de bord — ouvre le panel flottant */}
-            <button
-              type="button"
+            {/* Bouton Tableau de bord — round gold (meme style que /dossiers/[id]) */}
+            <DashboardTriggerButton
+              open={showDashboard}
               onClick={() => setShowDashboard(v => !v)}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all active:scale-95 border ${
-                showDashboard
-                  ? 'bg-white text-[#304035] border-white shadow-md'
-                  : 'bg-white/10 text-white border-white/25 hover:bg-white/20'
-              }`}
-              title="Tableau de bord — KPIs et validation en temps réel"
-              aria-expanded={showDashboard}
-              aria-controls="dashboard-panel"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Tableau de bord
-            </button>
+              controlsId="dashboard-panel"
+              size={56}
+            />
           </>
         }
       />

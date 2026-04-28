@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FolderCheck, Search, X, ChevronRight, TrendingUp, BadgeCheck,
@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
+import { DashboardTriggerButton } from '@/components/layout/DashboardTriggerButton';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -766,6 +767,14 @@ export default function DossiersSignesPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [openModalType, setOpenModalType] = useState<'dates' | 'tableau' | null>(null);
   const [modalDossierId, setModalDossierId] = useState<string | null>(null);
+  // Tableau de bord global "Dossiers signés"
+  const [showDashboard, setShowDashboard] = useState(false);
+  useEffect(() => {
+    if (!showDashboard) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowDashboard(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showDashboard]);
 
   // Associer les montants des factures aux dossiers signés
   const enriched = useMemo(() => {
@@ -825,7 +834,7 @@ export default function DossiersSignesPage() {
         title="Dossiers signés"
         subtitle={`${dossiersSignes.length} dossier${dossiersSignes.length > 1 ? 's' : ''} validé${dossiersSignes.length > 1 ? 's' : ''}`}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <SendToIntervenantButton
               variant="secondary"
               label="Demande SAV"
@@ -846,9 +855,28 @@ export default function DossiersSignesPage() {
                 <List className="h-4 w-4" />
               </button>
             </div>
+            {/* Tableau de bord global Dossiers signes — round gold */}
+            <DashboardTriggerButton
+              open={showDashboard}
+              onClick={() => setShowDashboard(v => !v)}
+              controlsId="signes-dashboard-panel"
+              size={56}
+            />
           </div>
         }
       />
+
+      {/* ── PANEL TABLEAU DE BORD (flottant, ouvert via le bouton dore) ── */}
+      {showDashboard && (
+        <SignesDashboardPanel
+          enriched={enriched}
+          totalCA={totalCA}
+          moyenneCA={moyenneCA}
+          datesButoiresSignes={datesButoiresSignes}
+          onClose={() => setShowDashboard(false)}
+          onOpenDossier={(id) => { setShowDashboard(false); setExpandedId(id); }}
+        />
+      )}
 
       {/* ── KPI STRIP ── */}
       <div className="sig-kpi-grid grid grid-cols-4 gap-3">
@@ -1195,4 +1223,254 @@ export default function DossiersSignesPage() {
       )}
     </div>
   );
+}
+
+// ─── SignesDashboardPanel ─────────────────────────────────────────────────
+
+interface SignesDashboardPanelProps {
+  enriched: Array<any>;
+  totalCA: number;
+  moyenneCA: number;
+  datesButoiresSignes: Record<string, Record<string, string>>;
+  onClose: () => void;
+  onOpenDossier: (id: string) => void;
+}
+
+function SignesDashboardPanel({
+  enriched, totalCA, moyenneCA, datesButoiresSignes, onClose, onOpenDossier,
+}: SignesDashboardPanelProps) {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const allDeadlines: Array<{ dossierId: string; dossierName: string; label: string; date: Date; daysFromNow: number }> = [];
+  for (const dossier of enriched) {
+    const dates = datesButoiresSignes[dossier.id] ?? {};
+    for (const [label, dateStr] of Object.entries(dates)) {
+      if (!dateStr) continue;
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) continue;
+      d.setHours(0, 0, 0, 0);
+      const daysFromNow = Math.round((d.getTime() - now.getTime()) / 86400_000);
+      allDeadlines.push({ dossierId: dossier.id, dossierName: dossier.name, label, date: d, daysFromNow });
+    }
+  }
+
+  const overdueDeadlines = allDeadlines.filter(d => d.daysFromNow < 0).sort((a, b) => a.date.getTime() - b.date.getTime());
+  const upcomingDeadlines = allDeadlines.filter(d => d.daysFromNow >= 0 && d.daysFromNow <= 14).sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  const allPendingConfirmations: Array<{ dossierId: string; dossierName: string; fournisseur: string; produit: string; dateButoir: string }> = [];
+  for (const d of enriched) {
+    for (const c of (d.confirmations ?? [])) {
+      if (!c.validee) {
+        allPendingConfirmations.push({
+          dossierId: d.id, dossierName: d.name,
+          fournisseur: c.fournisseur, produit: c.produit, dateButoir: c.dateButoir,
+        });
+      }
+    }
+  }
+
+  return (
+    <>
+      <style>{`
+        @keyframes sigDashIn {
+          0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        .sig-dash-backdrop {
+          position: fixed; inset: 0; z-index: 60;
+          background: rgba(15,23,18,0.55);
+          backdrop-filter: blur(4px);
+        }
+        .sig-dash-panel {
+          position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+          z-index: 61;
+          width: min(96vw, 1080px);
+          max-height: 88vh;
+          overflow-y: auto;
+          background: linear-gradient(135deg, #f5eee8 0%, #ffffff 100%);
+          border-radius: 22px;
+          box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+          animation: sigDashIn 0.3s cubic-bezier(0.34, 1.42, 0.64, 1);
+        }
+      `}</style>
+      <div className="sig-dash-backdrop" onClick={onClose} aria-hidden="true" />
+      <aside id="signes-dashboard-panel" className="sig-dash-panel" role="dialog" aria-label="Tableau de bord dossiers signes">
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '20px 28px', borderBottom: '1px solid rgba(48,64,53,0.08)',
+          background: 'linear-gradient(135deg, #2a3a30 0%, #3D5449 100%)',
+          borderRadius: '22px 22px 0 0',
+          color: '#fff',
+        }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.16em', fontWeight: 700, color: '#cbb98a', textTransform: 'uppercase' }}>
+              Tableau de bord
+            </div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, margin: '4px 0 0' }}>
+              Dossiers signés — {enriched.length}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255,255,255,0.12)', border: 'none', cursor: 'pointer',
+              padding: 10, borderRadius: 10, color: '#fff',
+            }}
+            aria-label="Fermer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{ padding: 28 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 22 }}>
+            <DashKpi label="CA total signé" value={totalCA > 0 ? formatMontant(totalCA) : '—'} icon={<TrendingUp size={16} />} tone="primary" />
+            <DashKpi label="Panier moyen" value={moyenneCA > 0 ? formatMontant(moyenneCA) : '—'} icon={<BadgeCheck size={16} />} tone="emerald" />
+            <DashKpi label="Échéances en retard" value={overdueDeadlines.length} icon={<AlertTriangle size={16} />} tone="red" />
+            <DashKpi label="À venir (14j)" value={upcomingDeadlines.length} icon={<Calendar size={16} />} tone="orange" />
+            <DashKpi label="Confirmations en attente" value={allPendingConfirmations.length} icon={<Clock size={16} />} tone="amber" />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+            <DashSection
+              title="Échéances en retard"
+              count={overdueDeadlines.length}
+              tone="red"
+              empty="Aucune échéance dépassée — bravo."
+            >
+              {overdueDeadlines.slice(0, 8).map((d, i) => (
+                <button key={i} onClick={() => onOpenDossier(d.dossierId)} style={dashRowStyle('red')}>
+                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1a2a1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.dossierName}</div>
+                    <div style={{ fontSize: 11, color: '#7c6c58' }}>{d.label.toLowerCase().replace(/_/g, ' ')}</div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#b91c1c' }}>-{Math.abs(d.daysFromNow)}j</span>
+                </button>
+              ))}
+            </DashSection>
+
+            <DashSection
+              title="Échéances à venir (14j)"
+              count={upcomingDeadlines.length}
+              tone="orange"
+              empty="Aucune échéance dans les 2 prochaines semaines."
+            >
+              {upcomingDeadlines.slice(0, 8).map((d, i) => (
+                <button key={i} onClick={() => onOpenDossier(d.dossierId)} style={dashRowStyle('orange')}>
+                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1a2a1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.dossierName}</div>
+                    <div style={{ fontSize: 11, color: '#7c6c58' }}>{d.label.toLowerCase().replace(/_/g, ' ')}</div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#c2410c' }}>{d.daysFromNow === 0 ? "Auj." : `J+${d.daysFromNow}`}</span>
+                </button>
+              ))}
+            </DashSection>
+
+            <DashSection
+              title="Confirmations fournisseurs"
+              count={allPendingConfirmations.length}
+              tone="amber"
+              empty="Toutes les confirmations sont validées."
+            >
+              {allPendingConfirmations.slice(0, 8).map((c, i) => (
+                <button key={i} onClick={() => onOpenDossier(c.dossierId)} style={dashRowStyle('amber')}>
+                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1a2a1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.fournisseur} — {c.produit}</div>
+                    <div style={{ fontSize: 11, color: '#7c6c58' }}>{c.dossierName}</div>
+                  </div>
+                  {c.dateButoir && <span style={{ fontSize: 11, color: '#92400e' }}>{c.dateButoir}</span>}
+                </button>
+              ))}
+            </DashSection>
+          </div>
+
+          <div style={{ marginTop: 22, paddingTop: 16, borderTop: '1px solid rgba(48,64,53,0.08)', textAlign: 'center' }}>
+            <button
+              onClick={onClose}
+              style={{
+                padding: '10px 22px', background: '#3D5449', color: '#fff',
+                border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              Fermer le tableau de bord
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function DashKpi({ label, value, icon, tone }: {
+  label: string; value: string | number; icon: React.ReactNode;
+  tone: 'primary' | 'emerald' | 'red' | 'orange' | 'amber';
+}) {
+  const colors: Record<string, { bg: string; ring: string; iconBg: string; iconFg: string; text: string }> = {
+    primary: { bg: '#fff', ring: '#ece7df', iconBg: '#3D5449', iconFg: '#cbb98a', text: '#1a2a1e' },
+    emerald: { bg: '#f0fdf4', ring: '#bbf7d0', iconBg: '#15803d', iconFg: '#fff', text: '#14532d' },
+    red:     { bg: '#fef2f2', ring: '#fecaca', iconBg: '#b91c1c', iconFg: '#fff', text: '#991b1b' },
+    orange:  { bg: '#fff7ed', ring: '#fed7aa', iconBg: '#c2410c', iconFg: '#fff', text: '#7c2d12' },
+    amber:   { bg: '#fffbeb', ring: '#fde68a', iconBg: '#92400e', iconFg: '#fff', text: '#78350f' },
+  };
+  const c = colors[tone];
+  return (
+    <div style={{ background: c.bg, border: `1px solid ${c.ring}`, borderRadius: 14, padding: '14px 16px' }}>
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 32, height: 32, borderRadius: 10,
+        background: c.iconBg, color: c.iconFg, marginBottom: 10,
+      }}>
+        {icon}
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: c.text }}>{value}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: c.text, opacity: 0.7, marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
+function DashSection({ title, count, tone, empty, children }: {
+  title: string; count: number; tone: 'red' | 'orange' | 'amber';
+  empty: string; children: React.ReactNode;
+}) {
+  const tones: Record<string, string> = { red: '#b91c1c', orange: '#c2410c', amber: '#92400e' };
+  return (
+    <div style={{
+      background: '#fff', border: '1px solid #ece7df', borderRadius: 14,
+      padding: '14px 16px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <h3 style={{ fontSize: 13, fontWeight: 700, color: '#1a2a1e', margin: 0 }}>{title}</h3>
+        <span style={{
+          fontSize: 11, fontWeight: 700,
+          padding: '2px 8px', borderRadius: 999,
+          background: tones[tone] + '15', color: tones[tone],
+        }}>
+          {count}
+        </span>
+      </div>
+      {count === 0 ? (
+        <p style={{ fontSize: 12, color: '#7c6c58', fontStyle: 'italic', margin: 0 }}>{empty}</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function dashRowStyle(tone: 'red' | 'orange' | 'amber'): React.CSSProperties {
+  const bgs: Record<string, string> = { red: '#fef2f2', orange: '#fff7ed', amber: '#fffbeb' };
+  const borders: Record<string, string> = { red: '#fecaca', orange: '#fed7aa', amber: '#fde68a' };
+  return {
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '8px 12px',
+    background: bgs[tone],
+    border: `1px solid ${borders[tone]}`,
+    borderRadius: 8,
+    cursor: 'pointer',
+    width: '100%',
+    fontFamily: 'inherit',
+  };
 }
