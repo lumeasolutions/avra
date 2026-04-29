@@ -13,6 +13,14 @@ const ServiceWorkerRegistration = nextDynamic(
   { ssr: false }
 );
 
+// 29/04/2026 — Auto-reload sur chunk JS introuvable post-deploy.
+// Catche les erreurs `Loading chunk failed` / 404 sur /_next/static/chunks/
+// et fait un reload avec cache-buster (max 1× par minute via sessionStorage).
+const ChunkErrorReloader = nextDynamic(
+  () => import('@/app/components/ChunkErrorReloader'),
+  { ssr: false }
+);
+
 const dmSans = DM_Sans({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
@@ -120,9 +128,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr">
       <head>
         <meta name="theme-color" content="#1e2b22" />
+        {/* Auto-reload sur chunk JS 404 — exécuté AVANT hydration React,
+            sinon le ChunkErrorReloader ne peut pas catcher car il dépend
+            du bundle qui contient le chunk failed. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var K='avra_chunk_reloaded_at';var COOLDOWN=60000;function go(reason){try{var last=sessionStorage.getItem(K);if(last&&Date.now()-parseInt(last,10)<COOLDOWN)return;sessionStorage.setItem(K,String(Date.now()));}catch(e){}var u=new URL(window.location.href);u.searchParams.set('_cb',String(Date.now()));window.location.replace(u.toString());}window.addEventListener('error',function(e){var t=e&&e.target;if(t&&t.tagName==='SCRIPT'){var s=t.src||'';if(s.indexOf('/_next/static/chunks/')!==-1){go('script-404');return;}}var m=(e&&e.message||'').toLowerCase();if(m.indexOf('loading chunk')!==-1||m.indexOf('chunkloaderror')!==-1||m.indexOf("mime type ('text/plain')")!==-1){go('runtime');}},true);window.addEventListener('unhandledrejection',function(e){var r=e&&e.reason;var m=(typeof r==='string'?r:(r&&r.message))||'';m=m.toLowerCase();if(m.indexOf('loading chunk')!==-1||m.indexOf('chunkloaderror')!==-1){go('rejection');}});}catch(e){}})();`,
+          }}
+        />
       </head>
       <body className={`${dmSans.variable} ${playfairDisplay.variable} min-h-screen`} style={{ fontFamily: 'var(--font-dm-sans)' }}>
         {children}
+        <ChunkErrorReloader />
         <ServiceWorkerRegistration />
       </body>
     </html>
