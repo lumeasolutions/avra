@@ -1,5 +1,6 @@
 import { IntervenantSidebar } from './components/IntervenantSidebar';
 import { IntervenantGuard } from './components/IntervenantGuard';
+import { OfflineBanner } from './components/OfflineBanner';
 
 export const metadata = {
   title: 'Espace Intervenant — AVRA',
@@ -21,6 +22,7 @@ export default function IntervenantLayout({ children }: { children: React.ReactN
           padding: '24px 32px',
           overflowY: 'auto',
         }}>
+          <OfflineBanner />
           {children}
         </main>
       </div>

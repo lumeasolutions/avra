@@ -8,6 +8,10 @@ interface Props {
   messages: DemandeMessage[];
   currentUserId: string | null;
   onSend: (body: string) => Promise<void>;
+  /** Upload photo via Supabase (preferred). Si fourni, court-circuite le mode base64. */
+  onSendPhoto?: (file: File, text?: string) => Promise<void>;
+  /** Resout un storagePath en signed URL (pour afficher les photos uploadees). */
+  resolveImageUrl?: (storagePath: string) => Promise<string>;
   disabled?: boolean;
   placeholder?: string;
   /** Active le bouton camera (defaut true). */
@@ -52,24 +56,62 @@ async function compressImage(file: File, maxSize = 1280, quality = 0.75): Promis
 }
 
 /**
- * Detecte si un message body contient une image embed (data URL).
- * Format : "[IMG]<dataUrl>[/IMG]<rest of message>"
+ * Detecte le format de message :
+ *  - "[IMG]<dataUrl>[/IMG]<text>"     legacy base64 inline (Phase 3 v1)
+ *  - "[IMG:<storagePath>]<text>"      Supabase Storage (Phase C v2)
+ *  - sinon : message texte simple
  */
-function parseMessageBody(body: string): { imageDataUrl?: string; text: string } {
-  const match = body.match(/^\[IMG\](data:image\/[^[]+)\[\/IMG\]([\s\S]*)$/);
-  if (match) {
-    return { imageDataUrl: match[1], text: match[2].trim() };
+function parseMessageBody(body: string): { imageDataUrl?: string; imageStoragePath?: string; text: string } {
+  const dataUrlMatch = body.match(/^\[IMG\](data:image\/[^[]+)\[\/IMG\]([\s\S]*)$/);
+  if (dataUrlMatch) {
+    return { imageDataUrl: dataUrlMatch[1], text: dataUrlMatch[2].trim() };
+  }
+  const storageMatch = body.match(/^\[IMG:([^\]]+)\]([\s\S]*)$/);
+  if (storageMatch) {
+    return { imageStoragePath: storageMatch[1], text: storageMatch[2].trim() };
   }
   return { text: body };
 }
 
-export function MessageThread({ messages, currentUserId, onSend, disabled, placeholder, allowPhotos = true }: Props) {
+export function MessageThread({
+  messages, currentUserId, onSend, onSendPhoto, resolveImageUrl,
+  disabled, placeholder, allowPhotos = true,
+}: Props) {
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [pendingPhotoDataUrl, setPendingPhotoDataUrl] = useState<string | null>(null);
+  const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Cache pour les signed URLs des photos storage path
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+
+  // Resolution paresseuse des storage paths -> signed URLs au render
+  useEffect(() => {
+    if (!resolveImageUrl) return;
+    const pathsToResolve = new Set<string>();
+    for (const m of messages) {
+      const parsed = parseMessageBody(m.body);
+      if (parsed.imageStoragePath && !signedUrls[parsed.imageStoragePath]) {
+        pathsToResolve.add(parsed.imageStoragePath);
+      }
+    }
+    if (pathsToResolve.size === 0) return;
+    let cancelled = false;
+    Promise.all(
+      Array.from(pathsToResolve).map(p =>
+        resolveImageUrl(p).then(url => ({ p, url })).catch(() => null)
+      )
+    ).then(results => {
+      if (cancelled) return;
+      const updates: Record<string, string> = {};
+      for (const r of results) if (r) updates[r.p] = r.url;
+      if (Object.keys(updates).length) setSignedUrls(prev => ({ ...prev, ...updates }));
+    });
+    return () => { cancelled = true; };
+  }, [messages, resolveImageUrl, signedUrls]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -79,13 +121,21 @@ export function MessageThread({ messages, currentUserId, onSend, disabled, place
     if (!file || !file.type.startsWith('image/')) return;
     setUploadingPhoto(true);
     try {
+      // Si on a un upload Supabase dispo, on garde le File raw + preview
+      if (onSendPhoto) {
+        const previewUrl = URL.createObjectURL(file);
+        setPendingPhotoDataUrl(previewUrl);
+        setPendingPhotoFile(file);
+        return;
+      }
+      // Fallback : compression base64 inline (legacy)
       const compressed = await compressImage(file);
-      // Verifie que le payload reste < 2Mo en base64
       if (compressed.length > 2_000_000) {
         alert('Photo trop volumineuse meme compressee. Choisissez une autre image.');
         return;
       }
       setPendingPhotoDataUrl(compressed);
+      setPendingPhotoFile(null);
     } catch (e) {
       alert('Impossible de traiter cette image.');
     } finally {
@@ -95,15 +145,23 @@ export function MessageThread({ messages, currentUserId, onSend, disabled, place
 
   const send = async () => {
     const txt = body.trim();
-    if ((!txt && !pendingPhotoDataUrl) || sending) return;
+    const hasPhoto = !!pendingPhotoDataUrl || !!pendingPhotoFile;
+    if ((!txt && !hasPhoto) || sending) return;
     setSending(true);
     try {
-      const finalBody = pendingPhotoDataUrl
-        ? `[IMG]${pendingPhotoDataUrl}[/IMG]${txt}`
-        : txt;
-      await onSend(finalBody);
+      // Mode preferred : upload Supabase si onSendPhoto fourni + file dispo
+      if (onSendPhoto && pendingPhotoFile) {
+        await onSendPhoto(pendingPhotoFile, txt || undefined);
+      } else if (pendingPhotoDataUrl) {
+        // Legacy : embed base64 dans body
+        const finalBody = `[IMG]${pendingPhotoDataUrl}[/IMG]${txt}`;
+        await onSend(finalBody);
+      } else {
+        await onSend(txt);
+      }
       setBody('');
       setPendingPhotoDataUrl(null);
+      setPendingPhotoFile(null);
     } finally {
       setSending(false);
     }
@@ -156,21 +214,40 @@ export function MessageThread({ messages, currentUserId, onSend, disabled, place
                   boxShadow: '0 1px 3px rgba(26,42,30,0.07)',
                   overflow: 'hidden',
                 }}>
-                  {parsed.imageDataUrl && (
-                    <img
-                      src={parsed.imageDataUrl}
-                      alt="Photo jointe"
-                      onClick={() => window.open(parsed.imageDataUrl, '_blank')}
-                      style={{
-                        display: 'block',
-                        maxWidth: 280,
-                        maxHeight: 280,
-                        borderRadius: 10,
-                        cursor: 'zoom-in',
-                        marginBottom: parsed.text ? 4 : 0,
-                      }}
-                    />
-                  )}
+                  {(() => {
+                    const imageUrl = parsed.imageDataUrl
+                      ?? (parsed.imageStoragePath ? signedUrls[parsed.imageStoragePath] : undefined);
+                    if (!imageUrl && parsed.imageStoragePath) {
+                      // Resolution en cours
+                      return (
+                        <div style={{
+                          width: 280, height: 180, borderRadius: 10,
+                          background: '#f5eee8',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#7c6c58', fontSize: 11,
+                          marginBottom: parsed.text ? 4 : 0,
+                        }}>
+                          📸 Chargement…
+                        </div>
+                      );
+                    }
+                    if (!imageUrl) return null;
+                    return (
+                      <img
+                        src={imageUrl}
+                        alt="Photo jointe"
+                        onClick={() => window.open(imageUrl, '_blank')}
+                        style={{
+                          display: 'block',
+                          maxWidth: 280,
+                          maxHeight: 280,
+                          borderRadius: 10,
+                          cursor: 'zoom-in',
+                          marginBottom: parsed.text ? 4 : 0,
+                        }}
+                      />
+                    );
+                  })()}
                   {parsed.text && (
                     <div style={{
                       whiteSpace: 'pre-wrap',

@@ -49,6 +49,9 @@ export default function robots(): MetadataRoute.Robots {
           '/portail-menuisier',
           '/portail-agenceur',
           '/portal-select',
+          // Module admin-only Plan Technique IA (bêta interne, ne JAMAIS indexer)
+          '/plan-technique-ia',
+          '/plan-technique-ia/',
           // Pages de confirmation (pas utiles à indexer)
           '/rejoindre/merci',
         ],

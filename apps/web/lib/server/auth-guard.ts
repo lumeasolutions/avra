@@ -36,22 +36,18 @@ function isJwtStructurallyValid(token: string): boolean {
   }
 }
 
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+// HIGH-002: only accept the legacy `logged_in` demo cookie when we are
+// genuinely on a developer machine — never on Vercel previews/production.
+const IS_LOCAL_DEV =
+  process.env.NODE_ENV === 'development' &&
+  (!process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development');
 
-/**
- * Retourne true si la requête est authentifiée.
- * Priorité : access_token (JWT HttpOnly) > logged_in (dev uniquement — mode démo).
- *
- * SÉCURITÉ : Le cookie `logged_in` n'est PAS HttpOnly et est trivialement
- * forgeable côté client. Il est donc REJETÉ en production pour éviter
- * de facturer des appels fal.ai / OpenAI à un attaquant non authentifié.
- */
 export function isAuthenticated(req: NextRequest): boolean {
   const accessToken = req.cookies.get('access_token')?.value;
   if (accessToken) {
     return isJwtStructurallyValid(accessToken);
   }
-  if (!IS_PRODUCTION) {
+  if (IS_LOCAL_DEV) {
     const loggedIn = req.cookies.get('logged_in')?.value;
     return loggedIn === 'true';
   }

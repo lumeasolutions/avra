@@ -5,6 +5,22 @@
  * photos, projets) avec un statut individuel URGENT / EN COURS / CLASSE.
  * Cette structure permet le drill-down 3 niveaux :
  *   intervenant -> dossiers -> items
+ *
+ * ─── Cohabitation avec useIntervenantDossiersStore ──────────────────────────
+ * Deux stores coexistent volontairement :
+ *   • useIntervenantStore (CE FICHIER) — vue "carnet d'adresses" côté pro :
+ *     liste légère des intervenants, dossiers/items locaux pour drill-down,
+ *     persisté localStorage. Source : /api/v1/intervenants (sync via
+ *     useDataSync.syncIntervenants).
+ *   • useIntervenantDossiersStore — vue détaillée d'UN intervenant (dossiers
+ *     côté backend, partagés multi-utilisateurs). Source : endpoints
+ *     /intervenants/:id/dossiers, NON persisté.
+ *
+ * Règle : la liste + métadonnées (rating, tags, notes, contact) vivent ici.
+ * Les dossiers "officiels" partagés vivent dans useIntervenantDossiersStore.
+ * Les "dossiers" locaux de ce store sont un cache UI legacy pour le drill-down
+ * rapide ; ils peuvent diverger de la source backend mais ne sont jamais
+ * écrits côté serveur.
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -43,6 +59,12 @@ export interface Intervenant {
   phone: string;
   email: string;
   notes?: string;
+  /** Note manuelle 1-5 saisie par le pro. */
+  rating?: number | null;
+  /** Commentaire libre lie au rating. */
+  ratingComment?: string | null;
+  /** Tags / specialites (CSV). */
+  tagsCsv?: string | null;
   dossiers: IntervenantDossier[];
 }
 

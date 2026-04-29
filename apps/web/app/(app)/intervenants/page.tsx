@@ -24,6 +24,7 @@ import { SendToIntervenantDrawer, type SendToIntervenantPrefill } from '@/compon
 import { InviteIntervenantModal } from '@/components/demandes/InviteIntervenantModal';
 import { DonnerAccesModal } from '@/components/demandes/DonnerAccesModal';
 import { MiniCalendarWeek } from '@/components/demandes/MiniCalendarWeek';
+import { RatingEditor } from '@/components/demandes/RatingEditor';
 import {
   listInvitations, listDemandesPro,
   type IntervenantInvitation, type Demande, type DemandeType,
@@ -33,6 +34,9 @@ import { api } from '@/lib/api';
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const TYPES = ['POSEUR', 'ELECTRICIEN', 'MACON', 'MARBRIER', 'CUISINISTES', 'PLOMBIER', 'CARRELEUR', 'PEINTRE', 'AUTRE'];
+/** Filtre special : "ALERTES" liste tous les intervenants tous types
+ * confondus qui ont au moins une alerte active, classes par criticite. */
+const FILTER_ALERTES = '🚨 ALERTES';
 
 const TYPE_COLORS: Record<string, { bg: string; ring: string; avatar: string }> = {
   POSEUR:      { bg: 'bg-[#304035]',   ring: 'ring-[#304035]/20', avatar: 'bg-[#304035]/10 text-[#304035]' },
@@ -120,6 +124,7 @@ export default function IntervenantsHubPage() {
   const [drawerPrefill, setDrawerPrefill] = useState<SendToIntervenantPrefill | null>(null);
   const [invitingFor, setInvitingFor] = useState<{ id: string; name: string; email?: string } | null>(null);
   const [confirmDeleteIntervenant, setConfirmDeleteIntervenant] = useState<string | null>(null);
+  const [editingRating, setEditingRating] = useState<string | null>(null);
 
   // Backend state
   const [invitations, setInvitations] = useState<Record<string, IntervenantInvitation>>({});
@@ -150,7 +155,10 @@ export default function IntervenantsHubPage() {
   // ── Memos ──────────────────────────────────────────────────────────────
 
   const filtered = useMemo(() => {
-    let list = intervenants.filter(i => i.type === filterType);
+    // Mode ALERTES : cross-types, filtre par presence d'alerte
+    let list = filterType === FILTER_ALERTES
+      ? intervenants
+      : intervenants.filter(i => i.type === filterType);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(i =>
@@ -304,22 +312,45 @@ export default function IntervenantsHubPage() {
           {filtered.length === 0 ? (
             <div className="p-10 text-center">
               <HardHat className="h-10 w-10 text-[#304035]/20 mx-auto mb-3" />
-              <p className="text-sm font-bold text-[#304035] mb-1">Aucun {filterType.toLowerCase()}</p>
+              <p className="text-sm font-bold text-[#304035] mb-1">
+                {filterType === FILTER_ALERTES ? 'Aucune alerte 🎉' : `Aucun ${filterType.toLowerCase()}`}
+              </p>
               <p className="text-xs text-[#304035]/55">
-                Cliquez sur "RAJOUTER UN {filterType}" pour en créer un.
+                {filterType === FILTER_ALERTES
+                  ? 'Tous tes intervenants sont en règle. Bon travail !'
+                  : `Cliquez sur "RAJOUTER UN ${filterType}" pour en créer un.`}
               </p>
             </div>
           ) : (
             <div className="divide-y divide-[#304035]/5">
-              {filtered.map(i => (
-                <IntervenantRow
-                  key={i.id}
-                  intervenant={i}
-                  alerts={alertsByIntervenantId[i.id] ?? []}
-                  dossiersCount={dossiers.filter(d => d.intervenantId === i.id).length}
-                  onClick={() => handleOpenIntervenant(i.id)}
-                />
-              ))}
+              {(() => {
+                let toRender = filtered;
+                if (filterType === FILTER_ALERTES) {
+                  // Garde uniquement ceux qui ont au moins une alerte
+                  toRender = toRender.filter(i => (alertsByIntervenantId[i.id] ?? []).length > 0);
+                  // Tri par criticite : red > orange > amber, puis nb d'alertes
+                  const score = (alerts: IntervenantAlert[]) => {
+                    let s = 0;
+                    for (const a of alerts) {
+                      s += a.tone === 'red' ? 100 : a.tone === 'orange' ? 10 : 1;
+                    }
+                    return s;
+                  };
+                  toRender = [...toRender].sort((a, b) =>
+                    score(alertsByIntervenantId[b.id] ?? []) - score(alertsByIntervenantId[a.id] ?? [])
+                  );
+                }
+                return toRender.map(i => (
+                  <IntervenantRow
+                    key={i.id}
+                    intervenant={i}
+                    alerts={alertsByIntervenantId[i.id] ?? []}
+                    dossiersCount={dossiers.filter(d => d.intervenantId === i.id).length}
+                    showType={filterType === FILTER_ALERTES}
+                    onClick={() => handleOpenIntervenant(i.id)}
+                  />
+                ));
+              })()}
             </div>
           )}
         </div>
@@ -450,6 +481,7 @@ export default function IntervenantsHubPage() {
           onSendDemande={() => setDrawerPrefill({ intervenantId: selectedIntervenant.id })}
           onInvite={() => setInvitingFor({ id: selectedIntervenant.id, name: selectedIntervenant.name, email: selectedIntervenant.email })}
           onDelete={() => setConfirmDeleteIntervenant(selectedIntervenant.id)}
+          onEditRating={() => setEditingRating(selectedIntervenant.id)}
         />
 
         {selectedDossier ? (
@@ -502,6 +534,28 @@ export default function IntervenantsHubPage() {
           />
         )}
 
+        {editingRating === selectedIntervenant.id && (
+          <RatingEditor
+            open={!!editingRating}
+            onClose={() => setEditingRating(null)}
+            intervenantId={selectedIntervenant.id}
+            intervenantName={selectedIntervenant.name}
+            defaultRating={selectedIntervenant.rating ?? null}
+            defaultRatingComment={selectedIntervenant.ratingComment ?? null}
+            defaultTagsCsv={selectedIntervenant.tagsCsv ?? null}
+            onSaved={(data) => {
+              // Mise a jour optimiste du store local
+              useIntervenantStore.setState(s => ({
+                intervenants: s.intervenants.map(i =>
+                  i.id === selectedIntervenant.id
+                    ? { ...i, rating: data.rating, ratingComment: data.ratingComment, tagsCsv: data.tagsCsv }
+                    : i
+                ),
+              }));
+            }}
+          />
+        )}
+
         <SendToIntervenantDrawer
           open={!!drawerPrefill}
           onClose={() => setDrawerPrefill(null)}
@@ -525,6 +579,7 @@ interface IntervenantAlert {
 }
 
 function FiltersBar({ types, activeType, onPick }: { types: string[]; activeType: string; onPick: (t: string) => void }) {
+  const isAlertes = activeType === FILTER_ALERTES;
   return (
     <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm px-5 py-3">
       <div className="flex items-center gap-2 flex-wrap">
@@ -546,6 +601,18 @@ function FiltersBar({ types, activeType, onPick }: { types: string[]; activeType
             </button>
           );
         })}
+        <span className="mx-1 text-[#304035]/20">|</span>
+        <button
+          onClick={() => onPick(FILTER_ALERTES)}
+          className={cn(
+            'text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full transition-all',
+            isAlertes
+              ? 'bg-red-500 text-white shadow-sm'
+              : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+          )}
+        >
+          {FILTER_ALERTES}
+        </button>
       </div>
     </div>
   );
@@ -606,8 +673,14 @@ function QuickDemandesSection({
 }
 
 function IntervenantRow({
-  intervenant, alerts, dossiersCount, onClick,
-}: { intervenant: Intervenant; alerts: IntervenantAlert[]; dossiersCount: number; onClick: () => void }) {
+  intervenant, alerts, dossiersCount, onClick, showType = false,
+}: {
+  intervenant: Intervenant;
+  alerts: IntervenantAlert[];
+  dossiersCount: number;
+  onClick: () => void;
+  showType?: boolean;
+}) {
   const c = typeColor(intervenant.type);
   return (
     <div
@@ -620,11 +693,23 @@ function IntervenantRow({
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-[#304035] group-hover:text-[#a67749] transition-colors text-[15px] underline underline-offset-2">
           {intervenant.name}
+          {showType && (
+            <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-[#304035]/55 no-underline">
+              · {intervenant.type}
+            </span>
+          )}
         </p>
         <div className="flex flex-wrap gap-3 mt-0.5">
           {intervenant.phone && <span className="flex items-center gap-1 text-xs text-[#304035]/45"><Phone className="h-3 w-3" /> {intervenant.phone}</span>}
           {intervenant.email && <span className="flex items-center gap-1 text-xs text-[#304035]/45"><Mail className="h-3 w-3" /> {intervenant.email}</span>}
           {dossiersCount > 0 && <span className="flex items-center gap-1 text-xs text-[#304035]/45"><Folder className="h-3 w-3" /> {dossiersCount} dossier{dossiersCount > 1 ? 's' : ''}</span>}
+          {intervenant.rating ? (
+            <span className="flex items-center gap-0.5 text-xs">
+              {[1, 2, 3, 4, 5].map(n => (
+                <span key={n} className={(intervenant.rating ?? 0) >= n ? 'text-amber-500' : 'text-[#304035]/15'}>★</span>
+              ))}
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
@@ -826,15 +911,17 @@ function TicketsDrilldown({
 // ─── Détail intervenant ──────────────────────────────────────────────────────
 
 function IntervenantDetailHeader({
-  intervenant, alerts, onSendDemande, onInvite, onDelete,
+  intervenant, alerts, onSendDemande, onInvite, onDelete, onEditRating,
 }: {
   intervenant: Intervenant;
   alerts: IntervenantAlert[];
   onSendDemande: () => void;
   onInvite: () => void;
   onDelete: () => void;
+  onEditRating: () => void;
 }) {
   const c = typeColor(intervenant.type);
+  const tags = (intervenant.tagsCsv ?? '').split(',').map(t => t.trim()).filter(Boolean);
   return (
     <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm p-5">
       <div className="flex items-start gap-4 flex-wrap">
@@ -845,11 +932,35 @@ function IntervenantDetailHeader({
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-xl font-bold text-[#304035] underline underline-offset-2">{intervenant.name}</h2>
             <span className="text-xs font-bold uppercase tracking-wider text-[#304035]/55">{intervenant.type}</span>
+            {/* Rating affichage */}
+            {intervenant.rating ? (
+              <div className="flex items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <span key={n} className={cn('text-sm', (intervenant.rating ?? 0) >= n ? 'text-amber-500' : 'text-[#304035]/15')}>★</span>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3 mt-1">
             {intervenant.phone && <span className="text-xs text-[#304035]/55"><Phone className="inline h-3 w-3 mr-1" />{intervenant.phone}</span>}
             {intervenant.email && <span className="text-xs text-[#304035]/55"><Mail className="inline h-3 w-3 mr-1" />{intervenant.email}</span>}
           </div>
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {tags.map(t => (
+                <span key={t} className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-[#fef3c7] text-[#7c4f1d]">
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+          {/* Comment */}
+          {intervenant.ratingComment && (
+            <p className="mt-2 text-xs italic text-[#304035]/65 border-l-2 border-amber-200 pl-2">
+              « {intervenant.ratingComment} »
+            </p>
+          )}
           {alerts.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
               {alerts.map(a => <AlertBadge key={a.key} label={a.label} tone={a.tone} />)}
@@ -862,6 +973,9 @@ function IntervenantDetailHeader({
           </button>
           <button onClick={onInvite} className="text-xs font-bold rounded-lg px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200">
             <Mail className="inline h-3.5 w-3.5 mr-1" /> Donner accès
+          </button>
+          <button onClick={onEditRating} className="text-xs font-bold rounded-lg px-3 py-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200">
+            ★ Évaluer
           </button>
           <button onClick={onDelete} className="text-xs font-bold rounded-lg px-3 py-2 text-red-600 hover:bg-red-50 border border-red-200">
             <Trash2 className="inline h-3.5 w-3.5" />

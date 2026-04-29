@@ -65,15 +65,17 @@ export class AuthService {
       role: uw.role,
     };
 
-    // Generate access and refresh tokens with rotation
+    // HIGH-4: refresh token is now a signed JWT { sub, jti }; we persist
+    // bcrypt(jti) — never the JWT itself, never the user id alongside.
     const tokenPair = this.tokenRotation.generateTokenPair(payload);
-    const hashedRefreshToken = await this.tokenRotation.hashRefreshToken(tokenPair.refreshToken);
+    const hashedJti = await this.tokenRotation.hashRefreshToken(tokenPair.refreshTokenJti);
 
-    // Store hashed refresh token and expiration
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        refreshToken: hashedRefreshToken,
+        refreshTokenJtiHash: hashedJti,
+        // Wipe legacy column so any in-flight legacy refresh is invalidated.
+        refreshToken: null,
         refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
       },
     });
@@ -116,52 +118,101 @@ export class AuthService {
     };
   }
 
-  // ✅ TÂCHE 8 — Refresh Token with Rotation
-  async refreshToken(userId: string, refreshToken: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId, isActive: true },
-    });
-    if (!user || !user.refreshToken) throw new UnauthorizedException('Invalid refresh token');
+  // ✅ TÂCHE 8 / HIGH-4 — Refresh Token with Rotation
+  //
+  // The refresh token is a signed JWT { sub, jti, exp } — `sub` carries the
+  // userId so we no longer need a separate `user_id` cookie. We always look
+  // it up from the JWT itself (after signature verification), never from a
+  // client-controlled cookie.
+  //
+  // `legacyUserId` is the value of the deprecated `user_id` cookie. It is
+  // ONLY consulted when the refresh token is NOT a valid JWT — i.e. when the
+  // user is still on a pre-HIGH-4 opaque token. Once that user refreshes
+  // once they're migrated and `legacyUserId` stops mattering for them.
+  async refreshToken(refreshToken: string, legacyUserId?: string) {
+    const decoded = this.tokenRotation.verifyRefreshJwt(refreshToken);
 
-    // Verify refresh token against hash
-    const isValid = await this.tokenRotation.verifyRefreshToken(refreshToken, user.refreshToken);
-    if (!isValid || !user.refreshTokenExpiresAt || new Date() > user.refreshTokenExpiresAt) {
-      throw new UnauthorizedException('Refresh token expired or invalid');
+    let user;
+    let isLegacy = false;
+
+    if (decoded) {
+      // ─── New JWT scheme ────────────────────────────────────────────────
+      user = await this.prisma.user.findUnique({
+        where: { id: decoded.sub, isActive: true },
+      });
+      if (!user) throw new UnauthorizedException('Invalid refresh token');
+
+      const userAny = user as typeof user & { refreshTokenJtiHash: string | null };
+
+      if (userAny.refreshTokenJtiHash) {
+        const ok = await this.tokenRotation.verifyRefreshToken(
+          decoded.jti,
+          userAny.refreshTokenJtiHash,
+        );
+        if (!ok) throw new UnauthorizedException('Refresh token expired or invalid');
+      } else if (user.refreshToken) {
+        // Edge case: JWT-signed token but DB still on legacy column.
+        // Could only happen if a refresh raced with a legacy login. Treat
+        // as invalid — force re-login rather than make assumptions.
+        throw new UnauthorizedException('Refresh token expired or invalid');
+      } else {
+        throw new UnauthorizedException('Refresh token expired or invalid');
+      }
+    } else {
+      // ─── Legacy fallback (opaque token + user_id cookie) ───────────────
+      // Will be removed ~30d after deploy when all legacy refresh tokens
+      // have either rotated through here or expired naturally.
+      if (!legacyUserId) throw new UnauthorizedException('Invalid refresh token');
+
+      user = await this.prisma.user.findUnique({
+        where: { id: legacyUserId, isActive: true },
+      });
+      if (!user || !user.refreshToken) throw new UnauthorizedException('Invalid refresh token');
+
+      const ok = await this.tokenRotation.verifyRefreshToken(refreshToken, user.refreshToken);
+      if (!ok || !user.refreshTokenExpiresAt || new Date() > user.refreshTokenExpiresAt) {
+        throw new UnauthorizedException('Refresh token expired or invalid');
+      }
+      isLegacy = true;
     }
 
-    // Get workspace info
+    // Get workspace info — intervenants may not have one (workspaceId null).
     const uw = await this.prisma.userWorkspace.findFirst({
       where: { userId: user.id },
       include: { workspace: true },
     });
-    if (!uw) throw new UnauthorizedException('No workspace');
 
-    // Create new JWT payload
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
-      workspaceId: uw.workspaceId,
-      role: uw.role,
-    };
+      workspaceId: uw?.workspaceId ?? '',
+      role: uw?.role ?? 'INTERVENANT',
+    } as JwtPayload;
 
-    // Generate new token pair
     const tokenPair = this.tokenRotation.generateTokenPair(payload);
-
-    // Revoke old refresh token and store new one
-    this.tokenRotation.revokeToken(refreshToken, user.refreshTokenExpiresAt);
-    const hashedNewRefreshToken = await this.tokenRotation.hashRefreshToken(tokenPair.refreshToken);
+    const hashedJti = await this.tokenRotation.hashRefreshToken(tokenPair.refreshTokenJti);
 
     await this.prisma.user.update({
-      where: { id: userId },
+      where: { id: user.id },
       data: {
-        refreshToken: hashedNewRefreshToken,
+        refreshTokenJtiHash: hashedJti,
+        // Wipe the legacy column on every rotation — once migrated, never
+        // fall back to opaque path again for this user.
+        refreshToken: null,
         refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
       },
     });
 
+    if (!isLegacy && refreshToken) {
+      // Best-effort blacklist of the just-used JWT (defense-in-depth against
+      // network-level replay before the DB jti hash flip lands).
+      this.tokenRotation.revokeToken(refreshToken, tokenPair.refreshTokenExpiresAt);
+    }
+
     return {
       accessToken: tokenPair.accessToken,
       refreshToken: tokenPair.refreshToken,
+      userId: user.id,
     };
   }
 

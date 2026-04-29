@@ -302,8 +302,10 @@ model User {
   avatarUrl               String?
   isActive                Boolean   @default(true)
   lastLoginAt             DateTime?
-  refreshToken            String?   // ✅ Hashed refresh token
-  refreshTokenExpiresAt   DateTime? // ✅ Refresh token expiry
+  refreshToken            String?   // ⚠️ DEPRECATED (HIGH-4): legacy opaque refresh token hash. Kept for backward compat — to be removed once all in-circulation refresh tokens have rotated to the JWT/jti scheme (~30d after deploy).
+  refreshTokenExpiresAt   DateTime? // ⚠️ DEPRECATED (HIGH-4): expiry now embedded in JWT. Kept for legacy fallback.
+  // ✅ HIGH-4: refresh token is now a signed JWT { sub, jti }; only the bcrypt hash of `jti` is stored server-side for rotation/revocation.
+  refreshTokenJtiHash     String?   @db.VarChar(120)
   // ✅ SEC HIGH-005: dedicated password-reset fields (no longer abuse refreshToken)
   passwordResetTokenHash  String?
   passwordResetExpiresAt  DateTime?

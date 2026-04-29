@@ -105,24 +105,26 @@ export default function DemandeDetailPage() {
     notes: string;
     photos: File[];
   }) => {
-    // Construit un message recap clair
     const hours = Math.floor(payload.durationMinutes / 60);
     const mins = payload.durationMinutes % 60;
     const durationStr = hours > 0 ? `${hours}h${mins > 0 ? mins.toString().padStart(2, '0') : ''}` : `${mins}min`;
     const recap = `🏁 Intervention terminée\n⏱ Durée réelle : ${durationStr}\n\n${payload.notes}`;
 
-    // 1. Envoie un message dans le thread
+    // 1. Message recap dans le thread
     try {
       await postMyMessage(id, recap);
     } catch {/* fire-and-forget */}
 
-    // 2. Upload chaque photo dans un message separe (si projectId)
-    // Pour rester simple : on inclut juste le compte des photos dans le recap
-    // L'upload reel necessite un projectId qu'on n'a pas forcement.
+    // 2. Phase D : upload chaque photo dans un message dedie via Supabase Storage
     if (payload.photos.length > 0) {
-      try {
-        await postMyMessage(id, `📸 ${payload.photos.length} photo${payload.photos.length > 1 ? 's' : ''} jointe${payload.photos.length > 1 ? 's' : ''} (upload non disponible cote intervenant pour le moment).`);
-      } catch {/* noop */}
+      const { postMessagePhotoIntervenant } = await import('@/lib/demandes-api');
+      for (const photo of payload.photos) {
+        try {
+          await postMessagePhotoIntervenant(id, photo, '📸 Photo après intervention');
+        } catch (e) {
+          console.warn('[end-intervention] upload photo failed', e);
+        }
+      }
     }
 
     // 3. Update statut TERMINEE avec recap court en commentaire
@@ -132,6 +134,18 @@ export default function DemandeDetailPage() {
 
   const handleSendMessage = async (body: string) => {
     await postMyMessage(id, body);
+  };
+
+  const handleSendPhoto = async (file: File, text?: string) => {
+    const { postMessagePhotoIntervenant } = await import('@/lib/demandes-api');
+    await postMessagePhotoIntervenant(id, file, text);
+    // Rafraichir le detail pour voir le nouveau message
+    await fetchMyDemande(id);
+  };
+
+  const resolvePhotoUrl = async (storagePath: string) => {
+    const { getMessagePhotoUrlIntervenant } = await import('@/lib/demandes-api');
+    return getMessagePhotoUrlIntervenant(id, storagePath);
   };
 
   if (loadingDetail && !currentDemande) {
@@ -396,6 +410,8 @@ export default function DemandeDetailPage() {
           messages={d.messages ?? []}
           currentUserId={user?.id ?? null}
           onSend={handleSendMessage}
+          onSendPhoto={handleSendPhoto}
+          resolveImageUrl={resolvePhotoUrl}
           disabled={isTerminal}
           placeholder={isTerminal ? 'Cette demande est clôturée.' : undefined}
         />

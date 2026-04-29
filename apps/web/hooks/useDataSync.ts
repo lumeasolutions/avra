@@ -423,6 +423,10 @@ export function useDataSync() {
         phone: i.phone || '',
         email: i.email || '',
         notes: i.notes || '',
+        // Champs evaluation manuelle (Phase A)
+        rating: i.rating ?? null,
+        ratingComment: i.ratingComment ?? null,
+        tagsCsv: i.tagsCsv ?? null,
         dossiers: [],
       }));
 

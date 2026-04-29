@@ -10,6 +10,19 @@ export interface TokenRotationResult {
   refreshToken: string;
   accessTokenExpiresAt: Date;
   refreshTokenExpiresAt: Date;
+  /** HIGH-4: jti embedded in the refresh JWT — bcrypt-hashed in DB. */
+  refreshTokenJti: string;
+}
+
+/**
+ * HIGH-4: refresh JWT payload. `sub` is the userId, `jti` is a 32-byte hex
+ * random — only the bcrypt hash of `jti` lives in DB so it survives a DB
+ * leak the same way passwords do, while making the token itself self-describing
+ * (no separate `user_id` cookie needed to look up the user).
+ */
+export interface RefreshTokenPayload {
+  sub: string;
+  jti: string;
 }
 
 /**
@@ -24,7 +37,11 @@ export class TokenRotationService {
   ) {}
 
   /**
-   * Generate new access and refresh tokens
+   * Generate new access and refresh tokens.
+   *
+   * HIGH-4: the refresh token is now a signed JWT { sub, jti } so the server
+   * can recover the userId from the cookie alone — no more separate
+   * `user_id` cookie. Only the bcrypt hash of `jti` is persisted in DB.
    */
   generateTokenPair(payload: JwtPayload): TokenRotationResult {
     const accessTokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
@@ -34,28 +51,78 @@ export class TokenRotationService {
       expiresIn: '15m',
     });
 
-    const refreshToken = crypto.randomBytes(32).toString('hex');
+    const refreshTokenJti = crypto.randomBytes(32).toString('hex');
+    const refreshSecret = this.getRefreshSecret();
+    const refreshToken = this.jwt.sign(
+      { sub: payload.sub, jti: refreshTokenJti } satisfies RefreshTokenPayload,
+      {
+        secret: refreshSecret,
+        algorithm: 'HS256',
+        expiresIn: '30d',
+      },
+    );
 
     return {
       accessToken,
       refreshToken,
       accessTokenExpiresAt,
       refreshTokenExpiresAt,
+      refreshTokenJti,
     };
   }
 
   /**
-   * Hash a refresh token for storage
+   * HIGH-4: verify the refresh JWT (signature + expiry + alg pinning) and
+   * return the decoded payload. Returns null on any verification failure
+   * (do NOT throw — the caller wants to distinguish JWT-invalid from
+   * jti-mismatch to support the legacy fallback path).
+   */
+  verifyRefreshJwt(token: string): RefreshTokenPayload | null {
+    try {
+      const decoded = this.jwt.verify(token, {
+        secret: this.getRefreshSecret(),
+        algorithms: ['HS256'],
+      });
+      if (typeof decoded !== 'object' || decoded === null) return null;
+      const { sub, jti } = decoded as Record<string, unknown>;
+      if (typeof sub !== 'string' || typeof jti !== 'string') return null;
+      return { sub, jti };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Hash a refresh token (or jti) for storage.
+   *
+   * NOTE (HIGH-4): with the JWT scheme this is called on the `jti` claim,
+   * not on the full JWT — the token itself is recomputable from sub + jti
+   * + secret, so what we actually need to compare server-side is just `jti`.
    */
   async hashRefreshToken(token: string): Promise<string> {
     return bcrypt.hash(token, 10);
   }
 
   /**
-   * Verify a refresh token against its hash
+   * Verify a refresh token (or jti) against its bcrypt hash.
    */
   async verifyRefreshToken(token: string, hash: string): Promise<boolean> {
     return bcrypt.compare(token, hash);
+  }
+
+  /**
+   * HIGH-4: retrieves JWT_REFRESH_SECRET — required, ≥32 chars. Throws at
+   * call time (not module init) so unit tests that don't exercise refresh
+   * can still spin up the service.
+   */
+  private getRefreshSecret(): string {
+    const secret = process.env.JWT_REFRESH_SECRET;
+    if (!secret || secret.length < 32) {
+      throw new Error(
+        'JWT_REFRESH_SECRET is required and must be at least 32 characters (HIGH-4).',
+      );
+    }
+    return secret;
   }
 
   /**

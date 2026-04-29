@@ -8,7 +8,7 @@
  *
  * Aucune logique metier ici : juste des wrappers fetch typed.
  */
-import { api } from './api';
+import { api, apiUpload } from './api';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -348,6 +348,54 @@ export async function postMessageIntervenant(id: string, body: string): Promise<
     method: 'POST',
     body: JSON.stringify({ body }),
   });
+}
+
+/** Upload photo dans message chat (cote intervenant). */
+export async function postMessagePhotoIntervenant(
+  demandeId: string, file: File, text?: string,
+): Promise<DemandeMessage> {
+  const fd = new FormData();
+  fd.append('photo', file);
+  if (text) fd.append('text', text);
+  return apiUpload<DemandeMessage>(
+    `/intervenant-portal/demandes/${encodeURIComponent(demandeId)}/messages/photo`,
+    fd,
+  );
+}
+
+/** Resout signed URL pour une photo de message (cote intervenant). */
+export async function getMessagePhotoUrlIntervenant(
+  demandeId: string, storagePath: string,
+): Promise<string> {
+  const path = storagePath.split('/').map(encodeURIComponent).join('/');
+  const r = await api<{ signedUrl: string }>(
+    `/intervenant-portal/demandes/${encodeURIComponent(demandeId)}/messages/photo/${path}`
+  );
+  return r.signedUrl;
+}
+
+/** Upload photo dans message chat (cote pro). */
+export async function postMessagePhotoPro(
+  demandeId: string, file: File, text?: string,
+): Promise<DemandeMessage> {
+  const fd = new FormData();
+  fd.append('photo', file);
+  if (text) fd.append('text', text);
+  return apiUpload<DemandeMessage>(
+    `/demandes/${encodeURIComponent(demandeId)}/messages/photo`,
+    fd,
+  );
+}
+
+/** Resout signed URL pour une photo de message (cote pro). */
+export async function getMessagePhotoUrlPro(
+  demandeId: string, storagePath: string,
+): Promise<string> {
+  const path = storagePath.split('/').map(encodeURIComponent).join('/');
+  const r = await api<{ signedUrl: string }>(
+    `/demandes/${encodeURIComponent(demandeId)}/messages/photo/${path}`
+  );
+  return r.signedUrl;
 }
 
 // ─── Invitations (page acceptation) ─────────────────────────────────────────
