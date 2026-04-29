@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
-import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION, SIGNED_SUBFOLDERS } from '@/store/useDossierStore';
+import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
 import { uploadDossierDoc, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
@@ -301,7 +301,6 @@ export default function DossierDetailPage() {
   // signé AVANT de pouvoir valider (sinon l'équipe perd les deadlines).
   const [showDateButoiresModal, setShowDateButoiresModal] = useState(false);
   const [signing, setSigning] = useState(false);
-  const signedSubfolderLabels = SIGNED_SUBFOLDERS.map((sf) => sf.label);
 
   const handleSigner = () => {
     // Ouvre la modal — la signature réelle est faite après la saisie des dates
@@ -2439,12 +2438,21 @@ export default function DossierDetailPage() {
        *  ══════════════════════════════════════════════════════════════════ */}
       <DateButoireValidationModal
         open={showDateButoiresModal}
-        signedSubfolders={signedSubfolderLabels}
+        // Liste fixe alignée sur la maquette validée (5 dates + 2 ACCEDER + SAV statique).
+        // Pas de `signedSubfolders` (déprécié) — la prop `items` par défaut suffit.
         dossierId={id}
         clientName={`${dossier.firstName ? dossier.firstName + ' ' : ''}${dossier.name}`.trim()}
         subfolders={dossier.subfolders}
         profession={profession}
         loading={signing}
+        onAccessItem={(label) => {
+          // Pour COMMANDES / LIVRAISON : on ferme la modale et on scroll vers
+          // le sous-dossier correspondant dans la page (ou on ouvre l'onglet
+          // dédié quand il sera implémenté). Pour l'instant on log un toast.
+          // TODO : router vers la section dédiée (/dossiers/[id]?tab=commandes)
+          //        une fois les onglets COMMANDES / LIVRAISONS prêts.
+          console.info('[dates-butoires] ACCEDER clicked for', label);
+        }}
         onConfirm={handleConfirmDatesButoires}
         onCancel={() => { if (!signing) setShowDateButoiresModal(false); }}
       />

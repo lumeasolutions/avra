@@ -26,7 +26,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   X, Calendar, Sparkles, AlertTriangle, Check, Loader2,
   AlertCircle, Wand2, FileCheck, Receipt, CalendarDays, ChevronLeft, ChevronRight,
-  Eye,
+  Eye, Folder, ArrowRight,
 } from 'lucide-react';
 import { usePlanningStore } from '@/store/usePlanningStore';
 import type {
@@ -42,10 +42,46 @@ import { getDocSignedUrl } from '@/lib/dossier-docs-api';
 
 type Profession = 'architecte' | 'menuisier' | 'cuisiniste' | null;
 
+/**
+ * Type d'un item dans la liste "Enregistrer date butoir pour rappel" :
+ *  - 'date'   : input date classique (compte dans la progression)
+ *  - 'access' : bouton "ACCEDER" qui ouvre la section dédiée du dossier
+ *  - 'static' : pure information (icône folder, pas d'action) → ex. SAV
+ */
+export type DateButoireItemKind = 'date' | 'access' | 'static';
+
+export interface DateButoireItem {
+  label: string;
+  kind: DateButoireItemKind;
+}
+
+/**
+ * Liste fixe par défaut des items affichés dans le panneau "Enregistrer date
+ * butoir pour rappel" lors de la validation d'un dossier signé.
+ * Cette liste correspond exactement à la maquette validée par le client.
+ */
+export const DEFAULT_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
+  { label: 'SUIVI DE CHANTIER',    kind: 'date'   },
+  { label: 'RELEVE DE MESURES',    kind: 'date'   },
+  { label: 'PLAN TECHNIQUE',       kind: 'date'   },
+  { label: 'COMMANDES',            kind: 'access' },
+  { label: 'LIVRAISON',            kind: 'access' },
+  { label: 'FICHE DE POSE',        kind: 'date'   },
+  { label: 'PERMIS DE CONSTRUIRE', kind: 'date'   },
+  { label: 'SAV',                  kind: 'static' },
+];
+
 export interface DateButoireValidationProps {
   open: boolean;
-  /** Liste des labels de sous-dossiers signés à dater. */
-  signedSubfolders: string[];
+  /**
+   * Liste fixe des items à afficher (date / access / static).
+   * Si non fourni, on utilise `DEFAULT_DATE_BUTOIRE_ITEMS`.
+   * @deprecated `signedSubfolders` (string[]) reste accepté pour rétro-compat
+   * mais sera retiré prochainement — préférer `items`.
+   */
+  items?: DateButoireItem[];
+  /** Rétro-compat : si `items` absent, mappé en items 'date'. */
+  signedSubfolders?: string[];
   /** ID du dossier en cours de validation — pour filtrer ses devis. */
   dossierId: string;
   /** Nom du client à afficher en titre. */
@@ -55,26 +91,27 @@ export interface DateButoireValidationProps {
   /** Métier de l'utilisateur — détermine quel sous-dossier est "le dernier projet". */
   profession?: Profession;
   loading?: boolean;
+  /**
+   * Callback déclenché quand l'utilisateur clique sur le bouton "ACCEDER" d'un
+   * item de type 'access' (COMMANDES, LIVRAISON…). Le parent peut router vers
+   * la section dédiée du dossier ou ouvrir un sub-drawer.
+   */
+  onAccessItem?: (label: string) => void;
   onConfirm: (dates: Record<string, string>) => Promise<void> | void;
   onCancel: () => void;
 }
 
 /**
- * Suggestions de délais par défaut pour les sous-dossiers signés courants.
+ * Suggestions de délais par défaut pour les items 'date' courants.
  * Délai en jours depuis aujourd'hui. Override possible si label inconnu (J+30).
  */
 const DEFAULT_DELAYS: Record<string, number> = {
-  'DOSSIER AVANT VENTE':   0,
-  'PROJET VERSION 3':      7,
-  'RELEVE DE MESURES':    10,
   'SUIVI DE CHANTIER':    14,
+  'RELEVE DE MESURES':    10,
+  'PLAN TECHNIQUE':       30,
   'PLAN TECHNIQUE DCE':   30,
-  'PERMIS DE CONSTRUIRE': 30,
-  'COMMANDES':            45,
-  'LIVRAISONS':           90,
   'FICHE DE POSE':        95,
-  'RECEPTION CHANTIER':  120,
-  'SAV':                 180,
+  'PERMIS DE CONSTRUIRE': 30,
 };
 
 const DAYS = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];
@@ -96,8 +133,24 @@ function dayDelta(iso: string): number {
 }
 
 export function DateButoireValidationModal({
-  open, signedSubfolders, dossierId, clientName, subfolders, profession, loading, onConfirm, onCancel,
+  open, items, signedSubfolders, dossierId, clientName, subfolders, profession, loading,
+  onAccessItem, onConfirm, onCancel,
 }: DateButoireValidationProps) {
+  // Résolution des items affichés : `items` prioritaire, sinon mapping legacy
+  // depuis `signedSubfolders` (tous en 'date'), sinon liste par défaut.
+  const resolvedItems: DateButoireItem[] = useMemo(() => {
+    if (items && items.length > 0) return items;
+    if (signedSubfolders && signedSubfolders.length > 0) {
+      return signedSubfolders.map((label) => ({ label, kind: 'date' as const }));
+    }
+    return DEFAULT_DATE_BUTOIRE_ITEMS;
+  }, [items, signedSubfolders]);
+
+  /** Items qui demandent une saisie de date — ce sont eux qui comptent dans la progression. */
+  const dateItems = useMemo(
+    () => resolvedItems.filter((it) => it.kind === 'date'),
+    [resolvedItems],
+  );
   const planningEvents = usePlanningStore((s) => s.planningEvents);
   const gestEvents = usePlanningStore((s) => s.gestEvents);
 
@@ -197,11 +250,13 @@ export function DateButoireValidationModal({
   }, [planningEvents, gestEvents, weekOffset]);
 
   // ── Computed ─────────────────────────────────────────────────────────────
+  // Seuls les items 'date' comptent dans la progression / dans le `allFilled`.
+  // Les 'access' et 'static' sont purement informatifs côté validation.
   const filledCount = useMemo(
-    () => signedSubfolders.filter((l) => !!dates[l]).length,
-    [signedSubfolders, dates],
+    () => dateItems.filter((it) => !!dates[it.label]).length,
+    [dateItems, dates],
   );
-  const total = signedSubfolders.length;
+  const total = dateItems.length;
   const allFilled = total > 0 && filledCount === total;
   const progressPct = total === 0 ? 0 : Math.round((filledCount / total) * 100);
 
@@ -209,7 +264,7 @@ export function DateButoireValidationModal({
 
   const handlePrefill = () => {
     const next: Record<string, string> = {};
-    for (const label of signedSubfolders) next[label] = suggestDate(label);
+    for (const it of dateItems) next[it.label] = suggestDate(it.label);
     setDates(next);
     setError(null);
   };
@@ -642,6 +697,62 @@ export function DateButoireValidationModal({
         }
         .dbv-item.filled .dbv-item-delta { color: #16a34a; }
 
+        /* Banner "Enregistrer date butoir pour rappel" */
+        .dbv-section-banner {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 9px 14px; margin-bottom: 10px;
+          border-radius: 10px;
+          background: linear-gradient(135deg, #2a3a30 0%, #3d5244 100%);
+          color: #fff; font-size: 12px; font-weight: 800;
+          letter-spacing: 0.04em; text-transform: uppercase;
+          box-shadow: 0 4px 12px rgba(48,64,53,0.25);
+          align-self: flex-start;
+        }
+        .dbv-section-banner svg { color: #d9b38a; }
+
+        /* Bullet folder (icône dossier au lieu d'un numéro) */
+        .dbv-item-bullet-folder {
+          background: linear-gradient(135deg, #fff8ef 0%, #ffe7c2 100%);
+          color: #a67749;
+          border-color: rgba(166,119,73,0.3);
+        }
+        .dbv-item.filled .dbv-item-bullet-folder {
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          color: #fff; border-color: #16a34a;
+        }
+
+        /* Bouton ACCEDER (items 'access' : COMMANDES, LIVRAISON) */
+        .dbv-item-access { background: linear-gradient(135deg, #fbf8f3 0%, #fff 100%); }
+        .dbv-access-btn {
+          flex-shrink: 0;
+          display: inline-flex; align-items: center; gap: 5px;
+          padding: 7px 14px;
+          border-radius: 8px;
+          border: 1px solid rgba(166,119,73,0.4);
+          background: linear-gradient(135deg, #fff8ef 0%, #ffe7c2 100%);
+          color: #7c4f1d;
+          font-size: 11px; font-weight: 800;
+          letter-spacing: 0.08em;
+          cursor: pointer;
+          transition: all 0.18s ease;
+          font-family: inherit;
+        }
+        .dbv-access-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          background: linear-gradient(135deg, #ffe7c2 0%, #f4d6a8 100%);
+          border-color: #a67749;
+          box-shadow: 0 4px 12px rgba(166,119,73,0.3);
+          color: #5d3a14;
+        }
+        .dbv-access-btn:active:not(:disabled) { transform: translateY(0); }
+        .dbv-access-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Item statique (SAV) — pas d'interaction */
+        .dbv-item-static {
+          background: rgba(48,64,53,0.02);
+          opacity: 0.85;
+        }
+
         /* Footer */
         .dbv-foot {
           flex-shrink: 0;
@@ -905,8 +1016,58 @@ export function DateButoireValidationModal({
                 Pré-remplir avec des délais standards
               </button>
 
+              <div className="dbv-section-banner">
+                <Folder style={{ width: 14, height: 14 }} />
+                Enregistrer date butoir pour rappel
+              </div>
+
               <div className="dbv-list">
-                {signedSubfolders.map((label, i) => {
+                {resolvedItems.map((item, i) => {
+                  const { label, kind } = item;
+
+                  // ── 1) Items 'access' (COMMANDES, LIVRAISON) → bouton ACCEDER ──
+                  if (kind === 'access') {
+                    return (
+                      <div
+                        key={label}
+                        className="dbv-item dbv-item-access"
+                        style={{ animationDelay: `${i * 30}ms` }}
+                      >
+                        <div className="dbv-item-bullet dbv-item-bullet-folder">
+                          <Folder style={{ width: 12, height: 12 }} />
+                        </div>
+                        <span className="dbv-item-label" title={label}>{label}</span>
+                        <button
+                          type="button"
+                          className="dbv-access-btn"
+                          onClick={() => onAccessItem?.(label)}
+                          disabled={submitting || loading}
+                          aria-label={`Accéder à ${label}`}
+                        >
+                          ACCEDER
+                          <ArrowRight style={{ width: 12, height: 12 }} />
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  // ── 2) Items 'static' (SAV) → folder seul, pas d'action ──
+                  if (kind === 'static') {
+                    return (
+                      <div
+                        key={label}
+                        className="dbv-item dbv-item-static"
+                        style={{ animationDelay: `${i * 30}ms` }}
+                      >
+                        <div className="dbv-item-bullet dbv-item-bullet-folder">
+                          <Folder style={{ width: 12, height: 12 }} />
+                        </div>
+                        <span className="dbv-item-label" title={label}>{label}</span>
+                      </div>
+                    );
+                  }
+
+                  // ── 3) Items 'date' (cas par défaut) → input date ──
                   const value = dates[label] ?? '';
                   const isFilled = !!value;
                   const delta = isFilled ? dayDelta(value) : 0;
@@ -916,8 +1077,8 @@ export function DateButoireValidationModal({
                       className={`dbv-item${isFilled ? ' filled' : ''}`}
                       style={{ animationDelay: `${i * 30}ms` }}
                     >
-                      <div className="dbv-item-bullet">
-                        {isFilled ? <Check style={{ width: 12, height: 12 }} /> : i + 1}
+                      <div className="dbv-item-bullet dbv-item-bullet-folder">
+                        {isFilled ? <Check style={{ width: 12, height: 12 }} /> : <Folder style={{ width: 12, height: 12 }} />}
                       </div>
                       <span className="dbv-item-label" title={label}>{label}</span>
                       {isFilled && (
