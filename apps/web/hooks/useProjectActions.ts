@@ -132,8 +132,10 @@ export function useProjectActions() {
    */
   const signProject = useCallback(
     async (id: string): Promise<void> => {
-      // Optimistic update local
-      store.signerDossier(id);
+      // Optimistic update local — on passe la profession pour que le store
+      // construise les bons sous-dossiers signés (MENUISIER en a une liste
+      // dédiée, voir buildSignedSubfoldersForProfession dans useDossierStore).
+      store.signerDossier(id, profession);
 
       if (user?.id === 'demo' || !user?.workspaceId) return;
 
@@ -146,7 +148,7 @@ export function useProjectActions() {
         console.warn('[ProjectActions] API sign failed:', err);
       }
     },
-    [user, store],
+    [user, store, profession],
   );
 
   /**

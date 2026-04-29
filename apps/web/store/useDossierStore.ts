@@ -176,6 +176,85 @@ export const SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'RECEPTION CHANTIER' },
 ];
 
+/**
+ * Sous-dossiers signés spécifiques au métier MENUISIER.
+ * Ordre figé d'après la maquette validée par le client (DOSSIER SIGNE 5).
+ *
+ * "DOSSIER AVANT VENTE" agit comme une archive : à la signature, on y déplace
+ * tous les sous-dossiers et documents qui étaient dans le dossier en cours
+ * (DOSSIER RENSEIGNEMENT, ÉTAT DES LIEUX, RELEVE DE MESURES, PROJET 1..N…).
+ * Les autres labels sont des étapes de production menuiserie.
+ *
+ * Le label "PROJET VALIDÉ" est un placeholder — `signerDossier` le réécrit en
+ * "PROJET <N> VALIDÉ" en se basant sur le numéro du dernier PROJET du dossier.
+ */
+export const MENUISIER_SIGNED_SUBFOLDERS: SubFolder[] = [
+  { label: 'AVANT VENTE' },
+  { label: 'PROJET VALIDÉ' },
+  { label: 'RELEVÉ SUR MESURE' },
+  { label: 'DÉBIT / LISTE MATÉRIAUX' },
+  { label: 'FABRICATION' },
+  { label: 'LANCEMENT' },
+  { label: 'COMMANDES FOURNISSEURS' },
+  { label: 'FICHE DE POSE' },
+  { label: 'LIVRAISON' },
+  { label: 'MODIFICATIONS' },
+  { label: 'SAV' },
+];
+
+/**
+ * Construit les sous-dossiers d'un DossierSigne selon la profession.
+ * Pour MENUISIER : "AVANT VENTE" reçoit en archive les documents du dossier
+ * en cours, et "PROJET VALIDÉ" est renommé "PROJET <N> VALIDÉ" si on trouve
+ * un sous-dossier "PROJET N" dans le dossier source.
+ */
+export function buildSignedSubfoldersForProfession(
+  source: Dossier,
+  profession?: string | null,
+): SubFolder[] {
+  if (profession !== 'menuisier') {
+    return SIGNED_SUBFOLDERS;
+  }
+
+  // Tous les documents du dossier en cours, aplatis et préfixés par leur
+  // sous-dossier d'origine pour préserver la traçabilité.
+  const archivedDocs: DocumentFile[] = [];
+  for (const sf of source.subfolders ?? []) {
+    if (!sf.documents) continue;
+    for (const doc of sf.documents) {
+      const baseDoc: DocumentFile =
+        typeof doc === 'string' ? { name: doc } : { ...doc };
+      // Conserver une trace du dossier d'origine pour relire l'historique.
+      archivedDocs.push({
+        ...baseDoc,
+        name: `[${sf.label}] ${baseDoc.name}`,
+      });
+    }
+  }
+
+  // Dernier "PROJET N" trouvé dans le dossier source → "PROJET <N> VALIDÉ".
+  let bestVersion = 0;
+  for (const sf of source.subfolders ?? []) {
+    const m = sf.label.match(MENUISIER_PROJET_REGEX);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (Number.isFinite(n) && n > bestVersion) bestVersion = n;
+    }
+  }
+  const projetValideLabel =
+    bestVersion > 0 ? `PROJET ${bestVersion} VALIDÉ` : 'PROJET VALIDÉ';
+
+  return MENUISIER_SIGNED_SUBFOLDERS.map((sf) => {
+    if (sf.label === 'AVANT VENTE') {
+      return { ...sf, documents: archivedDocs };
+    }
+    if (sf.label === 'PROJET VALIDÉ') {
+      return { ...sf, label: projetValideLabel };
+    }
+    return { ...sf };
+  });
+}
+
 // Données initiales — vides. Les vraies données viennent de l'API via useDataSync.
 const INITIAL_DOSSIERS: Dossier[] = [];
 const INITIAL_SIGNES: DossierSigne[] = [];
@@ -207,7 +286,12 @@ interface DossierState {
    * (backfill pour les dossiers créés avant l'ajout des defaults).
    */
   ensureDefaultSubfolders: (dossierId: string, profession?: string | null) => void;
-  signerDossier: (id: string) => void;
+  /**
+   * Signe un dossier — le déplace de `dossiers` vers `dossiersSignes`.
+   * @param profession sert à choisir le bon set de sous-dossiers signés
+   *   (MENUISIER_SIGNED_SUBFOLDERS si 'menuisier', sinon SIGNED_SUBFOLDERS).
+   */
+  signerDossier: (id: string, profession?: string | null) => void;
   perdreDossier: (id: string, reason: string) => void;
   /**
    * Supprime définitivement un dossier (active, signé ou perdu) du store local.
@@ -390,13 +474,17 @@ export const useDossierStore = create<DossierState>()(
         }
       },
 
-      signerDossier: (id) => {
+      signerDossier: (id, profession) => {
         const dossier = get().dossiers.find(d => d.id === id);
         if (!dossier) return;
         const signed: DossierSigne = {
           ...dossier,
           signedDate: new Date().toLocaleDateString('fr-FR'),
-          signedSubfolders: SIGNED_SUBFOLDERS,
+          // Pour MENUISIER, on construit dynamiquement la liste : "AVANT VENTE"
+          // archive tous les fichiers du dossier en cours, et "PROJET VALIDÉ"
+          // est renommé "PROJET <N> VALIDÉ" selon le dernier projet trouvé.
+          // Pour les autres métiers, on conserve la liste générique.
+          signedSubfolders: buildSignedSubfoldersForProfession(dossier, profession),
         };
         set(s => ({
           dossiers: s.dossiers.filter(d => d.id !== id),
