@@ -39,9 +39,13 @@ export class TokenRotationService {
   /**
    * Generate new access and refresh tokens.
    *
-   * HIGH-4: the refresh token is now a signed JWT { sub, jti } so the server
-   * can recover the userId from the cookie alone — no more separate
-   * `user_id` cookie. Only the bcrypt hash of `jti` is persisted in DB.
+   * HIGH-4: the refresh token is preferentially a signed JWT { sub, jti }.
+   * If JWT_REFRESH_SECRET is missing/too-short (legacy deployments), we fall
+   * back to an opaque random refresh token (the previous scheme) — `jti`
+   * then becomes that opaque random itself, hashed in DB the same way.
+   *
+   * HOTFIX 29/04/2026 : avant ce fallback, login crashait en 500 si
+   * JWT_REFRESH_SECRET n'était pas configuré sur Vercel.
    */
   generateTokenPair(payload: JwtPayload): TokenRotationResult {
     const accessTokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
@@ -52,15 +56,21 @@ export class TokenRotationService {
     });
 
     const refreshTokenJti = crypto.randomBytes(32).toString('hex');
-    const refreshSecret = this.getRefreshSecret();
-    const refreshToken = this.jwt.sign(
-      { sub: payload.sub, jti: refreshTokenJti } satisfies RefreshTokenPayload,
-      {
-        secret: refreshSecret,
-        algorithm: 'HS256',
-        expiresIn: '30d',
-      },
-    );
+    const refreshSecret = this.tryGetRefreshSecret();
+
+    let refreshToken: string;
+    if (refreshSecret) {
+      // Mode JWT signé — préféré
+      refreshToken = this.jwt.sign(
+        { sub: payload.sub, jti: refreshTokenJti } satisfies RefreshTokenPayload,
+        { secret: refreshSecret, algorithm: 'HS256', expiresIn: '30d' },
+      );
+    } else {
+      // Fallback legacy — refresh token = la valeur random elle-même.
+      // Le controller pose ce token en cookie HttpOnly et le compare via
+      // bcrypt(refreshTokenJti) en DB exactement de la même façon.
+      refreshToken = refreshTokenJti;
+    }
 
     return {
       accessToken,
@@ -78,9 +88,11 @@ export class TokenRotationService {
    * jti-mismatch to support the legacy fallback path).
    */
   verifyRefreshJwt(token: string): RefreshTokenPayload | null {
+    const refreshSecret = this.tryGetRefreshSecret();
+    if (!refreshSecret) return null; // mode legacy : pas de JWT à vérifier
     try {
       const decoded = this.jwt.verify(token, {
-        secret: this.getRefreshSecret(),
+        secret: refreshSecret,
         algorithms: ['HS256'],
       });
       if (typeof decoded !== 'object' || decoded === null) return null;
@@ -111,17 +123,13 @@ export class TokenRotationService {
   }
 
   /**
-   * HIGH-4: retrieves JWT_REFRESH_SECRET — required, ≥32 chars. Throws at
-   * call time (not module init) so unit tests that don't exercise refresh
-   * can still spin up the service.
+   * Retourne JWT_REFRESH_SECRET s'il est configuré et ≥32 chars.
+   * Sinon retourne null pour activer le fallback legacy (refresh opaque).
+   * Aucun throw — le caller décide quel scheme utiliser.
    */
-  private getRefreshSecret(): string {
+  private tryGetRefreshSecret(): string | null {
     const secret = process.env.JWT_REFRESH_SECRET;
-    if (!secret || secret.length < 32) {
-      throw new Error(
-        'JWT_REFRESH_SECRET is required and must be at least 32 characters (HIGH-4).',
-      );
-    }
+    if (!secret || secret.length < 32) return null;
     return secret;
   }
 

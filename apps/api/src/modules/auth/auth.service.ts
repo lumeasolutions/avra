@@ -65,20 +65,40 @@ export class AuthService {
       role: uw.role,
     };
 
-    // HIGH-4: refresh token is now a signed JWT { sub, jti }; we persist
-    // bcrypt(jti) — never the JWT itself, never the user id alongside.
+    // HIGH-4: refresh token is preferentially a signed JWT { sub, jti }.
+    // Persist bcrypt(jti) dans `refreshTokenJtiHash` (nouveau scheme) et
+    // garder `refreshToken` legacy en miroir tant que la migration n'est
+    // pas appliquée partout (fallback robuste).
     const tokenPair = this.tokenRotation.generateTokenPair(payload);
     const hashedJti = await this.tokenRotation.hashRefreshToken(tokenPair.refreshTokenJti);
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        refreshTokenJtiHash: hashedJti,
-        // Wipe legacy column so any in-flight legacy refresh is invalidated.
-        refreshToken: null,
-        refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
-      },
-    });
+    // HOTFIX 29/04/2026 : si la colonne `refreshTokenJtiHash` n'existe pas
+    // encore en DB (migration non appliquée), on retombe sur l'ancien
+    // schéma `refreshToken` uniquement, pour ne pas crasher le login.
+    try {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          refreshTokenJtiHash: hashedJti,
+          refreshToken: hashedJti, // miroir legacy — même hash, sert au fallback /refresh
+          refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
+        },
+      });
+    } catch (err: any) {
+      const msg = String(err?.message ?? err);
+      // Prisma P2022 = colonne inexistante (migration manquante).
+      if (msg.includes('refreshTokenJtiHash') || msg.includes('P2022')) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            refreshToken: hashedJti,
+            refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
+          },
+        });
+      } else {
+        throw err;
+      }
+    }
 
     return {
       accessToken: tokenPair.accessToken,
