@@ -223,6 +223,28 @@ export const CUISINISTE_SIGNED_SUBFOLDERS: SubFolder[] = [
 ];
 
 /**
+ * Sous-dossiers signés spécifiques au métier ARCHITECTE D'INTÉRIEUR.
+ * Ordre figé d'après la maquette validée par le client (MODULE ARCHITECTE).
+ *
+ * "AVANT VENTE" archive tous les sous-dossiers du dossier en cours.
+ * "APD VERSION VALIDÉE" est réécrit en "APD VERSION <N> (DOSSIER SIGNÉ)" en
+ * se basant sur le numéro de la dernière APD trouvée dans le dossier source.
+ */
+export const ARCHITECTE_SIGNED_SUBFOLDERS: SubFolder[] = [
+  { label: 'AVANT VENTE' },
+  { label: 'APD VERSION VALIDÉE' },
+  { label: 'PERMIS DE CONSTRUIRE' },
+  { label: 'DCE' },
+  { label: 'MARCHÉ / SIGNATURES' },
+  { label: 'COMMANDES FOURNISSEURS' },
+  { label: 'CONFIRMATIONS / FACTURES ACHATS FOURNISSEURS' },
+  { label: 'LIVRAISON' },
+  { label: 'SUIVI DE CHANTIER' },
+  { label: 'DOSSIER MODIFICATIONS' },
+  { label: 'RÉCEPTION SAV' },
+];
+
+/**
  * Construit les sous-dossiers d'un DossierSigne selon la profession.
  * Pour MENUISIER : "AVANT VENTE" reçoit en archive les documents du dossier
  * en cours, et "PROJET VALIDÉ" est renommé "PROJET <N> VALIDÉ" si on trouve
@@ -232,7 +254,11 @@ export function buildSignedSubfoldersForProfession(
   source: Dossier,
   profession?: string | null,
 ): SubFolder[] {
-  if (profession !== 'menuisier' && profession !== 'cuisiniste') {
+  if (
+    profession !== 'menuisier' &&
+    profession !== 'cuisiniste' &&
+    profession !== 'architecte'
+  ) {
     return SIGNED_SUBFOLDERS;
   }
 
@@ -273,22 +299,44 @@ export function buildSignedSubfoldersForProfession(
     });
   }
 
-  // profession === 'cuisiniste'
-  // Dernière "OPTION N" trouvée dans le dossier source → "OPTION <N> VALIDÉE".
-  let bestOption = 0;
+  if (profession === 'cuisiniste') {
+    // Dernière "OPTION N" trouvée → "OPTION <N> VALIDÉE".
+    let bestOption = 0;
+    for (const sf of source.subfolders ?? []) {
+      const m = sf.label.match(CUISINISTE_OPTION_REGEX);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (Number.isFinite(n) && n > bestOption) bestOption = n;
+      }
+    }
+    const optionValideeLabel =
+      bestOption > 0 ? `OPTION ${bestOption} VALIDÉE` : 'OPTION VALIDÉE';
+
+    return CUISINISTE_SIGNED_SUBFOLDERS.map((sf) => {
+      if (sf.label === 'AVANT VENTE') return { ...sf, documents: archivedDocs };
+      if (sf.label === 'OPTION VALIDÉE') return { ...sf, label: optionValideeLabel };
+      return { ...sf };
+    });
+  }
+
+  // profession === 'architecte'
+  // Dernière "PROJET VERSION N – APD" trouvée → "APD VERSION <N> (DOSSIER SIGNÉ)".
+  let bestApd = 0;
   for (const sf of source.subfolders ?? []) {
-    const m = sf.label.match(CUISINISTE_OPTION_REGEX);
-    if (m) {
+    const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
+    if (m && m[2].toUpperCase() === 'APD') {
       const n = parseInt(m[1], 10);
-      if (Number.isFinite(n) && n > bestOption) bestOption = n;
+      if (Number.isFinite(n) && n > bestApd) bestApd = n;
     }
   }
-  const optionValideeLabel =
-    bestOption > 0 ? `OPTION ${bestOption} VALIDÉE` : 'OPTION VALIDÉE';
+  const apdLabel =
+    bestApd > 0
+      ? `APD VERSION ${bestApd} (DOSSIER SIGNÉ)`
+      : 'APD VERSION VALIDÉE (DOSSIER SIGNÉ)';
 
-  return CUISINISTE_SIGNED_SUBFOLDERS.map((sf) => {
+  return ARCHITECTE_SIGNED_SUBFOLDERS.map((sf) => {
     if (sf.label === 'AVANT VENTE') return { ...sf, documents: archivedDocs };
-    if (sf.label === 'OPTION VALIDÉE') return { ...sf, label: optionValideeLabel };
+    if (sf.label === 'APD VERSION VALIDÉE') return { ...sf, label: apdLabel };
     return { ...sf };
   });
 }
