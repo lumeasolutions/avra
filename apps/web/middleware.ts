@@ -91,17 +91,20 @@ function isJwtStructurallyValid(token: string): boolean {
  * NOTE: 'unsafe-inline' for styles is kept (Tailwind injects critical CSS).
  * Migrating styles to nonce/hash is non-trivial and out of scope here.
  */
-function buildCspWithNonce(nonce: string, isProd: boolean): string {
-  // CRIT-001 (passe-2 alternative pragmatique): we keep `'unsafe-inline'`
-  // alongside the nonce instead of `'strict-dynamic'`. Modern browsers honor
-  // the nonce and ignore `'unsafe-inline'` automatically (CSP3 backwards-compat
-  // semantics), while older browsers still get a non-trivial baseline. This
-  // avoids having to thread `nonce={nonce}` through every server component
-  // emitting `<script type="application/ld+json">` (~22 pages). Documented as
-  // a deliberate trade-off in AVRA security passe-2 report.
+function buildCspWithNonce(_nonce: string, isProd: boolean): string {
+  // HOTFIX prod 29/04/2026 : la combinaison `'nonce-XXX' 'unsafe-inline'` ne
+  // fonctionne PAS comme prévu — les browsers CSP3 (Chrome moderne) ignorent
+  // `'unsafe-inline'` dès qu'un nonce est présent dans `script-src`, ce qui
+  // bloque tous les scripts inline Next.js (qui ne portent pas de nonce sur
+  // chunks bootstrap RSC). Résultat : page blanche en prod.
+  //
+  // Trade-off : on revient à `'self' 'unsafe-inline'` (statu quo pré-passe-2)
+  // jusqu'à pouvoir threader `nonce={...}` sur tous les scripts inline RSC.
+  // Le nonce est toujours généré et exposé via header `x-nonce` pour pouvoir
+  // le câbler progressivement sans toucher de nouveau au middleware.
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://plausible.io${isProd ? '' : " 'unsafe-eval'"}`,
+    `script-src 'self' 'unsafe-inline' https://plausible.io${isProd ? '' : " 'unsafe-eval'"}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com https://*.supabase.co",
     "font-src 'self' https://fonts.gstatic.com",

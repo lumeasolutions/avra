@@ -24,16 +24,15 @@ const securityHeaders = [
     key: 'Strict-Transport-Security',
     value: 'max-age=31536000; includeSubDomains; preload',
   }] : []),
-  // ⚠️ HIGH-007: CSP est désormais posée dynamiquement par middleware.ts
-  // (nonce per-request + 'strict-dynamic'). On garde ici un fallback minimal
-  // pour les routes/assets non couvertes par le middleware (images statiques,
-  // robots.txt, etc.). Le middleware OVERRIDE cette valeur sur les pages.
+  // CSP fallback : le middleware override sur les pages, mais ce fallback
+  // s'applique aux routes non couvertes (assets statiques, robots, etc.).
+  // Aligné sur la CSP middleware pour éviter tout blocage Next.js inline.
   {
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self'",
-      "style-src 'self' 'unsafe-inline'",
+      "script-src 'self' 'unsafe-inline' https://plausible.io",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com https://*.supabase.co",
       "font-src 'self' https://fonts.gstatic.com",
       "frame-ancestors 'self'",
