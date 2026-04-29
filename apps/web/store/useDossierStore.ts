@@ -203,6 +203,26 @@ export const MENUISIER_SIGNED_SUBFOLDERS: SubFolder[] = [
 ];
 
 /**
+ * Sous-dossiers signés spécifiques au métier CUISINISTE.
+ * Ordre figé d'après la maquette validée par le client (MODULE CUISINISTE).
+ *
+ * Même principe que MENUISIER : "AVANT VENTE" archive tous les sous-dossiers
+ * et documents du dossier en cours. "OPTION VALIDÉE" est réécrit en
+ * "OPTION <N> VALIDÉE" en se basant sur le numéro de la dernière OPTION.
+ */
+export const CUISINISTE_SIGNED_SUBFOLDERS: SubFolder[] = [
+  { label: 'AVANT VENTE' },
+  { label: 'OPTION VALIDÉE' },
+  { label: 'RELEVÉ DÉFINITIF' },
+  { label: 'PLAN TECHNIQUE' },
+  { label: 'COMMANDE' },
+  { label: 'CONFIRMATIONS / FACTURES ACHATS' },
+  { label: 'LIVRAISON' },
+  { label: 'FICHE DE POSE' },
+  { label: 'SAV' },
+];
+
+/**
  * Construit les sous-dossiers d'un DossierSigne selon la profession.
  * Pour MENUISIER : "AVANT VENTE" reçoit en archive les documents du dossier
  * en cours, et "PROJET VALIDÉ" est renommé "PROJET <N> VALIDÉ" si on trouve
@@ -212,10 +232,11 @@ export function buildSignedSubfoldersForProfession(
   source: Dossier,
   profession?: string | null,
 ): SubFolder[] {
-  if (profession !== 'menuisier') {
+  if (profession !== 'menuisier' && profession !== 'cuisiniste') {
     return SIGNED_SUBFOLDERS;
   }
 
+  // ─── Étape 1 : archive AVANT VENTE ─────────────────────────────────────
   // Tous les documents du dossier en cours, aplatis et préfixés par leur
   // sous-dossier d'origine pour préserver la traçabilité.
   const archivedDocs: DocumentFile[] = [];
@@ -224,7 +245,6 @@ export function buildSignedSubfoldersForProfession(
     for (const doc of sf.documents) {
       const baseDoc: DocumentFile =
         typeof doc === 'string' ? { name: doc } : { ...doc };
-      // Conserver une trace du dossier d'origine pour relire l'historique.
       archivedDocs.push({
         ...baseDoc,
         name: `[${sf.label}] ${baseDoc.name}`,
@@ -232,25 +252,43 @@ export function buildSignedSubfoldersForProfession(
     }
   }
 
-  // Dernier "PROJET N" trouvé dans le dossier source → "PROJET <N> VALIDÉ".
-  let bestVersion = 0;
+  // ─── Étape 2 : aiguillage par profession ───────────────────────────────
+  if (profession === 'menuisier') {
+    // Dernier "PROJET N" trouvé dans le dossier source → "PROJET <N> VALIDÉ".
+    let bestVersion = 0;
+    for (const sf of source.subfolders ?? []) {
+      const m = sf.label.match(MENUISIER_PROJET_REGEX);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (Number.isFinite(n) && n > bestVersion) bestVersion = n;
+      }
+    }
+    const projetValideLabel =
+      bestVersion > 0 ? `PROJET ${bestVersion} VALIDÉ` : 'PROJET VALIDÉ';
+
+    return MENUISIER_SIGNED_SUBFOLDERS.map((sf) => {
+      if (sf.label === 'AVANT VENTE') return { ...sf, documents: archivedDocs };
+      if (sf.label === 'PROJET VALIDÉ') return { ...sf, label: projetValideLabel };
+      return { ...sf };
+    });
+  }
+
+  // profession === 'cuisiniste'
+  // Dernière "OPTION N" trouvée dans le dossier source → "OPTION <N> VALIDÉE".
+  let bestOption = 0;
   for (const sf of source.subfolders ?? []) {
-    const m = sf.label.match(MENUISIER_PROJET_REGEX);
+    const m = sf.label.match(CUISINISTE_OPTION_REGEX);
     if (m) {
       const n = parseInt(m[1], 10);
-      if (Number.isFinite(n) && n > bestVersion) bestVersion = n;
+      if (Number.isFinite(n) && n > bestOption) bestOption = n;
     }
   }
-  const projetValideLabel =
-    bestVersion > 0 ? `PROJET ${bestVersion} VALIDÉ` : 'PROJET VALIDÉ';
+  const optionValideeLabel =
+    bestOption > 0 ? `OPTION ${bestOption} VALIDÉE` : 'OPTION VALIDÉE';
 
-  return MENUISIER_SIGNED_SUBFOLDERS.map((sf) => {
-    if (sf.label === 'AVANT VENTE') {
-      return { ...sf, documents: archivedDocs };
-    }
-    if (sf.label === 'PROJET VALIDÉ') {
-      return { ...sf, label: projetValideLabel };
-    }
+  return CUISINISTE_SIGNED_SUBFOLDERS.map((sf) => {
+    if (sf.label === 'AVANT VENTE') return { ...sf, documents: archivedDocs };
+    if (sf.label === 'OPTION VALIDÉE') return { ...sf, label: optionValideeLabel };
     return { ...sf };
   });
 }
