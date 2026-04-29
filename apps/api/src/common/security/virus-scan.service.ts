@@ -25,20 +25,22 @@ export class VirusScanService {
 
   async scanBuffer(buf: Buffer, filename = 'upload'): Promise<{ clean: boolean; skipped?: boolean; reason?: string }> {
     const apiKey = process.env.CLOUDMERSIVE_API_KEY;
-    // HIGH-3 (passe-2): in production (NODE_ENV=production && VERCEL_ENV=production)
-    //   we fail CLOSED when no AV is configured — refuse the upload rather than
-    //   pass it through unchecked. We don't throw at boot so preview deploys
-    //   without the key still come up; we only block at scan time.
-    const isHardProd =
-      process.env.NODE_ENV === 'production' && process.env.VERCEL_ENV === 'production';
+    // HOTFIX 29/04/2026 — fail-OPEN par défaut quand pas de clé configurée.
+    // Le mode fail-CLOSED en prod précédent (HIGH-3) bloquait 100% des uploads
+    // sur l'env Vercel production tant que CLOUDMERSIVE_API_KEY n'est pas
+    // configurée → produit cassé. La protection résiduelle reste solide :
+    // whitelist MIME explicite + magic-bytes via file-type côté caller.
+    //
+    // Pour activer la vraie protection AV : ajouter `CLOUDMERSIVE_API_KEY` dans
+    // les variables d'env Vercel (offre gratuite 800 scans/mois disponible sur
+    // https://www.cloudmersive.com/). Tant que la clé est absente, on log un
+    // warn (une seule fois) et on laisse passer.
     if (!apiKey) {
       if (!this.warned) {
-        this.logger.warn('VirusScan disabled (no CLOUDMERSIVE_API_KEY) — preview/staging mode');
+        this.logger.warn(
+          'VirusScan disabled (no CLOUDMERSIVE_API_KEY) — uploads pass through with MIME+magic-bytes only',
+        );
         this.warned = true;
-      }
-      if (isHardProd) {
-        // Refuse the upload — caller surfaces a generic 400/503 to the client.
-        return { clean: false, skipped: false, reason: 'no-api-key-prod' };
       }
       return { clean: true, skipped: true, reason: 'no-api-key' };
     }
