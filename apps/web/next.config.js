@@ -94,6 +94,22 @@ const nextConfig = {
         source: '/_next/static/:path*',
         headers: longCacheHeaders,
       },
+      // 30/04/2026 — Empêche Vercel CDN de cacher les HTMLs des pages app.
+      // Sans ça, après un nouveau deploy avec de nouveaux hashes de chunks,
+      // les anciens HTMLs cached référencent des chunks supprimés → 404 +
+      // page blanche. On exclut /_next/static (chunks immutables) et /icons.
+      {
+        source: '/((?!_next/static|_next/image|icons|favicon|robots|sitemap).*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, no-store, max-age=0, must-revalidate',
+          },
+          // Vercel-specific : forcer skip du edge cache pour les HTMLs.
+          { key: 'CDN-Cache-Control', value: 'no-store' },
+          { key: 'Vercel-CDN-Cache-Control', value: 'no-store' },
+        ],
+      },
     ];
   },
 

@@ -133,7 +133,40 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             du bundle qui contient le chunk failed. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var K='avra_chunk_reloaded_at';var COOLDOWN=60000;function go(reason){try{var last=sessionStorage.getItem(K);if(last&&Date.now()-parseInt(last,10)<COOLDOWN)return;sessionStorage.setItem(K,String(Date.now()));}catch(e){}var u=new URL(window.location.href);u.searchParams.set('_cb',String(Date.now()));window.location.replace(u.toString());}window.addEventListener('error',function(e){var t=e&&e.target;if(t&&t.tagName==='SCRIPT'){var s=t.src||'';if(s.indexOf('/_next/static/chunks/')!==-1){go('script-404');return;}}var m=(e&&e.message||'').toLowerCase();if(m.indexOf('loading chunk')!==-1||m.indexOf('chunkloaderror')!==-1||m.indexOf("mime type ('text/plain')")!==-1){go('runtime');}},true);window.addEventListener('unhandledrejection',function(e){var r=e&&e.reason;var m=(typeof r==='string'?r:(r&&r.message))||'';m=m.toLowerCase();if(m.indexOf('loading chunk')!==-1||m.indexOf('chunkloaderror')!==-1){go('rejection');}});}catch(e){}})();`,
+            __html: `(function(){try{
+var SW_FLAG='avra_sw_purged_at';
+var CHUNK_FLAG='avra_chunk_reloaded_at';
+var COOLDOWN=600000;
+function killAndReload(reason){
+  try{var last=sessionStorage.getItem(CHUNK_FLAG);if(last&&Date.now()-parseInt(last,10)<60000)return;sessionStorage.setItem(CHUNK_FLAG,String(Date.now()));}catch(e){}
+  Promise.resolve().then(function(){
+    var p=[];
+    if('serviceWorker' in navigator){p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister().catch(function(){return false});}));}).catch(function(){}));}
+    if('caches' in window){p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k).catch(function(){return false});}));}).catch(function(){}));}
+    return Promise.all(p);
+  }).then(function(){
+    var u=new URL(window.location.href);
+    u.searchParams.set('_cb',String(Date.now()));
+    window.location.replace(u.toString());
+  });
+}
+// Kill-switch proactif : si on détecte un SW enregistré OU des caches encore présents,
+// on les supprime UNE fois (cooldown 10 min) sans reload pour préparer la prochaine
+// navigation propre. Cela limite la persistence des anciens SW.
+(function(){try{
+  var lastPurge=sessionStorage.getItem(SW_FLAG);
+  if(lastPurge&&Date.now()-parseInt(lastPurge,10)<COOLDOWN)return;
+  if(!('serviceWorker' in navigator)&&!('caches' in window))return;
+  Promise.resolve().then(function(){
+    var p=[];
+    if('serviceWorker' in navigator){p.push(navigator.serviceWorker.getRegistrations().then(function(rs){if(rs.length>0){sessionStorage.setItem(SW_FLAG,String(Date.now()));return Promise.all(rs.map(function(r){return r.unregister().catch(function(){return false});}));}}).catch(function(){}));}
+    if('caches' in window){p.push(caches.keys().then(function(ks){if(ks.length>0){sessionStorage.setItem(SW_FLAG,String(Date.now()));return Promise.all(ks.map(function(k){return caches.delete(k).catch(function(){return false});}));}}).catch(function(){}));}
+    return Promise.all(p);
+  });
+}catch(e){}})();
+window.addEventListener('error',function(e){var t=e&&e.target;if(t&&t.tagName==='SCRIPT'){var s=t.src||'';if(s.indexOf('/_next/static/chunks/')!==-1){killAndReload('script-404');return;}}var m=(e&&e.message||'').toLowerCase();if(m.indexOf('loading chunk')!==-1||m.indexOf('chunkloaderror')!==-1||m.indexOf("mime type ('text/plain')")!==-1){killAndReload('runtime');}},true);
+window.addEventListener('unhandledrejection',function(e){var r=e&&e.reason;var m=(typeof r==='string'?r:(r&&r.message))||'';m=m.toLowerCase();if(m.indexOf('loading chunk')!==-1||m.indexOf('chunkloaderror')!==-1){killAndReload('rejection');}});
+}catch(e){}})();`,
           }}
         />
       </head>
