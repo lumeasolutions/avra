@@ -2481,14 +2481,9 @@ export default function DossierDetailPage() {
         subfolders={dossier.subfolders}
         profession={profession}
         loading={signing}
-        onAccessItem={(label) => {
-          // Pour COMMANDES / LIVRAISON : on ferme la modale et on scroll vers
-          // le sous-dossier correspondant dans la page (ou on ouvre l'onglet
-          // dédié quand il sera implémenté). Pour l'instant on log un toast.
-          // TODO : router vers la section dédiée (/dossiers/[id]?tab=commandes)
-          //        une fois les onglets COMMANDES / LIVRAISONS prêts.
-          console.info('[dates-butoires] ACCEDER clicked for', label);
-        }}
+        // Pas de onAccessItem fourni → la modale ouvre son drawer interne
+        // (commit 91d228b) qui permet de saisir COMMANDES / LIVRAISON avec
+        // dates butoirs par fournisseur (auto-complete LEICHT, MARBRIER, etc.).
         onConfirm={handleConfirmDatesButoires}
         onCancel={() => { if (!signing) setShowDateButoiresModal(false); }}
       />
