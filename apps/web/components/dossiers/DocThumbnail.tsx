@@ -6,18 +6,80 @@
  * Comportement par type :
  *  - Image avec dataUrl (legacy local) : affichage direct
  *  - Image avec docId (backend) : fetch signed URL au montage et affichage
- *  - PDF : représentation symbolique (rectangle rouge stylé "PDF")
+ *  - PDF : RENDU DE LA PREMIÈRE PAGE via pdfjs-dist (vignette canvas)
+ *    avec fallback sur le rectangle rouge stylé si le rendu échoue
  *  - Word/Excel/autres : icône typée par MIME, fond coloré
  *  - Placeholder (pas de docId ni dataUrl) : icône grise neutre
  *
  * Le composant est défensif : tout échec réseau retombe gracieusement sur
  * une icône typée. Aucun crash ne casse la grille.
+ *
+ * Performance : pdfjs-dist est chargé en lazy import → impact 0 sur le bundle
+ * initial. Le rendu canvas est mis en cache via blob URL pour éviter de
+ * re-télécharger le PDF à chaque montage. Cache mémoire process-wide
+ * (Map<docId, blobUrl>) — vidé naturellement quand l'onglet ferme.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { FileText, ImageIcon, FileSpreadsheet, FileSignature, File as FileIcon } from 'lucide-react';
 import type { DocumentFile } from '@/store/useDossierStore';
 import { getDocSignedUrl } from '@/lib/dossier-docs-api';
+
+/**
+ * Cache mémoire process-wide des thumbnails PDF déjà rendus.
+ * Clé : docId (ou dataUrl preview pour les PDFs locaux).
+ * Valeur : data URL PNG de la 1ère page rendue.
+ */
+const PDF_THUMBNAIL_CACHE = new Map<string, string>();
+
+/**
+ * Rendu lazy de la 1ère page d'un PDF en data URL PNG via pdfjs-dist.
+ * Retourne null si échec (corrompu, non-PDF déguisé, network error…).
+ */
+async function renderPdfFirstPageThumbnail(pdfUrl: string, maxWidth = 320): Promise<string | null> {
+  try {
+    // Lazy import pour ne pas alourdir le bundle initial
+    const pdfjsLib = await import('pdfjs-dist');
+    // Le worker doit être pointé sur la version locale servie par Next.js
+    // (le fichier sera copié dans /public via le script build, voir plus bas).
+    if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+      // Utilise le worker bundlé via CDN (cdnjs) — alternative : copier le worker
+      // dans /public/pdf.worker.min.mjs et le servir local. CDN = simple + cache HTTP.
+      const version = pdfjsLib.version;
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.mjs`;
+    }
+
+    const loadingTask = pdfjsLib.getDocument({ url: pdfUrl, disableAutoFetch: true, disableStream: true });
+    const pdf = await loadingTask.promise;
+    const page = await pdf.getPage(1);
+
+    // On dimensionne le viewport pour avoir une largeur de maxWidth (haute déf retina).
+    const baseViewport = page.getViewport({ scale: 1 });
+    const scale = Math.min(2, maxWidth / baseViewport.width);
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+    const dataUrl = canvas.toDataURL('image/png');
+
+    // Free up memory
+    page.cleanup();
+    pdf.destroy();
+
+    return dataUrl;
+  } catch (err) {
+    // PDF corrompu, network 403, worker init failed, etc.
+    // eslint-disable-next-line no-console
+    console.warn('[DocThumbnail] PDF render failed, fallback to icon:', err);
+    return null;
+  }
+}
 
 interface Props {
   doc: DocumentFile;
@@ -56,6 +118,10 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
   const style = BUCKET_STYLE[bucket];
   const [imgUrl, setImgUrl] = useState<string | null>(doc.dataUrl ?? null);
   const [imgFailed, setImgFailed] = useState(false);
+  // Pour les PDFs : data URL de la 1ère page rendue via pdfjs-dist
+  const [pdfThumbDataUrl, setPdfThumbDataUrl] = useState<string | null>(null);
+  const [pdfRendering, setPdfRendering] = useState(false);
+  const renderTriggeredRef = useRef(false);
 
   // Fetch URL signée pour les images stockées côté backend
   useEffect(() => {
@@ -74,7 +140,50 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
     return () => { cancelled = true; };
   }, [bucket, doc.docId, doc.dataUrl, dossierId]);
 
+  // Rendu thumbnail PDF (1ère page) au montage — utilise le cache process-wide.
+  useEffect(() => {
+    if (bucket !== 'pdf') return;
+    if (renderTriggeredRef.current) return; // évite double-fetch en strict mode dev
+    if (!doc.docId && !doc.dataUrl) return; // placeholder pur, pas de contenu
+
+    const cacheKey = doc.docId ?? doc.dataUrl ?? '';
+    const cached = PDF_THUMBNAIL_CACHE.get(cacheKey);
+    if (cached) {
+      setPdfThumbDataUrl(cached);
+      return;
+    }
+
+    let cancelled = false;
+    renderTriggeredRef.current = true;
+    setPdfRendering(true);
+
+    (async () => {
+      try {
+        // Récupère l'URL source du PDF (signed pour backend, dataUrl pour legacy)
+        let pdfUrl: string;
+        if (doc.dataUrl) {
+          pdfUrl = doc.dataUrl;
+        } else {
+          const { signedUrl } = await getDocSignedUrl(dossierId, doc.docId!);
+          pdfUrl = signedUrl;
+        }
+
+        const dataUrl = await renderPdfFirstPageThumbnail(pdfUrl, 320);
+        if (cancelled) return;
+        if (dataUrl) {
+          PDF_THUMBNAIL_CACHE.set(cacheKey, dataUrl);
+          setPdfThumbDataUrl(dataUrl);
+        }
+      } finally {
+        if (!cancelled) setPdfRendering(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [bucket, doc.docId, doc.dataUrl, dossierId]);
+
   const showImage = bucket === 'image' && imgUrl && !imgFailed;
+  const showPdfThumb = bucket === 'pdf' && pdfThumbDataUrl !== null;
 
   return (
     <div
@@ -98,6 +207,23 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
         }
         .dt-wrap:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(48,64,53,0.14); }
         .dt-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .dt-pdf-thumb {
+          width: 100%; height: 100%;
+          object-fit: cover; object-position: top center;
+          display: block;
+          background: #fff;
+        }
+        .dt-icon-bg-loading {
+          background: rgba(255, 255, 255, 0.85);
+        }
+        .dt-pdf-spinner {
+          width: 22px; height: 22px;
+          border: 2px solid rgba(220, 38, 38, 0.18);
+          border-top-color: #dc2626;
+          border-radius: 50%;
+          animation: dtSpin 0.85s linear infinite;
+        }
+        @keyframes dtSpin { to { transform: rotate(360deg); } }
         .dt-icon-wrap {
           display: flex; flex-direction: column; align-items: center; gap: 6px;
         }
@@ -135,6 +261,21 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
           loading="lazy"
           onError={() => setImgFailed(true)}
         />
+      ) : showPdfThumb ? (
+        // Rendu de la 1ère page du PDF via pdfjs-dist (canvas → data URL)
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          className="dt-pdf-thumb"
+          src={pdfThumbDataUrl!}
+          alt={`Aperçu de ${doc.name}`}
+          loading="lazy"
+        />
+      ) : pdfRendering ? (
+        <div className="dt-icon-wrap">
+          <div className="dt-icon-bg dt-icon-bg-loading">
+            <span className="dt-pdf-spinner" />
+          </div>
+        </div>
       ) : (
         <div className="dt-icon-wrap">
           <div className="dt-icon-bg">

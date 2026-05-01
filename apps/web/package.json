@@ -40,6 +40,7 @@
     "openai": "^6.32.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdfjs-dist": "^5.7.284",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "reflect-metadata": "^0.2.2",
