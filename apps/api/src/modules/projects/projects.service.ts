@@ -193,6 +193,34 @@ export class ProjectsService {
     });
   }
 
+  /**
+   * Toggle "Dossier terminé" — chantier entièrement clos (pose + livraison + SAV).
+   * Réversible : un second appel rouvre le dossier. Distinct de lifecycleStatus
+   * pour préserver l'historique métier (CLOTURE, SAV) — on suit ici la logique
+   * commerciale "tout est livré et fini" du dashboard /dossiers-signes.
+   *
+   * @param terminated true = clôt, false = rouvre
+   * @returns null si dossier introuvable ou hors workspace
+   */
+  async setTerminated(workspaceId: string, id: string, terminated: boolean) {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.project.findFirst({ where: { id, workspaceId } });
+      if (!existing) return null;
+      return tx.project.update({
+        where: { id },
+        data: {
+          terminated,
+          terminatedAt: terminated ? new Date() : null,
+        },
+        select: {
+          id: true,
+          terminated: true,
+          terminatedAt: true,
+        },
+      });
+    });
+  }
+
   async remove(workspaceId: string, id: string) {
     // OPTIMISATION: Fusionner vérification et suppression en transaction
     return this.prisma.$transaction(async (tx) => {

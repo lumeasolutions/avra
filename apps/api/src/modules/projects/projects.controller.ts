@@ -90,6 +90,24 @@ export class ProjectsController {
     return result;
   }
 
+  /**
+   * Toggle "Dossier terminé" — POST :id/terminate { terminated: boolean }
+   * Marque le chantier comme entièrement clos (true) ou le rouvre (false).
+   * Persiste terminated + terminatedAt côté DB pour que l'état survive aux
+   * rechargements (avant : flag uniquement local React, perdu au reload).
+   */
+  @Post(':id/terminate')
+  async setTerminated(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { terminated: boolean },
+  ) {
+    const result = await this.projects.setTerminated(user.workspaceId, id, !!body?.terminated);
+    await this.cacheManager.del(`projects:${user.workspaceId}`);
+    await this.cacheManager.del(`projects:${id}`);
+    return result;
+  }
+
   @Delete(':id')
   @Roles('OWNER', 'ADMIN')
   async remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
