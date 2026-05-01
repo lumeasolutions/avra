@@ -11,11 +11,11 @@ import '../(marketing)/marketing.css';
 export const metadata: Metadata = {
   title: 'Logiciel cuisiniste Lyon — Solution complète pour cuisinistes à Lyon',
   description: 'AVRA vous permet de gérer vos cuisines à Lyon de la conception à la facturation. Devis, planning, rendus IA et e-facture 2026. Demandez une démo.',
-  alternates: { canonical: 'https://avra.fr/cuisiniste-lyon' },
+  alternates: { canonical: 'https://avra-app.fr/cuisiniste-lyon' },
   openGraph: {
     title: 'Logiciel cuisiniste Lyon — Solution complète pour cuisinistes à Lyon',
     description: 'AVRA vous permet de gérer vos cuisines à Lyon de la conception à la facturation. Devis, planning, rendus IA et e-facture 2026.',
-    url: 'https://avra.fr/cuisiniste-lyon',
+    url: 'https://avra-app.fr/cuisiniste-lyon',
   },
 };
 
@@ -371,7 +371,7 @@ export default function CuisinistelyOn() {
           '@type': 'LocalBusiness',
           name: 'AVRA - Logiciel cuisiniste Lyon',
           description: 'ERP & IA pour cuisinistes à Lyon et Rhône-Alpes',
-          url: 'https://avra.fr/cuisiniste-lyon',
+          url: 'https://avra-app.fr/cuisiniste-lyon',
           addressLocality: 'Lyon',
           addressRegion: 'Auvergne-Rhône-Alpes',
           addressCountry: 'FR',
@@ -391,25 +391,25 @@ export default function CuisinistelyOn() {
               '@type': 'ListItem',
               position: 1,
               name: 'Accueil',
-              item: 'https://avra.fr/'
+              item: 'https://avra-app.fr/'
             },
             {
               '@type': 'ListItem',
               position: 2,
               name: 'Métiers',
-              item: 'https://avra.fr/metiers'
+              item: 'https://avra-app.fr/metiers'
             },
             {
               '@type': 'ListItem',
               position: 3,
               name: 'Cuisiniste',
-              item: 'https://avra.fr/metiers#cuisiniste'
+              item: 'https://avra-app.fr/metiers#cuisiniste'
             },
             {
               '@type': 'ListItem',
               position: 4,
               name: 'Lyon',
-              item: 'https://avra.fr/cuisiniste-lyon'
+              item: 'https://avra-app.fr/cuisiniste-lyon'
             }
           ]
         })}

@@ -23,12 +23,12 @@ export const metadata: Metadata = {
   title: 'Fonctionnalités AVRA — ERP complet pour cuisinistes et menuisiers',
   description:
     'Découvrez les 8 modules AVRA : gestion dossiers, facturation conforme e-facture 2026, IA photo-réalisme IA AVRA, planning, stock, signature électronique, statistiques et portails partenaires.',
-  alternates: { canonical: 'https://avra.fr/fonctionnalites' },
+  alternates: { canonical: 'https://avra-app.fr/fonctionnalites' },
   openGraph: {
     title: 'Fonctionnalités AVRA — Gestion complète',
     description:
       'Gestion dossiers, facturation e-facture 2026, IA Studio, planning, stock, signature électronique, statistiques et portails partenaires.',
-    url: 'https://avra.fr/fonctionnalites',
+    url: 'https://avra-app.fr/fonctionnalites',
   },
 };
 

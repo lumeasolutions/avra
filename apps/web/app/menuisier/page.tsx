@@ -22,11 +22,11 @@ export const metadata: Metadata = {
   title: 'Logiciel menuisier — Devis, planning et facturation pour menuisiers',
   description:
     'AVRA gère tout pour les menuisiers : devis de menuiserie, suivi de chantier, gestion de stock bois et matériaux, facturation conforme e-facture 2026.',
-  alternates: { canonical: 'https://avra.fr/menuisier' },
+  alternates: { canonical: 'https://avra-app.fr/menuisier' },
   openGraph: {
     title: 'Logiciel menuisier — AVRA',
     description: 'Devis, planning, stock et facturation pour menuisiers. Solution complète.',
-    url: 'https://avra.fr/menuisier',
+    url: 'https://avra-app.fr/menuisier',
   },
 };
 
@@ -48,7 +48,7 @@ export default function MenuisierPage() {
             name: 'AVRA — Logiciel menuisier',
             description:
               'ERP + IA SaaS pour les professionnels de agencement intérieur — menuiserie, gestion de stock, facturation',
-            url: 'https://avra.fr/menuisier',
+            url: 'https://avra-app.fr/menuisier',
             applicationCategory: 'BusinessApplication',
             targetAudience: {
               '@type': 'Audience',

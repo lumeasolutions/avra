@@ -11,11 +11,11 @@ import '../(marketing)/marketing.css';
 export const metadata: Metadata = {
   title: 'Logiciel menuisier Bordeaux — Solution complète pour menuisiers en Gironde',
   description: 'AVRA aide les menuisiers bordelais à gérer leurs devis, planning, stock et facturation. Conforme e-facture 2026. Demandez une démo.',
-  alternates: { canonical: 'https://avra.fr/menuisier-bordeaux' },
+  alternates: { canonical: 'https://avra-app.fr/menuisier-bordeaux' },
   openGraph: {
     title: 'Logiciel menuisier Bordeaux — Solution complète pour menuisiers en Gironde',
     description: 'AVRA aide les menuisiers bordelais à gérer leurs devis, planning, stock et facturation.',
-    url: 'https://avra.fr/menuisier-bordeaux',
+    url: 'https://avra-app.fr/menuisier-bordeaux',
   },
 };
 
@@ -169,9 +169,9 @@ export default function MenuisierBordeaux() {
 
       <Footer />
 
-      <script type="application/ld+json">{JSON.stringify({ '@context': 'https://schema.org', '@type': 'LocalBusiness', name: 'AVRA - Logiciel menuisier Bordeaux', description: 'ERP pour menuisiers à Bordeaux et Nouvelle-Aquitaine', url: 'https://avra.fr/menuisier-bordeaux', addressLocality: 'Bordeaux', addressRegion: 'Nouvelle-Aquitaine', addressCountry: 'FR', areaServed: ['Bordeaux', 'Nouvelle-Aquitaine'], priceRange: '€€', serviceType: 'Logiciel de gestion de projet' })}</script>
+      <script type="application/ld+json">{JSON.stringify({ '@context': 'https://schema.org', '@type': 'LocalBusiness', name: 'AVRA - Logiciel menuisier Bordeaux', description: 'ERP pour menuisiers à Bordeaux et Nouvelle-Aquitaine', url: 'https://avra-app.fr/menuisier-bordeaux', addressLocality: 'Bordeaux', addressRegion: 'Nouvelle-Aquitaine', addressCountry: 'FR', areaServed: ['Bordeaux', 'Nouvelle-Aquitaine'], priceRange: '€€', serviceType: 'Logiciel de gestion de projet' })}</script>
 
-      <script type="application/ld+json">{JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://avra.fr/' }, { '@type': 'ListItem', position: 2, name: 'Métiers', item: 'https://avra.fr/metiers' }, { '@type': 'ListItem', position: 3, name: 'Menuisier', item: 'https://avra.fr/metiers#menuisier' }, { '@type': 'ListItem', position: 4, name: 'Bordeaux', item: 'https://avra.fr/menuisier-bordeaux' }] })}</script>
+      <script type="application/ld+json">{JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://avra-app.fr/' }, { '@type': 'ListItem', position: 2, name: 'Métiers', item: 'https://avra-app.fr/metiers' }, { '@type': 'ListItem', position: 3, name: 'Menuisier', item: 'https://avra-app.fr/metiers#menuisier' }, { '@type': 'ListItem', position: 4, name: 'Bordeaux', item: 'https://avra-app.fr/menuisier-bordeaux' }] })}</script>
 
       <style>{`
         .breadcrumb-nav { font-size: 0.95rem; color: #6b7c70; }

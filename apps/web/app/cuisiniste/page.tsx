@@ -22,11 +22,11 @@ export const metadata: Metadata = {
   title: 'Logiciel cuisiniste — Gérez vos projets cuisine de A à Z avec AVRA',
   description:
     'AVRA est le logiciel pensé pour les cuisinistes : devis sur mesure, plans, commandes fournisseurs, planification des poses, rendus IA FLUX Pro.',
-  alternates: { canonical: 'https://avra.fr/cuisiniste' },
+  alternates: { canonical: 'https://avra-app.fr/cuisiniste' },
   openGraph: {
     title: 'Logiciel cuisiniste — AVRA',
     description: 'Devis, plans, commandes fournisseurs, poses et rendus IA. Tout pour les cuisinistes.',
-    url: 'https://avra.fr/cuisiniste',
+    url: 'https://avra-app.fr/cuisiniste',
   },
 };
 
@@ -48,7 +48,7 @@ export default function CuisinistePage() {
             name: 'AVRA — Logiciel cuisiniste',
             description:
               'ERP + IA SaaS pour les professionnels de agencement intérieur — cuisine, menuiserie, architecture',
-            url: 'https://avra.fr/cuisiniste',
+            url: 'https://avra-app.fr/cuisiniste',
             applicationCategory: 'BusinessApplication',
             targetAudience: {
               '@type': 'Audience',

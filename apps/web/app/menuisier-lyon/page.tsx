@@ -11,11 +11,11 @@ import '../(marketing)/marketing.css';
 export const metadata: Metadata = {
   title: 'Logiciel menuisier Lyon — ERP menuiserie complet pour Lyon et la région',
   description: 'AVRA est le logiciel ERP pour menuisiers lyonnais. Devis, planning, stock, facturation e-conformité. Demandez une démo.',
-  alternates: { canonical: 'https://avra.fr/menuisier-lyon' },
+  alternates: { canonical: 'https://avra-app.fr/menuisier-lyon' },
   openGraph: {
     title: 'Logiciel menuisier Lyon — ERP menuiserie complet pour Lyon et la région',
     description: 'AVRA est le logiciel ERP pour menuisiers lyonnais. Devis, planning, stock, facturation e-conformité.',
-    url: 'https://avra.fr/menuisier-lyon',
+    url: 'https://avra-app.fr/menuisier-lyon',
   },
 };
 
@@ -370,7 +370,7 @@ export default function MenuisierLyon() {
           '@type': 'LocalBusiness',
           name: 'AVRA - Logiciel menuisier Lyon',
           description: 'ERP pour menuisiers à Lyon et Rhône-Alpes',
-          url: 'https://avra.fr/menuisier-lyon',
+          url: 'https://avra-app.fr/menuisier-lyon',
           addressLocality: 'Lyon',
           addressRegion: 'Auvergne-Rhône-Alpes',
           addressCountry: 'FR',
@@ -390,25 +390,25 @@ export default function MenuisierLyon() {
               '@type': 'ListItem',
               position: 1,
               name: 'Accueil',
-              item: 'https://avra.fr/'
+              item: 'https://avra-app.fr/'
             },
             {
               '@type': 'ListItem',
               position: 2,
               name: 'Métiers',
-              item: 'https://avra.fr/metiers'
+              item: 'https://avra-app.fr/metiers'
             },
             {
               '@type': 'ListItem',
               position: 3,
               name: 'Menuisier',
-              item: 'https://avra.fr/metiers#menuisier'
+              item: 'https://avra-app.fr/metiers#menuisier'
             },
             {
               '@type': 'ListItem',
               position: 4,
               name: 'Lyon',
-              item: 'https://avra.fr/menuisier-lyon'
+              item: 'https://avra-app.fr/menuisier-lyon'
             }
           ]
         })}

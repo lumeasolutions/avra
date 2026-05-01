@@ -7,12 +7,12 @@ export const metadata: Metadata = {
   title: "AVRA — ERP + IA pour les professionnels de l'agencement",
   description:
     "AVRA est l'ERP et assistant IA N°1 pour les cuisinistes, menuisiers, architectes d'intérieur. Gérez vos projets sans friction avec facturation, planning, dossiers et rendus IA.",
-  alternates: { canonical: 'https://avra.fr/accueil' },
+  alternates: { canonical: 'https://avra-app.fr/accueil' },
   openGraph: {
     title: "AVRA — ERP + IA pour les professionnels de l'agencement",
     description:
       "Gérez vos projets d'agencement sans friction. Dossiers, facturation, planning, IA, stock et signature électronique.",
-    url: 'https://avra.fr/accueil',
+    url: 'https://avra-app.fr/accueil',
   },
 };
 
@@ -24,7 +24,7 @@ const jsonLd = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   offers: { '@type': 'Offer', priceCurrency: 'EUR', price: '49' },
-  author: { '@type': 'Organization', name: 'Luméa', url: 'https://avra.fr' },
+  author: { '@type': 'Organization', name: 'Luméa', url: 'https://avra-app.fr' },
 };
 
 export default function AccueilPage() {

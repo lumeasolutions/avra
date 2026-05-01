@@ -21,12 +21,12 @@ export const metadata: Metadata = {
   title: 'Logiciel agenceur — Gestion de projets d\'agencement tout-en-un',
   description:
     'AVRA pour agenceurs : gestion de projets d\'agencement, coordination fournisseurs, suivi de chantier, devis et facturation. Solution complète.',
-  alternates: { canonical: 'https://avra.fr/agenceur' },
+  alternates: { canonical: 'https://avra-app.fr/agenceur' },
   openGraph: {
     title: 'Logiciel agenceur — AVRA',
     description:
       'Gestion multi-sites, reporting client, portail partenaires et appels d\'offres. Pour agenceurs.',
-    url: 'https://avra.fr/agenceur',
+    url: 'https://avra-app.fr/agenceur',
   },
 };
 
@@ -48,7 +48,7 @@ export default function AgenceurPage() {
             name: 'AVRA — Logiciel agenceur',
             description:
               'ERP + IA SaaS pour agenceurs — gestion multi-sites, coordination, reporting, appels d\'offres',
-            url: 'https://avra.fr/agenceur',
+            url: 'https://avra-app.fr/agenceur',
             applicationCategory: 'BusinessApplication',
             targetAudience: {
               '@type': 'Audience',

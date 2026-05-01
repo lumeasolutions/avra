@@ -22,12 +22,12 @@ export const metadata: Metadata = {
   title: 'Logiciel architecte d\'intérieur — Dossiers clients, IA et facturation',
   description:
     'AVRA pour architectes d\'intérieur : gestion des projets, dossiers clients, rendus IA photo-réalistes FLUX Pro, facturation et signature électronique.',
-  alternates: { canonical: 'https://avra.fr/architecte-interieur' },
+  alternates: { canonical: 'https://avra-app.fr/architecte-interieur' },
   openGraph: {
     title: 'Logiciel architecte d\'intérieur — AVRA',
     description:
       'Dossiers clients, rendus IA, suivi de budget et facturation honoraires. Pour architectes d\'intérieur.',
-    url: 'https://avra.fr/architecte-interieur',
+    url: 'https://avra-app.fr/architecte-interieur',
   },
 };
 
@@ -49,7 +49,7 @@ export default function ArchitecteInteriorPage() {
             name: 'AVRA — Logiciel architecte d\'intérieur',
             description:
               'ERP + IA SaaS pour architectes d\'intérieur — gestion de projets, dossiers clients, rendus IA, facturation',
-            url: 'https://avra.fr/architecte-interieur',
+            url: 'https://avra-app.fr/architecte-interieur',
             applicationCategory: 'BusinessApplication',
             targetAudience: {
               '@type': 'Audience',

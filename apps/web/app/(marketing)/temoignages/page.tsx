@@ -5,11 +5,11 @@ export const metadata: Metadata = {
   title: 'Témoignages — Ils ont choisi AVRA pour gérer leur activité',
   description:
     'Découvrez pourquoi cuisinistes, menuisiers et architectes d\'intérieur font confiance à AVRA pour gérer leurs dossiers, facturation et projets.',
-  alternates: { canonical: 'https://avra.fr/temoignages' },
+  alternates: { canonical: 'https://avra-app.fr/temoignages' },
   openGraph: {
     title: 'Témoignages AVRA — Bêta testeurs satisfaits',
     description: '94% de satisfaction. Découvrez pourquoi les pros de l\'agencement choisissent AVRA.',
-    url: 'https://avra.fr/temoignages',
+    url: 'https://avra-app.fr/temoignages',
   },
 };
 

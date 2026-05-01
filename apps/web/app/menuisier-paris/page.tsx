@@ -11,11 +11,11 @@ import '../(marketing)/marketing.css';
 export const metadata: Metadata = {
   title: 'Logiciel menuisier Paris — Devis, planning et facturation pour menuisiers parisiens',
   description: 'AVRA aide les menuisiers parisiens à gérer devis, planning de chantier, facturation et conformité e-facture 2026. Demandez une démo.',
-  alternates: { canonical: 'https://avra.fr/menuisier-paris' },
+  alternates: { canonical: 'https://avra-app.fr/menuisier-paris' },
   openGraph: {
     title: 'Logiciel menuisier Paris — Devis, planning et facturation pour menuisiers parisiens',
     description: 'AVRA aide les menuisiers parisiens à gérer devis, planning de chantier, facturation et conformité e-facture 2026.',
-    url: 'https://avra.fr/menuisier-paris',
+    url: 'https://avra-app.fr/menuisier-paris',
   },
 };
 
@@ -370,7 +370,7 @@ export default function MenuisierParis() {
           '@type': 'LocalBusiness',
           name: 'AVRA - Logiciel menuisier Paris',
           description: 'ERP pour menuisiers à Paris et Île-de-France',
-          url: 'https://avra.fr/menuisier-paris',
+          url: 'https://avra-app.fr/menuisier-paris',
           addressLocality: 'Paris',
           addressRegion: 'Île-de-France',
           addressCountry: 'FR',
@@ -390,25 +390,25 @@ export default function MenuisierParis() {
               '@type': 'ListItem',
               position: 1,
               name: 'Accueil',
-              item: 'https://avra.fr/'
+              item: 'https://avra-app.fr/'
             },
             {
               '@type': 'ListItem',
               position: 2,
               name: 'Métiers',
-              item: 'https://avra.fr/metiers'
+              item: 'https://avra-app.fr/metiers'
             },
             {
               '@type': 'ListItem',
               position: 3,
               name: 'Menuisier',
-              item: 'https://avra.fr/metiers#menuisier'
+              item: 'https://avra-app.fr/metiers#menuisier'
             },
             {
               '@type': 'ListItem',
               position: 4,
               name: 'Paris',
-              item: 'https://avra.fr/menuisier-paris'
+              item: 'https://avra-app.fr/menuisier-paris'
             }
           ]
         })}

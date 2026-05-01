@@ -11,11 +11,11 @@ import '../(marketing)/marketing.css';
 export const metadata: Metadata = {
   title: 'Blog AVRA — Conseils et guides pour les pros de l\'agencement',
   description: 'Guides pratiques, comparatifs logiciels, conseils métier et actualités pour cuisinistes, menuisiers et architectes d\'intérieur. En savoir plus sur AVRA.',
-  alternates: { canonical: 'https://avra.fr/blog' },
+  alternates: { canonical: 'https://avra-app.fr/blog' },
   openGraph: {
     title: 'Blog AVRA — Conseils et guides pour les pros de l\'agencement',
     description: 'Guides pratiques, comparatifs logiciels, conseils métier et actualités pour cuisinistes, menuisiers et architectes d\'intérieur.',
-    url: 'https://avra.fr/blog',
+    url: 'https://avra-app.fr/blog',
   },
 };
 
@@ -120,7 +120,7 @@ export default function BlogPage() {
 
       <Footer />
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'Blog', name: 'Blog AVRA', description: "Blog des professionnels de l'agencement intérieur", url: 'https://avra.fr/blog' }) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'Blog', name: 'Blog AVRA', description: "Blog des professionnels de l'agencement intérieur", url: 'https://avra-app.fr/blog' }) }} />
 
       <style>{`
         .container { max-width: 1200px; margin: 0 auto; }

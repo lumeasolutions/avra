@@ -11,11 +11,11 @@ import '../(marketing)/marketing.css';
 export const metadata: Metadata = {
   title: 'Logiciel cuisiniste Paris — ERP & IA pour cuisinistes en Île-de-France',
   description: 'AVRA est le logiciel N°1 pour les cuisinistes parisiens. Gérez vos dossiers, devis, planning et générez des rendus IA en 10s. Demandez une démo.',
-  alternates: { canonical: 'https://avra.fr/cuisiniste-paris' },
+  alternates: { canonical: 'https://avra-app.fr/cuisiniste-paris' },
   openGraph: {
     title: 'Logiciel cuisiniste Paris — ERP & IA pour cuisinistes en Île-de-France',
     description: 'AVRA est le logiciel N°1 pour les cuisinistes parisiens. Gérez vos dossiers, devis, planning et générez des rendus IA en 10s. Demandez une démo.',
-    url: 'https://avra.fr/cuisiniste-paris',
+    url: 'https://avra-app.fr/cuisiniste-paris',
   },
 };
 
@@ -370,7 +370,7 @@ export default function CuisinisteParis() {
           '@type': 'LocalBusiness',
           name: 'AVRA - Logiciel cuisiniste Paris',
           description: 'ERP & IA pour cuisinistes à Paris et Île-de-France',
-          url: 'https://avra.fr/cuisiniste-paris',
+          url: 'https://avra-app.fr/cuisiniste-paris',
           addressLocality: 'Paris',
           addressRegion: 'Île-de-France',
           addressCountry: 'FR',
@@ -390,25 +390,25 @@ export default function CuisinisteParis() {
               '@type': 'ListItem',
               position: 1,
               name: 'Accueil',
-              item: 'https://avra.fr/'
+              item: 'https://avra-app.fr/'
             },
             {
               '@type': 'ListItem',
               position: 2,
               name: 'Métiers',
-              item: 'https://avra.fr/metiers'
+              item: 'https://avra-app.fr/metiers'
             },
             {
               '@type': 'ListItem',
               position: 3,
               name: 'Cuisiniste',
-              item: 'https://avra.fr/metiers#cuisiniste'
+              item: 'https://avra-app.fr/metiers#cuisiniste'
             },
             {
               '@type': 'ListItem',
               position: 4,
               name: 'Paris',
-              item: 'https://avra.fr/cuisiniste-paris'
+              item: 'https://avra-app.fr/cuisiniste-paris'
             }
           ]
         })}

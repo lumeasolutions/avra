@@ -145,7 +145,7 @@ export default function MetiersPage() {
               '@type': 'ListItem',
               position: i + 1,
               name: `Logiciel ${m.label}`,
-              url: `https://avra.fr${m.href}`,
+              url: `https://avra-app.fr${m.href}`,
             })),
           }),
         }}
