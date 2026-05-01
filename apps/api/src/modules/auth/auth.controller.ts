@@ -158,7 +158,13 @@ export class AuthController {
     }
 
     try {
-      const result = await this.auth.refreshToken(userId, refreshToken);
+      // FIX (audit 2026-05-01) : la signature de auth.refreshToken est
+      // (refreshToken: string, legacyUserId?: string) — les arguments
+      // étaient inversés ici, ce qui faisait passer le userId à la
+      // place du token JWT et reciproquement → /refresh tombait toujours
+      // sur le legacy fallback avec un userId aleatoire (le refreshToken
+      // hex) → 401. Le user ne pouvait jamais rafraichir son access_token.
+      const result = await this.auth.refreshToken(refreshToken, userId);
       setAuthCookies(res, {
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
