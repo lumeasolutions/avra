@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Readable } from 'stream';
+import * as Sentry from '@sentry/node';
 import { SYSTEM_PROMPTS } from './prompts';
 import { getOpenAIClient, isOpenAIConfigured } from './openai-client';
 import type {
@@ -288,6 +289,7 @@ export class AIService {
         messages: apiMessages,
         max_tokens: 2048,
       });
+      this.logUsage('openai.chat', model, response.usage);
       return response.choices?.[0]?.message?.content || 'Pas de réponse';
     } catch (error) {
       this.logger.error('OpenAI chat error:', error);
@@ -406,6 +408,48 @@ export class AIService {
     if (userMsg.includes('urgent')) return '[Mock] 2 dossiers urgents.';
     if (userMsg.includes('facture')) return '[Mock] 1 facture en retard.';
     return '[Mock] Mode simulation. Configurez OPENAI_API_KEY pour le mode réel.';
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  //                          MONITORING
+  // ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Log les tokens consommés et coût estimé.
+   * Pousse aussi un breadcrumb Sentry pour debug en prod (-> traces).
+   */
+  private logUsage(
+    op: string,
+    model: string,
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | null,
+  ): void {
+    if (!usage) return;
+    const inTokens = usage.prompt_tokens ?? 0;
+    const outTokens = usage.completion_tokens ?? 0;
+    // Tarification approximative gpt-4o (USD per 1M tokens) — pour un ordre de grandeur
+    const cost =
+      model.includes('mini')
+        ? (inTokens * 0.15 + outTokens * 0.6) / 1_000_000
+        : (inTokens * 2.5 + outTokens * 10) / 1_000_000;
+    this.logger.log(
+      `[${op}] model=${model} tokens=${inTokens}/${outTokens} ~$${cost.toFixed(5)}`,
+    );
+    try {
+      Sentry.addBreadcrumb({
+        category: 'ai',
+        type: 'info',
+        level: 'info',
+        message: op,
+        data: {
+          model,
+          input_tokens: inTokens,
+          output_tokens: outTokens,
+          estimated_cost_usd: Number(cost.toFixed(6)),
+        },
+      });
+    } catch {
+      // Sentry non initialisé en dev → silencieux
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────

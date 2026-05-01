@@ -6,6 +6,7 @@ import {
   ServiceUnavailableException,
   InternalServerErrorException,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DossierDocumentsService } from '../dossier-documents/dossier-documents.service';
 import { getOpenAIClient, isOpenAIConfigured } from './openai-client';
@@ -200,13 +201,37 @@ export class ExtractionService {
       if (typeof parsed.notes !== 'string') parsed.notes = '';
 
       const usage = response.usage;
+      const inTokens = usage?.prompt_tokens ?? 0;
+      const outTokens = usage?.completion_tokens ?? 0;
+      const cost = (inTokens * 2.5 + outTokens * 10) / 1_000_000;
+
       this.logger.log(
         `Extraction OK : confiance=${parsed.confiance.toFixed(2)} dates=${
           Object.values(parsed.datesButoires).filter(Boolean).length
         }/5 commandes=${parsed.commandes.length} livraisons=${
           parsed.livraisons.length
-        } tokens=${usage?.prompt_tokens ?? '?'}/${usage?.completion_tokens ?? '?'}`,
+        } tokens=${inTokens}/${outTokens} ~$${cost.toFixed(5)}`,
       );
+      try {
+        Sentry.addBreadcrumb({
+          category: 'ai',
+          type: 'info',
+          level: 'info',
+          message: 'extract-dossier',
+          data: {
+            model,
+            input_tokens: inTokens,
+            output_tokens: outTokens,
+            estimated_cost_usd: Number(cost.toFixed(6)),
+            confiance: parsed.confiance,
+            dates_filled: Object.values(parsed.datesButoires).filter(Boolean).length,
+            commandes_count: parsed.commandes.length,
+            livraisons_count: parsed.livraisons.length,
+          },
+        });
+      } catch {
+        // Sentry non initialisé en dev
+      }
 
       return parsed;
     } catch (err: any) {
