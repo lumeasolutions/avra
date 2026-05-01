@@ -234,11 +234,45 @@ export function useProjectActions() {
     [user, store],
   );
 
+  /**
+   * Toggle "Dossier terminé" : appelle POST /projects/:id/terminate
+   * et met à jour le store local en optimistic. Réversible (un second
+   * appel rouvre le dossier).
+   */
+  const terminateProject = useCallback(
+    async (id: string, terminated: boolean): Promise<void> => {
+      // Optimistic update local — toggleDossierTermine bascule juste l'état
+      // courant, donc on l'appelle uniquement si l'état cible diffère du
+      // store. Comme on n'a pas accès au state ici sans selector dédié, on
+      // l'appelle systématiquement et on s'appuie sur le fait que la modale
+      // ne s'ouvre que pour des cards où l'état change reellement.
+      store.toggleDossierTermine(id);
+
+      if (user?.id === 'demo' || !user?.workspaceId) return;
+      if (isLocalOnlyId(id)) return;
+
+      try {
+        await api(`/projects/${id}/terminate`, {
+          method: 'POST',
+          body: JSON.stringify({ terminated }),
+        });
+      } catch (err) {
+        // En cas d'échec API, on rollback l'optimistic update pour eviter
+        // une desync UI/DB.
+        store.toggleDossierTermine(id);
+        console.warn('[ProjectActions] API terminate failed:', err);
+        throw err;
+      }
+    },
+    [user, store],
+  );
+
   return {
     createProject,
     signProject,
     loseProject,
     updateProjectStatus,
     deleteProject,
+    terminateProject,
   };
 }
