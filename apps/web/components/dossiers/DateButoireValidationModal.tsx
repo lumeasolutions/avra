@@ -42,6 +42,7 @@ import {
   MENUISIER_PROJET_REGEX,
 } from '@/store/useDossierStore';
 import { getDocSignedUrl } from '@/lib/dossier-docs-api';
+import { extractDossier, DATE_LABEL_TO_FIELD } from '@/lib/ai-extract-api';
 
 /**
  * Suggestions auto-complete pour le panneau ACCEDER → COMMANDES.
@@ -213,6 +214,16 @@ export function DateButoireValidationModal({
   const [error, setError] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
 
+  // ── État extraction IA ────────────────────────────────────────────────
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractInfo, setExtractInfo] = useState<{
+    dates: number;
+    commandes: number;
+    livraisons: number;
+    confiance: number;
+  } | null>(null);
+
   // ── Store : commandes ACCEDER ──────────────────────────────────────────
   const commandesAccessAll = useDossierStore((s) => s.commandesAccess);
   const addCommandeAccess = useDossierStore((s) => s.addCommandeAccess);
@@ -231,6 +242,9 @@ export function DateButoireValidationModal({
     setWeekOffset(0);
     setPreviewDoc(null);
     setAccessDrawer(null);
+    setExtractError(null);
+    setExtractInfo(null);
+    setExtracting(false);
   }, [open]);
 
   // Escape pour fermer
@@ -353,6 +367,87 @@ export function DateButoireValidationModal({
     setDates(next);
     setError(null);
   };
+
+  /**
+   * Extraction IA des documents du dossier :
+   *  - Appelle POST /api/v1/ia/extract-dossier
+   *  - Pré-remplit les 5 dates butoires (mapping label → field)
+   *  - Ajoute toutes les commandes/livraisons via addCommandeAccess
+   *  - L'utilisateur garde la main : tous les champs restent éditables
+   */
+  const handleExtractWithAI = async () => {
+    if (extracting || submitting || loading) return;
+    setExtracting(true);
+    setExtractError(null);
+    setExtractInfo(null);
+    try {
+      const result = await extractDossier(dossierId);
+
+      // 1. Dates butoires (mapping label → field)
+      const nextDates: Record<string, string> = { ...dates };
+      let datesFilled = 0;
+      for (const [label, field] of Object.entries(DATE_LABEL_TO_FIELD)) {
+        const value = result.datesButoires[field];
+        if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          nextDates[label] = value;
+          datesFilled++;
+        }
+      }
+      setDates(nextDates);
+
+      // 2. Commandes
+      let commandesAdded = 0;
+      for (const cmd of result.commandes ?? []) {
+        if (!cmd.fournisseur) continue;
+        addCommandeAccess(dossierId, 'COMMANDES', {
+          fournisseur: cmd.fournisseur,
+          dateButoir: cmd.dateButoir ?? '',
+        });
+        commandesAdded++;
+      }
+
+      // 3. Livraisons
+      let livraisonsAdded = 0;
+      for (const liv of result.livraisons ?? []) {
+        if (!liv.categorie) continue;
+        addCommandeAccess(dossierId, 'LIVRAISON', {
+          fournisseur: liv.categorie,
+          dateButoir: liv.dateButoir ?? '',
+        });
+        livraisonsAdded++;
+      }
+
+      setExtractInfo({
+        dates: datesFilled,
+        commandes: commandesAdded,
+        livraisons: livraisonsAdded,
+        confiance: result.confiance ?? 0,
+      });
+      setError(null);
+    } catch (err: any) {
+      const msg = (err?.message || '').toString();
+      let userMsg = "Échec extraction — vérifiez OPENAI_API_KEY ou saisissez manuellement";
+      if (msg.toLowerCase().includes('openai')) {
+        userMsg = "Service IA non configuré (OPENAI_API_KEY manquant). Saisissez manuellement.";
+      } else if (msg.toLowerCase().includes('aucun document')) {
+        userMsg = "Aucun document analysable dans ce dossier (PDF requis).";
+      } else if (msg.toLowerCase().includes('throttl') || msg.toLowerCase().includes('limit')) {
+        userMsg = "Trop d'appels — patientez 1 minute avant de réessayer.";
+      } else if (msg) {
+        userMsg = `Échec extraction : ${msg}`;
+      }
+      setExtractError(userMsg);
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  // Auto-clear du banner success après 6s
+  useEffect(() => {
+    if (!extractInfo) return;
+    const t = setTimeout(() => setExtractInfo(null), 6000);
+    return () => clearTimeout(t);
+  }, [extractInfo]);
 
   /**
    * Ouvre le doc DANS la colonne gauche de la modale (au lieu d'un nouvel onglet)
@@ -543,6 +638,68 @@ export function DateButoireValidationModal({
         }
         .dbv-titles h2 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
         .dbv-titles p { margin: 2px 0 0; font-size: 11.5px; color: rgba(255,255,255,0.65); }
+
+        .dbv-head-actions {
+          display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+        }
+        .dbv-extract-btn {
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 8px 14px; border-radius: 10px;
+          background: linear-gradient(135deg, #d9b38a 0%, #c89665 100%);
+          color: #fff; font-size: 12px; font-weight: 700;
+          letter-spacing: 0.01em; cursor: pointer;
+          border: 1px solid rgba(255,255,255,0.25);
+          box-shadow: 0 4px 14px rgba(200,150,101,0.4), inset 0 1px 0 rgba(255,255,255,0.18);
+          animation: dbvExtractPulse 2.6s ease-in-out infinite;
+          transition: transform 0.18s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+          flex-shrink: 0;
+        }
+        .dbv-extract-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 18px rgba(200,150,101,0.55), inset 0 1px 0 rgba(255,255,255,0.22);
+        }
+        .dbv-extract-btn:active:not(:disabled) { transform: scale(0.97); }
+        .dbv-extract-btn:disabled {
+          opacity: 0.55; cursor: not-allowed; animation: none;
+        }
+        @keyframes dbvExtractPulse {
+          0%, 100% { box-shadow: 0 4px 14px rgba(200,150,101,0.4), inset 0 1px 0 rgba(255,255,255,0.18); }
+          50% { box-shadow: 0 4px 22px rgba(217,179,138,0.7), inset 0 1px 0 rgba(255,255,255,0.22); }
+        }
+        .dbv-spin { animation: dbvSpin 0.9s linear infinite; }
+        @keyframes dbvSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .dbv-extract-banner {
+          position: relative; z-index: 1;
+          margin-top: 12px;
+          display: flex; align-items: center; gap: 8px;
+          padding: 9px 12px; border-radius: 10px;
+          font-size: 12px; font-weight: 600;
+          backdrop-filter: blur(6px);
+          animation: dbvBannerIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .dbv-extract-banner--error {
+          background: rgba(220, 38, 38, 0.18);
+          border: 1px solid rgba(252, 165, 165, 0.45);
+          color: #fecaca;
+        }
+        .dbv-extract-banner--success {
+          background: rgba(22, 163, 74, 0.20);
+          border: 1px solid rgba(134, 239, 172, 0.45);
+          color: #bbf7d0;
+        }
+        .dbv-extract-banner-close {
+          margin-left: auto;
+          background: transparent; border: 0; color: inherit;
+          opacity: 0.7; cursor: pointer;
+          padding: 2px; border-radius: 6px;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .dbv-extract-banner-close:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+        @keyframes dbvBannerIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
 
         .dbv-close {
           width: 32px; height: 32px; border-radius: 10px;
@@ -1090,16 +1247,64 @@ export function DateButoireValidationModal({
                   <p>{clientName ? `Dossier ${clientName} · ` : ''}Renseignez les dates butoires avant de valider</p>
                 </div>
               </div>
-              <button
-                type="button"
-                className="dbv-close"
-                onClick={onCancel}
-                disabled={submitting || loading}
-                aria-label="Fermer"
-              >
-                <X style={{ width: 16, height: 16 }} />
-              </button>
+              <div className="dbv-head-actions">
+                <button
+                  type="button"
+                  className="dbv-extract-btn"
+                  onClick={handleExtractWithAI}
+                  disabled={extracting || submitting || loading}
+                  title="Extraire automatiquement les dates et commandes depuis les documents du dossier"
+                >
+                  {extracting ? (
+                    <>
+                      <Loader2 className="dbv-spin" style={{ width: 14, height: 14 }} />
+                      Extraction…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles style={{ width: 14, height: 14 }} />
+                      Extraire avec IA
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="dbv-close"
+                  onClick={onCancel}
+                  disabled={submitting || loading}
+                  aria-label="Fermer"
+                >
+                  <X style={{ width: 16, height: 16 }} />
+                </button>
+              </div>
             </div>
+
+            {extractError && (
+              <div className="dbv-extract-banner dbv-extract-banner--error" role="alert">
+                <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} />
+                <span>{extractError}</span>
+                <button
+                  type="button"
+                  className="dbv-extract-banner-close"
+                  onClick={() => setExtractError(null)}
+                  aria-label="Fermer"
+                >
+                  <X style={{ width: 12, height: 12 }} />
+                </button>
+              </div>
+            )}
+            {extractInfo && (
+              <div className="dbv-extract-banner dbv-extract-banner--success" role="status">
+                <Check style={{ width: 14, height: 14, flexShrink: 0 }} />
+                <span>
+                  {extractInfo.dates} dates, {extractInfo.commandes} commandes,{' '}
+                  {extractInfo.livraisons} livraisons extraites
+                  {extractInfo.confiance < 0.7
+                    ? ` · confiance faible (${Math.round(extractInfo.confiance * 100)}%) — vérifiez avant de valider`
+                    : ' — vérifiez avant de valider'}
+                </span>
+              </div>
+            )}
 
             <div className="dbv-progress">
               <span className={`dbv-progress-pct${allFilled ? ' complete' : ''}`}>{progressPct}%</span>
