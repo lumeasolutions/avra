@@ -301,6 +301,13 @@ export function DateButoireValidationModal({
 
   const closePreview = () => setPreviewDoc(null);
 
+  /** Détecte si le doc est un PDF (pour ajouter les paramètres viewer Chrome). */
+  const isPdfDoc = (doc: typeof previewDoc): boolean => {
+    if (!doc) return false;
+    if ((doc.type ?? '').toLowerCase() === 'application/pdf') return true;
+    return doc.name.toLowerCase().endsWith('.pdf');
+  };
+
   /** Détecte si on peut afficher le doc dans un iframe (PDF, image, txt). */
   const isInlinePreviewable = (doc: typeof previewDoc): boolean => {
     if (!doc) return false;
@@ -312,6 +319,23 @@ export function DateButoireValidationModal({
     const lower = doc.name.toLowerCase();
     return lower.endsWith('.pdf') || lower.endsWith('.png') || lower.endsWith('.jpg')
       || lower.endsWith('.jpeg') || lower.endsWith('.webp') || lower.endsWith('.gif');
+  };
+
+  /**
+   * Construit l'URL d'aperçu pour l'iframe.
+   * Pour les PDF : on ajoute des paramètres au fragment (#) qui sont reconnus
+   * par le viewer PDF natif de Chrome/Edge :
+   *   - toolbar=0  : cache la toolbar Chrome (on a la nôtre au-dessus)
+   *   - navpanes=0 : cache le panneau gauche de miniatures (~30% de la largeur
+   *                  gâchés sur un PDF d'une page → la facture remplit tout)
+   *   - view=FitH  : fit largeur ; la facture s'affiche en grand directement
+   *   - zoom=page-width : fallback compatibilité (Edge)
+   * Pour les multi-pages : le scroll vertical de Chrome reste actif.
+   */
+  const buildPreviewUrl = (doc: { url: string; name: string; type?: string }): string => {
+    if (!isPdfDoc(doc)) return doc.url;
+    const sep = doc.url.includes('#') ? '&' : '#';
+    return `${doc.url}${sep}toolbar=0&navpanes=0&statusbar=0&view=FitH&zoom=page-width`;
   };
 
   const handleSubmit = async () => {
@@ -842,7 +866,9 @@ export function DateButoireValidationModal({
           flex-direction: column;
           height: 100%;
           min-height: 0;
-          background: #fff;
+          /* Le viewer PDF de Chrome a un fond gris #525659 — on l'aligne pour
+             une transition visuelle fluide entre toolbar custom et iframe. */
+          background: #525659;
           border-radius: 14px;
           border: 1px solid rgba(48,64,53,0.08);
           overflow: hidden;
@@ -1018,7 +1044,7 @@ export function DateButoireValidationModal({
                   </div>
                   {isInlinePreviewable(previewDoc) ? (
                     <iframe
-                      src={previewDoc.url}
+                      src={buildPreviewUrl(previewDoc)}
                       className="dbv-preview-frame"
                       title={`Aperçu de ${previewDoc.name}`}
                     />
