@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Comment ça marche — AVRA, l'ERP des pros de l'agencement',
-  description: 'Decouvrez en 4 etapes comment AVRA transforme la gestion de vos chantiers : creation de dossier, generation IA de devis, planning automatique et suivi facturation. Demo gratuite.',
-  alternates: { canonical: '/comment-ca-marche' },
+  title: "Comment \u00e7a marche \u2014 AVRA, l'ERP des pros de l'agencement",
+  description: "D\u00e9couvrez en 4 \u00e9tapes comment AVRA transforme la gestion de vos chantiers : cr\u00e9ation de dossier, g\u00e9n\u00e9ration IA de devis, planning automatique et suivi facturation. D\u00e9mo gratuite.",
+  alternates: { canonical: "/comment-ca-marche" },
   openGraph: {
-    title: 'Comment ça marche — AVRA, l'ERP des pros de l'agencement',
-    description: 'Decouvrez en 4 etapes comment AVRA transforme la gestion de vos chantiers : creation de dossier, generation IA de devis, planning automatique et suivi facturation. Demo gratuite.',
-    url: 'https://avra-app.fr/comment-ca-marche',
+    title: "Comment \u00e7a marche \u2014 AVRA, l'ERP des pros de l'agencement",
+    description: "D\u00e9couvrez en 4 \u00e9tapes comment AVRA transforme la gestion de vos chantiers : cr\u00e9ation de dossier, g\u00e9n\u00e9ration IA de devis, planning automatique et suivi facturation. D\u00e9mo gratuite.",
+    url: "https://avra-app.fr/comment-ca-marche",
     siteName: 'AVRA',
     locale: 'fr_FR',
     type: 'website',
@@ -15,13 +15,13 @@ export const metadata: Metadata = {
       url: '/opengraph-image.png',
       width: 1200,
       height: 630,
-      alt: 'AVRA - Comment ca marche en 4 etapes',
+      alt: "AVRA - Comment \u00e7a marche en 4 \u00e9tapes",
     }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Comment ça marche — AVRA, l'ERP des pros de l'agencement',
-    description: 'Decouvrez en 4 etapes comment AVRA transforme la gestion de vos chantiers : creation de dossier, generation IA de devis, planning automatique et suivi facturation. Demo gratuite.',
+    title: "Comment \u00e7a marche \u2014 AVRA, l'ERP des pros de l'agencement",
+    description: "D\u00e9couvrez en 4 \u00e9tapes comment AVRA transforme la gestion de vos chantiers : cr\u00e9ation de dossier, g\u00e9n\u00e9ration IA de devis, planning automatique et suivi facturation. D\u00e9mo gratuite.",
     images: ['/opengraph-image.png'],
   },
 };
