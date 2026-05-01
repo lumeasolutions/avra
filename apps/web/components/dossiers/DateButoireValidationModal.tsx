@@ -188,51 +188,72 @@ export function DateButoireValidationModal({
     };
   }, [open, submitting, loading, onCancel]);
 
-  // ── Sous-dossier "dernier projet" selon la profession ────────────────────
-  // Architecte : la version APD avec le numero le plus eleve (le projet final approuve)
-  // Cuisiniste : l'OPTION avec le numero le plus eleve (l'option finale choisie)
-  // Menuisier  : le PROJET avec le numero le plus eleve (le projet final)
-  // Pour chaque cas, on remonte les documents qui s'y trouvent.
-  const lastProjectSubfolder = useMemo<SubFolder | null>(() => {
-    if (!subfolders || subfolders.length === 0) return null;
+  // ── Tous les documents du dossier, groupés par sous-dossier ──────────────
+  // Au lieu de ne montrer QUE le dernier APD/OPTION/PROJET, on liste tout le
+  // contenu du dossier (DOSSIER RENSEIGNEMENT, ETAT DES LIEUX, RELEVE DE
+  // MESURES, PROJETS, APS, APD, etc.) pour que l'utilisateur puisse consulter
+  // n'importe quel fichier en remplissant ses dates butoirs.
+  // Le tri tente de mettre le « dernier projet » (APD le plus récent /
+  // OPTION la plus récente / PROJET le plus récent) en premier — c'est le
+  // plus pertinent au moment de saisir les dates — puis le reste en ordre
+  // d'apparition.
+  const allDocGroups = useMemo<Array<{ label: string; docs: DocumentFile[] }>>(() => {
+    if (!subfolders || subfolders.length === 0) return [];
 
-    let bestVersion = -1;
-    let best: SubFolder | null = null;
-
-    for (const sf of subfolders) {
-      let version: number | null = null;
-      if (profession === 'architecte') {
-        const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
-        // On filtre sur APD uniquement (le projet final approuve)
-        if (m && m[2].toUpperCase() === 'APD') version = parseInt(m[1], 10);
-      } else if (profession === 'cuisiniste') {
-        const m = sf.label.match(CUISINISTE_OPTION_REGEX);
-        if (m) version = parseInt(m[1], 10);
-      } else if (profession === 'menuisier') {
-        const m = sf.label.match(MENUISIER_PROJET_REGEX);
-        if (m) version = parseInt(m[1], 10);
-      } else {
-        // Pas de profession : on prend le dernier sous-dossier numerique connu (fallback)
-        const m =
-          sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX) ??
-          sf.label.match(CUISINISTE_OPTION_REGEX) ??
-          sf.label.match(MENUISIER_PROJET_REGEX);
-        if (m) version = parseInt(m[1], 10);
-      }
-      if (version !== null && Number.isFinite(version) && version > bestVersion) {
-        bestVersion = version;
-        best = sf;
+    // 1) Calcul du sous-dossier "le plus pertinent" pour le tri en tête
+    let priorityLabel: string | null = null;
+    {
+      let bestVersion = -1;
+      for (const sf of subfolders) {
+        let version: number | null = null;
+        if (profession === 'architecte') {
+          const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
+          if (m && m[2].toUpperCase() === 'APD') version = parseInt(m[1], 10);
+        } else if (profession === 'cuisiniste') {
+          const m = sf.label.match(CUISINISTE_OPTION_REGEX);
+          if (m) version = parseInt(m[1], 10);
+        } else if (profession === 'menuisier') {
+          const m = sf.label.match(MENUISIER_PROJET_REGEX);
+          if (m) version = parseInt(m[1], 10);
+        } else {
+          const m =
+            sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX) ??
+            sf.label.match(CUISINISTE_OPTION_REGEX) ??
+            sf.label.match(MENUISIER_PROJET_REGEX);
+          if (m) version = parseInt(m[1], 10);
+        }
+        if (version !== null && Number.isFinite(version) && version > bestVersion) {
+          bestVersion = version;
+          priorityLabel = sf.label;
+        }
       }
     }
-    return best;
+
+    // 2) Construction des groupes : tous les sous-dossiers (avec ou sans docs)
+    const groups: Array<{ label: string; docs: DocumentFile[] }> = subfolders.map((sf) => ({
+      label: sf.label,
+      docs: (sf.documents ?? []).map((d) =>
+        typeof d === 'string' ? ({ name: d } as DocumentFile) : d,
+      ),
+    }));
+
+    // 3) Tri : sous-dossier prioritaire en tête, puis le reste en ordre d'origine
+    if (priorityLabel) {
+      groups.sort((a, b) => {
+        if (a.label === priorityLabel) return -1;
+        if (b.label === priorityLabel) return 1;
+        return 0;
+      });
+    }
+
+    // 4) On retire les groupes vides pour ne pas saturer l'UI
+    return groups.filter((g) => g.docs.length > 0);
   }, [subfolders, profession]);
 
-  const lastProjectDocs = useMemo(() => {
-    if (!lastProjectSubfolder?.documents) return [] as DocumentFile[];
-    return lastProjectSubfolder.documents.map((d) =>
-      typeof d === 'string' ? ({ name: d } as DocumentFile) : d,
-    );
-  }, [lastProjectSubfolder]);
+  const totalDocsCount = useMemo(
+    () => allDocGroups.reduce((acc, g) => acc + g.docs.length, 0),
+    [allDocGroups],
+  );
 
   // ── Planning de la semaine courante (filtré par weekOffset) ──────────────
   const weekEvents = useMemo(() => {
@@ -600,7 +621,27 @@ export function DateButoireValidationModal({
         }
 
         /* Devis list */
-        .dbv-devis-list { display: flex; flex-direction: column; gap: 6px; padding: 10px; max-height: 240px; overflow-y: auto; }
+        .dbv-devis-list { display: flex; flex-direction: column; gap: 6px; padding: 10px; max-height: 280px; overflow-y: auto; }
+
+        /* Groupes de documents par sous-dossier */
+        .dbv-doc-group { display: flex; flex-direction: column; gap: 4px; }
+        .dbv-doc-group + .dbv-doc-group { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(48,64,53,0.1); }
+        .dbv-doc-group-label {
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 4px 6px;
+          font-size: 10px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: 0.06em;
+          color: rgba(48,64,53,0.6);
+        }
+        .dbv-doc-group-label svg { color: #a67749; flex-shrink: 0; }
+        .dbv-doc-group-count {
+          margin-left: auto;
+          font-size: 9px; font-weight: 700;
+          padding: 1px 6px; border-radius: 999px;
+          background: rgba(166,119,73,0.12);
+          color: #a67749;
+          letter-spacing: 0;
+        }
         .dbv-devis-row {
           display: flex; align-items: center; gap: 10px;
           padding: 8px 10px;
@@ -1119,71 +1160,72 @@ export function DateButoireValidationModal({
                 <div className="dbv-section-head">
                   <span className="dbv-section-title">
                     <Receipt style={{ width: 13, height: 13 }} />
-                    {profession === 'architecte' ? 'Dossier APD' : 'Dernier projet'}
+                    Documents du dossier
                   </span>
-                  {lastProjectSubfolder && (
+                  {totalDocsCount > 0 && (
                     <span style={{ fontSize: 10, color: 'rgba(48,64,53,0.55)', fontWeight: 700 }}>
-                      {lastProjectSubfolder.label}
+                      {totalDocsCount} fichier{totalDocsCount > 1 ? 's' : ''}
                     </span>
                   )}
                 </div>
-                {!lastProjectSubfolder ? (
+                {allDocGroups.length === 0 ? (
                   <div className="dbv-empty">
-                    {profession === 'architecte'
-                      ? 'Aucun PROJET VERSION X – APD trouvé dans ce dossier'
-                      : profession === 'cuisiniste'
-                      ? 'Aucune OPTION trouvée dans ce dossier'
-                      : profession === 'menuisier'
-                      ? 'Aucun PROJET trouvé dans ce dossier'
-                      : 'Aucun projet trouvé'}
-                  </div>
-                ) : lastProjectDocs.length === 0 ? (
-                  <div className="dbv-empty">
-                    « {lastProjectSubfolder.label} » ne contient aucun document
+                    Aucun document dans ce dossier
                   </div>
                 ) : (
                   <div className="dbv-devis-list">
-                    {lastProjectDocs.map((doc, i) => {
-                      const previewKey = doc.docId ?? doc.name;
-                      const canPreview = !!(doc.docId || doc.dataUrl);
-                      const isLoading = previewLoadingId === previewKey;
-                      return (
-                        <div key={i} className="dbv-devis-row">
-                          <div className="dbv-devis-icon">
-                            <Receipt style={{ width: 13, height: 13 }} />
-                          </div>
-                          <div className="dbv-devis-info">
-                            <div className="dbv-devis-ref" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {doc.name}
-                            </div>
-                            <div className="dbv-devis-meta">
-                              {(doc.size || doc.type) && (
-                                <>
-                                  {doc.size ? `${(doc.size / 1024).toFixed(0)} Ko` : ''}
-                                  {doc.size && doc.type ? ' · ' : ''}
-                                  {doc.type ?? ''}
-                                </>
-                              )}
-                              {!doc.size && !doc.type && doc.addedAt ? `Ajouté le ${doc.addedAt}` : ''}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            className="dbv-preview-btn"
-                            onClick={() => canPreview && handlePreviewDoc(doc)}
-                            disabled={!canPreview || isLoading}
-                            title={canPreview ? 'Voir le document' : 'Aperçu indisponible (placeholder sans contenu)'}
-                            aria-label={`Voir ${doc.name}`}
-                          >
-                            {isLoading ? (
-                              <Loader2 style={{ width: 14, height: 14, animation: 'dbv-spin 0.9s linear infinite' }} />
-                            ) : (
-                              <Eye style={{ width: 14, height: 14 }} />
-                            )}
-                          </button>
+                    {allDocGroups.map((group, gi) => (
+                      <div key={`group-${gi}`} className="dbv-doc-group">
+                        <div className="dbv-doc-group-label" title={group.label}>
+                          <Folder style={{ width: 11, height: 11 }} />
+                          {group.label}
+                          <span className="dbv-doc-group-count">
+                            {group.docs.length}
+                          </span>
                         </div>
-                      );
-                    })}
+                        {group.docs.map((doc, di) => {
+                          const previewKey = doc.docId ?? `${group.label}-${doc.name}-${di}`;
+                          const canPreview = !!(doc.docId || doc.dataUrl);
+                          const isLoading = previewLoadingId === previewKey;
+                          return (
+                            <div key={previewKey} className="dbv-devis-row">
+                              <div className="dbv-devis-icon">
+                                <Receipt style={{ width: 13, height: 13 }} />
+                              </div>
+                              <div className="dbv-devis-info">
+                                <div className="dbv-devis-ref" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {doc.name}
+                                </div>
+                                <div className="dbv-devis-meta">
+                                  {(doc.size || doc.type) && (
+                                    <>
+                                      {doc.size ? `${(doc.size / 1024).toFixed(0)} Ko` : ''}
+                                      {doc.size && doc.type ? ' · ' : ''}
+                                      {doc.type ?? ''}
+                                    </>
+                                  )}
+                                  {!doc.size && !doc.type && doc.addedAt ? `Ajouté le ${doc.addedAt}` : ''}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="dbv-preview-btn"
+                                onClick={() => canPreview && handlePreviewDoc(doc)}
+                                disabled={!canPreview || isLoading}
+                                title={canPreview ? 'Voir le document' : 'Aperçu indisponible (placeholder sans contenu)'}
+                                aria-label={`Voir ${doc.name}`}
+                              >
+                                {isLoading ? (
+                                  <Loader2 style={{ width: 14, height: 14, animation: 'dbv-spin 0.9s linear infinite' }} />
+                                ) : (
+                                  <Eye style={{ width: 14, height: 14 }} />
+                                )}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
