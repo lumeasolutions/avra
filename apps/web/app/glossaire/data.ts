@@ -50,6 +50,7 @@ export const GLOSSARY: GlossaryCategory[] = [
       { id: 'dressing-sur-mesure', term: 'Dressing sur mesure', definition: "Meuble de rangement pour vetements concu sur mesure pour un espace donne. Comprend penderies, tiroirs, etageres, parfois tringles a chaussures retractables." },
       { id: 'tiroir-anglais', term: 'Tiroir anglais', definition: "Tiroir a coulisses laterales en bois (chene, hetre) avec joints a queue d'aronde. Plus haut de gamme que le tiroir metallique standard, frequent dans les cuisines premium." },
       { id: 'panneau', term: 'Panneau', definition: "Element plat utilise pour fabriquer caissons et facades. Types principaux : MDF (medium), particules melamine, contreplaque, multiplis, panneau alveolaire pour les portes." },
+      { id: 'cremaillere', term: 'Cremaillere', definition: "Bandeau perfore fixe a l'interieur des caissons qui permet de regler la hauteur des etageres par crans. Standard en dressing et bibliotheque sur mesure." },
     ],
   },
 
@@ -74,6 +75,7 @@ export const GLOSSARY: GlossaryCategory[] = [
       { id: 'finition-mate', term: 'Finition mate', definition: "Surface sans reflet. Aspect contemporain et chaleureux. Plus exigeant a l'entretien (traces de doigts visibles) sauf pour les materiaux antifingerprint type Fenix." },
       { id: 'finition-brillante', term: 'Finition brillante', definition: "Surface tres reflechissante. Donne une impression de profondeur et d'espace. Plus salissante, mais elegante en cuisine." },
       { id: 'plaquage-2-faces', term: 'Plaquage 2 faces', definition: "Panneau plaque de bois sur ses deux faces visibles, necessaire quand les deux cotes sont vus (ex : separation d'ilot). Plus cher que le plaquage 1 face." },
+      { id: 'chant', term: 'Chant', definition: "Tranche d'un panneau decoupe, generalement masquee par un placage de chant (PVC, ABS ou meme essence que la facade). Application a chaud par plaqueuse de chants." },
     ],
   },
 
@@ -93,6 +95,8 @@ export const GLOSSARY: GlossaryCategory[] = [
       { id: 'joint-silicone', term: 'Joint silicone', definition: "Etancheite obligatoire autour de l'evier et des zones humides. Choisir un silicone sanitaire avec fongicide pour eviter les moisissures." },
       { id: 'pv-de-reception', term: 'PV de reception', definition: "Proces-verbal signe entre le client et le poseur en fin de chantier. Liste les eventuelles reserves et marque le point de depart de la garantie." },
       { id: 'arrivees-techniques', term: 'Arrivees techniques', definition: "Points d'arrivee d'eau, evacuation, gaz et electricite necessaires a une cuisine. Doivent etre positionnes selon le plan technique avant pose." },
+      { id: 'platrerie', term: 'Platrerie', definition: "Travaux preparatoires sur les murs avant pose : reparation de fissures, ragreage, enduit lisse. Indispensable si le mur va recevoir une credence pleine." },
+      { id: 'reception-de-chantier', term: 'Reception de chantier', definition: "Etape officielle de fin de travaux ou le client examine et accepte (ou met des reserves sur) la pose. Marque le point de depart des garanties legales." },
     ],
   },
 
@@ -114,6 +118,7 @@ export const GLOSSARY: GlossaryCategory[] = [
       { id: 'poignee-encastree', term: 'Poignee encastree (gola)', definition: "Profil aluminium integre a la facade pour ouvrir sans poignee saillante. Aussi appele profil 'gola'. Tres tendance contemporain." },
       { id: 'butee', term: 'Butee', definition: "Petit element en caoutchouc ou silicone fixe sur le caisson pour amortir le contact avec la porte a la fermeture." },
       { id: 'aimant-de-fermeture', term: 'Aimant de fermeture', definition: "Alternative a la charniere amortie : un aimant maintient la porte fermee, libere par traction. Souvent associe au Tip-On." },
+      { id: 'servo-drive', term: 'Servo-Drive', definition: "Systeme electrique d'ouverture motorisee de la marque Blum : une simple impulsion sur la facade ouvre le tiroir ou la porte sans effort. Premium." },
     ],
   },
 
@@ -138,6 +143,7 @@ export const GLOSSARY: GlossaryCategory[] = [
       { id: 'eidas', term: 'Reglement eIDAS', definition: "Reglement europeen de 2014 qui donne a la signature electronique la meme valeur juridique qu'une signature manuscrite. Permet de signer un devis en ligne sans impression." },
       { id: 'rgaa', term: 'RGAA', definition: "Referentiel General d'Amelioration de l'Accessibilite. Obligation pour les sites publics francais de respecter les criteres WCAG 2.1 AA d'accessibilite numerique." },
       { id: 'mediateur-consommation', term: 'Mediateur de la consommation', definition: "Mention obligatoire sur tout devis et CGV depuis 2016. Pour les artisans du batiment, le CNPM-Mediation est la reference. Sanction administrative : jusqu'a 15 000 EUR." },
+      { id: "rge", term: "RGE (Reconnu Garant de l'Environnement)", definition: "Label officiel obligatoire pour qu'un client puisse beneficier des aides a la renovation energetique (MaPrimeRenov, CEE). S'applique aux artisans qui posent des elements impactant la performance energetique." },
     ],
   },
 
