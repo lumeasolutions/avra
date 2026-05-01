@@ -122,14 +122,14 @@ export default function RejoindreClient() {
                   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                   gap: '16px',
                 }}>
-                  <input
+                  <input aria-label="Prénom"
                     type="text"
                     placeholder="Prénom"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     style={inputStyle}
                   />
-                  <input
+                  <input aria-label="Nom"
                     type="text"
                     placeholder="Nom"
                     value={lastName}
@@ -138,7 +138,7 @@ export default function RejoindreClient() {
                   />
                 </div>
 
-                <input
+                <input aria-label="Email professionnel *"
                   type="email"
                   placeholder="Email professionnel *"
                   value={email}
@@ -147,7 +147,7 @@ export default function RejoindreClient() {
                   style={inputStyle}
                 />
 
-                <input
+                <input aria-label="Société / atelier"
                   type="text"
                   placeholder="Société / atelier"
                   value={company}
@@ -169,7 +169,7 @@ export default function RejoindreClient() {
                   <option value="autre" style={{ background: '#0e1810' }}>Autre</option>
                 </select>
 
-                <textarea
+                <textarea aria-label="Votre message (optionnel)"
                   placeholder="Votre message (optionnel)"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}

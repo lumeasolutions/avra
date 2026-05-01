@@ -108,20 +108,20 @@ export default function DemoClient() {
                     <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Prénom</label>
-                        <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="Jean" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
+                        <input aria-label="Jean" type="text" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="Jean" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Nom</label>
-                        <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Dupont" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
+                        <input aria-label="Dupont" type="text" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Dupont" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
                       </div>
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Email professionnel</label>
-                      <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="jean@entreprise.com" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
+                      <input aria-label="jean@entreprise.com" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="jean@entreprise.com" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Téléphone</label>
-                      <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="+33 6 12 34 56 78" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
+                      <input aria-label="+33 6 12 34 56 78" type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="+33 6 12 34 56 78" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Votre métier</label>
@@ -145,7 +145,7 @@ export default function DemoClient() {
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Message optionnel</label>
-                      <textarea name="message" value={formData.message} onChange={handleChange} placeholder="Parlez-nous de votre activité et vos besoins spécifiques..." rows={4} style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit', resize: 'none' }} />
+                      <textarea aria-label="Parlez-nous de votre activité et vos besoins spécifiques..." name="message" value={formData.message} onChange={handleChange} placeholder="Parlez-nous de votre activité et vos besoins spécifiques..." rows={4} style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit', resize: 'none' }} />
                     </div>
                     <button
                       type="submit"

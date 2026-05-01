@@ -237,7 +237,7 @@ export default function ForgotPasswordPage() {
                       color: emailFocused ? '#C9A96E' : 'rgba(255,255,255,0.3)',
                       transition: 'color 0.2s', pointerEvents: 'none',
                     }} />
-                    <input
+                    <input aria-label="Adresse email"
                       type="email"
                       value={email}
                       onChange={e => setEmail(e.target.value)}

@@ -245,7 +245,7 @@ export function MarketingChat() {
             borderTop: '1px solid #EFF2F0',
             display: 'flex', gap: 8, alignItems: 'center',
           }}>
-            <input
+            <input aria-label="Input"
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}

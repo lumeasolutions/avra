@@ -214,7 +214,7 @@ function ResetPasswordForm() {
                 <div>
                   <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.83rem', fontWeight: 600, marginBottom: '8px' }}>Nouveau mot de passe</label>
                   <div style={{ position: 'relative' }}>
-                    <input
+                    <input aria-label="Input"
                       type={showPass ? 'text' : 'password'}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
@@ -247,7 +247,7 @@ function ResetPasswordForm() {
                 <div>
                   <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.83rem', fontWeight: 600, marginBottom: '8px' }}>Confirmer le mot de passe</label>
                   <div style={{ position: 'relative' }}>
-                    <input
+                    <input aria-label="Input"
                       type={showConfirm ? 'text' : 'password'}
                       value={confirm}
                       onChange={e => setConfirm(e.target.value)}

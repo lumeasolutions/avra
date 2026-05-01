@@ -65,16 +65,16 @@ export default function ContactClient() {
                     <div className="grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Prénom</label>
-                        <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="Jean" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
+                        <input aria-label="Jean" type="text" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="Jean" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Nom</label>
-                        <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Dupont" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
+                        <input aria-label="Dupont" type="text" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Dupont" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
                       </div>
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Email</label>
-                      <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="jean@entreprise.com" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
+                      <input aria-label="jean@entreprise.com" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="jean@entreprise.com" required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }} />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Sujet</label>
@@ -88,7 +88,7 @@ export default function ContactClient() {
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Message</label>
-                      <textarea name="message" value={formData.message} onChange={handleChange} placeholder="Décrivez votre question ou problème..." rows={5} required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit', resize: 'none' }} />
+                      <textarea aria-label="Décrivez votre question ou problème..." name="message" value={formData.message} onChange={handleChange} placeholder="Décrivez votre question ou problème..." rows={5} required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit', resize: 'none' }} />
                     </div>
                     <button
                       type="submit"
@@ -107,8 +107,8 @@ export default function ContactClient() {
                 <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 30, color: '#1e2b22' }}>Informations de contact</h2>
                 {[
                   { icon: Mail, title: 'Email', content: <><a href="mailto:contact@avra.fr" style={{ color: '#1e2b22', textDecoration: 'none' }}>contact@avra.fr</a><p style={{ fontSize: 14, color: '#999', marginTop: 8, marginBottom: 0 }}>Réponse sous 24h</p></> },
-                  { icon: BookOpen, title: 'Documentation', content: <><p style={{ fontSize: 16, color: '#666', margin: 0 }}>Consultez notre centre d&apos;aide pour trouver des réponses rapidement</p><p style={{ fontSize: 14, color: '#999', marginTop: 8, marginBottom: 0 }}><a href="#" style={{ color: '#1e2b22', textDecoration: 'underline' }}>Visiter le centre d&apos;aide</a></p></> },
-                  { icon: HelpCircle, title: 'FAQ', content: <><p style={{ fontSize: 16, color: '#666', margin: 0 }}>Posez vos questions les plus courantes</p><p style={{ fontSize: 14, color: '#999', marginTop: 8, marginBottom: 0 }}><a href="#" style={{ color: '#1e2b22', textDecoration: 'underline' }}>Lire la FAQ</a></p></> },
+                  { icon: BookOpen, title: 'Documentation', content: <><p style={{ fontSize: 16, color: '#666', margin: 0 }}>Consultez notre centre d&apos;aide pour trouver des réponses rapidement</p><p style={{ fontSize: 14, color: '#999', marginTop: 8, marginBottom: 0 }}><a href="/comment-ca-marche" style={{ color: '#1e2b22', textDecoration: 'underline' }}>Visiter le centre d&apos;aide</a></p></> },
+                  { icon: HelpCircle, title: 'FAQ', content: <><p style={{ fontSize: 16, color: '#666', margin: 0 }}>Posez vos questions les plus courantes</p><p style={{ fontSize: 14, color: '#999', marginTop: 8, marginBottom: 0 }}><a href="/blog" style={{ color: '#1e2b22', textDecoration: 'underline' }}>Lire la FAQ</a></p></> },
                 ].map(({ icon: Icon, title, content }) => (
                   <div key={title} style={{ background: '#f9f9f9', padding: 24, borderRadius: 12, marginBottom: 24 }}>
                     <div style={{ display: 'flex', gap: 16 }}>

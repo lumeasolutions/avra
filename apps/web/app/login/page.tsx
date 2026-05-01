@@ -598,7 +598,7 @@ function LoginPageInner() {
                 <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.83rem', fontWeight: 600, marginBottom: '8px', letterSpacing: '0.02em' }}>
                   Adresse email
                 </label>
-                <input
+                <input aria-label="Adresse email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -626,7 +626,7 @@ function LoginPageInner() {
                   </Link>
                 </div>
                 <div style={{ position: 'relative' }}>
-                  <input
+                  <input aria-label="Input"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

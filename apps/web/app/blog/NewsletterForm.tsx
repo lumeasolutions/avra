@@ -3,7 +3,7 @@
 export default function NewsletterForm() {
   return (
     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-      <input
+      <input aria-label="votre@email.fr"
         type="email"
         placeholder="votre@email.fr"
         style={{

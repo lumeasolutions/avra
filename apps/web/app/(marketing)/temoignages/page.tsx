@@ -414,7 +414,7 @@ export default function TemoignagesPage() {
               marginBottom: '2rem',
             }}
           >
-            <input
+            <input aria-label="Votre email"
               type="email"
               placeholder="Votre email"
               style={{
