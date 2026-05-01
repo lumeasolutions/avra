@@ -44,11 +44,10 @@ import {
 import { getDocSignedUrl } from '@/lib/dossier-docs-api';
 
 /**
- * Catalogue de fournisseurs/marques courants (cuisinistes français +
- * marbriers + électroménager). Sert d'auto-complete dans le panneau ACCEDER.
- * L'utilisateur peut taper librement aussi — ce sont juste des suggestions.
+ * Suggestions auto-complete pour le panneau ACCEDER → COMMANDES.
+ * Ce sont des MARQUES de fournisseurs (ex: LEICHT, BOSCH) qu'on COMMANDE.
  */
-const FOURNISSEUR_SUGGESTIONS: string[] = [
+const COMMANDES_SUGGESTIONS: string[] = [
   // Cuisines
   'LEICHT', 'SCHMIDT', 'MOBALPA', 'CUISINELLA', 'HYGENA', 'BOFFI', 'BULTHAUP',
   'SNAIDERO', 'POGGENPOHL', 'AVIVA', 'IXINA', 'CUISINES PLUS', 'IKEA METOD',
@@ -62,6 +61,29 @@ const FOURNISSEUR_SUGGESTIONS: string[] = [
   // Autres
   'MSA', 'COJER',
 ];
+
+/**
+ * Suggestions auto-complete pour le panneau ACCEDER → LIVRAISON.
+ * Ce sont des CATÉGORIES de livraison (ex: CUISINE, ELECTRO, GRANIT) — un
+ * dossier peut comporter plusieurs lots livrés à des dates différentes.
+ */
+const LIVRAISON_SUGGESTIONS: string[] = [
+  'CUISINE', 'ELECTRO', 'GRANIT', 'MSA',
+  'MARBRIER', 'MENUISERIE', 'PLAN DE TRAVAIL',
+  'ÉLECTROMÉNAGER', 'ROBINETTERIE', 'EVIER',
+  'POIGNÉES', 'ECLAIRAGE LED', 'CRÉDENCE',
+  'PLOMBERIE', 'ÉLECTRICITÉ', 'CARRELAGE',
+  'PEINTURE', 'SOL', 'PLINTHES',
+  'ACCESSOIRES', 'DRESSING', 'SALLE DE BAIN',
+  'MOBILIER', 'TIROIRS BLUM', 'CHARNIÈRES',
+];
+
+/** Détermine quel set de suggestions montrer selon le label de l'item access. */
+function getSuggestionsForLabel(label: string): string[] {
+  return label.toUpperCase().includes('LIVRAISON')
+    ? LIVRAISON_SUGGESTIONS
+    : COMMANDES_SUGGESTIONS;
+}
 
 type Profession = 'architecte' | 'menuisier' | 'cuisiniste' | null;
 
@@ -1459,11 +1481,18 @@ function CommandesAccessPanel({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
 
+  const isLivraison = label.toUpperCase().includes('LIVRAISON');
+  const suggestions = useMemo(() => getSuggestionsForLabel(label), [label]);
   const filteredSuggestions = useMemo(() => {
     const q = draftFournisseur.trim().toUpperCase();
-    if (!q) return FOURNISSEUR_SUGGESTIONS.slice(0, 8);
-    return FOURNISSEUR_SUGGESTIONS.filter((s) => s.includes(q)).slice(0, 8);
-  }, [draftFournisseur]);
+    if (!q) return suggestions.slice(0, 8);
+    return suggestions.filter((s) => s.includes(q)).slice(0, 8);
+  }, [draftFournisseur, suggestions]);
+
+  const placeholderText = isLivraison
+    ? 'Catégorie / lot (ex: CUISINE, ELECTRO, GRANIT…)'
+    : 'Marque / fournisseur (ex: LEICHT, MARBRIER…)';
+  const fournisseurAria = isLivraison ? 'Nouvelle catégorie de livraison' : 'Nouveau fournisseur';
 
   const handleAdd = () => {
     const f = draftFournisseur.trim();
@@ -1803,14 +1832,14 @@ function CommandesAccessPanel({
           <input
             type="text"
             className="cap-add-input"
-            placeholder="Marque / fournisseur (ex: LEICHT, MARBRIER…)"
+            placeholder={placeholderText}
             value={draftFournisseur}
             onChange={(e) => { setDraftFournisseur(e.target.value.toUpperCase()); setShowSuggestions(true); }}
             onFocus={() => setShowSuggestions(true)}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
             disabled={disabled}
-            aria-label="Nouveau fournisseur"
+            aria-label={fournisseurAria}
           />
           <input
             type="date"
