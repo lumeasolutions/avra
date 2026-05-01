@@ -69,4 +69,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url('/agencement-nantes', { changeFrequency: 'monthly', priority: 0.8 }),
 
     // ── Légales ──────────────────────────────────────────────────────
-   
+    url('/mentions-legales', { changeFrequency: 'yearly', priority: 0.3 }),
+    url('/confidentialite', { changeFrequency: 'yearly', priority: 0.3 }),
+    url('/cgv', { changeFrequency: 'yearly', priority: 0.3 }),
+    url('/e-facturation', { changeFrequency: 'yearly', priority: 0.4 }),
+  ];
+}
