@@ -14,10 +14,14 @@ const securityHeaders = [
   { key: 'X-XSS-Protection', value: '0' },
   // DNS prefetch control
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
-  // Permissions Policy — désactiver les APIs inutilisées
+  // Permissions Policy — autoriser le micro pour AVRA (assistant vocal)
+  // 01/05/2026 — bug critique : `microphone=()` bloquait getUserMedia même
+  // après autorisation Chrome. La modale d'aide micro s'ouvrait alors en
+  // boucle. On passe à `microphone=(self)` (et caméra idem pour usages futurs
+  // type IA-vision). `geolocation=()` reste désactivé.
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+    value: 'camera=(self), microphone=(self), geolocation=(), interest-cohort=()',
   },
   // HSTS — activé en production uniquement
   ...(isProd ? [{

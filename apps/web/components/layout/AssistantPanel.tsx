@@ -421,20 +421,14 @@ function ChatView({ owlB64 }: { owlB64: string }) {
       return;
     }
 
-    // 3a. Pré-check via Permissions API (si supportée) — donne un état net
-    //     avant même de tenter getUserMedia. Permet d'ouvrir la modale d'aide
-    //     immédiatement si on sait que c'est "denied".
-    try {
-      const status = await (navigator as any).permissions?.query?.({ name: 'microphone' });
-      if (status?.state === 'denied') {
-        setShowMicHelp(true);
-        return;
-      }
-    } catch {
-      // Permissions API non supportée — on continue sur getUserMedia
-    }
-
-    // 3b. Demande explicite de permission micro AVANT de lancer SpeechRecognition.
+    // 3. Demande explicite de permission micro AVANT de lancer SpeechRecognition.
+    //    01/05/2026 — RETIRÉ le pré-check `permissions.query({ name: 'microphone' })`
+    //    qui bloquait l'utilisateur. Bug Chromium : l'état "denied" reste cached
+    //    même après que l'user ait toggle ON dans le panneau site, jusqu'au
+    //    prochain reload. Résultat : la modale s'ouvrait à l'infini alors que
+    //    le micro était bel et bien autorisé. On laisse `getUserMedia` être la
+    //    seule source de vérité — il déclenche le prompt natif si besoin et
+    //    voit l'état réel de la permission, pas une copie cachée.
     //    Sans ça, certains navigateurs (Chrome sur Windows notamment) émettent
     //    une erreur 'not-allowed' silencieuse si la permission n'a jamais été
     //    accordée, et l'utilisateur ne sait pas ce qui s'est passé.
