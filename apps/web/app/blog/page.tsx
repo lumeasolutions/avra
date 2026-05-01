@@ -6,6 +6,7 @@ import ScrollReveal from '../(marketing)/components/ScrollReveal';
 import BetaBanner from '../(marketing)/components/BetaBanner';
 import BlogArticleCard from './BlogArticleCard';
 import NewsletterForm from './NewsletterForm';
+import BlogList from './BlogList';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
@@ -111,22 +112,9 @@ export default function BlogPage() {
             ))}
           </div>
 
-          <h2 style={{ fontSize: '1.75rem', marginBottom: '48px', color: '#1e2b22' }}>Tous les articles</h2>
+          <h2 style={{ fontSize: '1.75rem', marginBottom: '24px', color: '#1e2b22' }}>Tous les articles</h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '32px' }}>
-            {articles.map((article) => (
-              <BlogArticleCard
-                key={article.slug}
-                slug={article.slug}
-                title={article.title}
-                excerpt={article.excerpt}
-                date={article.date}
-                readTime={article.readTime}
-                tags={article.tags}
-                variant="list"
-              />
-            ))}
-          </div>
+          <BlogList articles={articles} />
         </div>
       </section>
 
