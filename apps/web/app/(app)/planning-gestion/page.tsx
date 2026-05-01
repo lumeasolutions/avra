@@ -7,7 +7,41 @@ import {
   AlertTriangle, CheckCircle, Clock, ChevronDown
 } from 'lucide-react';
 import { useDossierStore, usePlanningStore } from '@/store';
+import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { PageHeader } from '@/components/layout/PageHeader';
+
+/**
+ * Genere une couleur stable a partir d'un nom (hash deterministe).
+ * Garantit que le meme intervenant a toujours la meme couleur d'avatar
+ * sans devoir la stocker en DB.
+ */
+function nameToColor(name: string): string {
+  // Palette tres saturee qui s'integre bien avec le branding (verts/ocres)
+  const palette = [
+    '#5b9bd5', '#e07050', '#a78bfa', '#2ecc71', '#f59e0b',
+    '#0ea5e9', '#dc2626', '#16a34a', '#8b5cf6', '#ea580c',
+    '#0891b2', '#84cc16', '#ec4899', '#14b8a6', '#a67749',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  }
+  return palette[Math.abs(hash) % palette.length];
+}
+
+/** Initiales pour l'avatar (max 2 caracteres). */
+function nameToInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/** Format affichable du type metier (POSEUR -> Poseur). */
+function formatTypeLabel(type: string | null | undefined): string {
+  if (!type) return '';
+  return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+}
 
 /* ── CONSTANTES ── */
 const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19,20];
@@ -43,8 +77,9 @@ const INTERVENTION_TYPES = [
 ];
 
 /* ── INTERVENANTS ── */
-// Nettoyé : tableau vide pour éviter les données en dur
-const INTERVENANTS: { id: string; name: string; role: string; color: string }[] = [];
+// Migration vers useIntervenantStore : la liste est maintenant lue
+// dynamiquement depuis le store (page /intervenants). Plus de tableau
+// statique vide ici.
 
 /* ── HELPERS ── */
 function getWeekDates(offset: number): Date[] {
@@ -81,10 +116,12 @@ export default function PlanningGestionPage() {
   const gestEvents      = usePlanningStore(s => s.gestEvents);
   const addGestEvent    = usePlanningStore(s => s.addGestEvent);
   const deleteGestEvent = usePlanningStore(s => s.deleteGestEvent);
+  // Liste des intervenants du workspace (la vraie liste creee dans /intervenants)
+  const intervenantsList = useIntervenantStore(s => s.intervenants);
 
   const [weekOffset, setWeekOffset]   = useState(0);
   const [showAdd,    setShowAdd]      = useState(false);
-  const [newEvent,   setNewEvent]     = useState({ type: 'POSE CUISINE', client: '', duration: 4 });
+  const [newEvent,   setNewEvent]     = useState<{ type: string; client: string; duration: number; intervenantId: string | null }>({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null });
   const [modalDate,  setModalDate]    = useState('');
   const [modalHour,  setModalHour]    = useState(9);
   const [calYear,    setCalYear]      = useState(() => new Date().getFullYear());
@@ -109,7 +146,7 @@ export default function PlanningGestionPage() {
     setModalHour(hour);
     setCalYear(cellDate.getFullYear());
     setCalMonth(cellDate.getMonth());
-    setNewEvent({ type: 'POSE CUISINE', client: '', duration: 4 });
+    setNewEvent({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null });
     setShowAdd(true);
   };
 
@@ -123,6 +160,11 @@ export default function PlanningGestionPage() {
     baseMon.setDate(today2.getDate() - ((today2.getDay() + 6) % 7));
     const diffWeeks = Math.round((chosenMon.getTime() - baseMon.getTime()) / (7 * 86400000));
     const dayOfWeek = ((chosen.getDay() + 6) % 7) + 1;
+    // Snapshot de l'intervenant assigne (nom + type) au moment de la creation
+    // pour conserver l'affichage si l'intervenant est supprime/modifie apres.
+    const assignedIntervenant = newEvent.intervenantId
+      ? intervenantsList.find((iv) => iv.id === newEvent.intervenantId) ?? null
+      : null;
     addGestEvent({
       day: dayOfWeek,
       startHour: modalHour,
@@ -130,6 +172,9 @@ export default function PlanningGestionPage() {
       type: newEvent.type,
       client: newEvent.client,
       weekOffset: diffWeeks,
+      intervenantId: assignedIntervenant?.id,
+      intervenantName: assignedIntervenant?.name,
+      intervenantType: assignedIntervenant?.type,
     });
     setWeekOffset(diffWeeks);
     setShowAdd(false);
@@ -160,7 +205,7 @@ export default function PlanningGestionPage() {
   /* ── KPIs (no JSX here) ── */
   const kpiData = [
     { iconKey: 'Hammer',     label: 'Interventions cette semaine', val: String(currentEvents.length), sub: gestEvents.length + ' total', color: '#5b9bd5', bg: 'from-[#5b9bd5]/10 to-[#5b9bd5]/5' },
-    { iconKey: 'Users',      label: 'Intervenants actifs',         val: String(new Set(currentEvents.map(e => e.client)).size), sub: INTERVENANTS.length + ' disponibles', color: '#e07050', bg: 'from-[#e07050]/10 to-[#e07050]/5' },
+    { iconKey: 'Users',      label: 'Intervenants actifs',         val: String(intervenantsList.length), sub: currentEvents.length + ' interventions cette semaine', color: '#e07050', bg: 'from-[#e07050]/10 to-[#e07050]/5' },
     { iconKey: 'Clock',      label: 'Heures planifiées',           val: String(currentEvents.reduce((acc, e) => acc + e.duration, 0)) + 'h', sub: 'cette semaine', color: '#2ecc71', bg: 'from-[#2ecc71]/10 to-[#2ecc71]/5' },
     { iconKey: 'TrendingUp', label: 'Taux de charge',              val: Math.min(100, Math.round((currentEvents.reduce((acc, e) => acc + e.duration, 0) / 50) * 100)) + '%', sub: 'semaine en cours', color: '#f0c040', bg: 'from-[#f0c040]/10 to-[#f0c040]/5' },
   ];
@@ -369,6 +414,13 @@ export default function PlanningGestionPage() {
                         <div className="text-base leading-tight">{icon}</div>
                         <div className="font-bold text-[11px] leading-tight mt-0.5 truncate pr-4">{ev.type}</div>
                         <div className="text-[11px] font-semibold opacity-90 truncate">{ev.client}</div>
+                        {ev.intervenantName && (
+                          <div className="text-[10px] font-semibold opacity-95 truncate flex items-center gap-1 mt-0.5">
+                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-white/80" />
+                            {ev.intervenantName}
+                            {ev.intervenantType && <span className="opacity-75">· {formatTypeLabel(ev.intervenantType)}</span>}
+                          </div>
+                        )}
                         <div className="text-[10px] opacity-70 mt-0.5">{ev.startHour}:00 — {ev.startHour + ev.duration}:00</div>
                       </div>
                     );
@@ -397,25 +449,49 @@ export default function PlanningGestionPage() {
             </div>
           </div>
 
-          {/* Intervenants */}
+          {/* Intervenants — tableau Nom + Métier branche sur le store reel */}
           <div className="card-in rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-4" style={{ animationDelay: '240ms' }}>
-            <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-3">Intervenants</p>
-            <div className="space-y-2">
-              {INTERVENANTS.map(iv => (
-                <div key={iv.id} className="flex items-center gap-2.5">
-                  <div
-                    className="h-7 w-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                    style={{ background: iv.color }}
-                  >
-                    {iv.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-[#304035] truncate">{iv.name}</p>
-                    <p className="text-[10px] text-[#304035]/40">{iv.role}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider">Intervenants</p>
+              {intervenantsList.length > 0 && (
+                <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5">{intervenantsList.length}</span>
+              )}
             </div>
+            {intervenantsList.length === 0 ? (
+              <div className="text-[11px] text-[#304035]/45 italic py-2">
+                Aucun intervenant pour l'instant.
+                <br />
+                Ajoutez-en depuis la page <a href="/intervenants" className="underline text-[#a67749] hover:text-[#86592e]">Intervenants</a>.
+              </div>
+            ) : (
+              <div className="flex flex-col divide-y divide-[#304035]/5">
+                {intervenantsList.map(iv => {
+                  const color = nameToColor(iv.name || iv.id);
+                  return (
+                    <div key={iv.id} className="flex items-center gap-2.5 py-2 first:pt-0 last:pb-0">
+                      <div
+                        className="h-8 w-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-sm"
+                        style={{ background: color }}
+                        title={iv.name}
+                      >
+                        {nameToInitials(iv.name)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-[#304035] truncate">{iv.name || 'Sans nom'}</p>
+                        <p className="text-[10px] text-[#304035]/55 truncate">
+                          <span
+                            className="inline-block px-1.5 py-px rounded text-[9px] font-bold uppercase tracking-wider"
+                            style={{ background: color + '20', color: color }}
+                          >
+                            {formatTypeLabel(iv.type) || 'Autre'}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Alertes chantier */}
@@ -617,6 +693,36 @@ export default function PlanningGestionPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Intervenant assigne (optionnel mais recommande) ─────────────────────
+                  Lit la liste des intervenants depuis useIntervenantStore. Affiche
+                  Nom + Metier (POSEUR, PLOMBIER, ELECTRICIEN, ...) pour faciliter
+                  le choix sur le terrain. Le metier est snapshote dans l'event. */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">
+                  Intervenant assigné <span className="text-[#304035]/40 font-normal normal-case">(optionnel)</span>
+                </label>
+                {intervenantsList.length === 0 ? (
+                  <div className="text-[11px] text-[#304035]/45 italic rounded-xl border border-dashed border-[#304035]/20 px-3 py-2">
+                    Aucun intervenant disponible. Ajoutez-en depuis <a href="/intervenants" className="underline text-[#a67749] hover:text-[#86592e]">la page Intervenants</a>.
+                  </div>
+                ) : (
+                  <select
+                    value={newEvent.intervenantId ?? ''}
+                    onChange={(e) => setNewEvent(p => ({ ...p, intervenantId: e.target.value || null }))}
+                    aria-label="Choisir un intervenant"
+                    className="w-full rounded-xl border border-[#304035]/20 bg-white px-3 py-2 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#a67749]/40"
+                  >
+                    <option value="">— Aucun intervenant —</option>
+                    {intervenantsList.map((iv) => (
+                      <option key={iv.id} value={iv.id}>
+                        {iv.name || 'Sans nom'}
+                        {iv.type ? ` · ${formatTypeLabel(iv.type)}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 

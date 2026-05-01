@@ -24,6 +24,12 @@ export interface GestEvent {
   type: string;
   client: string;
   weekOffset: number;
+  /** ID de l'intervenant assigne (optionnel — pas tous les events ont un intervenant). */
+  intervenantId?: string;
+  /** Nom snapshot au moment de la creation pour preserver l'affichage si l'intervenant est supprime apres. */
+  intervenantName?: string;
+  /** Type/specialite snapshot (POSEUR, PLOMBIER, etc.). */
+  intervenantType?: string;
 }
 
 // Données initiales — vides. Les vraies données viennent de l'API via useDataSync.
