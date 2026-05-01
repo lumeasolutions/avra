@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   },
   description:
     "AVRA centralise dossiers clients, facturation, planning, stock et IA photo-réalisme en une seule app. Conçu pour cuisinistes, menuisiers et architectes d'intérieur.",
-  metadataBase: new URL('https://avra.fr'),
+  metadataBase: new URL('https://avra-app.fr'),
   openGraph: {
     siteName: 'AVRA',
     locale: 'fr_FR',
@@ -37,9 +37,93 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       {/* Plausible Analytics — RGPD-friendly, sans cookies */}
       <Script
         defer
-        data-domain="avra.fr"
+        data-domain="avra-app.fr"
         src="https://plausible.io/js/script.js"
         strategy="afterInteractive"
+      />
+      {/* SEO — Donnees structurees schema.org (Organization + WebSite + SoftwareApplication) */}
+      <Script
+        id="ld-organization"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Organization',
+            name: 'AVRA',
+            legalName: 'Lumea Solutions',
+            url: 'https://avra-app.fr',
+            logo: 'https://avra-app.fr/icons/icon-512x512.png',
+            description: "AVRA, l'ERP nouvelle generation des professionnels de l'agencement (cuisinistes, menuisiers, architectes d'interieur, agenceurs).",
+            foundingDate: '2026',
+            areaServed: { '@type': 'Country', name: 'France' },
+            contactPoint: {
+              '@type': 'ContactPoint',
+              contactType: 'customer support',
+              email: 'contact@avra-app.fr',
+              availableLanguage: ['French'],
+            },
+          }),
+        }}
+      />
+      <Script
+        id="ld-website"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            url: 'https://avra-app.fr',
+            name: 'AVRA',
+            inLanguage: 'fr-FR',
+            potentialAction: {
+              '@type': 'SearchAction',
+              target: 'https://avra-app.fr/search?q={search_term_string}',
+              'query-input': 'required name=search_term_string',
+            },
+          }),
+        }}
+      />
+      <Script
+        id="ld-softwareapp"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'AVRA',
+            applicationCategory: 'BusinessApplication',
+            applicationSubCategory: 'ERP',
+            operatingSystem: 'Web',
+            url: 'https://avra-app.fr',
+            description: "Logiciel de gestion tout-en-un pour cuisinistes, menuisiers et architectes d'interieur : dossiers, devis, facturation electronique 2026, IA photo-realiste, planning, signature, paiement.",
+            offers: {
+              '@type': 'Offer',
+              price: '0',
+              priceCurrency: 'EUR',
+              availability: 'https://schema.org/PreOrder',
+              description: 'Beta privee jusqu\'au lancement public en juillet 2026',
+            },
+            inLanguage: 'fr-FR',
+            featureList: [
+              'Gestion de dossiers clients',
+              'Facturation electronique conforme 2026',
+              'IA photo-realisme et coloriste',
+              'Planning et planning-gestion',
+              'Signature electronique',
+              'Stock et catalogue produits',
+              'Statistiques et tableau de bord',
+              'Portails partenaires intervenants',
+            ],
+            publisher: {
+              '@type': 'Organization',
+              name: 'Lumea Solutions',
+              url: 'https://avra-app.fr',
+            },
+          }),
+        }}
       />
       <BetaBanner />
       {children}

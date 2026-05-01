@@ -62,6 +62,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: '/',
       },
     ],
-    sitemap: 'https://avra.fr/sitemap.xml',
+    sitemap: 'https://avra-app.fr/sitemap.xml',
   };
 }

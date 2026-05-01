@@ -54,10 +54,10 @@ export const metadata: Metadata = {
     'logiciel gestion projet agencement',
     'devis cuisine logiciel',
   ],
-  authors: [{ name: 'AVRA', url: 'https://avra-kappa.vercel.app' }],
+  authors: [{ name: 'AVRA', url: 'https://avra-app.fr' }],
   creator: 'AVRA',
   publisher: 'AVRA',
-  metadataBase: new URL('https://avra-kappa.vercel.app'),
+  metadataBase: new URL('https://avra-app.fr'),
   alternates: { canonical: '/' },
   manifest: '/manifest.json',
   appleWebApp: {
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
     title: "AVRA — Logiciel N°1 des pros de l'agencement",
     description:
       "AVRA, le logiciel complet avec assistant IA dédié aux pros de l'agencement. Dossiers, devis, facturation, rendus IA et planning — tout en une seule app.",
-    url: 'https://avra-kappa.vercel.app',
+    url: 'https://avra-app.fr',
     siteName: 'AVRA',
     locale: 'fr_FR',
     type: 'website',

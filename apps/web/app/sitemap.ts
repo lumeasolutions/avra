@@ -10,7 +10,7 @@
 
 import { MetadataRoute } from 'next';
 
-const BASE_URL = 'https://avra.fr';
+const BASE_URL = 'https://avra-app.fr';
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 
