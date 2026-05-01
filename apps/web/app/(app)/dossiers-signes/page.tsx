@@ -977,10 +977,18 @@ export default function DossiersSignesPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-[#304035] text-sm truncate">{d.name} {d.firstName ?? ''}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
                                 <BadgeCheck className="h-2.5 w-2.5" /> SIGNÉ
                               </span>
+                              {d.terminated && (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 to-green-600 ring-1 ring-emerald-600/20 rounded-full px-2 py-0.5"
+                                  title={d.terminatedDate ? `Terminé le ${formatDate(d.terminatedDate)}` : 'Dossier entièrement terminé'}
+                                >
+                                  <Check className="h-2.5 w-2.5" /> Terminé
+                                </span>
+                              )}
                               <span className="text-[10px] text-[#304035]/40">{formatDate(d.signedDate)}</span>
                             </div>
                             <p className="text-xs text-[#304035]/45 truncate mt-0.5">{d.address || d.siteAddress || '—'}</p>
@@ -1060,11 +1068,19 @@ export default function DossiersSignesPage() {
                         </div>
                       </div>
                       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-bold text-[#304035] text-sm">{d.name} {d.firstName ?? ''}</p>
                           <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.5">
                             <BadgeCheck className="h-2 w-2" /> SIGNÉ
                           </span>
+                          {d.terminated && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider text-white bg-gradient-to-r from-emerald-500 to-green-600 ring-1 ring-emerald-600/20 rounded-full px-1.5 py-0.5"
+                              title={d.terminatedDate ? `Terminé le ${formatDate(d.terminatedDate)}` : 'Dossier entièrement terminé'}
+                            >
+                              <Check className="h-2 w-2" /> Terminé
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-[#304035]/40 truncate mt-0.5">{d.address || '—'}</p>
                       </div>
