@@ -1,11 +1,17 @@
 'use client';
 
 import React from 'react';
-import { FileText, Calendar, Euro, ChevronRight } from 'lucide-react';
+import { Calendar, Euro, ChevronRight, CheckCircle2 } from 'lucide-react';
 import type { Dossier } from '@/store';
 
 interface DossierCardProps {
-  dossier: Dossier & { montantEstime?: number; dateSignature?: string };
+  dossier: Dossier & {
+    montantEstime?: number;
+    dateSignature?: string;
+    /** Marqué comme entièrement terminé (chantier fini, livré, SAV à jour). */
+    terminated?: boolean;
+    terminatedDate?: string;
+  };
   onSelect: (dossier: Dossier) => void;
 }
 
@@ -27,16 +33,32 @@ export const DossierCard = React.memo(function DossierCard({ dossier, onSelect }
   return (
     <button
       onClick={() => onSelect(dossier)}
-      className="w-full bg-white rounded-xl p-4 border border-[#304035]/8 hover:shadow-md hover:border-[#304035]/20 transition-all text-left"
+      className={`relative w-full rounded-xl p-4 border transition-all text-left overflow-hidden ${
+        dossier.terminated
+          ? 'bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 border-emerald-300 hover:shadow-md hover:border-emerald-400'
+          : 'bg-white border-[#304035]/8 hover:shadow-md hover:border-[#304035]/20'
+      }`}
     >
+      {dossier.terminated && (
+        <span
+          className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-sm ring-1 ring-emerald-600/20"
+          title={dossier.terminatedDate ? `Terminé le ${dossier.terminatedDate}` : 'Dossier entièrement terminé'}
+        >
+          <CheckCircle2 className="h-3 w-3" />
+          Terminé
+        </span>
+      )}
+
       <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
+        <div className="flex-1 pr-16">
           <h3 className="font-semibold text-[#304035] mb-1">
             {dossier.name} {dossier.firstName}
           </h3>
           <p className="text-xs text-[#304035]/60">{dossier.email}</p>
         </div>
-        <ChevronRight className="h-4 w-4 text-[#304035]/40 mt-1" />
+        {!dossier.terminated && (
+          <ChevronRight className="h-4 w-4 text-[#304035]/40 mt-1" />
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-xs">

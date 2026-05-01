@@ -126,10 +126,18 @@ export default function DossierDetailPage() {
   const ensureDefaultSubfolders = useDossierStore(s => s.ensureDefaultSubfolders);
   const updateDossierNotes = useDossierStore(s => s.updateDossierNotes);
   const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
+  const toggleDossierTermine = useDossierStore(s => s.toggleDossierTermine);
   const profession = useAuthStore(s => s.profession);
   const isMenuisier = profession === 'menuisier';
   const isArchitecte = profession === 'architecte';
   const isCuisiniste = profession === 'cuisiniste';
+
+  // Détection statut courant du dossier — pour adapter le bouton d'action principale.
+  // - !isSigned             → bouton "Faire valider le projet" (signature)
+  // - isSigned && !terminated → bouton "Marquer terminé" (acte de fin de chantier)
+  // - isSigned && terminated  → bouton "Dossier terminé ✓" (avec annulation possible)
+  const isSigned = dossiersSignes.some(d => d.id === id);
+  const isTerminated = !!(dossier as any)?.terminated;
 
   // Modale de confirmation de suppression d'un sous-dossier
   const [deleteConfirm, setDeleteConfirm] = useState<{ label: string; docsCount: number } | null>(null);
@@ -947,14 +955,42 @@ export default function DossierDetailPage() {
               <Plus className="h-4 w-4" />
               Créer un devis
             </button>
-            <button
-              onClick={handleSigner}
-              className="flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white text-sm transition-all hover:shadow-lg active:scale-95"
-              style={{ background: 'linear-gradient(135deg, #304035, #4a6358)', boxShadow: '0 4px 16px rgba(48,64,53,0.3)' }}
-            >
-              <FileCheck className="h-4 w-4" />
-              Faire valider le projet
-            </button>
+            {!isSigned && (
+              <button
+                onClick={handleSigner}
+                className="flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white text-sm transition-all hover:shadow-lg active:scale-95"
+                style={{ background: 'linear-gradient(135deg, #304035, #4a6358)', boxShadow: '0 4px 16px rgba(48,64,53,0.3)' }}
+              >
+                <FileCheck className="h-4 w-4" />
+                Faire valider le projet
+              </button>
+            )}
+            {isSigned && !isTerminated && (
+              <button
+                onClick={() => toggleDossierTermine(id)}
+                className="flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white text-sm transition-all hover:shadow-lg active:scale-95"
+                style={{ background: 'linear-gradient(135deg, #16a34a, #22c55e)', boxShadow: '0 4px 16px rgba(34,197,94,0.35)' }}
+                title="Acte la fin du chantier — pose, livraison et SAV terminés"
+              >
+                <FileCheck className="h-4 w-4" />
+                Marquer comme terminé
+              </button>
+            )}
+            {isSigned && isTerminated && (
+              <button
+                onClick={() => toggleDossierTermine(id)}
+                className="flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-sm transition-all hover:shadow-lg active:scale-95 ring-1"
+                style={{
+                  background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
+                  color: '#14532d',
+                  boxShadow: '0 4px 16px rgba(34,197,94,0.2)',
+                }}
+                title="Cliquer pour rouvrir le dossier (annuler la clôture)"
+              >
+                <Check className="h-4 w-4" />
+                Dossier terminé
+              </button>
+            )}
           </div>
         </div>
 

@@ -89,6 +89,15 @@ export interface DossierSigne extends Dossier {
   montant?: number;
   montantEstime?: number;
   confirmations?: ConfirmationFournisseur[];
+  /**
+   * Marque le chantier comme entièrement terminé (au-delà de la signature) :
+   * pose finie, livraison effectuée, SAV à jour. C'est l'acte final côté pro
+   * qui clôt le dossier visuellement (badge "DOSSIER TERMINÉ" sur la card).
+   * Différent de `signedDate` (signature client) — peut survenir des semaines
+   * voire des mois après.
+   */
+  terminated?: boolean;
+  terminatedDate?: string;
   dateButoires?: {
     suiviChantier?: string;
     releveMesures?: string;
@@ -378,6 +387,11 @@ interface DossierState {
    *   (MENUISIER_SIGNED_SUBFOLDERS si 'menuisier', sinon SIGNED_SUBFOLDERS).
    */
   signerDossier: (id: string, profession?: string | null) => void;
+  /**
+   * Marque un dossier signé comme entièrement terminé (chantier fini,
+   * livraison faite, SAV à jour). L'inverse rebascule en "actif".
+   */
+  toggleDossierTermine: (id: string) => void;
   perdreDossier: (id: string, reason: string) => void;
   /**
    * Supprime définitivement un dossier (active, signé ou perdu) du store local.
@@ -581,6 +595,21 @@ export const useDossierStore = create<DossierState>()(
         set(s => ({
           dossiers: s.dossiers.filter(d => d.id !== id),
           dossiersSignes: [signed, ...s.dossiersSignes],
+        }));
+      },
+
+      toggleDossierTermine: (id) => {
+        const today = new Date().toLocaleDateString('fr-FR');
+        set(s => ({
+          dossiersSignes: s.dossiersSignes.map(d =>
+            d.id === id
+              ? {
+                  ...d,
+                  terminated: !d.terminated,
+                  terminatedDate: !d.terminated ? today : undefined,
+                }
+              : d,
+          ),
         }));
       },
 
