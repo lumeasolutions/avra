@@ -25,6 +25,20 @@ type Article = {
 // (Une refacto possible plus tard : extraire dans blog/articles.ts partage.)
 const ARTICLES: Article[] = [
   {
+    slug: '5-erreurs-marge-cuisiniste',
+    title: "5 erreurs qui plombent la marge d'un cuisiniste en 2026",
+    description: 'Devis sous-estimes, sous-traitance non chiffree, retards fournisseurs, SAV oublie : les 5 fuites qui rongent en silence votre rentabilite.',
+    pubDate: 'Fri, 01 May 2026 08:00:00 GMT',
+    category: 'Rentabilite',
+  },
+  {
+    slug: 'logiciel-menuisier-2026',
+    title: 'Logiciel menuisier 2026 : le guide pour choisir l\'ERP atelier',
+    description: 'Devis, plan technique, planning chantier, pose mobile et facturation electronique : 10 criteres pour selectionner le bon outil.',
+    pubDate: 'Thu, 30 Apr 2026 08:00:00 GMT',
+    category: 'Guide',
+  },
+  {
     slug: 'comment-choisir-erp-cuisiniste',
     title: 'Comment choisir son logiciel ERP de cuisiniste en 2026',
     description: '12 criteres essentiels, comparatif des solutions, pieges a eviter et methode en 1 semaine pour comparer 3 logiciels sans se tromper.',

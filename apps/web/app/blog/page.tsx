@@ -31,6 +31,22 @@ export const metadata: Metadata = {
 
 const articles = [
   {
+    slug: '5-erreurs-marge-cuisiniste',
+    title: '5 erreurs qui plombent la marge d\'un cuisiniste en 2026 — et comment les corriger',
+    excerpt: 'Devis sous-estimes, sous-traitance non chiffree, retards fournisseurs, SAV oublie, prix matiere fige : les 5 fuites qui rongent en silence votre rentabilite.',
+    date: '1 mai 2026',
+    readTime: '11 min',
+    tags: ['Rentabilite', 'Methode', 'Cuisiniste']
+  },
+  {
+    slug: 'logiciel-menuisier-2026',
+    title: 'Logiciel menuisier 2026 : le guide pour choisir l\'ERP qui transforme votre atelier',
+    excerpt: 'Devis, plan technique, planning chantier, pose mobile et facturation electronique : 10 criteres pour selectionner le bon outil et eviter les pieges du marche.',
+    date: '30 avril 2026',
+    readTime: '14 min',
+    tags: ['Guide', 'ERP', 'Menuisier']
+  },
+  {
     slug: 'comment-choisir-erp-cuisiniste',
     title: 'Comment choisir son logiciel ERP de cuisiniste en 2026 — Guide complet',
     excerpt: '12 critères essentiels, comparatif des solutions, pièges à éviter et méthode en 1 semaine pour comparer 3 logiciels sans se tromper.',
