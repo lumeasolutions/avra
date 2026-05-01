@@ -154,6 +154,9 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
         .ap-tdot:nth-child(3) { animation-delay:.4s }
         .ap-scroll::-webkit-scrollbar { width:3px }
         .ap-scroll::-webkit-scrollbar-thumb { background:#C5C0B8; border-radius:3px }
+        .ap-textarea::-webkit-scrollbar { width:4px }
+        .ap-textarea::-webkit-scrollbar-thumb { background:#C5C0B8; border-radius:3px }
+        .ap-textarea { word-wrap: break-word; overflow-wrap: anywhere; }
         .ap-card { transition:transform .15s,box-shadow .15s; }
         .ap-card:hover { transform:translateX(3px); box-shadow:0 4px 16px rgba(0,0,0,0.10) !important; }
       `}</style>
@@ -378,7 +381,17 @@ function ChatView({ owlB64 }: { owlB64: string }) {
   // Wrapper pour conserver l'API existante setMessages(prev => ...)
   const setMessages = setMessagesStore;
   const endRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Auto-resize du textarea : on rend la hauteur "auto" pour mesurer le scrollHeight
+  // réel, puis on la fixe — bornée à max-height (140px ≈ 5 lignes).
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, 140)}px`;
+  }, [message]);
 
   // Hydratation : si la conversation persistée est vide, on l'initialise avec
   // un message d'accueil contextuel (nb dossiers + alertes). Une seule fois.
@@ -734,13 +747,29 @@ function ChatView({ owlB64 }: { owlB64: string }) {
             </button>
           </div>
         )}
-        <div className="flex items-center gap-2">
-          <input type="text" value={message} onChange={e=>setMessage(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="Posez une question ou un ordre…"
-            className="flex-1 bg-white border border-[rgba(0,0,0,0.09)] rounded-[20px] py-[9px] px-[14px] text-[12px] text-[#2C3529] outline-none shadow-[0_1px_4px_rgba(0,0,0,0.05)]"/>
-          <button onClick={isListening ? stopVoice : startVoice} title={isListening ? "Arrêter" : "Parler"} className={`w-[34px] h-[34px] rounded-full flex-shrink-0 border-none cursor-pointer flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.2)]`} style={{ background: isListening ? 'linear-gradient(135deg,#e53e3e,#c53030)' : 'linear-gradient(135deg,#a67749,#8a5d34)' }}>
+        <div className="flex items-end gap-2">
+          {/* Textarea auto-resize : grandit avec le contenu jusqu'à 5 lignes,
+              puis scroll vertical interne. Enter envoie, Shift+Enter ajoute
+              un saut de ligne (convention chat standard). */}
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            rows={1}
+            placeholder="Posez une question (Shift+Entrée = nouvelle ligne)"
+            className="flex-1 min-h-[38px] max-h-[140px] bg-white border border-[rgba(0,0,0,0.09)] rounded-[20px] py-[9px] px-[14px] text-[12.5px] text-[#2C3529] outline-none shadow-[0_1px_4px_rgba(0,0,0,0.05)] resize-none leading-[1.4] focus:border-[#a67749] focus:ring-2 focus:ring-[#a67749]/20 transition-shadow ap-textarea"
+            style={{ fontFamily: 'inherit' }}
+          />
+          <button onClick={isListening ? stopVoice : startVoice} title={isListening ? "Arrêter" : "Parler"} className={`w-[34px] h-[34px] rounded-full flex-shrink-0 border-none cursor-pointer flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.2)] mb-[2px]`} style={{ background: isListening ? 'linear-gradient(135deg,#e53e3e,#c53030)' : 'linear-gradient(135deg,#a67749,#8a5d34)' }}>
             {isListening ? <MicOff className="h-3.5 w-3.5 text-white"/> : <Mic className="h-3.5 w-3.5 text-white"/>}
           </button>
-          <button onClick={send} className="w-[34px] h-[34px] rounded-full flex-shrink-0 bg-gradient-to-br from-[#4A6358] to-[#334840] border-none cursor-pointer flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.2)]">
+          <button onClick={send} className="w-[34px] h-[34px] rounded-full flex-shrink-0 bg-gradient-to-br from-[#4A6358] to-[#334840] border-none cursor-pointer flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.2)] mb-[2px]">
             <Send className="h-3.5 w-3.5 text-white" style={{ transform:'translateX(1px)' }}/>
           </button>
         </div>
