@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { TokenBlacklistService } from './services/token-blacklist.service';
 import { TokenRotationService } from './services/token-rotation.service';
+import { AuthEmailService } from './services/auth-email.service';
 import { UsersModule } from '../users/users.module';
 
 @Module({
@@ -31,7 +32,7 @@ import { UsersModule } from '../users/users.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, TokenBlacklistService, TokenRotationService],
+  providers: [AuthService, JwtStrategy, TokenBlacklistService, TokenRotationService, AuthEmailService],
   exports: [AuthService, JwtModule, TokenBlacklistService, TokenRotationService],
 })
 export class AuthModule {}

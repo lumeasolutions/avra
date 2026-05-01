@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { TokenRotationService } from './services/token-rotation.service';
+import { AuthEmailService } from './services/auth-email.service';
 import { isEmailAllowed, isBetaGateEnabled } from '../../common/security/beta-gate';
 import type { JwtPayload } from '@avra/types';
 
@@ -26,6 +27,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly tokenRotation: TokenRotationService,
+    private readonly authEmail: AuthEmailService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -313,8 +315,20 @@ export class AuthService {
           console.log(`[DEBUG_PASSWORD_RESET] /reset-password?token=${resetToken}&id=${user.id}`);
         }
 
-        // TODO: wire to Resend (apps/web/lib/server/email.ts) — out of scope
-        // for the security-hardening pass.
+        // Envoi du mail de reset (fire-and-forget). Si RESEND_API_KEY n'est pas
+        // configuree, le service log un warn et passe — pas d'erreur propagee.
+        // On ne propage JAMAIS d'exception : un fail email ne doit pas leak
+        // l'existence du compte (anti-enumeration MED-010).
+        try {
+          await this.authEmail.sendPasswordResetEmail({
+            to: user.email,
+            firstName: user.firstName ?? null,
+            token: resetToken,
+            userId: user.id,
+          });
+        } catch {
+          // silencieux — le timing flatten ci-dessous absorbe les variations.
+        }
       } else {
         // Burn ~ the same time as a real bcrypt hashing pass to flatten the
         // signal (no DB write to leak via timing).
