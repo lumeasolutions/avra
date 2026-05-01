@@ -33,7 +33,39 @@ import { api } from '@/lib/api';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const TYPES = ['POSEUR', 'ELECTRICIEN', 'MACON', 'MARBRIER', 'CUISINISTES', 'PLOMBIER', 'CARRELEUR', 'PEINTRE', 'AUTRE'];
+const TYPES = [
+  // Corps de metier principaux cuisiniste
+  'POSEUR',
+  'PLOMBIER',
+  'ELECTRICIEN',
+  'PLAQUISTE',
+  'LIVREUR',
+  'MARBRIER',
+  'CUISINISTES',
+  // Corps de metier generaux du batiment
+  'MACON',
+  'PLATRIER',
+  'MENUISIER',
+  'EBENISTE',
+  'AGENCEUR',
+  'CHARPENTIER',
+  'CARRELEUR',
+  'PARQUETEUR',
+  'PEINTRE BATIMENT',
+  'ENDUISEUR',
+  'FACADIER',
+  'CHAUFFAGISTE',
+  'CLIMATICIEN',
+  'FRIGORISTE',
+  'INSTALLATEUR DOMOTIQUE',
+  'TECHNICIEN VMC',
+  'SERRURIER',
+  'FERRONNIER',
+  'MENUISIER ALU/PVC',
+  'MIROITIER',
+  'TAPISSIER',
+  'AUTRE',
+];
 /** Filtre special : "ALERTES" liste tous les intervenants tous types
  * confondus qui ont au moins une alerte active, classes par criticite. */
 const FILTER_ALERTES = '🚨 ALERTES';

@@ -29,15 +29,17 @@ const INTERVENTION_TYPES = [
   { key: 'SUIVI_CHANTIER',    label: 'Suivi chantier',      color: '#7c4f1d', icon: '🏗' },
   { key: 'RECEPTION',         label: 'Réception travaux',   color: '#2ecc71', icon: '✅' },
   { key: 'MESURAGE',          label: 'Relevé de mesures',   color: '#e74c3c', icon: '📏' },
-  { key: 'ETAT_LIEUX',        label: 'État des lieux',      color: '#a78bfa', icon: '📋' },
-  { key: 'RDV_FOURNISSEUR',   label: 'RDV fournisseur',     color: '#f59e0b', icon: '🚚' },
-  // Historiques planning gestion (interventions techniques)
+  // Interventions techniques cuisiniste
   { key: 'POSE CUISINE',      label: 'Pose Cuisine',        color: '#5b9bd5', icon: '🍳' },
   { key: 'POSE GRANITE',      label: 'Pose Granite',        color: '#8B4513', icon: '🪨' },
-  { key: 'ELECTRICIEN',       label: 'Électricien',         color: '#f0c040', icon: '⚡' },
   { key: 'REUNION CHANTIER',  label: 'Réunion Chantier',    color: '#e07050', icon: '👷' },
-  { key: 'PLOMBERIE',         label: 'Plomberie',           color: '#2ecc71', icon: '🔧' },
-  { key: 'CARRELAGE',         label: 'Carrelage',           color: '#9b59b6', icon: '🏠' },
+  // Corps de metier specialistes (intervenants courants en cuisine)
+  { key: 'POSEUR',            label: 'Poseur',              color: '#0ea5e9', icon: '🔨' },
+  { key: 'PLOMBIER',          label: 'Plombier',            color: '#2ecc71', icon: '🔧' },
+  { key: 'ELECTRICIEN',       label: 'Électricien',         color: '#f0c040', icon: '⚡' },
+  { key: 'PLAQUISTE',         label: 'Plaquiste',           color: '#94a3b8', icon: '🧱' },
+  { key: 'LIVREUR',           label: 'Livreur',             color: '#fb923c', icon: '🚚' },
+  { key: 'MARBRIER',          label: 'Marbrier',            color: '#52525b', icon: '🪨' },
 ];
 
 /* ── INTERVENANTS ── */
