@@ -1,6 +1,6 @@
 # CLAUDE.md — AVRA
 
-Fichier de référence pour les sessions Claude. Mis à jour : avril 2026.
+Fichier de référence pour les sessions Claude. Mis à jour : mai 2026.
 
 ## Projet
 
@@ -85,8 +85,13 @@ prisma/schema.prisma              — Schéma DB (Waitlist, DemoRequest, User...
 | `DATABASE_URL` | Supabase pooler |
 | `DIRECT_URL` | Supabase direct |
 | `JWT_SECRET` / `JWT_REFRESH_SECRET` | — |
-| `ANTHROPIC_API_KEY` | sk-ant-*** |
-| `FAL_KEY` | — |
+| `OPENAI_API_KEY` | sk-*** (provider IA primaire) |
+| `OPENAI_MODEL_PREMIUM` | `gpt-4o` (default) |
+| `OPENAI_MODEL_CHEAP` | `gpt-4o-mini` (default) |
+| `ANTHROPIC_API_KEY` | sk-ant-*** (fallback transparent — optionnel) |
+| `ANTHROPIC_MODEL` | `claude-opus-4-6` (fallback) |
+| `AI_PROVIDER` | `auto` (default) — `openai` / `anthropic` / `mock` pour forcer |
+| `FAL_KEY` | — (génération images, inchangé) |
 
 ## Utilisateurs bêta actifs en DB
 
@@ -103,7 +108,42 @@ prisma/schema.prisma              — Schéma DB (Waitlist, DemoRequest, User...
 - Pour commiter : utiliser le script `.bat` fourni depuis Windows
 - pnpm monorepo : NE PAS utiliser `npm install` à la racine
 
-## État au 22 avril 2026 (commit eec2999)
+## Architecture IA (mai 2026 — refactor OpenAI)
+
+Tout le textuel passe sur **OpenAI** (gpt-4o + gpt-4o-mini). Anthropic
+conservé en **fallback transparent** : tant que `OPENAI_API_KEY` n'est pas
+configuré, l'app retombe automatiquement sur Anthropic. fal.ai inchangé pour
+les images.
+
+| Cas d'usage | Provider | Modèle |
+|-------------|----------|--------|
+| Chat assistant | OpenAI | `gpt-4o` |
+| Analyze dossier | OpenAI | `gpt-4o` |
+| Suggest alerts | OpenAI | `gpt-4o-mini` (16x moins cher) |
+| Extract dossier (NEW) | OpenAI | `gpt-4o` + json_schema strict |
+| Chat marketing (visiteurs) | OpenAI | `gpt-4o-mini` |
+| Rendu / coloriste | fal.ai | inchangé |
+
+**Service principal** : `apps/api/src/modules/ia/ai.service.ts`
+**Service extraction** : `apps/api/src/modules/ia/extraction.service.ts`
+**Doc complète** : `apps/api/src/modules/ia/README.md`
+
+### Endpoint extraction documents
+
+`POST /api/v1/ia/extract-dossier { dossierId }` — Analyse les PDF du dossier
+via `pdf-parse` + OpenAI gpt-4o (response_format json_schema strict) et
+retourne :
+- 5 dates butoires (suivi, relevé mesures, plan tech, fiche pose, permis)
+- liste de commandes fournisseurs (fournisseur + date butoir + montant HT + catégorie)
+- liste de livraisons (catégorie + date butoir)
+- score de confiance (0-1) + notes explicatives
+
+**Frontend** : bouton "Extraire avec IA" dans `DateButoireValidationModal` —
+pré-remplit les champs en un clic. L'utilisateur garde la main.
+
+**Sécurité** : JwtAuthGuard + throttler `ai` (5/min/IP) + ownership workspace.
+
+## État au 1er mai 2026
 
 ### ✅ Fait
 - Beta gate (whitelist email, anti-enumeration, case-insensitive)
@@ -115,8 +155,12 @@ prisma/schema.prisma              — Schéma DB (Waitlist, DemoRequest, User...
 - Sentry Next.js (client/server/edge + withSentryConfig)
 - Sitemap.ts + robots.ts (AI bots bloqués)
 - vercel.json : routing `/api/v1/*` → serverless NestJS
-- Plausible Analytics (layout marketing, RGPD-friendly)
+- Plausible Analytics (layout marketing)
 - CLAUDE.md créé
+- **(mai 2026)** Migration IA OpenAI primaire (gpt-4o + gpt-4o-mini),
+  Anthropic fallback transparent, suppression worker DALL-E legacy
+- **(mai 2026)** Extraction IA documents : endpoint `/extract-dossier`
+  + bouton UI dans la modale Validation projet
 
 ### 🔲 P1 restants
 - Playwright E2E (parcours login, waitlist, démo)
