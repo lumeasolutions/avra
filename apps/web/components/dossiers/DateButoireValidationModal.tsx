@@ -48,6 +48,32 @@ import { extractDossier, DATE_LABEL_TO_FIELD } from '@/lib/ai-extract-api';
  * Suggestions auto-complete pour le panneau ACCEDER → COMMANDES.
  * Ce sont des MARQUES de fournisseurs (ex: LEICHT, BOSCH) qu'on COMMANDE.
  */
+/**
+ * Calcule le numero de semaine ISO 8601 (1-53) de la date "lundi de la semaine
+ * en cours + offset semaines". Suit la convention francaise/europeenne :
+ *  - Lundi est le 1er jour de la semaine
+ *  - La semaine 1 est celle qui contient le premier jeudi de l'annee
+ * Source : algo standard ISO 8601.
+ */
+function getIsoWeekNumber(weekOffset: number = 0): number {
+  const today = new Date();
+  // Trouver le lundi de la semaine en cours
+  const day = today.getDay() || 7; // dim = 0 -> 7
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - day + 1 + weekOffset * 7);
+  monday.setHours(0, 0, 0, 0);
+
+  // Algo ISO 8601 : copier la date, aller au jeudi le plus proche (-3 +4),
+  // puis calculer le nombre de semaines depuis le 1er janvier de cette annee.
+  const target = new Date(monday.valueOf());
+  const dayNum = (monday.getDay() + 6) % 7; // lundi = 0
+  target.setDate(target.getDate() - dayNum + 3);
+  const firstThursday = new Date(target.getFullYear(), 0, 4);
+  const diff = target.getTime() - firstThursday.getTime();
+  const weekNum = 1 + Math.round((diff / 86400000 - 3 + ((firstThursday.getDay() + 6) % 7)) / 7);
+  return weekNum;
+}
+
 const COMMANDES_SUGGESTIONS: string[] = [
   // Cuisines
   'LEICHT', 'SCHMIDT', 'MOBALPA', 'CUISINELLA', 'HYGENA', 'BOFFI', 'BULTHAUP',
@@ -1389,7 +1415,7 @@ export function DateButoireValidationModal({
                     <button type="button" onClick={() => setWeekOffset((w) => w - 1)} aria-label="Semaine précédente">
                       <ChevronLeft style={{ width: 12, height: 12 }} />
                     </button>
-                    <span>{weekOffset === 0 ? 'Cette semaine' : weekOffset > 0 ? `+${weekOffset} sem.` : `${weekOffset} sem.`}</span>
+                    <span>{`Semaine ${getIsoWeekNumber(weekOffset)}`}</span>
                     <button type="button" onClick={() => setWeekOffset((w) => w + 1)} aria-label="Semaine suivante">
                       <ChevronRight style={{ width: 12, height: 12 }} />
                     </button>
