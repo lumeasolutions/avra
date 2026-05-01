@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { X, Send, AlertTriangle, XCircle, Clock, Info, ChevronDown, Mic, MicOff } from 'lucide-react';
 import { useDossierStore, useFacturationStore, useUIStore } from '@/store';
 import { useAssistantStore } from '@/store/useAssistantStore';
+import { MicPermissionHelpModal } from './MicPermissionHelpModal';
 import Link from 'next/link';
 
 // ── Rendu Markdown léger ──────────────────────────────────────────────────────
@@ -394,6 +395,7 @@ function ChatView({ owlB64 }: { owlB64: string }) {
   // ── Vocal ──────────────────────────────────────────────────
   const [isListening, setIsListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [showMicHelp, setShowMicHelp] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   /**
@@ -419,7 +421,20 @@ function ChatView({ owlB64 }: { owlB64: string }) {
       return;
     }
 
-    // 3. Demande explicite de permission micro AVANT de lancer SpeechRecognition.
+    // 3a. Pré-check via Permissions API (si supportée) — donne un état net
+    //     avant même de tenter getUserMedia. Permet d'ouvrir la modale d'aide
+    //     immédiatement si on sait que c'est "denied".
+    try {
+      const status = await (navigator as any).permissions?.query?.({ name: 'microphone' });
+      if (status?.state === 'denied') {
+        setShowMicHelp(true);
+        return;
+      }
+    } catch {
+      // Permissions API non supportée — on continue sur getUserMedia
+    }
+
+    // 3b. Demande explicite de permission micro AVANT de lancer SpeechRecognition.
     //    Sans ça, certains navigateurs (Chrome sur Windows notamment) émettent
     //    une erreur 'not-allowed' silencieuse si la permission n'a jamais été
     //    accordée, et l'utilisateur ne sait pas ce qui s'est passé.
@@ -432,7 +447,10 @@ function ChatView({ owlB64 }: { owlB64: string }) {
       } catch (err: any) {
         const name = err?.name ?? '';
         if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-          setVoiceError('Accès micro refusé. Autorisez-le dans 🔒 → Paramètres du site.');
+          // Au lieu d'un banner texte, on ouvre une modale visuelle avec
+          // étapes illustrées + bouton "Recharger la page" (souvent
+          // nécessaire après changement de permission Chrome).
+          setShowMicHelp(true);
         } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
           setVoiceError('Aucun micro détecté sur cet appareil.');
         } else if (name === 'NotReadableError') {
@@ -460,9 +478,12 @@ function ChatView({ owlB64 }: { owlB64: string }) {
       r.onerror = (e: any) => {
         setIsListening(false);
         const errType = e?.error ?? 'unknown';
+        // Cas 'not-allowed' / 'service-not-allowed' → modale visuelle d'aide
+        if (errType === 'not-allowed' || errType === 'service-not-allowed') {
+          setShowMicHelp(true);
+          return;
+        }
         const map: Record<string, string> = {
-          'not-allowed': 'Accès micro refusé. Autorisez-le dans les paramètres du navigateur.',
-          'service-not-allowed': 'Le service vocal du navigateur est bloqué.',
           'no-speech': 'Aucune voix détectée. Réessayez en parlant plus fort.',
           'audio-capture': 'Micro indisponible. Vérifiez qu\'il est branché et fonctionnel.',
           'network': 'Erreur réseau pendant la reconnaissance vocale.',
@@ -730,6 +751,13 @@ function ChatView({ owlB64 }: { owlB64: string }) {
           </button>
         </div>
       </div>
+
+      {/* Modale d'aide micro — affichée auto quand permissions denied */}
+      <MicPermissionHelpModal
+        open={showMicHelp}
+        onClose={() => setShowMicHelp(false)}
+        onRetry={() => { setShowMicHelp(false); void startVoice(); }}
+      />
     </div>
   );
 }
