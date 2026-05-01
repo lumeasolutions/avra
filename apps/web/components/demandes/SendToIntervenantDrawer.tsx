@@ -106,6 +106,25 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
   }>>(prefill?.attachments ?? []);
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
+  // SECURITE F-009 : selecteur de pieces du dossier client a inclure dans la
+  // demande. Avant : pas de selecteur, le pro pouvait sciemment ou par
+  // distraction laisser le champ "pieces jointes" vide et envoyer les notes
+  // seules — l'intervenant ne voyait rien des pieces du dossier (good) MAIS
+  // il pouvait deviner que tout est accessible. Apres : on liste explicitement
+  // les pieces du dossier groupees par sous-dossier, le pro coche celles a
+  // partager. Aucun fichier n'est envoye automatiquement.
+  type ProjectDoc = {
+    id: string;
+    subfolderLabel: string;
+    originalName: string;
+    mimeType: string | null;
+    sizeBytes: number | null;
+  };
+  const [projectDocs, setProjectDocs] = useState<ProjectDoc[] | null>(null);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  // Set des dossierDocumentId deja inclus dans uploads (pour cocher les checkboxes)
+  const includedDocIds = new Set(uploads.map((u) => u.dossierDocumentId).filter(Boolean) as string[]);
+
   const createInvitationStore = useDemandesStore((s) => s.createInvitation);
 
   // Charge la liste des intervenants du workspace
@@ -140,6 +159,30 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
 
     return () => { cancelled = true; };
   }, [open]);
+
+  // Charge les pieces du dossier client (pour permettre au pro de selectionner
+  // les pieces a partager — pas d'envoi automatique du dossier complet).
+  useEffect(() => {
+    if (!open || !prefill?.projectId) {
+      setProjectDocs(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingDocs(true);
+    api<any>(`/dossiers/${encodeURIComponent(prefill.projectId)}/documents`)
+      .then((rawDocs) => {
+        if (cancelled) return;
+        const arr: ProjectDoc[] = Array.isArray(rawDocs) ? rawDocs : [];
+        setProjectDocs(arr);
+      })
+      .catch(() => {
+        if (!cancelled) setProjectDocs([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDocs(false);
+      });
+    return () => { cancelled = true; };
+  }, [open, prefill?.projectId]);
 
   // Reset au close
   useEffect(() => {
@@ -633,9 +676,138 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                 style={inputStyle()}
               />
 
+              {/* SECURITE : Selecteur des pieces du dossier client a partager.
+                  Le pro choisit explicitement quels fichiers transmettre —
+                  jamais le dossier entier (qui contiendrait des infos
+                  confidentielles type prix de vente). */}
+              {prefill?.projectId && projectDocs && projectDocs.length > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <Label>
+                    Pièces du dossier à partager
+                    <span style={{ marginLeft: 8, fontWeight: 400, color: '#7c6c58', fontSize: 11 }}>
+                      ({projectDocs.length} disponibles · cocher pour inclure)
+                    </span>
+                  </Label>
+                  <div
+                    role="group"
+                    aria-label="Selecteur de pieces du dossier"
+                    style={{
+                      maxHeight: 240,
+                      overflowY: 'auto',
+                      background: '#fafaf8',
+                      border: '1px solid #ece7df',
+                      borderRadius: 8,
+                      padding: 8,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    {/* Grouper par sous-dossier */}
+                    {Object.entries(projectDocs.reduce<Record<string, ProjectDoc[]>>((acc, d) => {
+                      const k = d.subfolderLabel || 'Autres';
+                      if (!acc[k]) acc[k] = [];
+                      acc[k].push(d);
+                      return acc;
+                    }, {})).map(([subfolder, docs]) => {
+                      const allChecked = docs.every((d) => includedDocIds.has(d.id));
+                      return (
+                        <div key={subfolder} style={{ background: '#fff', borderRadius: 6, padding: 6, border: '1px solid #f0eae0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, paddingBottom: 4, borderBottom: '1px solid #f5f1ea' }}>
+                            <input
+                              type="checkbox"
+                              id={`sf-all-${subfolder}`}
+                              checked={allChecked}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setUploads((u) => {
+                                  if (checked) {
+                                    // Ajouter tous les docs de ce sous-dossier qui ne sont pas deja inclus
+                                    const toAdd = docs.filter((d) => !u.some((x) => x.dossierDocumentId === d.id));
+                                    return [
+                                      ...u,
+                                      ...toAdd.map((d) => ({
+                                        dossierDocumentId: d.id,
+                                        displayName: d.originalName,
+                                        mimeType: d.mimeType ?? undefined,
+                                      })),
+                                    ];
+                                  } else {
+                                    // Retirer tous les docs de ce sous-dossier
+                                    const docIds = new Set(docs.map((d) => d.id));
+                                    return u.filter((x) => !x.dossierDocumentId || !docIds.has(x.dossierDocumentId));
+                                  }
+                                });
+                              }}
+                              style={{ accentColor: '#3D5449', cursor: 'pointer' }}
+                            />
+                            <label
+                              htmlFor={`sf-all-${subfolder}`}
+                              style={{ fontSize: 11, fontWeight: 700, color: '#3D5449', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', flex: 1 }}
+                            >
+                              {subfolder} <span style={{ color: '#7c6c58', fontWeight: 400 }}>({docs.length})</span>
+                            </label>
+                          </div>
+                          {docs.map((d) => (
+                            <label
+                              key={d.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '4px 6px',
+                                fontSize: 12,
+                                cursor: 'pointer',
+                                color: '#1a2a1e',
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={includedDocIds.has(d.id)}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setUploads((u) => {
+                                    if (checked) {
+                                      return [
+                                        ...u,
+                                        {
+                                          dossierDocumentId: d.id,
+                                          displayName: d.originalName,
+                                          mimeType: d.mimeType ?? undefined,
+                                        },
+                                      ];
+                                    }
+                                    return u.filter((x) => x.dossierDocumentId !== d.id);
+                                  });
+                                }}
+                                style={{ accentColor: '#3D5449', cursor: 'pointer' }}
+                              />
+                              <FileText size={12} style={{ color: '#7c6c58', flexShrink: 0 }} />
+                              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {d.originalName}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {prefill?.projectId && loadingDocs && (
+                <div style={{ marginTop: 14, fontSize: 12, color: '#7c6c58', fontStyle: 'italic' }}>
+                  Chargement des pieces du dossier…
+                </div>
+              )}
+              {prefill?.projectId && projectDocs && projectDocs.length === 0 && !loadingDocs && (
+                <div style={{ marginTop: 14, fontSize: 12, color: '#7c6c58', fontStyle: 'italic' }}>
+                  Ce dossier ne contient encore aucune piece. Vous pouvez ajouter des fichiers ci-dessous.
+                </div>
+              )}
+
               {/* Attachments — upload + liste */}
               <div style={{ marginTop: 14 }}>
-                <Label>Pièces jointes {uploads.length > 0 && `(${uploads.length})`}</Label>
+                <Label>Pièces jointes sélectionnées {uploads.length > 0 && `(${uploads.length})`}</Label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {uploads.map((a, idx) => (
                     <div
