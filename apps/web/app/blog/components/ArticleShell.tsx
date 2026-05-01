@@ -3,17 +3,13 @@
 /**
  * ArticleShell — squelette premium pour les articles de blog AVRA.
  *
- * Fournit :
- *  - Hero gradient sombre + or avec breadcrumb
- *  - Meta (date, lecture, auteur)
- *  - Table des matieres sticky desktop / collapsible mobile
- *  - Conteneur typographique optimise (mesure 70-75ch, line-height 1.75)
- *  - CTA final reutilisable
+ * Hero gradient sombre + or, sommaire sticky desktop, mobile collapsible,
+ * reading progress bar, conteneur typographique optimisé.
  *
- * Volontairement passe les `children` (le contenu de l'article) plutot que
- * d'imposer un format markdown — chaque article peut composer ses propres
- * blocs (Callout, KeyTakeaway, ComparisonCard, etc.) tout en heritant du
- * cadre visuel.
+ * Le CSS global est injecté via une balise <style> standard avec
+ * dangerouslySetInnerHTML (et non styled-jsx) pour éviter les soucis swc
+ * que styled-jsx peut introduire avec :global() dans certains contextes
+ * Next.js 14 / RSC.
  */
 
 import Link from 'next/link';
@@ -22,6 +18,97 @@ import { Calendar, Clock, ArrowLeft, ChevronRight, Menu, X } from 'lucide-react'
 import Nav from '../../(marketing)/components/Nav';
 import Footer from '../../(marketing)/components/Footer';
 import ScrollReveal from '../../(marketing)/components/ScrollReveal';
+
+const ARTICLE_SHELL_CSS = `
+.avra-shell-container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+.avra-article-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 56px;
+  align-items: start;
+}
+.avra-toc-inner {
+  position: sticky;
+  top: 96px;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid rgba(201,169,110,0.18);
+  box-shadow: 0 8px 30px -10px rgba(30,43,34,0.08);
+}
+.avra-article-body {
+  font-size: 1.07rem;
+  line-height: 1.78;
+  color: #1e2b22;
+  max-width: 720px;
+}
+.avra-article-body h2 {
+  font-family: var(--font-playfair-display, Playfair Display), Georgia, serif;
+  font-size: clamp(1.6rem, 2.4vw, 2rem);
+  line-height: 1.2;
+  margin: 56px 0 16px;
+  color: #1e2b22;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.avra-article-body h2:first-child { margin-top: 0; }
+.avra-article-body h3 {
+  font-size: 1.3rem;
+  line-height: 1.35;
+  margin: 32px 0 12px;
+  color: #1e2b22;
+  font-weight: 700;
+}
+.avra-article-body p { margin: 0 0 18px; }
+.avra-article-body p strong { color: #1e2b22; font-weight: 700; }
+.avra-article-body a { color: #c9a96e; text-decoration: underline; text-underline-offset: 3px; }
+.avra-article-body a:hover { color: #b18f50; }
+.avra-article-body ul,
+.avra-article-body ol { padding-left: 24px; margin: 0 0 22px; }
+.avra-article-body li { margin-bottom: 10px; }
+.avra-article-body li::marker { color: #c9a96e; }
+.avra-article-body blockquote {
+  margin: 32px 0;
+  padding: 24px 28px;
+  background: linear-gradient(135deg, rgba(201,169,110,0.08), rgba(201,169,110,0.02));
+  border-left: 4px solid #c9a96e;
+  border-radius: 0 12px 12px 0;
+  font-style: italic;
+  color: #1e2b22;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+.avra-article-body blockquote cite {
+  display: block;
+  margin-top: 12px;
+  font-size: 0.88rem;
+  color: #6b7c70;
+  font-style: normal;
+  font-weight: 600;
+}
+.avra-toc-mobile-toggle-show { display: none; }
+
+@media (max-width: 960px) {
+  .avra-article-grid { grid-template-columns: 1fr; gap: 24px; }
+  .avra-toc {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,24,16,0.55);
+    backdrop-filter: blur(4px);
+    z-index: 50;
+    padding: 80px 24px 24px;
+    display: none;
+    overflow-y: auto;
+  }
+  .avra-toc--open { display: block; }
+  .avra-toc-inner {
+    position: static;
+    max-width: 540px;
+    margin: 0 auto;
+  }
+  .avra-toc-mobile-toggle-show { display: inline-flex !important; }
+}
+`;
 
 export type TocItem = { id: string; label: string; sub?: { id: string; label: string }[] };
 
@@ -42,7 +129,7 @@ export default function ArticleShell({
   subtitle,
   date,
   readTime,
-  author = { name: 'L\'équipe AVRA', role: 'Pros de l\'agencement' },
+  author = { name: 'L\'equipe AVRA', role: 'Pros de l\'agencement' },
   toc,
   children,
 }: ArticleShellProps) {
@@ -73,10 +160,10 @@ export default function ArticleShell({
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: ARTICLE_SHELL_CSS }} />
       <ScrollReveal />
       <Nav />
 
-      {/* Reading progress bar */}
       <div
         aria-hidden
         style={{
@@ -99,7 +186,6 @@ export default function ArticleShell({
         />
       </div>
 
-      {/* HERO */}
       <header
         style={{
           background:
@@ -111,7 +197,7 @@ export default function ArticleShell({
           overflow: 'hidden',
         }}
       >
-        <div className="container" style={{ position: 'relative', zIndex: 2 }}>
+        <div className="avra-shell-container" style={{ position: 'relative', zIndex: 2 }}>
           <nav
             aria-label="Fil d'Ariane"
             style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', color: 'rgba(249,246,240,0.65)', marginBottom: '24px' }}
@@ -197,7 +283,6 @@ export default function ArticleShell({
           </div>
         </div>
 
-        {/* Decoration */}
         <div
           aria-hidden
           style={{
@@ -214,9 +299,8 @@ export default function ArticleShell({
         />
       </header>
 
-      {/* BACK LINK */}
       <div style={{ background: '#f9f6f0', borderBottom: '1px solid #ede5dd' }}>
-        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0' }}>
+        <div className="avra-shell-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0' }}>
           <Link
             href="/blog"
             style={{ color: '#6b7c70', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 500 }}
@@ -226,9 +310,8 @@ export default function ArticleShell({
           <button
             type="button"
             onClick={() => setMobileTocOpen((v) => !v)}
-            className="avra-toc-mobile-toggle"
+            className="avra-toc-mobile-toggle-show"
             style={{
-              display: 'none',
               alignItems: 'center',
               gap: '6px',
               border: '1px solid rgba(201,169,110,0.4)',
@@ -246,10 +329,8 @@ export default function ArticleShell({
         </div>
       </div>
 
-      {/* BODY GRID */}
       <div style={{ background: '#f9f6f0' }}>
-        <div className="container avra-article-grid" style={{ paddingTop: '48px', paddingBottom: '64px' }}>
-          {/* TOC */}
+        <div className="avra-shell-container avra-article-grid" style={{ paddingTop: '48px', paddingBottom: '64px' }}>
           <aside className={`avra-toc${mobileTocOpen ? ' avra-toc--open' : ''}`} aria-label="Sommaire">
             <div className="avra-toc-inner">
               <div style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8c7a4e', marginBottom: '16px' }}>
@@ -261,7 +342,6 @@ export default function ArticleShell({
                     <a
                       href={`#${item.id}`}
                       onClick={() => setMobileTocOpen(false)}
-                      className={activeId === item.id ? 'avra-toc-active' : ''}
                       style={{
                         display: 'block',
                         padding: '6px 10px',
@@ -306,7 +386,6 @@ export default function ArticleShell({
             </div>
           </aside>
 
-          {/* ARTICLE */}
           <article className="avra-article-body">
             {children}
           </article>
@@ -314,100 +393,6 @@ export default function ArticleShell({
       </div>
 
       <Footer />
-
-      <style jsx>{`
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
-        .avra-article-grid {
-          display: grid;
-          grid-template-columns: 280px minmax(0, 1fr);
-          gap: 56px;
-          align-items: start;
-        }
-        .avra-toc-inner {
-          position: sticky;
-          top: 96px;
-          padding: 24px;
-          background: #ffffff;
-          border-radius: 14px;
-          border: 1px solid rgba(201,169,110,0.18);
-          box-shadow: 0 8px 30px -10px rgba(30,43,34,0.08);
-        }
-        .avra-article-body {
-          font-size: 1.07rem;
-          line-height: 1.78;
-          color: #1e2b22;
-          max-width: 720px;
-        }
-        .avra-article-body :global(h2) {
-          font-family: var(--font-playfair-display, Playfair Display), Georgia, serif;
-          font-size: clamp(1.6rem, 2.4vw, 2rem);
-          line-height: 1.2;
-          margin: 56px 0 16px;
-          color: #1e2b22;
-          font-weight: 800;
-          letter-spacing: -0.01em;
-        }
-        .avra-article-body :global(h2):first-child { margin-top: 0; }
-        .avra-article-body :global(h3) {
-          font-size: 1.3rem;
-          line-height: 1.35;
-          margin: 32px 0 12px;
-          color: #1e2b22;
-          font-weight: 700;
-        }
-        .avra-article-body :global(p) { margin: 0 0 18px; }
-        .avra-article-body :global(p strong) { color: #1e2b22; font-weight: 700; }
-        .avra-article-body :global(a) { color: #c9a96e; text-decoration: underline; text-underline-offset: 3px; }
-        .avra-article-body :global(a:hover) { color: #b18f50; }
-        .avra-article-body :global(ul), .avra-article-body :global(ol) {
-          padding-left: 24px;
-          margin: 0 0 22px;
-        }
-        .avra-article-body :global(li) {
-          margin-bottom: 10px;
-        }
-        .avra-article-body :global(li::marker) { color: #c9a96e; }
-        .avra-article-body :global(blockquote) {
-          margin: 32px 0;
-          padding: 24px 28px;
-          background: linear-gradient(135deg, rgba(201,169,110,0.08), rgba(201,169,110,0.02));
-          border-left: 4px solid #c9a96e;
-          border-radius: 0 12px 12px 0;
-          font-style: italic;
-          color: #1e2b22;
-          font-size: 1.1rem;
-          line-height: 1.6;
-        }
-        .avra-article-body :global(blockquote cite) {
-          display: block;
-          margin-top: 12px;
-          font-size: 0.88rem;
-          color: #6b7c70;
-          font-style: normal;
-          font-weight: 600;
-        }
-
-        @media (max-width: 960px) {
-          .avra-article-grid { grid-template-columns: 1fr; gap: 24px; }
-          .avra-toc {
-            position: fixed;
-            inset: 0;
-            background: rgba(15,24,16,0.55);
-            backdrop-filter: blur(4px);
-            z-index: 50;
-            padding: 80px 24px 24px;
-            display: none;
-            overflow-y: auto;
-          }
-          .avra-toc--open { display: block; }
-          .avra-toc-inner {
-            position: static;
-            max-width: 540px;
-            margin: 0 auto;
-          }
-          .avra-toc-mobile-toggle { display: inline-flex !important; }
-        }
-      `}</style>
     </>
   );
 }
