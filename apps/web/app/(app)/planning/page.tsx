@@ -54,10 +54,16 @@ const RDV_CUISINISTE: RdvTypeDef[] = [
   { key: 'MODIFS_DOSSIER',    label: 'Modifications dossier',       color: '#8b5cf6', icon: '✏️' },
   { key: 'ADMIN',             label: 'Administratif',               color: '#64748b', icon: '🗂' },
   { key: 'DESSIN_PROJET',     label: 'Dessin projet',               color: '#0891b2', icon: '🎨' },
-  { key: 'CONFIRM_COMMANDE',  label: 'Confirmation commande',       color: '#16a34a', icon: '✅' },
   { key: 'ORG_LIVRAISON',     label: 'Organisation livraison',      color: '#ea580c', icon: '📦' },
   { key: 'SAV',               label: 'Dossier SAV',                 color: '#dc2626', icon: '🛠' },
 ];
+
+/**
+ * Cles RDV_DUAL a exclure du planning Cuisiniste — geree au niveau de
+ * getRdvTypes() pour preserver les autres metiers (architecte, menuisier)
+ * qui peuvent avoir besoin de ces types.
+ */
+const CUISINISTE_EXCLUDED_DUAL_KEYS = new Set<string>(['ETAT_LIEUX', 'RDV_FOURNISSEUR']);
 
 /** Types specifiques architecte d'interieur */
 const RDV_ARCHITECTE: RdvTypeDef[] = [
@@ -116,7 +122,13 @@ function getRdvTypes(profession: string | null | undefined, viewKind: 'planning'
     return RDV_DUAL;
   }
   // /planning : specifiques d'abord, puis dual (livraison/etc.)
-  return [...specific, ...RDV_DUAL];
+  // Pour cuisiniste : on filtre 'Etat des lieux' et 'RDV fournisseur' qui ne
+  // s'appliquent pas a ce metier (workflow client direct, pas de visite tech
+  // intermediaire ni de RDV fournisseur dans le planning operationnel).
+  const dual = profession === 'cuisiniste'
+    ? RDV_DUAL.filter((t) => !CUISINISTE_EXCLUDED_DUAL_KEYS.has(t.key))
+    : RDV_DUAL;
+  return [...specific, ...dual];
 }
 
 // Backward compat : ancien export utilise dans le code
