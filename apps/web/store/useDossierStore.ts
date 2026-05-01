@@ -216,6 +216,7 @@ export const MENUISIER_SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'FABRICATION' },
   { label: 'LANCEMENT' },
   { label: 'COMMANDES FOURNISSEURS' },
+  { label: 'CONFIRMATIONS / FACTURES ACHATS FOURNISSEURS' },
   { label: 'FICHE DE POSE' },
   { label: 'LIVRAISON' },
   { label: 'MODIFICATIONS' },
