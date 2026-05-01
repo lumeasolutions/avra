@@ -23,6 +23,30 @@ export const metadata: Metadata = {
 
 const articles = [
   {
+    slug: 'comment-choisir-erp-cuisiniste',
+    title: "Comment choisir son logiciel ERP de cuisiniste en 2026 — Guide complet",
+    excerpt: "12 critères essentiels, comparatif des solutions, pièges à éviter et méthode en 1 semaine pour comparer 3 logiciels sans se tromper.",
+    date: '28 avril 2026',
+    readTime: '15 min',
+    tags: ['Guide', 'ERP', 'Cuisiniste']
+  },
+  {
+    slug: 'devis-cuisine-modele-mentions-legales',
+    title: "Devis cuisine 2026 : modèle, mentions légales obligatoires et pièges à éviter",
+    excerpt: "Le guide complet du devis cuisine professionnel : 14 mentions obligatoires, modèle prêt à l'emploi et 9 leviers pour augmenter votre taux de signature.",
+    date: '25 avril 2026',
+    readTime: '14 min',
+    tags: ['Réglementation', 'Devis', 'Cuisiniste']
+  },
+  {
+    slug: 'ia-architecte-interieur',
+    title: "IA pour architectes d'intérieur : 7 outils qui changent vraiment le métier en 2026",
+    excerpt: "Photo-réalisme, coloriste, moodboards génératifs, reconnaissance de plan : panorama honnête des outils IA qui transforment le métier d'architecte.",
+    date: '22 avril 2026',
+    readTime: '13 min',
+    tags: ['IA', 'Architecture intérieure', 'Outils']
+  },
+  {
     slug: 'logiciel-cuisiniste-comparatif',
     title: 'Meilleur logiciel cuisiniste 2026 : top 7 comparatif complet',
     excerpt: 'Découvrez le comparatif détaillé des 7 meilleurs logiciels pour cuisinistes en 2026. Fonctionnalités, prix, points forts et faibles.',
@@ -102,33 +126,4 @@ export default function BlogPage() {
       {/* Newsletter */}
       <section className="section-pad" style={{ background: '#f9f6f0' }}>
         <div className="container">
-          <div style={{ maxWidth: '600px', marginLeft: 'auto', marginRight: 'auto', textAlign: 'center' }}>
-            <h2 style={{ fontSize: '1.75rem', marginBottom: '16px', color: '#1e2b22' }}>
-              Recevez nos guides et conseils
-            </h2>
-
-            <p style={{ fontSize: '1rem', color: '#6b7c70', marginBottom: '32px' }}>
-              Inscrivez-vous à notre newsletter. Actualisé avec les meilleurs conseils pour pros de l'agencement.
-            </p>
-
-            <NewsletterForm />
-
-            <p style={{ fontSize: '0.85rem', color: '#6b7c70', marginTop: '12px' }}>
-              Nous respectons votre vie privée. Pas de spam. Désinscription facile.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <Footer />
-
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'Blog', name: 'Blog AVRA', description: "Blog des professionnels de l'agencement intérieur", url: 'https://avra-app.fr/blog' }) }} />
-
-      <style>{`
-        .container { max-width: 1200px; margin: 0 auto; }
-        .reveal { opacity: 0; transform: translateY(20px); animation: revealAnim 0.8s ease forwards; }
-        @keyframes revealAnim { to { opacity: 1; transform: translateY(0); } }
-      `}</style>
-    </>
-  );
-}
+          <div style={{ maxWidth: '600px', marginLeft: 'auto', marginRight: 'auto', textAli

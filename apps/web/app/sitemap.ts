@@ -41,6 +41,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
     // ── Blog ─────────────────────────────────────────────────────────
     url('/blog', { changeFrequency: 'weekly', priority: 0.8 }),
+    url('/blog/comment-choisir-erp-cuisiniste', { changeFrequency: 'monthly', priority: 0.85 }),
+    url('/blog/devis-cuisine-modele-mentions-legales', { changeFrequency: 'monthly', priority: 0.85 }),
+    url('/blog/ia-architecte-interieur', { changeFrequency: 'monthly', priority: 0.85 }),
     url('/blog/e-facture-2026', { changeFrequency: 'monthly', priority: 0.75 }),
     url('/blog/logiciel-cuisiniste-comparatif', { changeFrequency: 'monthly', priority: 0.75 }),
 
@@ -66,9 +69,4 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url('/agencement-nantes', { changeFrequency: 'monthly', priority: 0.8 }),
 
     // ── Légales ──────────────────────────────────────────────────────
-    url('/mentions-legales', { changeFrequency: 'yearly', priority: 0.3 }),
-    url('/confidentialite', { changeFrequency: 'yearly', priority: 0.3 }),
-    url('/cgv', { changeFrequency: 'yearly', priority: 0.3 }),
-    url('/e-facturation', { changeFrequency: 'yearly', priority: 0.4 }),
-  ];
-}
+   
