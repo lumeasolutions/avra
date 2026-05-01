@@ -12,7 +12,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
-import { useDossierStore, getDefaultSubfoldersForProfession } from '@/store/useDossierStore';
+import {
+  useDossierStore,
+  getDefaultSubfoldersForProfession,
+  buildSignedSubfoldersForProfession,
+  type Dossier as DossierType,
+} from '@/store/useDossierStore';
 import { usePlanningStore } from '@/store/usePlanningStore';
 import { useFacturationStore } from '@/store/useFacturationStore';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
@@ -186,18 +191,20 @@ export function useDataSync() {
       //  - cuisiniste : 6 items (workflow APS / V2 / APD)
       //  - menuisier : 3 items (renseignement + relevé + PROJET 1)
       const DEFAULT_SUBFOLDERS = getDefaultSubfoldersForProfession(profession);
-      const DEFAULT_SIGNED_SUBFOLDERS = [
-        { label: 'DOSSIER AVANT VENTE' },
-        { label: 'PROJET VERSION 3' },
-        { label: 'SUIVI DE CHANTIER' },
-        { label: 'RELEVE DE MESURES' },
-        { label: 'PLAN TECHNIQUE DCE', alert: true },
-        { label: 'COMMANDES', alert: true },
-        { label: 'LIVRAISONS' },
-        { label: 'FICHE DE POSE' },
-        { label: 'SAV' },
-        { label: 'RECEPTION CHANTIER' },
-      ];
+      // Helper : construit la liste de sous-dossiers signés profession-aware
+      // depuis un dossier source (en cours OU signé). Si on n'a pas le local,
+      // on utilise les DEFAULT_SUBFOLDERS comme stand-in pour la fonction
+      // (elle a juste besoin du `.subfolders` du source pour archiver).
+      const buildSignedFor = (sourceLocal: DossierType | undefined): import('@/store/useDossierStore').SubFolder[] => {
+        const sourceDossier: DossierType = sourceLocal ?? ({
+          id: '',
+          name: '',
+          status: 'EN COURS',
+          createdAt: '',
+          subfolders: [],
+        } as DossierType);
+        return buildSignedSubfoldersForProfession(sourceDossier, profession);
+      };
 
       // Dossiers actifs — merge : champs serveur-vrai (name/firstName/phone/email/createdAt/status)
       // écrasent le local ; champs client-only (subfolders/notes/address/tva/...) préservés.
@@ -228,6 +235,17 @@ export function useDataSync() {
 
       const dossiersSignes = signedProjects.map((p) => {
         const local = localSignedById.get(p.id) || localActiveById.get(p.id);
+        // FIX 30/04/2026 : on calcule la liste signée profession-aware ici.
+        // Si on a deja des signedSubfolders en local (sign() recent), on les
+        // garde. Sinon on construit la liste en fonction de la profession
+        // courante de l'utilisateur (architecte → ARCHITECTE_SIGNED_SUBFOLDERS,
+        // menuisier → MENUISIER_SIGNED_SUBFOLDERS, cuisiniste → CUISINISTE).
+        const localSignedSubs = (local as any)?.signedSubfolders;
+        const computedSigned = (localSignedSubs && localSignedSubs.length > 0)
+          ? localSignedSubs
+          : buildSignedFor(local);
+        // La page /dossiers/[id] rend `dossier.subfolders` partout — pour
+        // les dossiers signés on aligne donc subfolders sur la liste signée.
         return {
           id: p.id,
           name: p.client?.lastName || p.name || 'Sans nom',
@@ -243,16 +261,12 @@ export function useDataSync() {
           delaiChantierUnit: local?.delaiChantierUnit,
           status: mapPriorityToStatus(p.priority, p.lifecycleStatus),
           createdAt: new Date(p.createdAt).toLocaleDateString('fr-FR'),
-          subfolders: local?.subfolders && local.subfolders.length > 0
-            ? local.subfolders
-            : DEFAULT_SUBFOLDERS.map((sf) => ({ ...sf })),
+          subfolders: computedSigned,
           notes: local?.notes ?? '',
           signedDate: p.saleSignedAt
             ? new Date(p.saleSignedAt).toLocaleDateString('fr-FR')
             : new Date(p.updatedAt).toLocaleDateString('fr-FR'),
-          signedSubfolders: (local as any)?.signedSubfolders && (local as any).signedSubfolders.length > 0
-            ? (local as any).signedSubfolders
-            : DEFAULT_SIGNED_SUBFOLDERS.map((sf) => ({ ...sf })),
+          signedSubfolders: computedSigned,
           confirmations: (local as any)?.confirmations ?? [],
         };
       });

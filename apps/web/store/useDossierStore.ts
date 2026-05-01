@@ -563,14 +563,20 @@ export const useDossierStore = create<DossierState>()(
       signerDossier: (id, profession) => {
         const dossier = get().dossiers.find(d => d.id === id);
         if (!dossier) return;
+        // Liste profession-aware (architecte/menuisier/cuisiniste) avec
+        // archive AVANT VENTE des documents du dossier en cours.
+        const built = buildSignedSubfoldersForProfession(dossier, profession);
         const signed: DossierSigne = {
           ...dossier,
+          // FIX 30/04/2026 : on REMPLACE aussi `subfolders` par la nouvelle
+          // liste signée. La page /dossiers/[id] affiche `dossier.subfolders`
+          // (en > 10 endroits) — sans ce remplacement, le dossier signé
+          // continuait d'afficher DOSSIER RENSEIGNEMENT / RELEVE DE MESURES /
+          // PROJET VERSION 1 — APS / APD au lieu de AVANT VENTE / APD VERSION
+          // N (DOSSIER SIGNÉ) / PERMIS DE CONSTRUIRE / DCE / etc.
+          subfolders: built,
+          signedSubfolders: built,
           signedDate: new Date().toLocaleDateString('fr-FR'),
-          // Pour MENUISIER, on construit dynamiquement la liste : "AVANT VENTE"
-          // archive tous les fichiers du dossier en cours, et "PROJET VALIDÉ"
-          // est renommé "PROJET <N> VALIDÉ" selon le dernier projet trouvé.
-          // Pour les autres métiers, on conserve la liste générique.
-          signedSubfolders: buildSignedSubfoldersForProfession(dossier, profession),
         };
         set(s => ({
           dossiers: s.dossiers.filter(d => d.id !== id),
