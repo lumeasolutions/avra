@@ -67,18 +67,26 @@ function setAuthCookies(res: Response, data: AuthCookieData) {
     });
   }
 
-  // MED-5 (passe-2): legacy debug cookie — only set in real local dev. In
-  //   production / preview / staging, middleware ignores it anyway, so
-  //   shipping it is just useless surface for forgers to play with.
-  if (IS_LOCAL_DEV) {
-    res.cookie('logged_in', 'true', {
-      httpOnly: false,
-      secure: IS_SECURE,
-      sameSite: 'strict',
-      maxAge: SESSION_COOKIE_TTL,
-      path: '/',
-    });
-  }
+  // FIX (2026-04-30): le cookie `logged_in` doit être posé en prod aussi.
+  //   Les guards côté client (AppGuard, IntervenantGuard) en ont besoin pour
+  //   savoir qu'une session existe — sans ça, ils redirigent en boucle vers
+  //   /login. Ce n'est PAS un secret (juste un drapeau "session active") ; la
+  //   véritable authn passe par access_token (httpOnly) validé par le
+  //   middleware Edge côté serveur. Forger ce cookie ne donne aucun accès.
+  res.cookie('logged_in', 'true', {
+    httpOnly: false,
+    secure: IS_SECURE,
+    // SameSite=Lax (et non Strict) pour rester posé après une navigation
+    //   top-level depuis /login (window.location.href = '/portal-select').
+    //   Avec Strict, certains navigateurs (Safari) ne renvoient pas le cookie
+    //   sur la première page après navigation — le guard voit "pas de cookie"
+    //   et redirige aussitôt vers /login → boucle.
+    sameSite: 'lax',
+    maxAge: SESSION_COOKIE_TTL,
+    path: '/',
+  });
+  // Suppression de la garde IS_LOCAL_DEV : voir commentaire ci-dessus.
+  void IS_LOCAL_DEV;
 }
 
 function clearAuthCookies(res: Response) {
