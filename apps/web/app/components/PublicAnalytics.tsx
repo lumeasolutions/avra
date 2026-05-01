@@ -60,6 +60,13 @@ const GoogleAnalytics = dynamic(() => import('@/app/(marketing)/components/Googl
   ssr: false,
 });
 
+// Vercel Speed Insights — mesure les Core Web Vitals reels (LCP, INP, CLS)
+// sur les utilisateurs reels. Gratuit jusqu'a 10K page views/mois.
+const SpeedInsights = dynamic(
+  () => import('@vercel/speed-insights/next').then((m) => ({ default: m.SpeedInsights })),
+  { ssr: false },
+);
+
 export default function PublicAnalytics() {
   const pathname = usePathname() || '/';
 
@@ -82,6 +89,8 @@ export default function PublicAnalytics() {
       <GoogleAnalytics />
       {/* Banner RGPD */}
       <CookieBanner />
+      {/* Vercel Speed Insights — Core Web Vitals reels (LCP, INP, CLS) */}
+      <SpeedInsights />
     </>
   );
 }

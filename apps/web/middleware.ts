@@ -108,7 +108,7 @@ function buildCspWithNonce(_nonce: string, isProd: boolean): string {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com https://*.supabase.co https://www.google-analytics.com https://www.googletagmanager.com",
     "font-src 'self' https://fonts.gstatic.com",
-    `connect-src 'self' https://fal.run https://*.fal.ai wss://fal.run https://*.sentry.io https://sentry.io https://plausible.io https://*.supabase.co https://www.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com${isProd ? '' : ' http://localhost:3001 ws://localhost:3002'}`,
+    `connect-src 'self' https://fal.run https://*.fal.ai wss://fal.run https://*.sentry.io https://sentry.io https://plausible.io https://*.supabase.co https://www.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://vitals.vercel-insights.com${isProd ? '' : ' http://localhost:3001 ws://localhost:3002'}`,
     "frame-src 'self' https://*.supabase.co",
     "frame-ancestors 'self'",
     "object-src 'none'",

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 
 /**
  * Bannière hero AVRA — version professionnelle et épurée.
@@ -52,11 +53,13 @@ export default function HeroLogoBanner() {
         }}
       >
         <div style={{ position: 'absolute', inset: 0 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="/nouveaulogoA.png"
-            alt="AVRA"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+            alt="AVRA — logo principal"
+            fill
+            priority
+            sizes="240px"
+            style={{ objectFit: 'contain' }}
           />
         </div>
       </div>
@@ -76,11 +79,13 @@ export default function HeroLogoBanner() {
           opacity: mounted ? 1 : 0,
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src="/nouveaulogoavra.png"
-          alt="AVRA"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+          alt="AVRA — typographie"
+          fill
+          priority
+          sizes="(max-width: 768px) 90vw, 920px"
+          style={{ objectFit: 'contain' }}
         />
       </div>
 
@@ -101,11 +106,13 @@ export default function HeroLogoBanner() {
         }}
       >
         <div style={{ position: 'absolute', inset: 0 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="/nouveaulogochouette.png"
-            alt="AVRA Chouette"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+            alt="AVRA — chouette emblème"
+            fill
+            priority
+            sizes="240px"
+            style={{ objectFit: 'contain' }}
           />
         </div>
       </div>

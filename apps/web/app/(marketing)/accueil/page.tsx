@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Nav from '../components/Nav';
 import Footer from '../components/Footer';
 import ScrollReveal from '../components/ScrollReveal';
@@ -66,9 +67,23 @@ export default function AccueilPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '48px',
           padding: '18px 5%',
         }}>
-          <img src="/nouveaulogoA.png" alt="AVRA Logo" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
+          <Image
+            src="/nouveaulogoA.png"
+            alt="AVRA — logo"
+            width={64}
+            height={64}
+            priority
+            style={{ height: 64, width: 'auto', objectFit: 'contain' }}
+          />
           <div style={{ width: 1, height: 48, background: 'rgba(201,169,110,0.35)' }} />
-          <img src="/nouveaulogochouette.png" alt="AVRA Chouette" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
+          <Image
+            src="/nouveaulogochouette.png"
+            alt="AVRA — chouette emblème"
+            width={64}
+            height={64}
+            priority
+            style={{ height: 64, width: 'auto', objectFit: 'contain' }}
+          />
         </div>
 
         <div className="hero-grid" style={{
