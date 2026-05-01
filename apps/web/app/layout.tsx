@@ -121,6 +121,9 @@ export const metadata: Metadata = {
     'msapplication-config': '/browserconfig.xml',
   },
   category: 'technology',
+  verification: {
+    google: 'CKslq_30_9juATj6U8jLMNDEEngx6u4elLdDIpwxQE8',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
