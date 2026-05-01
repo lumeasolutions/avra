@@ -19,6 +19,7 @@ import { ExtractDossierDto } from './dto/extract-dossier.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { SkipCsrf } from '../../common/guards/csrf.guard';
 import type { JwtPayload } from '@avra/types';
 import { IaJobType } from '../../prisma-enums';
 import { Response } from 'express';
@@ -78,6 +79,7 @@ export class IaController {
    * POST /api/ia/chat
    * Body: { messages: Array<{ role: 'user'|'assistant', content: string }> }
    */
+  @SkipCsrf()
   @Post('chat')
   async chatStream(@CurrentUser() user: JwtPayload | undefined, @Body() body: { messages: Array<{ role: 'user' | 'assistant'; content: string }> }, @Res() res: Response) {
     try {
