@@ -104,11 +104,11 @@ function buildCspWithNonce(_nonce: string, isProd: boolean): string {
   // le câbler progressivement sans toucher de nouveau au middleware.
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' https://plausible.io${isProd ? '' : " 'unsafe-eval'"}`,
+    `script-src 'self' 'unsafe-inline' https://plausible.io https://www.googletagmanager.com${isProd ? '' : " 'unsafe-eval'"}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com https://*.supabase.co",
+    "img-src 'self' data: blob: https://fal.media https://*.fal.media https://v2.fal.media https://storage.googleapis.com https://*.supabase.co https://www.google-analytics.com https://www.googletagmanager.com",
     "font-src 'self' https://fonts.gstatic.com",
-    `connect-src 'self' https://fal.run https://*.fal.ai wss://fal.run https://*.sentry.io https://sentry.io https://plausible.io https://*.supabase.co${isProd ? '' : ' http://localhost:3001 ws://localhost:3002'}`,
+    `connect-src 'self' https://fal.run https://*.fal.ai wss://fal.run https://*.sentry.io https://sentry.io https://plausible.io https://*.supabase.co https://www.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com${isProd ? '' : ' http://localhost:3001 ws://localhost:3002'}`,
     "frame-src 'self' https://*.supabase.co",
     "frame-ancestors 'self'",
     "object-src 'none'",
