@@ -644,6 +644,12 @@ export function DateButoireValidationModal({
         }
         .dbv-extract-btn {
           display: inline-flex; align-items: center; gap: 6px;
+          /* Largeur fixe pour éviter que le header se réajuste entre les
+             états "Extraire avec IA" (~150px) et "Extraction…" (~120px) →
+             sans ça, la barre de progression sous le titre se décalait
+             visuellement à chaque changement d'état. */
+          min-width: 168px;
+          justify-content: center;
           padding: 8px 14px; border-radius: 10px;
           background: linear-gradient(135deg, #d9b38a 0%, #c89665 100%);
           color: #fff; font-size: 12px; font-weight: 700;
@@ -653,6 +659,7 @@ export function DateButoireValidationModal({
           animation: dbvExtractPulse 2.6s ease-in-out infinite;
           transition: transform 0.18s ease, box-shadow 0.2s ease, opacity 0.2s ease;
           flex-shrink: 0;
+          font-family: inherit;
         }
         .dbv-extract-btn:hover:not(:disabled) {
           transform: translateY(-1px);
