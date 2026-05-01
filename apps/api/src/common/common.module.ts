@@ -1,5 +1,5 @@
 import { Module, Global } from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 import { CsrfGuard } from './guards/csrf.guard';
 import { CsrfTokenInterceptor } from './interceptors/csrf-token.interceptor';
 import { SecurityController } from './controllers/security.controller';
@@ -9,6 +9,7 @@ import { GdprConsentGuard } from './logging/gdpr-consent.guard';
 import { AppCacheModule } from './cache/cache.module';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 import { VirusScanService } from './security/virus-scan.service';
+import { AllExceptionsFilter } from './filters/all-exceptions.filter';
 
 /**
  * Common Module
@@ -21,6 +22,15 @@ import { VirusScanService } from './security/virus-scan.service';
   imports: [AppCacheModule],
   controllers: [SecurityController],
   providers: [
+    // ✅ DIAGNOSTIC: Global exception filter — catches *every* unhandled error
+    //   (Prisma, TypeError, ReferenceError…) and logs a 1-line summary + stack
+    //   to stdout (visible in Vercel runtime logs). Without this, generic 500s
+    //   from Prisma / native errors come back as opaque "Internal server error"
+    //   with no diagnostic, making prod debugging impossible.
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
     // ✅ AUTH: JWT global — runs first so request.user is populated
     // before PermissionGuard / WorkspaceGuard. Respects @Public() decorator.
     {

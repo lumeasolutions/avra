@@ -82,11 +82,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const server = await bootstrapServer();
     return server(req as any, res as any);
   } catch (err) {
+    // Log a 1-line summary that's easy to grep in Vercel runtime logs.
+    const errorName = err instanceof Error ? err.constructor.name : typeof err;
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const url = (req as { url?: string }).url ?? 'unknown';
+    const method = (req as { method?: string }).method ?? 'unknown';
     // eslint-disable-next-line no-console
-    console.error('NestJS handler crashed:', err);
+    console.error(
+      `[serverless-handler] ${method} ${url} crashed: ${errorName}: ${errorMessage}`,
+    );
+    if (err instanceof Error && err.stack) {
+      // eslint-disable-next-line no-console
+      console.error(err.stack);
+    }
     res.status(500).json({
       error: 'Internal Server Error',
-      message: err instanceof Error ? err.message : 'Unknown error',
+      message: errorMessage,
     });
   }
 }
