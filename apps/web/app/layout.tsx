@@ -21,6 +21,14 @@ const ChunkErrorReloader = nextDynamic(
   { ssr: false }
 );
 
+// PublicAnalytics : monte CookieBanner + Plausible + GA4 sur les pages publiques
+// uniquement (home, pages SEO geo, blog, marketing, login). Exclut les pages
+// app authentifiees pour ne pas polluer les stats marketing.
+const PublicAnalytics = nextDynamic(
+  () => import('@/app/components/PublicAnalytics'),
+  { ssr: false }
+);
+
 const dmSans = DM_Sans({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
@@ -177,6 +185,7 @@ window.addEventListener('unhandledrejection',function(e){var r=e&&e.reason;var m
         {children}
         <ChunkErrorReloader />
         <ServiceWorkerRegistration />
+        <PublicAnalytics />
       </body>
     </html>
   );

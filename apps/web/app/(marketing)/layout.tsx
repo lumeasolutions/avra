@@ -3,8 +3,9 @@ import Script from 'next/script';
 import './marketing.css';
 import { MarketingChatWrapper } from '@/components/layout/MarketingChatWrapper';
 import BetaBanner from './components/BetaBanner';
-import CookieBanner from './components/CookieBanner';
-import GoogleAnalytics from './components/GoogleAnalytics';
+// CookieBanner, Plausible et GoogleAnalytics sont desormais montes dans le
+// layout RACINE via @/app/components/PublicAnalytics, pour couvrir aussi la
+// homepage et les pages SEO geo qui sont a la racine de app/.
 
 // Perf : ISR 1h pour les pages marketing (au lieu de force-dynamic qui re-SSR à chaque requête).
 // Le contenu marketing est quasi-statique, 1h de cache = TTFB ~50ms via le CDN Vercel.
@@ -35,13 +36,6 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       fontFamily: 'var(--font-dm-sans, "DM Sans"), system-ui, sans-serif',
       paddingTop: '36px', // espace pour le BetaBanner fixé en haut
     }}>
-      {/* Plausible Analytics — RGPD-friendly, sans cookies */}
-      <Script
-        defer
-        data-domain="avra-app.fr"
-        src="https://plausible.io/js/script.js"
-        strategy="afterInteractive"
-      />
       {/* SEO — Donnees structurees schema.org (Organization + WebSite + SoftwareApplication) */}
       <Script
         id="ld-organization"
@@ -129,8 +123,6 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       <BetaBanner />
       {children}
       <MarketingChatWrapper />
-      <CookieBanner />
-      <GoogleAnalytics />
     </div>
   );
 }
