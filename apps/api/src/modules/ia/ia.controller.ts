@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { IaService } from './ia.service';
-import { QwenService } from './qwen.service';
+import { AIService } from './ai.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -29,7 +29,7 @@ export class IaController {
 
   constructor(
     private readonly ia: IaService,
-    private readonly qwen: QwenService,
+    private readonly ai: AIService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -146,7 +146,7 @@ export class IaController {
       }));
 
       // Obtenir le stream
-      const stream = await this.qwen.chatStream(messages, {
+      const stream = await this.ai.chatStream(messages, {
         dossierCount: activeDossiers.length,
         urgentCount,
         invoiceCount: invoices.length,
@@ -230,7 +230,7 @@ export class IaController {
         ? [dossier.client.firstName, dossier.client.lastName].filter(Boolean).join(' ') || dossier.client.companyName || undefined
         : undefined;
 
-      const analysis = await this.qwen.analyzeDossier({
+      const analysis = await this.ai.analyzeDossier({
         name: dossier.name,
         client: clientName,
         status: dossier.lifecycleStatus,
@@ -267,7 +267,7 @@ export class IaController {
         }),
       ]);
 
-      const alerts = await this.qwen.suggestAlerts({
+      const alerts = await this.ai.suggestAlerts({
         dossiers,
         invoices,
         schedule: events,

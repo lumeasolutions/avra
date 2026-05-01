@@ -50,8 +50,24 @@ export class EnvironmentVariables {
   @IsString()
   S3_BUCKET?: string;
 
+  // ─────── IA (OpenAI primaire, Anthropic en fallback) ───────
   @IsString()
   OPENAI_API_KEY?: string;
+
+  @IsString()
+  OPENAI_MODEL_PREMIUM?: string; // default 'gpt-4o' (chat / analyze)
+
+  @IsString()
+  OPENAI_MODEL_CHEAP?: string; // default 'gpt-4o-mini' (suggest-alerts / chat-marketing)
+
+  @IsString()
+  ANTHROPIC_API_KEY?: string;
+
+  @IsString()
+  ANTHROPIC_MODEL?: string; // fallback Anthropic
+
+  @IsString()
+  AI_PROVIDER?: string; // 'auto' | 'openai' | 'anthropic' | 'mock'
 
   @IsString()
   GOOGLE_AI_API_KEY?: string;

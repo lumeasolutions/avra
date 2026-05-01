@@ -5,7 +5,7 @@ import { DocumentKind, FileMimeCategory } from '../../prisma-enums';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
-import { QwenService } from './qwen.service';
+import { AIService } from './ai.service';
 import { FalService } from './fal.service';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), 'uploads');
@@ -51,7 +51,7 @@ export class IaService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly qwen: QwenService,
+    private readonly ai: AIService,
     private readonly fal: FalService,
   ) {}
 
@@ -265,15 +265,32 @@ export class IaService {
   }
 
   /**
-   * Retourne le statut des services IA
+   * Retourne le statut des services IA.
+   *  - aiEnabled : OpenAI ou Anthropic actif (pas en mode mock)
+   *  - aiProvider : 'openai' | 'anthropic' | 'mock' (provider effectivement actif)
+   *  - aiModelPremium / aiModelCheap : modèles utilisés (chat / suggest-alerts)
+   *  - falEnabled : génération d'images (rendu / coloriste)
+   *
+   *  Les champs *qwenEnabled* sont conservés en alias (= aiEnabled) pour ne
+   *  pas casser les éventuels consumers qui les liraient déjà.
    */
   getIaStatus(): {
-    qwenEnabled: boolean;
+    aiEnabled: boolean;
+    aiProvider: 'openai' | 'anthropic' | 'mock';
+    aiModelPremium: string;
+    aiModelCheap: string;
     falEnabled: boolean;
+    /** @deprecated alias historique sur aiEnabled */
+    qwenEnabled: boolean;
   } {
+    const status = this.ai.getStatus();
     return {
-      qwenEnabled: this.qwen.isEnabled(),
+      aiEnabled: status.enabled,
+      aiProvider: status.provider,
+      aiModelPremium: status.modelPremium,
+      aiModelCheap: status.modelCheap,
       falEnabled: this.fal.isEnabled(),
+      qwenEnabled: status.enabled,
     };
   }
 }
