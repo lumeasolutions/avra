@@ -68,6 +68,17 @@ export interface Dossier {
   notes?: string;
 }
 
+/**
+ * Entrée d'une "commande" dans le panneau ACCEDER de la modale validation.
+ * Représente un fournisseur + sa date butoir pour un item de type 'access'
+ * (COMMANDES, LIVRAISON…). Multiple entries possibles par item.
+ */
+export interface CommandeAccessEntry {
+  id: string;
+  fournisseur: string;
+  dateButoir: string;
+}
+
 export type CommandeType = 'STANDARD' | 'ELECTRO_DIRECT';
 
 export interface ConfirmationFournisseur {
@@ -366,6 +377,12 @@ interface DossierState {
   dossiersSignes: DossierSigne[];
   dossiersPerdus: DossierPerdu[];
   datesButoiresSignes: Record<string, Record<string, string>>;
+  /**
+   * Commandes saisies via le panneau ACCEDER de la modale validation.
+   * Indexé par dossierId puis par label d'item access (COMMANDES, LIVRAISON…).
+   * Chaque entrée = un fournisseur + une date butoir.
+   */
+  commandesAccess: Record<string, Record<string, CommandeAccessEntry[]>>;
 
   // Actions
   addDossier: (data: { lastName: string; firstName?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string; profession?: string | null }) => string;
@@ -392,6 +409,10 @@ interface DossierState {
    * livraison faite, SAV à jour). L'inverse rebascule en "actif".
    */
   toggleDossierTermine: (id: string) => void;
+  // ─── Commandes ACCESS (panneau ACCEDER de la modale validation) ─────────
+  addCommandeAccess: (dossierId: string, label: string, entry: Omit<CommandeAccessEntry, 'id'>) => void;
+  updateCommandeAccess: (dossierId: string, label: string, entryId: string, patch: Partial<Omit<CommandeAccessEntry, 'id'>>) => void;
+  removeCommandeAccess: (dossierId: string, label: string, entryId: string) => void;
   perdreDossier: (id: string, reason: string) => void;
   /**
    * Supprime définitivement un dossier (active, signé ou perdu) du store local.
@@ -417,6 +438,7 @@ export const useDossierStore = create<DossierState>()(
       dossiersSignes: INITIAL_SIGNES,
       dossiersPerdus: INITIAL_PERDUS,
       datesButoiresSignes: {},
+      commandesAccess: {},
 
       addDossier: (data) => {
         const id = 'd' + uid();
@@ -613,6 +635,42 @@ export const useDossierStore = create<DossierState>()(
         }));
       },
 
+      addCommandeAccess: (dossierId, label, entry) => {
+        const id = 'cmd_' + uid();
+        set(s => {
+          const dossierMap = { ...(s.commandesAccess[dossierId] ?? {}) };
+          const labelList = [...(dossierMap[label] ?? []), { ...entry, id }];
+          dossierMap[label] = labelList;
+          return {
+            commandesAccess: { ...s.commandesAccess, [dossierId]: dossierMap },
+          };
+        });
+      },
+
+      updateCommandeAccess: (dossierId, label, entryId, patch) => {
+        set(s => {
+          const dossierMap = { ...(s.commandesAccess[dossierId] ?? {}) };
+          const labelList = (dossierMap[label] ?? []).map(e =>
+            e.id === entryId ? { ...e, ...patch } : e,
+          );
+          dossierMap[label] = labelList;
+          return {
+            commandesAccess: { ...s.commandesAccess, [dossierId]: dossierMap },
+          };
+        });
+      },
+
+      removeCommandeAccess: (dossierId, label, entryId) => {
+        set(s => {
+          const dossierMap = { ...(s.commandesAccess[dossierId] ?? {}) };
+          const labelList = (dossierMap[label] ?? []).filter(e => e.id !== entryId);
+          dossierMap[label] = labelList;
+          return {
+            commandesAccess: { ...s.commandesAccess, [dossierId]: dossierMap },
+          };
+        });
+      },
+
       perdreDossier: (id, reason) => {
         const dossier = get().dossiers.find(d => d.id === id);
         if (!dossier) return;
@@ -709,6 +767,7 @@ export const useDossierStore = create<DossierState>()(
         dossiersSignes: INITIAL_SIGNES,
         dossiersPerdus: INITIAL_PERDUS,
         datesButoiresSignes: {},
+        commandesAccess: {},
       }),
     }),
     { name: 'avra-dossier-store' }

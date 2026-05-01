@@ -27,11 +27,14 @@ import {
   X, Calendar, Sparkles, AlertTriangle, Check, Loader2,
   AlertCircle, Wand2, FileCheck, Receipt, CalendarDays, ChevronLeft, ChevronRight,
   Eye, Folder, ArrowRight, ArrowLeft, ExternalLink, FileText,
+  Plus, Trash2, Search, Truck, ShoppingCart,
 } from 'lucide-react';
 import { usePlanningStore } from '@/store/usePlanningStore';
+import { useDossierStore } from '@/store/useDossierStore';
 import type {
   SubFolder,
   DocumentFile,
+  CommandeAccessEntry,
 } from '@/store/useDossierStore';
 import {
   ARCHITECTE_PROJET_VERSION_REGEX,
@@ -39,6 +42,26 @@ import {
   MENUISIER_PROJET_REGEX,
 } from '@/store/useDossierStore';
 import { getDocSignedUrl } from '@/lib/dossier-docs-api';
+
+/**
+ * Catalogue de fournisseurs/marques courants (cuisinistes français +
+ * marbriers + électroménager). Sert d'auto-complete dans le panneau ACCEDER.
+ * L'utilisateur peut taper librement aussi — ce sont juste des suggestions.
+ */
+const FOURNISSEUR_SUGGESTIONS: string[] = [
+  // Cuisines
+  'LEICHT', 'SCHMIDT', 'MOBALPA', 'CUISINELLA', 'HYGENA', 'BOFFI', 'BULTHAUP',
+  'SNAIDERO', 'POGGENPOHL', 'AVIVA', 'IXINA', 'CUISINES PLUS', 'IKEA METOD',
+  'SOCOO\'C', 'ARTHUR BONNET', 'CHARLES REMA',
+  // Marbriers / plans de travail
+  'MARBRIER', 'COSENTINO (SILESTONE)', 'CAESARSTONE', 'COMPAC', 'GRANITOP',
+  'NEOLITH', 'DEKTON',
+  // Électroménager
+  'BOSCH', 'SIEMENS', 'MIELE', 'AEG', 'SMEG', 'GAGGENAU', 'LIEBHERR',
+  'WHIRLPOOL', 'ELECTROLUX', 'SCHOLTES',
+  // Autres
+  'MSA', 'COJER',
+];
 
 type Profession = 'architecte' | 'menuisier' | 'cuisiniste' | null;
 
@@ -160,9 +183,23 @@ export function DateButoireValidationModal({
   // Document actuellement affiché dans le panneau gauche (remplace planning + dossier APD)
   // → permet de consulter le PDF tout en remplissant les dates butoirs à droite.
   const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string; type?: string } | null>(null);
+  // Drawer ACCEDER ouvert dans la colonne droite (remplace temporairement la
+  // liste des dates butoirs principales). Si non null, la colonne droite
+  // affiche le panneau commandes/livraison correspondant.
+  const [accessDrawer, setAccessDrawer] = useState<{ label: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
+
+  // ── Store : commandes ACCEDER ──────────────────────────────────────────
+  const commandesAccessAll = useDossierStore((s) => s.commandesAccess);
+  const addCommandeAccess = useDossierStore((s) => s.addCommandeAccess);
+  const updateCommandeAccess = useDossierStore((s) => s.updateCommandeAccess);
+  const removeCommandeAccess = useDossierStore((s) => s.removeCommandeAccess);
+  const commandesForDrawer: CommandeAccessEntry[] = useMemo(() => {
+    if (!accessDrawer) return [];
+    return commandesAccessAll[dossierId]?.[accessDrawer.label] ?? [];
+  }, [accessDrawer, commandesAccessAll, dossierId]);
 
   // Reset à chaque ouverture
   useEffect(() => {
@@ -171,6 +208,7 @@ export function DateButoireValidationModal({
     setError(null);
     setWeekOffset(0);
     setPreviewDoc(null);
+    setAccessDrawer(null);
   }, [open]);
 
   // Escape pour fermer
@@ -1233,8 +1271,20 @@ export function DateButoireValidationModal({
               )}
             </div>
 
-            {/* COLONNE DROITE : Dates butoires */}
+            {/* COLONNE DROITE : Dates butoires (ou drawer ACCEDER si ouvert) */}
             <div className="dbv-col-right">
+              {accessDrawer ? (
+                <CommandesAccessPanel
+                  label={accessDrawer.label}
+                  entries={commandesForDrawer}
+                  onAdd={(e) => addCommandeAccess(dossierId, accessDrawer.label, e)}
+                  onUpdate={(id, patch) => updateCommandeAccess(dossierId, accessDrawer.label, id, patch)}
+                  onRemove={(id) => removeCommandeAccess(dossierId, accessDrawer.label, id)}
+                  onBack={() => setAccessDrawer(null)}
+                  disabled={submitting || loading}
+                />
+              ) : (
+              <>
               <div className="dbv-warn">
                 <AlertTriangle className="dbv-warn-icon" style={{ width: 16, height: 16 }} />
                 <div>
@@ -1279,7 +1329,12 @@ export function DateButoireValidationModal({
                         <button
                           type="button"
                           className="dbv-access-btn"
-                          onClick={() => onAccessItem?.(label)}
+                          onClick={() => {
+                            // Si le parent a fourni un callback (override),
+                            // on l'appelle. Sinon → drawer interne.
+                            if (onAccessItem) onAccessItem(label);
+                            else setAccessDrawer({ label });
+                          }}
                           disabled={submitting || loading}
                           aria-label={`Accéder à ${label}`}
                         >
@@ -1338,6 +1393,8 @@ export function DateButoireValidationModal({
                   );
                 })}
               </div>
+              </>
+              )}
             </div>
           </div>
 
@@ -1379,5 +1436,417 @@ export function DateButoireValidationModal({
         </div>
       </div>
     </>
+  );
+}
+
+// ─── Sous-composant : panneau ACCEDER (commandes / livraison) ───────────────
+
+interface CommandesAccessPanelProps {
+  label: string;
+  entries: CommandeAccessEntry[];
+  onAdd: (entry: Omit<CommandeAccessEntry, 'id'>) => void;
+  onUpdate: (id: string, patch: Partial<Omit<CommandeAccessEntry, 'id'>>) => void;
+  onRemove: (id: string) => void;
+  onBack: () => void;
+  disabled?: boolean;
+}
+
+function CommandesAccessPanel({
+  label, entries, onAdd, onUpdate, onRemove, onBack, disabled,
+}: CommandesAccessPanelProps) {
+  const [draftFournisseur, setDraftFournisseur] = useState('');
+  const [draftDate, setDraftDate] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const filteredSuggestions = useMemo(() => {
+    const q = draftFournisseur.trim().toUpperCase();
+    if (!q) return FOURNISSEUR_SUGGESTIONS.slice(0, 8);
+    return FOURNISSEUR_SUGGESTIONS.filter((s) => s.includes(q)).slice(0, 8);
+  }, [draftFournisseur]);
+
+  const handleAdd = () => {
+    const f = draftFournisseur.trim();
+    if (!f) return;
+    onAdd({ fournisseur: f, dateButoir: draftDate || '' });
+    setDraftFournisseur('');
+    setDraftDate('');
+    setShowSuggestions(false);
+  };
+
+  /** Couleur urgence selon delta jours. Dépassée = rouge ; < 14j = orange ; >= 14j = vert. */
+  const urgencyClass = (iso: string): string => {
+    if (!iso) return 'cap-row-pending';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return 'cap-row-pending';
+    const today0 = new Date();
+    today0.setHours(0, 0, 0, 0);
+    const days = Math.round((d.getTime() - today0.getTime()) / 86_400_000);
+    if (days < 0) return 'cap-row-late';
+    if (days < 14) return 'cap-row-soon';
+    return 'cap-row-ok';
+  };
+
+  const Icon = label.toUpperCase().includes('LIVRAISON') ? Truck : ShoppingCart;
+
+  return (
+    <div className="cap-pane">
+      <style>{`
+        @keyframes capSlideIn {
+          from { opacity: 0; transform: translateX(20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes capRowIn {
+          from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .cap-pane {
+          display: flex; flex-direction: column;
+          height: 100%; min-height: 0;
+          gap: 12px;
+          animation: capSlideIn 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .cap-header {
+          display: flex; align-items: center; gap: 10px;
+          padding: 12px 14px;
+          border-radius: 14px;
+          background: linear-gradient(135deg, #2a3a30 0%, #3d5244 100%);
+          color: #fff;
+          box-shadow: 0 6px 18px rgba(48,64,53,0.25);
+          flex-shrink: 0;
+        }
+        .cap-back {
+          display: inline-flex; align-items: center; gap: 5px;
+          padding: 6px 11px;
+          border-radius: 8px;
+          border: 1px solid rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.08);
+          color: #fff;
+          font-size: 11.5px; font-weight: 700;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          font-family: inherit;
+          flex-shrink: 0;
+        }
+        .cap-back:hover { background: rgba(255,255,255,0.18); transform: translateX(-2px); }
+        .cap-title { flex: 1; min-width: 0; }
+        .cap-title-eyebrow {
+          font-size: 9.5px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.12em;
+          color: rgba(217,179,138,0.95);
+        }
+        .cap-title-main {
+          font-size: 16px; font-weight: 800;
+          margin-top: 1px;
+          letter-spacing: -0.01em;
+          display: inline-flex; align-items: center; gap: 8px;
+        }
+        .cap-counter {
+          flex-shrink: 0;
+          padding: 4px 10px; border-radius: 999px;
+          background: rgba(217,179,138,0.18);
+          color: #d9b38a;
+          font-size: 11px; font-weight: 800;
+          letter-spacing: 0.04em;
+          border: 1px solid rgba(217,179,138,0.3);
+        }
+
+        .cap-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px; min-height: 0; }
+        .cap-row {
+          display: grid;
+          grid-template-columns: auto 1fr auto auto;
+          gap: 8px; align-items: center;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: #fff;
+          border: 1px solid rgba(48,64,53,0.1);
+          transition: all 0.15s ease;
+          animation: capRowIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .cap-row-bullet {
+          width: 28px; height: 28px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 11px; font-weight: 800;
+          background: linear-gradient(135deg, #fff8ef 0%, #ffe7c2 100%);
+          color: #a67749;
+          border: 1px solid rgba(166,119,73,0.3);
+          flex-shrink: 0;
+        }
+        .cap-row-fournisseur {
+          font-size: 13px; font-weight: 700;
+          color: #1a1614;
+          letter-spacing: 0.01em;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .cap-row-date {
+          flex-shrink: 0; width: 145px;
+          padding: 6px 8px;
+          border: 1px solid rgba(48,64,53,0.15);
+          border-radius: 7px;
+          background: #fff;
+          font-size: 11.5px; color: #1a1614;
+          font-family: inherit;
+        }
+        .cap-row-date:focus { outline: none; border-color: #a67749; box-shadow: 0 0 0 3px rgba(166,119,73,0.18); }
+        .cap-row-actions { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .cap-row-action-btn {
+          width: 30px; height: 30px;
+          border-radius: 8px;
+          border: 1px solid rgba(48,64,53,0.1);
+          background: #fff;
+          color: rgba(48,64,53,0.55);
+          cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: all 0.15s ease;
+        }
+        .cap-row-action-btn:hover { color: #a67749; border-color: #a67749; background: #fff8ef; }
+        .cap-row-action-btn.danger:hover { color: #dc2626; border-color: #fca5a5; background: #fef2f2; }
+        .cap-row-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .cap-row.cap-row-late {
+          background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);
+          border-color: rgba(220,38,38,0.35);
+        }
+        .cap-row.cap-row-late .cap-row-bullet {
+          background: linear-gradient(135deg, #fee2e2, #fecaca);
+          border-color: rgba(220,38,38,0.4);
+          color: #b91c1c;
+        }
+        .cap-row.cap-row-soon {
+          background: linear-gradient(135deg, #fff7ed 0%, #fff 100%);
+          border-color: rgba(234,88,12,0.3);
+        }
+        .cap-row.cap-row-soon .cap-row-bullet {
+          background: linear-gradient(135deg, #ffedd5, #fed7aa);
+          border-color: rgba(234,88,12,0.35);
+          color: #c2410c;
+        }
+        .cap-row.cap-row-ok {
+          background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
+          border-color: rgba(34,197,94,0.3);
+        }
+        .cap-row.cap-row-ok .cap-row-bullet {
+          background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+          border-color: rgba(34,197,94,0.4);
+          color: #15803d;
+        }
+
+        /* Add row */
+        .cap-add-block {
+          flex-shrink: 0;
+          padding: 12px;
+          border-radius: 12px;
+          background: linear-gradient(135deg, #fbf8f3 0%, #fff 100%);
+          border: 1px dashed rgba(166,119,73,0.4);
+          position: relative;
+        }
+        .cap-add-row {
+          display: grid;
+          grid-template-columns: 1fr auto auto;
+          gap: 8px;
+          align-items: center;
+        }
+        .cap-add-input {
+          padding: 9px 12px;
+          border: 1px solid rgba(48,64,53,0.15);
+          border-radius: 9px;
+          background: #fff;
+          font-size: 12.5px; font-weight: 600;
+          color: #1a1614;
+          font-family: inherit;
+          letter-spacing: 0.02em;
+        }
+        .cap-add-input:focus { outline: none; border-color: #a67749; box-shadow: 0 0 0 3px rgba(166,119,73,0.18); }
+        .cap-add-input::placeholder { color: rgba(48,64,53,0.35); font-weight: 500; }
+        .cap-add-date {
+          width: 145px;
+          padding: 9px 10px;
+          border: 1px solid rgba(48,64,53,0.15);
+          border-radius: 9px;
+          background: #fff;
+          font-size: 11.5px; color: #1a1614;
+          font-family: inherit;
+        }
+        .cap-add-date:focus { outline: none; border-color: #a67749; box-shadow: 0 0 0 3px rgba(166,119,73,0.18); }
+        .cap-add-btn {
+          padding: 0 14px; height: 38px;
+          border-radius: 9px;
+          border: none;
+          background: linear-gradient(135deg, #a67749 0%, #c89665 100%);
+          color: #fff;
+          font-size: 12px; font-weight: 800;
+          cursor: pointer;
+          display: inline-flex; align-items: center; gap: 5px;
+          transition: all 0.18s ease;
+          letter-spacing: 0.04em;
+          box-shadow: 0 4px 12px rgba(166,119,73,0.3);
+        }
+        .cap-add-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 18px rgba(166,119,73,0.4);
+        }
+        .cap-add-btn:active { transform: translateY(0); }
+        .cap-add-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
+
+        /* Suggestions popup */
+        .cap-suggest {
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 12px; right: 12px;
+          background: #fff;
+          border: 1px solid rgba(48,64,53,0.15);
+          border-radius: 10px;
+          box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+          z-index: 5;
+          max-height: 200px; overflow-y: auto;
+          padding: 4px;
+        }
+        .cap-suggest-item {
+          padding: 8px 10px;
+          border-radius: 7px;
+          font-size: 12px; font-weight: 700;
+          color: #1a1614;
+          cursor: pointer;
+          transition: background 0.12s ease;
+          display: flex; align-items: center; gap: 7px;
+        }
+        .cap-suggest-item:hover {
+          background: linear-gradient(135deg, #fff8ef 0%, #ffe7c2 100%);
+          color: #7c4f1d;
+        }
+        .cap-suggest-item svg { color: #a67749; flex-shrink: 0; }
+
+        .cap-empty {
+          padding: 32px 16px;
+          text-align: center;
+          color: rgba(48,64,53,0.4);
+          font-size: 12px;
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="cap-header">
+        <button type="button" className="cap-back" onClick={onBack} disabled={disabled}>
+          <ArrowLeft style={{ width: 14, height: 14 }} />
+          Retour
+        </button>
+        <div className="cap-title">
+          <div className="cap-title-eyebrow">Enregistrer date butoir pour rappel</div>
+          <div className="cap-title-main">
+            <Icon style={{ width: 16, height: 16, color: '#d9b38a' }} />
+            {label}
+          </div>
+        </div>
+        <span className="cap-counter">{entries.length}</span>
+      </div>
+
+      {/* Liste des entrées */}
+      <div className="cap-list">
+        {entries.length === 0 ? (
+          <div className="cap-empty">
+            Aucun fournisseur ajouté.<br />
+            Saisissez la marque ci-dessous et sa date butoir.
+          </div>
+        ) : (
+          entries.map((entry, idx) => {
+            const cls = urgencyClass(entry.dateButoir);
+            return (
+              <div key={entry.id} className={`cap-row ${cls}`}>
+                <div className="cap-row-bullet">{idx + 1}</div>
+                <input
+                  type="text"
+                  className="cap-row-fournisseur"
+                  value={entry.fournisseur}
+                  onChange={(e) => onUpdate(entry.id, { fournisseur: e.target.value.toUpperCase() })}
+                  disabled={disabled}
+                  style={{ border: 'none', background: 'transparent', outline: 'none', minWidth: 0 }}
+                  aria-label="Fournisseur"
+                />
+                <input
+                  type="date"
+                  className="cap-row-date"
+                  value={entry.dateButoir}
+                  min={today}
+                  onChange={(e) => onUpdate(entry.id, { dateButoir: e.target.value })}
+                  disabled={disabled}
+                  aria-label={`Date butoir pour ${entry.fournisseur}`}
+                />
+                <div className="cap-row-actions">
+                  <button
+                    type="button"
+                    className="cap-row-action-btn"
+                    title="Recherche / consulter (à venir)"
+                    disabled
+                  >
+                    <Search style={{ width: 14, height: 14 }} />
+                  </button>
+                  <button
+                    type="button"
+                    className="cap-row-action-btn danger"
+                    onClick={() => onRemove(entry.id)}
+                    disabled={disabled}
+                    title="Supprimer cette ligne"
+                    aria-label={`Supprimer ${entry.fournisseur}`}
+                  >
+                    <Trash2 style={{ width: 14, height: 14 }} />
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Block d'ajout */}
+      <div className="cap-add-block">
+        <div className="cap-add-row">
+          <input
+            type="text"
+            className="cap-add-input"
+            placeholder="Marque / fournisseur (ex: LEICHT, MARBRIER…)"
+            value={draftFournisseur}
+            onChange={(e) => { setDraftFournisseur(e.target.value.toUpperCase()); setShowSuggestions(true); }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+            disabled={disabled}
+            aria-label="Nouveau fournisseur"
+          />
+          <input
+            type="date"
+            className="cap-add-date"
+            value={draftDate}
+            min={today}
+            onChange={(e) => setDraftDate(e.target.value)}
+            disabled={disabled}
+            aria-label="Date butoir nouvelle commande"
+          />
+          <button
+            type="button"
+            className="cap-add-btn"
+            onClick={handleAdd}
+            disabled={disabled || !draftFournisseur.trim()}
+            title="Ajouter cette commande"
+          >
+            <Plus style={{ width: 14, height: 14 }} />
+            Ajouter
+          </button>
+        </div>
+        {showSuggestions && filteredSuggestions.length > 0 && (
+          <div className="cap-suggest">
+            {filteredSuggestions.map((s) => (
+              <div
+                key={s}
+                className="cap-suggest-item"
+                onMouseDown={(e) => { e.preventDefault(); setDraftFournisseur(s); setShowSuggestions(false); }}
+              >
+                <Receipt style={{ width: 12, height: 12 }} />
+                {s}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
