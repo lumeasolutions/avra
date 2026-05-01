@@ -104,10 +104,13 @@ function clearAuthCookies(res: Response) {
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  // 🔒 SECURITY: Brute-force protection — 5 tentatives max per 15 minutes per IP
+  // 🔒 SECURITY: Brute-force protection — 20 tentatives max per 5 minutes per IP
+  // Assoupli pendant la bêta privée pour ne pas bloquer un user qui se trompe
+  // de mot de passe quelques fois. La fenêtre courte garde la protection contre
+  // les attaques distribuées tout en restant utilisable.
   @Public()
   @SkipCsrf()
-  @Throttle({ auth: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Throttle({ auth: { ttl: 5 * 60 * 1000, limit: 20 } })
   @Post('login')
   async login(
     @Body() dto: LoginDto,
