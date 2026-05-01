@@ -16,6 +16,8 @@ export const metadata: Metadata = {
     title: 'Logiciel cuisiniste Lyon — Solution complète pour cuisinistes à Lyon',
     description: 'AVRA vous permet de gérer vos cuisines à Lyon de la conception à la facturation. Devis, planning, rendus IA et e-facture 2026.',
     url: 'https://avra-app.fr/cuisiniste-lyon',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

@@ -16,6 +16,8 @@ export const metadata: Metadata = {
     title: 'Logiciel menuisier Lyon — ERP menuiserie complet pour Lyon et la région',
     description: 'AVRA est le logiciel ERP pour menuisiers lyonnais. Devis, planning, stock, facturation e-conformité.',
     url: 'https://avra-app.fr/menuisier-lyon',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

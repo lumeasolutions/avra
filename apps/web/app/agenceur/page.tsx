@@ -27,6 +27,8 @@ export const metadata: Metadata = {
     description:
       'Gestion multi-sites, reporting client, portail partenaires et appels d\'offres. Pour agenceurs.',
     url: 'https://avra-app.fr/agenceur',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

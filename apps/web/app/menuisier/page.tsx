@@ -27,6 +27,8 @@ export const metadata: Metadata = {
     title: 'Logiciel menuisier — AVRA',
     description: 'Devis, planning, stock et facturation pour menuisiers. Solution complète.',
     url: 'https://avra-app.fr/menuisier',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

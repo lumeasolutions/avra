@@ -10,6 +10,8 @@ export const metadata: Metadata = {
     title: 'Demander une démo AVRA',
     description: 'Démo gratuite en 30 minutes, personnalisée, sans engagement.',
     url: 'https://avra-app.fr/demo',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

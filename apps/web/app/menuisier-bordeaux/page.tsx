@@ -16,6 +16,8 @@ export const metadata: Metadata = {
     title: 'Logiciel menuisier Bordeaux — Solution complète pour menuisiers en Gironde',
     description: 'AVRA aide les menuisiers bordelais à gérer leurs devis, planning, stock et facturation.',
     url: 'https://avra-app.fr/menuisier-bordeaux',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

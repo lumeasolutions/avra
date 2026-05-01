@@ -16,6 +16,8 @@ export const metadata: Metadata = {
     title: 'Logiciel agencement Toulouse — Pro de l\'agencement intérieur en Occitanie',
     description: 'AVRA est la solution ERP pour agenceurs toulousains. Gérez multi-chantiers, budgets clients, facturation e-conformité.',
     url: 'https://avra-app.fr/agencement-toulouse',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

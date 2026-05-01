@@ -27,6 +27,8 @@ export const metadata: Metadata = {
     title: 'Logiciel cuisiniste — AVRA',
     description: 'Devis, plans, commandes fournisseurs, poses et rendus IA. Tout pour les cuisinistes.',
     url: 'https://avra-app.fr/cuisiniste',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

@@ -16,6 +16,8 @@ export const metadata: Metadata = {
     title: 'Logiciel agencement Nantes — Gérez vos projets en Pays de la Loire',
     description: 'AVRA aide les agenceurs nantais à piloter leurs chantiers, budgets clients et facturation.',
     url: 'https://avra-app.fr/agencement-nantes',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

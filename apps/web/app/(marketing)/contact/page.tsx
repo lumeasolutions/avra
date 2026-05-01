@@ -10,6 +10,8 @@ export const metadata: Metadata = {
     title: 'Contact AVRA',
     description: "Contactez l'équipe AVRA. Réponse sous 24h.",
     url: 'https://avra-app.fr/contact',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

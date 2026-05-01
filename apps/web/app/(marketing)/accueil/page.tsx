@@ -13,6 +13,8 @@ export const metadata: Metadata = {
     description:
       "Gérez vos projets d'agencement sans friction. Dossiers, facturation, planning, IA, stock et signature électronique.",
     url: 'https://avra-app.fr/accueil',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

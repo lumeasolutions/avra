@@ -16,6 +16,8 @@ export const metadata: Metadata = {
     title: 'Logiciel cuisiniste Marseille — Gérez vos projets cuisine en PACA',
     description: 'AVRA simplifie la gestion de vos cuisines à Marseille. Devis, planning, rendus IA et facturation e-conformité.',
     url: 'https://avra-app.fr/cuisiniste-marseille',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

@@ -10,6 +10,8 @@ export const metadata: Metadata = {
     title: 'Témoignages AVRA — Bêta testeurs satisfaits',
     description: '94% de satisfaction. Découvrez pourquoi les pros de l\'agencement choisissent AVRA.',
     url: 'https://avra-app.fr/temoignages',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

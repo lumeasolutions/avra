@@ -28,6 +28,8 @@ export const metadata: Metadata = {
     description:
       'Dossiers clients, rendus IA, suivi de budget et facturation honoraires. Pour architectes d\'intérieur.',
     url: 'https://avra-app.fr/architecte-interieur',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

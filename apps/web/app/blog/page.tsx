@@ -16,6 +16,8 @@ export const metadata: Metadata = {
     title: 'Blog AVRA — Conseils et guides pour les pros de l\'agencement',
     description: 'Guides pratiques, comparatifs logiciels, conseils métier et actualités pour cuisinistes, menuisiers et architectes d\'intérieur.',
     url: 'https://avra-app.fr/blog',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

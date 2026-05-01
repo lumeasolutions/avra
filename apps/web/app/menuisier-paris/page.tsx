@@ -16,6 +16,8 @@ export const metadata: Metadata = {
     title: 'Logiciel menuisier Paris — Devis, planning et facturation pour menuisiers parisiens',
     description: 'AVRA aide les menuisiers parisiens à gérer devis, planning de chantier, facturation et conformité e-facture 2026.',
     url: 'https://avra-app.fr/menuisier-paris',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

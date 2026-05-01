@@ -10,6 +10,8 @@ export const metadata: Metadata = {
     title: 'Tarifs AVRA — 149€/mois tout inclus',
     description: "1 showroom, 4 utilisateurs, toutes les fonctionnalités. Démo sur demande — Bêta privée, lancement juillet 2026.",
     url: 'https://avra-app.fr/tarifs',
+
+    images: ['/opengraph-image.png'],
   },
 };
 

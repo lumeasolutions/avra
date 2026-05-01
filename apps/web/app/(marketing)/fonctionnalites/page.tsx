@@ -29,6 +29,8 @@ export const metadata: Metadata = {
     description:
       'Gestion dossiers, facturation e-facture 2026, IA Studio, planning, stock, signature électronique, statistiques et portails partenaires.',
     url: 'https://avra-app.fr/fonctionnalites',
+
+    images: ['/opengraph-image.png'],
   },
 };
 
