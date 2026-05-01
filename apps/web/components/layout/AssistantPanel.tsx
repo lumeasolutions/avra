@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { X, Send, AlertTriangle, XCircle, Clock, Info, ChevronDown, Mic, MicOff } from 'lucide-react';
 import { useDossierStore, useFacturationStore, useUIStore } from '@/store';
+import { useAssistantStore } from '@/store/useAssistantStore';
 import Link from 'next/link';
 
 // ── Rendu Markdown léger ──────────────────────────────────────────────────────
@@ -367,29 +368,142 @@ function ChatView({ owlB64 }: { owlB64: string }) {
 
   const [message,  setMessage]  = useState('');
   const [typing,   setTyping]   = useState(false);
-  const [messages, setMessages] = useState<{ role:'user'|'ai'; text:string; action?: PendingAction }[]>([
-    { role:'ai', text:'Bonjour ! Je surveille vos '+dossiers.length+' dossiers et '+alerts.filter(a=>!a.dismissed).length+' alerte(s) active(s). Comment puis-je vous aider ?' },
-  ]);
+  // ⬇️ Conversation persistée via zustand (commit du 02/05) — survit aux
+  // navigations entre pages, reloads et fermetures d'onglet (localStorage).
+  const messages = useAssistantStore((s) => s.messages);
+  const setMessagesStore = useAssistantStore((s) => s.setMessages);
+  const appendMessage = useAssistantStore((s) => s.appendMessage);
+  const resetConversation = useAssistantStore((s) => s.resetConversation);
+  // Wrapper pour conserver l'API existante setMessages(prev => ...)
+  const setMessages = setMessagesStore;
   const endRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Hydratation : si la conversation persistée est vide, on l'initialise avec
+  // un message d'accueil contextuel (nb dossiers + alertes). Une seule fois.
+  useEffect(() => {
+    if (messages.length === 0) {
+      resetConversation({
+        role: 'ai',
+        text: `Bonjour ! Je surveille vos ${dossiers.length} dossiers et ${alerts.filter((a) => !a.dismissed).length} alerte(s) active(s). Comment puis-je vous aider ?`,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Vocal ──────────────────────────────────────────────────
   const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  const startVoice = () => {
+  /**
+   * Démarre la reconnaissance vocale (Web Speech API).
+   * Gère explicitement TOUS les cas d'erreur courants pour donner un retour
+   * clair à l'utilisateur (avant la version naïve faisait juste alert()
+   * sur "non supporté" et silence sur les autres erreurs → micro qui semblait
+   * cassé alors que c'était souvent les permissions).
+   */
+  const startVoice = async () => {
+    setVoiceError(null);
+
+    // 1. Vérification du contexte sécurisé (HTTPS obligatoire sauf localhost)
+    if (typeof window !== 'undefined' && !window.isSecureContext) {
+      setVoiceError('Le micro nécessite HTTPS. Cette page n\'est pas sécurisée.');
+      return;
+    }
+
+    // 2. Vérification du support navigateur
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { alert("La reconnaissance vocale n'est pas supportée par ce navigateur."); return; }
-    const r = new SR();
-    r.lang = 'fr-FR'; r.interimResults = false; r.maxAlternatives = 1;
-    r.onstart = () => setIsListening(true);
-    r.onend   = () => setIsListening(false);
-    r.onerror = () => setIsListening(false);
-    r.onresult = (e: any) => setMessage(prev => prev + (prev ? ' ' : '') + e.results[0][0].transcript);
-    recognitionRef.current = r;
-    r.start();
+    if (!SR) {
+      setVoiceError('Reconnaissance vocale non supportée — utilisez Chrome, Edge ou Safari.');
+      return;
+    }
+
+    // 3. Demande explicite de permission micro AVANT de lancer SpeechRecognition.
+    //    Sans ça, certains navigateurs (Chrome sur Windows notamment) émettent
+    //    une erreur 'not-allowed' silencieuse si la permission n'a jamais été
+    //    accordée, et l'utilisateur ne sait pas ce qui s'est passé.
+    if (navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // On ferme le stream tout de suite, SpeechRecognition gère son propre
+        // accès au micro après autorisation.
+        stream.getTracks().forEach((t) => t.stop());
+      } catch (err: any) {
+        const name = err?.name ?? '';
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+          setVoiceError('Accès micro refusé. Autorisez-le dans 🔒 → Paramètres du site.');
+        } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+          setVoiceError('Aucun micro détecté sur cet appareil.');
+        } else if (name === 'NotReadableError') {
+          setVoiceError('Le micro est utilisé par une autre application.');
+        } else {
+          setVoiceError(`Erreur micro : ${name || 'inconnue'}`);
+        }
+        return;
+      }
+    }
+
+    // 4. Lancement effectif de la reconnaissance
+    try {
+      const r = new SR();
+      r.lang = 'fr-FR';
+      r.interimResults = true; // affiche le texte au fur et à mesure
+      r.continuous = false;    // s'arrête automatiquement après une pause
+      r.maxAlternatives = 1;
+
+      r.onstart = () => {
+        setIsListening(true);
+        setVoiceError(null);
+      };
+      r.onend = () => setIsListening(false);
+      r.onerror = (e: any) => {
+        setIsListening(false);
+        const errType = e?.error ?? 'unknown';
+        const map: Record<string, string> = {
+          'not-allowed': 'Accès micro refusé. Autorisez-le dans les paramètres du navigateur.',
+          'service-not-allowed': 'Le service vocal du navigateur est bloqué.',
+          'no-speech': 'Aucune voix détectée. Réessayez en parlant plus fort.',
+          'audio-capture': 'Micro indisponible. Vérifiez qu\'il est branché et fonctionnel.',
+          'network': 'Erreur réseau pendant la reconnaissance vocale.',
+          'aborted': '', // user a stoppé manuellement, pas d'erreur
+        };
+        const msg = map[errType] ?? `Erreur de reconnaissance vocale : ${errType}`;
+        if (msg) setVoiceError(msg);
+      };
+      r.onresult = (e: any) => {
+        // On prend le résultat final + interim pour update live le champ
+        let finalTranscript = '';
+        let interimTranscript = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const transcript = e.results[i][0].transcript;
+          if (e.results[i].isFinal) finalTranscript += transcript;
+          else interimTranscript += transcript;
+        }
+        if (finalTranscript) {
+          setMessage((prev) => (prev ? `${prev} ${finalTranscript}` : finalTranscript));
+        }
+      };
+
+      recognitionRef.current = r;
+      r.start();
+    } catch (err: any) {
+      setIsListening(false);
+      setVoiceError(`Impossible de démarrer le micro : ${err?.message ?? 'erreur inconnue'}`);
+    }
   };
-  const stopVoice = () => { recognitionRef.current?.stop(); setIsListening(false); };
+
+  const stopVoice = () => {
+    try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+    setIsListening(false);
+  };
+
+  // Auto-clear de l'erreur micro après 5s
+  useEffect(() => {
+    if (!voiceError) return;
+    const t = setTimeout(() => setVoiceError(null), 5000);
+    return () => clearTimeout(t);
+  }, [voiceError]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior:'smooth' }); }, [messages, typing]);
 
@@ -589,6 +703,20 @@ function ChatView({ owlB64 }: { owlB64: string }) {
           <div className="flex items-center gap-[6px] py-1 px-[10px] bg-[rgba(74,99,88,0.1)] rounded-[12px] text-[11px] text-[#4A6358] font-semibold">
             <div className="w-2 h-2 rounded-full bg-[#e53e3e]" style={{ animation:'apBlink 1s ease-in-out infinite' }}/>
             Écoute en cours…
+          </div>
+        )}
+        {voiceError && (
+          <div className="flex items-start gap-[6px] py-[6px] px-[10px] bg-[#fef2f2] border border-[#fecaca] rounded-[12px] text-[11px] text-[#b91c1c] font-medium leading-snug">
+            <span className="leading-none mt-px">⚠️</span>
+            <span className="flex-1">{voiceError}</span>
+            <button
+              type="button"
+              onClick={() => setVoiceError(null)}
+              className="text-[#b91c1c] hover:text-[#7f1d1d] flex-shrink-0"
+              aria-label="Fermer"
+            >
+              ×
+            </button>
           </div>
         )}
         <div className="flex items-center gap-2">
