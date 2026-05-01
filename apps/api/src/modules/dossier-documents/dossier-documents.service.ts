@@ -16,8 +16,19 @@ import { VirusScanService } from '../../common/security/virus-scan.service';
  * de fichiers HTML avec JS, etc.
  * ─────────────────────────────────────────────────────────────
  */
+/**
+ * Liste blanche MIME tres large pour couvrir tous les fichiers metier de
+ * l'agencement (Word, Excel, plans CAO, fichiers logiciels Schmidt/KDMax/Winner,
+ * archives, photos brutes, modeles 3D...). On autorise large par MIME type
+ * connu mais on bloque categoriquement les binaires executables (.exe, .bat,
+ * .sh, .ps1, ...) via une blacklist d'extensions ci-dessous.
+ *
+ * Strategie : autoriser par defaut TOUS les MIME types non dangereux. Le
+ * file-type magic-bytes check + la blacklist d'extensions arretent les
+ * tentatives malveillantes.
+ */
 const ALLOWED_MIMES = new Set<string>([
-  // Images
+  // ─── Images ─────────────────────────────────────────────────────────
   'image/jpeg',
   'image/png',
   'image/webp',
@@ -25,30 +36,138 @@ const ALLOWED_MIMES = new Set<string>([
   'image/svg+xml',
   'image/heic',
   'image/heif',
-  // PDF
+  'image/bmp',
+  'image/tiff',
+  'image/x-icon',
+  'image/avif',
+  // RAW photo (pour plans/relevés terrain pris au reflex)
+  'image/x-canon-cr2',
+  'image/x-nikon-nef',
+  'image/x-sony-arw',
+  'image/x-adobe-dng',
+
+  // ─── PDF ────────────────────────────────────────────────────────────
   'application/pdf',
-  // Office
+
+  // ─── Office Microsoft ───────────────────────────────────────────────
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-word.document.macroenabled.12',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel.sheet.macroenabled.12',
+  'application/vnd.ms-excel.sheet.binary.macroenabled.12',
   'application/vnd.ms-powerpoint',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  // OpenDocument
+  'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
+
+  // ─── Apple iWork ────────────────────────────────────────────────────
+  'application/x-iwork-pages-sffpages',
+  'application/x-iwork-numbers-sffnumbers',
+  'application/x-iwork-keynote-sffkey',
+
+  // ─── OpenDocument ───────────────────────────────────────────────────
   'application/vnd.oasis.opendocument.text',
   'application/vnd.oasis.opendocument.spreadsheet',
-  // Texte
+  'application/vnd.oasis.opendocument.presentation',
+  'application/vnd.oasis.opendocument.graphics',
+
+  // ─── Texte & code ───────────────────────────────────────────────────
   'text/plain',
   'text/csv',
-  // Archives
+  'text/tab-separated-values',
+  'text/markdown',
+  'text/rtf',
+  'application/rtf',
+  'application/json',
+  'application/xml',
+  'text/xml',
+
+  // ─── Archives ──────────────────────────────────────────────────────
   'application/zip',
   'application/x-zip-compressed',
-  // CAO / plans
+  'application/x-rar-compressed',
+  'application/vnd.rar',
+  'application/x-7z-compressed',
+  'application/x-tar',
+  'application/gzip',
+  'application/x-gzip',
+
+  // ─── CAO 2D / 3D et plans techniques ──────────────────────────────
+  // AutoCAD
   'application/acad',
   'application/x-acad',
+  'application/autocad_dwg',
   'image/vnd.dwg',
+  'image/x-dwg',
+  'application/dwg',
+  'application/x-dwg',
   'application/dxf',
+  'application/x-dxf',
+  'image/vnd.dxf',
+  // SketchUp
+  'application/vnd.sketchup.skp',
+  'application/x-sketchup',
+  'model/vnd.sketchup.skp',
+  // Fusion 360 / Inventor / Solidworks / Step / IGES
+  'model/step',
+  'application/step',
+  'application/x-step',
+  'model/iges',
+  'application/iges',
+  'application/octet-stream', // generique pour fichiers logiciels metier (KDMax, Winner, Cabinet Vision, TopSolid Wood — voir blacklist extensions ci-dessous)
+  // 3D models (rendus IA, exports SketchUp)
+  'model/gltf-binary',
+  'model/gltf+json',
+  'model/obj',
+  'model/stl',
+  'application/x-tgif',
+
+  // ─── Audio / Video (releves chantier) ──────────────────────────────
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/ogg',
+  'audio/webm',
+  'video/mp4',
+  'video/quicktime',
+  'video/x-msvideo',
+  'video/webm',
+  'video/x-matroska',
+
+  // ─── Email & contacts ──────────────────────────────────────────────
+  'message/rfc822',
+  'application/vnd.ms-outlook',
+  'text/vcard',
 ]);
+
+/**
+ * Extensions categoriquement bloquees (executables et scripts dangereux).
+ * Verifiees sur le nom de fichier original — meme si le MIME passe, on
+ * refuse si l'extension est dans cette liste.
+ */
+const BLOCKED_EXTENSIONS = new Set<string>([
+  '.exe', '.msi', '.bat', '.cmd', '.com', '.pif', '.scr',
+  '.vbs', '.vbe', '.js', '.jse', '.wsf', '.wsh', '.ps1', '.psm1',
+  '.sh', '.bash', '.zsh', '.fish',
+  '.app', '.dmg', '.pkg',
+  '.dll', '.sys', '.drv',
+  '.jar', '.apk', '.ipa',
+  '.html', '.htm', '.svg', // SVG retire de la liste autorisee plus haut sera traite via image/svg+xml — on bloque les .html en extension
+]);
+
+/**
+ * Verifie si un nom de fichier porte une extension dangereuse.
+ * Returns true si bloque.
+ */
+function hasBlockedExtension(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  for (const ext of BLOCKED_EXTENSIONS) {
+    if (lower.endsWith(ext)) return true;
+  }
+  return false;
+}
 
 /** Taille max par fichier : 25 Mo. */
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -105,7 +224,17 @@ export class DossierDocumentsService {
     file: { originalname: string; mimetype: string; size: number; buffer: Buffer },
   ) {
     if (!file?.buffer) throw new BadRequestException('Aucun fichier fourni');
-    if (!ALLOWED_MIMES.has(file.mimetype)) {
+    // Bloquer categoriquement les extensions dangereuses, peu importe le MIME
+    if (hasBlockedExtension(file.originalname)) {
+      throw new BadRequestException(
+        `Extension non autorisée pour des raisons de sécurité : ${file.originalname}`,
+      );
+    }
+    // Whitelist MIME — si le MIME est inconnu, on accepte quand meme s'il
+    // s'agit d'application/octet-stream (fichier binaire generique souvent
+    // utilise par les logiciels metier comme Schmidt, KDMax, Winner, etc.)
+    // dans ce cas la blacklist d'extensions est notre filet de securite.
+    if (!ALLOWED_MIMES.has(file.mimetype) && file.mimetype !== 'application/octet-stream') {
       throw new BadRequestException(`Type de fichier non autorisé : ${file.mimetype}`);
     }
     if (file.size > MAX_FILE_BYTES) {
@@ -129,7 +258,11 @@ export class DossierDocumentsService {
         const ok =
           detected.mime === claimed ||
           // Tolerate jpg/jpeg & similar aliases.
-          (claimed === 'image/jpeg' && detected.mime === 'image/jpg');
+          (claimed === 'image/jpeg' && detected.mime === 'image/jpg') ||
+          // application/octet-stream est generique : on accepte si le contenu
+          // detecte est dans notre whitelist (ex: SketchUp .skp est detecte
+          // comme application/x-sketchup, ZIP comme application/zip, etc.)
+          (claimed === 'application/octet-stream' && (ALLOWED_MIMES.has(detected.mime) || detected.mime.startsWith('image/') || detected.mime.startsWith('audio/') || detected.mime.startsWith('video/') || detected.mime.startsWith('model/')));
         if (!ok) {
           throw new BadRequestException(
             `Le contenu du fichier (${detected.mime}) ne correspond pas au type déclaré (${claimed})`,
