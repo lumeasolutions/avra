@@ -41,6 +41,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
     // ── Blog ─────────────────────────────────────────────────────────
     url('/blog', { changeFrequency: 'weekly', priority: 0.8 }),
+    url('/glossaire', { changeFrequency: 'monthly', priority: 0.75 }),
     url('/blog/feed.xml', { changeFrequency: 'daily', priority: 0.6 }),
     url('/blog/comment-choisir-erp-cuisiniste', { changeFrequency: 'monthly', priority: 0.85 }),
     url('/blog/logiciel-menuisier-2026', { changeFrequency: 'monthly', priority: 0.85 }),

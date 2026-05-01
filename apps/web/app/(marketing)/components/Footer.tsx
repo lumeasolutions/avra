@@ -24,6 +24,7 @@ export default function Footer() {
     ],
     resources: [
       { label: 'Blog', href: '/blog' },
+      { label: 'Glossaire métier', href: '/glossaire' },
       { label: 'Guide e-facture 2026', href: '/blog/e-facture-2026' },
       { label: 'Comparatif logiciels', href: '/blog/logiciel-cuisiniste-comparatif' },
       { label: 'Contact', href: '/contact' },
