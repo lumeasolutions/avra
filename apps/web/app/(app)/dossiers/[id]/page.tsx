@@ -591,21 +591,10 @@ export default function DossierDetailPage() {
               <Tag className="h-3.5 w-3.5" />
               Changer statut
             </button>
-            <SendToIntervenantButton
-              variant="secondary"
-              label="Envoyer à intervenant"
-              prefill={{
-                projectId: dossier.id,
-                title: `Intervention — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
-              }}
-              style={{
-                background: 'rgba(255,255,255,0.1)',
-                color: 'white',
-                border: '1px solid rgba(255,255,255,0.2)',
-                fontSize: 12,
-                padding: '10px 14px',
-              }}
-            />
+            {/* Bouton "Envoyer a intervenant" retire du header — pour eviter le
+                partage du dossier complet (fuite info confidentielles type
+                prix). Utiliser plutot l'icone d'envoi qui apparait a cote
+                de chaque sous-dossier dans la liste 'Dossiers & fichiers'. */}
             <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
               <GitCompare className="h-3.5 w-3.5" />
               Comparer
@@ -811,21 +800,29 @@ export default function DossierDetailPage() {
                     );
                   })()}
 
-                  {/* Bouton "Envoyer aux intervenants" — version/sous-dossier specifique */}
-                  {!isEmpty && (
-                    <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-                      <SendToIntervenantButton
-                        variant="icon"
-                        prefill={{
-                          type: isArchitecte || isCuisiniste ? 'POSE' : 'POSE',
-                          title: `${sf.label} — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
-                          projectId: dossier.id,
-                          notes: `Sous-dossier : ${sf.label}\n${docsCount} document(s) à transmettre`,
-                        }}
-                        style={{ width: 28, height: 28, background: '#1a2a1e' }}
-                      />
-                    </div>
-                  )}
+                  {/* Bouton "Envoyer aux intervenants" — TOUJOURS visible
+                      (meme sur sous-dossier vide) pour permettre au pro
+                      d'envoyer une demande textuelle a un intervenant
+                      meme s'il n'y a pas encore de fichier. */}
+                  <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                    <SendToIntervenantButton
+                      variant="icon"
+                      prefill={{
+                        type: isArchitecte || isCuisiniste ? 'POSE' : 'POSE',
+                        title: `${sf.label} — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
+                        projectId: dossier.id,
+                        notes: docsCount > 0
+                          ? `Sous-dossier : ${sf.label}\n${docsCount} document(s) à transmettre`
+                          : `Sous-dossier : ${sf.label}`,
+                      }}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        background: '#1a2a1e',
+                        boxShadow: '0 1px 4px rgba(26,42,30,0.18)',
+                      }}
+                    />
+                  </div>
 
                   {/* Bouton Valider / Pastille verte validée */}
                   {isValidated ? (
