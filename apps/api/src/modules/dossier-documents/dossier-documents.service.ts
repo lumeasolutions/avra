@@ -206,6 +206,39 @@ export class DossierDocumentsService {
     }
   }
 
+  /**
+   * Liste tous les documents d'un dossier avec leur storagePath.
+   * Réservé aux usages internes (extraction IA, etc.) — n'expose pas le path
+   * vers le client final.
+   */
+  async listInternalForProject(workspaceId: string, projectId: string) {
+    await this.assertProjectInWorkspace(workspaceId, projectId);
+    return this.prisma.dossierDocument.findMany({
+      where: { workspaceId, projectId },
+      select: {
+        id: true,
+        subfolderLabel: true,
+        originalName: true,
+        mimeType: true,
+        sizeBytes: true,
+        storagePath: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /** Télécharge le binaire d'un document (utilisé par l'extraction IA). */
+  async downloadDocument(workspaceId: string, projectId: string, documentId: string): Promise<Buffer> {
+    await this.assertProjectInWorkspace(workspaceId, projectId);
+    const doc = await this.prisma.dossierDocument.findFirst({
+      where: { id: documentId, projectId, workspaceId },
+      select: { id: true, storagePath: true },
+    });
+    if (!doc) throw new NotFoundException('Document introuvable');
+    return this.storage.download(doc.storagePath);
+  }
+
   /** Liste tous les documents d'un dossier, groupés par sous-dossier. */
   async listByProject(workspaceId: string, projectId: string) {
     await this.assertProjectInWorkspace(workspaceId, projectId);

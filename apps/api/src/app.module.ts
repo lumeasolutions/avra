@@ -42,6 +42,7 @@ import { DossierDocumentsModule } from './modules/dossier-documents/dossier-docu
     ThrottlerModule.forRoot([
       { name: 'default', ttl: 60000, limit: 300 },
       { name: 'auth', ttl: 15 * 60 * 1000, limit: 5 }, // 5 requests per 15 minutes
+      { name: 'ai', ttl: 60_000, limit: 5 }, // 5 IA-extraction calls per minute per IP
     ]),
     MulterModule.register({ storage: require('multer').memoryStorage() }),
     // ✅ SECURITY: Common security module (CSRF, etc.)

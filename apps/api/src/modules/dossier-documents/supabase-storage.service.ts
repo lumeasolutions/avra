@@ -45,6 +45,22 @@ export class SupabaseStorageService {
     }
   }
 
+  /**
+   * Télécharge un fichier du bucket sous forme de Buffer.
+   * Utilisé par l'extraction IA (pdf-parse).
+   */
+  async download(path: string): Promise<Buffer> {
+    const { data, error } = await this.getClient()
+      .storage.from(this.bucket)
+      .download(path);
+    if (error || !data) {
+      this.logger.error(`[download ${path}] ${error?.message ?? 'no data'}`);
+      throw new InternalServerErrorException('Impossible de télécharger le fichier');
+    }
+    const arrayBuffer = await data.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
   /** Génère une URL signée temporaire (en secondes). */
   async createSignedUrl(path: string, expiresIn = 3600): Promise<string> {
     const { data, error } = await this.getClient()

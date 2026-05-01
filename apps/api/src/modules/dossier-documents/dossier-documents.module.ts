@@ -8,6 +8,6 @@ import { SupabaseStorageService } from './supabase-storage.service';
   imports: [PrismaModule],
   controllers: [DossierDocumentsController],
   providers: [DossierDocumentsService, SupabaseStorageService],
-  exports: [SupabaseStorageService],
+  exports: [DossierDocumentsService, SupabaseStorageService],
 })
 export class DossierDocumentsModule {}

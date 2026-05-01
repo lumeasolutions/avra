@@ -14,6 +14,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { IaService } from './ia.service';
 import { AIService } from './ai.service';
+import { ExtractionService } from './extraction.service';
+import { ExtractDossierDto } from './dto/extract-dossier.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -21,6 +23,7 @@ import type { JwtPayload } from '@avra/types';
 import { IaJobType } from '../../prisma-enums';
 import { Response } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('ia')
 @UseGuards(JwtAuthGuard)
@@ -30,6 +33,7 @@ export class IaController {
   constructor(
     private readonly ia: IaService,
     private readonly ai: AIService,
+    private readonly extraction: ExtractionService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -352,5 +356,26 @@ Preserve proportions and layout, modify only colors and finishes. Photorealistic
   @Get('status')
   getStatus() {
     return this.ia.getIaStatus();
+  }
+
+  /**
+   * Extraction IA d'un dossier : analyse les documents PDF du dossier et
+   * retourne dates butoires + commandes + livraisons + score de confiance.
+   *
+   * POST /api/v1/ia/extract-dossier
+   * Body: { dossierId: string }
+   *
+   * Sécurité :
+   *  - JwtAuthGuard (déjà appliqué au controller)
+   *  - Throttler 'ai' : 5/min/IP
+   *  - Vérification d'ownership workspace dans le service
+   */
+  @Post('extract-dossier')
+  @Throttle({ ai: { ttl: 60_000, limit: 5 } })
+  async extractDossier(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: ExtractDossierDto,
+  ) {
+    return this.extraction.extractFromDossier(user.workspaceId, body.dossierId);
   }
 }
