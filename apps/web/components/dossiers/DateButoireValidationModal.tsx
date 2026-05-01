@@ -26,7 +26,7 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   X, Calendar, Sparkles, AlertTriangle, Check, Loader2,
   AlertCircle, Wand2, FileCheck, Receipt, CalendarDays, ChevronLeft, ChevronRight,
-  Eye, Folder, ArrowRight,
+  Eye, Folder, ArrowRight, ArrowLeft, ExternalLink, FileText,
 } from 'lucide-react';
 import { usePlanningStore } from '@/store/usePlanningStore';
 import type {
@@ -157,6 +157,9 @@ export function DateButoireValidationModal({
   const [dates, setDates] = useState<Record<string, string>>({});
   // ID du doc en cours de chargement preview (loupe → spinner pendant fetch URL signée)
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
+  // Document actuellement affiché dans le panneau gauche (remplace planning + dossier APD)
+  // → permet de consulter le PDF tout en remplissant les dates butoirs à droite.
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string; type?: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -167,6 +170,7 @@ export function DateButoireValidationModal({
     setDates({});
     setError(null);
     setWeekOffset(0);
+    setPreviewDoc(null);
   }, [open]);
 
   // Escape pour fermer
@@ -270,27 +274,44 @@ export function DateButoireValidationModal({
   };
 
   /**
-   * Ouvre le doc dans un nouvel onglet (preview) sans fermer le modal.
-   * - Backend (docId) : fetch URL signée fraîche puis window.open
-   * - Legacy (dataUrl) : ouverture directe via blob URL
-   * - Placeholder pur (ni docId ni dataUrl) : on indique "indisponible"
+   * Ouvre le doc DANS la colonne gauche de la modale (au lieu d'un nouvel onglet)
+   * pour que l'utilisateur puisse consulter le devis/plan/etc tout en remplissant
+   * les dates butoirs à droite, sans quitter la page.
+   * - Backend (docId) : fetch URL signée fraîche → set previewDoc
+   * - Legacy (dataUrl) : utilise directement la dataUrl
+   * - Placeholder pur : indisponible
    */
   const handlePreviewDoc = async (doc: DocumentFile) => {
     const previewKey = doc.docId ?? doc.name;
     if (doc.dataUrl) {
-      window.open(doc.dataUrl, '_blank', 'noopener,noreferrer');
+      setPreviewDoc({ url: doc.dataUrl, name: doc.name, type: doc.type });
       return;
     }
     if (!doc.docId || !dossierId) return;
     setPreviewLoadingId(previewKey);
     try {
       const { signedUrl } = await getDocSignedUrl(dossierId, doc.docId);
-      window.open(signedUrl, '_blank', 'noopener,noreferrer');
+      setPreviewDoc({ url: signedUrl, name: doc.name, type: doc.type });
     } catch (err) {
       console.error('[validation-modal] preview failed:', err);
     } finally {
       setPreviewLoadingId(null);
     }
+  };
+
+  const closePreview = () => setPreviewDoc(null);
+
+  /** Détecte si on peut afficher le doc dans un iframe (PDF, image, txt). */
+  const isInlinePreviewable = (doc: typeof previewDoc): boolean => {
+    if (!doc) return false;
+    const t = (doc.type ?? '').toLowerCase();
+    if (t.startsWith('image/')) return true;
+    if (t === 'application/pdf') return true;
+    if (t.startsWith('text/')) return true;
+    // Inférence par extension si type manquant
+    const lower = doc.name.toLowerCase();
+    return lower.endsWith('.pdf') || lower.endsWith('.png') || lower.endsWith('.jpg')
+      || lower.endsWith('.jpeg') || lower.endsWith('.webp') || lower.endsWith('.gif');
   };
 
   const handleSubmit = async () => {
@@ -814,6 +835,103 @@ export function DateButoireValidationModal({
         }
         .dbv-confirm.submitting { animation: none; cursor: wait; }
         .dbv-spin { animation: dbv-spin 0.9s linear infinite; }
+
+        /* ── Panneau d'aperçu document inline (remplace planning + dossier APD) ── */
+        .dbv-preview-pane {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          min-height: 0;
+          background: #fff;
+          border-radius: 14px;
+          border: 1px solid rgba(48,64,53,0.08);
+          overflow: hidden;
+          animation: dbvReveal 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .dbv-preview-toolbar {
+          flex-shrink: 0;
+          display: flex; align-items: center; gap: 10px;
+          padding: 10px 12px;
+          border-bottom: 1px solid rgba(48,64,53,0.08);
+          background: linear-gradient(135deg, #f5eee8 0%, #faf6ef 100%);
+        }
+        .dbv-preview-back {
+          display: inline-flex; align-items: center; gap: 5px;
+          padding: 6px 11px;
+          border-radius: 8px;
+          border: 1px solid rgba(48,64,53,0.12);
+          background: #fff;
+          color: #1a1614;
+          font-size: 11.5px; font-weight: 700;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          flex-shrink: 0;
+          font-family: inherit;
+        }
+        .dbv-preview-back:hover {
+          background: #f5eee8;
+          border-color: rgba(166,119,73,0.4);
+          color: #7c4f1d;
+        }
+        .dbv-preview-name {
+          flex: 1; min-width: 0;
+          display: inline-flex; align-items: center; gap: 7px;
+          font-size: 12px; font-weight: 700;
+          color: #1a1614;
+        }
+        .dbv-preview-name svg { color: #a67749; flex-shrink: 0; }
+        .dbv-preview-name span {
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .dbv-preview-external {
+          flex-shrink: 0;
+          width: 30px; height: 30px;
+          border-radius: 8px;
+          border: 1px solid rgba(48,64,53,0.1);
+          background: #fff;
+          color: rgba(48,64,53,0.6);
+          display: flex; align-items: center; justify-content: center;
+          transition: all 0.15s ease;
+          text-decoration: none;
+        }
+        .dbv-preview-external:hover {
+          color: #a67749;
+          border-color: #a67749;
+          background: #fff8ef;
+        }
+        .dbv-preview-frame {
+          flex: 1;
+          width: 100%;
+          border: none;
+          background: #fafaf7;
+          min-height: 0;
+        }
+        .dbv-preview-fallback {
+          flex: 1;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          gap: 12px;
+          padding: 32px;
+          text-align: center;
+          color: rgba(48,64,53,0.6);
+          font-size: 13px;
+        }
+        .dbv-preview-fallback p { margin: 0; max-width: 280px; }
+        .dbv-preview-fallback-link {
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 8px 14px;
+          border-radius: 9px;
+          background: linear-gradient(135deg, #fff8ef 0%, #ffe7c2 100%);
+          border: 1px solid rgba(166,119,73,0.4);
+          color: #7c4f1d;
+          font-size: 12px; font-weight: 700;
+          text-decoration: none;
+          transition: all 0.15s ease;
+        }
+        .dbv-preview-fallback-link:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 10px rgba(166,119,73,0.25);
+        }
       `}</style>
 
       <div
@@ -869,8 +987,59 @@ export function DateButoireValidationModal({
 
           {/* Body — 2 colonnes */}
           <div className="dbv-body">
-            {/* COLONNE GAUCHE : Planning gestion + Devis */}
+            {/* COLONNE GAUCHE : Planning gestion + Devis (ou preview document si ouvert) */}
             <div className="dbv-col-left">
+              {previewDoc ? (
+                /* Mode preview document : on remplace planning + devis par le viewer */
+                <div className="dbv-preview-pane">
+                  <div className="dbv-preview-toolbar">
+                    <button
+                      type="button"
+                      className="dbv-preview-back"
+                      onClick={closePreview}
+                      title="Revenir au planning + dossier"
+                    >
+                      <ArrowLeft style={{ width: 14, height: 14 }} />
+                      Retour
+                    </button>
+                    <div className="dbv-preview-name" title={previewDoc.name}>
+                      <FileText style={{ width: 13, height: 13 }} />
+                      <span>{previewDoc.name}</span>
+                    </div>
+                    <a
+                      href={previewDoc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="dbv-preview-external"
+                      title="Ouvrir dans un nouvel onglet"
+                    >
+                      <ExternalLink style={{ width: 13, height: 13 }} />
+                    </a>
+                  </div>
+                  {isInlinePreviewable(previewDoc) ? (
+                    <iframe
+                      src={previewDoc.url}
+                      className="dbv-preview-frame"
+                      title={`Aperçu de ${previewDoc.name}`}
+                    />
+                  ) : (
+                    <div className="dbv-preview-fallback">
+                      <FileText style={{ width: 32, height: 32, opacity: 0.4 }} />
+                      <p>L'aperçu inline n'est pas disponible pour ce type de fichier.</p>
+                      <a
+                        href={previewDoc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="dbv-preview-fallback-link"
+                      >
+                        <ExternalLink style={{ width: 13, height: 13 }} />
+                        Ouvrir dans un nouvel onglet
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ) : (
+              <>
               <div className="dbv-section">
                 <div className="dbv-section-head">
                   <span className="dbv-section-title">
@@ -992,6 +1161,8 @@ export function DateButoireValidationModal({
                   </div>
                 )}
               </div>
+              </>
+              )}
             </div>
 
             {/* COLONNE DROITE : Dates butoires */}
