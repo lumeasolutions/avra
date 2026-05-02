@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Pricing transparent d'AVRA. 3 plans pour professionnels de l'agencement intérieur. Sans engagement, annulation facile.">
+  <title>Tarifs — AVRA</title>
+  <link rel="stylesheet" href="/site/style.css">
+</head>
+<body>
+
+<nav id="nav">
+  <a href="/site/index.html" class="nav-logo">
+    <img src="/logoavra2.png" alt="AVRA">
+    <span class="nav-logo-text">AVRA</span>
+  </a>
+  <div class="nav-links">
+    <a href="/site/index.html">Accueil</a>
+    <a href="/site/fonctionnalites.html">Fonctionnalités</a>
+    <a href="/site/comment-ca-marche.html">Comment ça marche</a>
+    <a href="/site/temoignages.html">Témoignages</a>
+    <a href="/site/tarifs.html" class="active">Tarifs</a>
+    <a href="/site/metiers.html">Métiers</a>
+  </div>
+  <div class="nav-cta">
+    <a href="/login"><button class="btn-nav">Connexion</button></a>
+    <a href="/register"><button class="btn-nav-gold">Essai gratuit 14 jours</button></a>
+  </div>
+  <div class="nav-ham" onclick="toggleMenu()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+<div class="mob-menu" id="mob">
+  <a href="/site/index.html">Accueil</a>
+  <a href="/site/fonctionnalites.html">Fonctionnalités</a>
+  <a href="/site/comment-ca-marche.html">Comment ça marche</a>
+  <a href="/site/temoignages.html">Témoignages</a>
+  <a href="/site/tarifs.html">Tarifs</a>
+  <a href="/site/metiers.html">Métiers</a>
+  <div class="mob-cta">
+    <a href="/login"><button class="btn-outline" style="width:100%;justify-content:center">Connexion</button></a>
+    <a href="/register"><button class="btn-gold" style="width:100%;justify-content:center">Essai gratuit</button></a>
+  </div>
+</div>
+
+<!-- HERO SECTION -->
+<section class="sec sec-dark" style="padding-top:140px">
+  <div class="wrap center">
+    <span class="label label-light">Transparent & sans surprise</span>
+    <h1>Pricing simple et honnête</h1>
+    <p style="max-width:600px;margin:2rem auto;font-size:1.1rem;color:rgba(255,255,255,.8)">Pas de frais cachés, pas de coûts additionnels par utilisateur. Un prix, toutes les fonctionnalités. Facile.</p>
+
+    <div style="display:flex;justify-content:center;gap:2rem;margin-top:2.5rem;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:12px;color:#fff;cursor:pointer">
+        <input type="radio" name="billing" value="monthly" checked style="cursor:pointer">
+        <span style="font-weight:500">Mensuel</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:12px;color:#fff;cursor:pointer">
+        <input type="radio" name="billing" value="yearly" style="cursor:pointer">
+        <span style="font-weight:500">Annuel <span style="background:linear-gradient(135deg,#d4b882,#c9a96e);color:#1e2b22;padding:2px 8px;border-radius:12px;font-size:.8rem;font-weight:600;margin-left:6px">-20%</span></span>
+      </label>
+    </div>
+  </div>
+</section>
+
+<!-- CARDS PLANS -->
+<section class="sec sec-cream">
+  <div class="wrap">
+    <div class="grid-3">
+      <!-- PLAN STARTER -->
+      <div class="card reveal d1" style="position:relative;border:1px solid rgba(48,64,53,.1)">
+        <h3 style="margin-bottom:.5rem">Starter</h3>
+        <p style="color:#6b7c70;margin-bottom:1.5rem">Parfait pour débuter</p>
+        <div style="margin-bottom:1.5rem">
+          <span class="stat-val" style="font-size:2.5rem">49€</span>
+          <span style="color:#6b7c70;font-size:.9rem">/mois (39€ annuel)</span>
+        </div>
+        <a href="/register"><button class="btn-outline" style="width:100%;justify-content:center;margin-bottom:2rem">Essai gratuit</button></a>
+        <ul class="check-list">
+          <li>Utilisateurs illimités</li>
+          <li>Dossiers clients illimités</li>
+          <li>Facturation de base</li>
+          <li>Signature électronique</li>
+          <li>Portail client</li>
+          <li>Dashboard statistiques</li>
+          <li>Support par email</li>
+        </ul>
+      </div>
+
+      <!-- PLAN PRO (HIGHLIGHTED) -->
+      <div class="card reveal d2" style="position:relative;border:2px solid #c9a96e;transform:scale(1.05)">
+        <div style="position:absolute;top:-14px;left:20px;background:linear-gradient(135deg,#d4b882,#c9a96e);color:#1e2b22;padding:4px 16px;border-radius:50px;font-size:.75rem;font-weight:700">POPULAIRE</div>
+        <h3 style="margin-bottom:.5rem;margin-top:.5rem">Pro</h3>
+        <p style="color:#6b7c70;margin-bottom:1.5rem">Le meilleur rapport qualité-prix</p>
+        <div style="margin-bottom:1.5rem">
+          <span class="stat-val" style="font-size:2.5rem">89€</span>
+          <span style="color:#6b7c70;font-size:.9rem">/mois (71€ annuel)</span>
+        </div>
+        <a href="/register"><button class="btn-gold" style="width:100%;justify-content:center;margin-bottom:2rem">Essai gratuit</button></a>
+        <ul class="check-list">
+          <li>Tout du Starter +</li>
+          <li>IA Studio FLUX Pro</li>
+          <li>Planning & chantiers</li>
+          <li>Gestion de stock</li>
+          <li>CRM pipeline</li>
+          <li>API ouverte</li>
+          <li>Support prioritaire (2h)</li>
+          <li>Onboarding personnel</li>
+        </ul>
+      </div>
+
+      <!-- PLAN ENTERPRISE -->
+      <div class="card reveal d3" style="position:relative;border:1px solid rgba(48,64,53,.1)">
+        <h3 style="margin-bottom:.5rem">Enterprise</h3>
+        <p style="color:#6b7c70;margin-bottom:1.5rem">Pour les équipes complexes</p>
+        <div style="margin-bottom:1.5rem">
+          <span class="stat-val" style="font-size:2.5rem">Sur devis</span>
+          <span style="color:#6b7c70;font-size:.9rem">contactez-nous</span>
+        </div>
+        <a href="mailto:contact@avra.fr"><button class="btn-outline" style="width:100%;justify-content:center;margin-bottom:2rem">Demander un devis</button></a>
+        <ul class="check-list">
+          <li>Tout du Pro +</li>
+          <li>Intégrations sur mesure</li>
+          <li>SSO/AD integration</li>
+          <li>Audit de sécurité</li>
+          <li>SLA garanti 99.5%</li>
+          <li>Account manager dédié</li>
+          <li>Formation d'équipe</li>
+          <li>Webinaires privés</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TABLEAU COMPARATIF -->
+<section class="sec sec-dark">
+  <div class="wrap">
+    <div class="center" style="margin-bottom:3rem">
+      <h2>Comparaison détaillée</h2>
+      <p style="max-width:700px;margin:1.5rem auto;color:rgba(255,255,255,.7)">Quel plan correspond à vos besoins ?</p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fonctionnalité</th>
+            <th>Starter</th>
+            <th class="th-pop">Pro</th>
+            <th>Enterprise</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Utilisateurs</strong></td>
+            <td class="td-yes">Illimité</td>
+            <td class="td-yes">Illimité</td>
+            <td class="td-yes">Illimité</td>
+          </tr>
+          <tr>
+            <td><strong>Dossiers clients</strong></td>
+            <td class="td-yes">Illimité</td>
+            <td class="td-yes">Illimité</td>
+            <td class="td-yes">Illimité</td>
+          </tr>
+          <tr>
+            <td><strong>Factures/Devis</strong></td>
+            <td class="td-yes">Illimité</td>
+            <td class="td-yes">Illimité</td>
+            <td class="td-yes">Illimité</td>
+          </tr>
+          <tr>
+            <td><strong>Facturation</strong></td>
+            <td class="td-yes">Complète</td>
+            <td class="td-yes">Complète + e-facture</td>
+            <td class="td-yes">Avec API</td>
+          </tr>
+          <tr>
+            <td><strong>Signature électronique</strong></td>
+            <td class="td-yes">Oui</td>
+            <td class="td-yes">Oui (multi-signataires)</td>
+            <td class="td-yes">Oui + workflows</td>
+          </tr>
+          <tr>
+            <td><strong>Portail client</strong></td>
+            <td class="td-yes">Basique</td>
+            <td class="td-yes">Avancé</td>
+            <td class="td-yes">Personnalisable</td>
+          </tr>
+          <tr>
+            <td><strong>IA Studio FLUX Pro</strong></td>
+            <td class="td-no">—</td>
+            <td class="td-yes">Oui (illimité)</td>
+            <td class="td-yes">Oui (illimité)</td>
+          </tr>
+          <tr>
+            <td><strong>Planning & chantiers</strong></td>
+            <td class="td-no">—</td>
+            <td class="td-yes">Complet</td>
+            <td class="td-yes">Complet + mobile</td>
+          </tr>
+          <tr>
+            <td><strong>Gestion de stock</strong></td>
+            <td class="td-no">—</td>
+            <td class="td-yes">Oui</td>
+            <td class="td-yes">Oui + traçabilité</td>
+          </tr>
+          <tr>
+            <td><strong>CRM pipeline</strong></td>
+            <td class="td-no">—</td>
+            <td class="td-yes">Complet</td>
+            <td class="td-yes">Complet + scoring</td>
+          </tr>
+          <tr>
+            <td><strong>Dashboard statistiques</strong></td>
+            <td class="td-yes">Basique</td>
+            <td class="td-yes">Avancé</td>
+            <td class="td-yes">Personnalisable</td>
+          </tr>
+          <tr>
+            <td><strong>API ouverte</strong></td>
+            <td class="td-no">—</td>
+            <td class="td-yes">Oui</td>
+            <td class="td-yes">Oui (prioritaire)</td>
+          </tr>
+          <tr>
+            <td><strong>Support</strong></td>
+            <td>Email (24h)</td>
+            <td class="td-highlight">Email + prioritaire (2h)</td>
+            <td class="td-highlight">Prioritaire (1h) + dédié</td>
+          </tr>
+          <tr>
+            <td><strong>SLA garanti</strong></td>
+            <td class="td-no">—</td>
+            <td class="td-no">—</td>
+            <td class="td-yes">99.5%</td>
+          </tr>
+          <tr>
+            <td><strong>Onboarding</strong></td>
+            <td class="td-no">Auto</td>
+            <td class="td-yes">Personnel (1h)</td>
+            <td class="td-yes">Personnel (8h) + formation</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ÉCONOMIES ANNUELLES -->
+<section class="sec sec-cream">
+  <div class="wrap wrap-sm center">
+    <h2 style="margin-bottom:1rem">Économisez 20% en choisissant l'annuel</h2>
+    <p style="color:#6b7c70;margin-bottom:2rem">Engagez-vous pour 12 mois et bénéficiez de tarifs réduits.</p>
+
+    <div class="grid-3">
+      <div style="background:#fff;border-radius:16px;padding:2rem;border:1px solid rgba(48,64,53,.1)">
+        <p style="font-size:.9rem;color:#999;text-transform:uppercase;margin-bottom:.5rem">Starter</p>
+        <p style="font-size:.85rem;color:#999;text-decoration:line-through">49€ × 12 = 588€</p>
+        <p style="font-size:2rem;font-weight:700;color:#c9a96e">468€/an</p>
+        <p style="font-size:.85rem;color:#4a6350;margin-top:.5rem">Économie: 120€</p>
+      </div>
+      <div style="background:#fff;border-radius:16px;padding:2rem;border:2px solid #c9a96e">
+        <p style="font-size:.9rem;color:#999;text-transform:uppercase;margin-bottom:.5rem">Pro</p>
+        <p style="font-size:.85rem;color:#999;text-decoration:line-through">89€ × 12 = 1 068€</p>
+        <p style="font-size:2rem;font-weight:700;color:#c9a96e">856€/an</p>
+        <p style="font-size:.85rem;color:#4a6350;margin-top:.5rem">Économie: 212€</p>
+      </div>
+      <div style="background:#fff;border-radius:16px;padding:2rem;border:1px solid rgba(48,64,53,.1)">
+        <p style="font-size:.9rem;color:#999;text-transform:uppercase;margin-bottom:.5rem">Enterprise</p>
+        <p style="font-size:.85rem;color:#999;margin-bottom:.5rem">Jusqu'à -25% pour contrats multi-ans</p>
+        <p style="font-size:2rem;font-weight:700;color:#c9a96e">À discuter</p>
+        <p style="font-size:.85rem;color:#4a6350;margin-top:.5rem">Contactez-nous</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GARANTIES -->
+<section class="sec sec-dark">
+  <div class="wrap">
+    <div class="center" style="margin-bottom:3rem">
+      <h2>Nos garanties</h2>
+      <p style="max-width:700px;margin:1.5rem auto;color:rgba(255,255,255,.7)">Votre argent est protégé. Zéro prise de tête.</p>
+    </div>
+
+    <div class="grid-3">
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2rem;border:1px solid rgba(201,169,110,.2)">
+        <h4 style="color:#fff;margin-bottom:1rem">14 jours gratuit</h4>
+        <p style="color:rgba(255,255,255,.8)">Accès complet sans carte bancaire. Essayez pendant 14 jours. Si ça ne vous plaît pas, c'est gratuit.</p>
+      </div>
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2rem;border:1px solid rgba(201,169,110,.2)">
+        <h4 style="color:#fff;margin-bottom:1rem">Sans engagement</h4>
+        <p style="color:rgba(255,255,255,.8)">Annulez à tout moment sans raison, sans frais. Pas de pénalité. Pas de contrat. C'est juste un abonnement.</p>
+      </div>
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2rem;border:1px solid rgba(201,169,110,.2)">
+        <h4 style="color:#fff;margin-bottom:1rem">Vos données vous appartiennent</h4>
+        <p style="color:rgba(255,255,255,.8)">Export illimité en CSV, Excel, JSON. Partez si vous le souhaitez. Vous n'êtes jamais bloqué.</p>
+      </div>
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2rem;border:1px solid rgba(201,169,110,.2)">
+        <h4 style="color:#fff;margin-bottom:1rem">Hébergement France</h4>
+        <p style="color:rgba(255,255,255,.8)">Vos données restent en France. Scaleway & OVH. Conforme RGPD, CNIL et normes de sécurité.</p>
+      </div>
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2rem;border:1px solid rgba(201,169,110,.2)">
+        <h4 style="color:#fff;margin-bottom:1rem">Support inclus</h4>
+        <p style="color:rgba(255,255,255,.8)">Pas de coût supplémentaire pour le support. Email, chat, webinaires. Tout est dans le prix.</p>
+      </div>
+      <div style="background:rgba(201,169,110,.08);border-radius:16px;padding:2rem;border:1px solid rgba(201,169,110,.2)">
+        <h4 style="color:#fff;margin-bottom:1rem">Accès immédiat</h4>
+        <p style="color:rgba(255,255,255,.8)">Créez un compte et utilisez AVRA en 2 minutes. Pas d'appel de validation, pas de paperasse.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ TARIFS -->
+<section class="sec sec-cream">
+  <div class="wrap wrap-sm">
+    <div class="center" style="margin-bottom:3rem">
+      <h2>Questions sur la facturation</h2>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:1rem">
+      <!-- FAQ 1 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Puis-je changer de plan à tout moment ?</span>
+          <span style="font-size:1.5rem">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70">Oui, changez de plan quand vous le souhaitez. Si vous passez à un plan plus cher, vous serez facturé au prorata. Si vous descendez, c'est aussi au prorata. Pas de frais de changement.</p>
+      </details>
+
+      <!-- FAQ 2 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Comment fonctionne le remboursement ?</span>
+          <span style="font-size:1.5rem">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70">Pendant votre essai gratuit de 14 jours, aucun frais. Après, si vous annulez dans les 30 premiers jours de votre abonnement payant, vous êtes remboursé à 100%. Sans questions.</p>
+      </details>
+
+      <!-- FAQ 3 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Quels moyens de paiement acceptez-vous ?</span>
+          <span style="font-size:1.5rem">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70">Carte bancaire (Visa, Mastercard, American Express) via Stripe. Virement bancaire pour les Enterprise. Paiements sécurisés et récurrents.</p>
+      </details>
+
+      <!-- FAQ 4 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Avez-vous des remises pour les structures associatives ou publiques ?</span>
+          <span style="font-size:1.5rem">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70">Oui. Nous proposons des réductions spéciales pour les associations, collectivités et structures d'insertion. Contactez-nous : contact@avra.fr</p>
+      </details>
+
+      <!-- FAQ 5 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Puis-je facturer mes clients avec AVRA ?</span>
+          <span style="font-size:1.5rem">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70">Bien sûr ! C'est même l'usage principal. Générez des factures conformes à la législation française. Vos clients les reçoivent par email avec lien de paiement intégré. Facturez illimité, aucun frais par facture.</p>
+      </details>
+
+      <!-- FAQ 6 -->
+      <details style="background:#fff;border:1px solid rgba(48,64,53,.1);border-radius:12px;padding:1.5rem;cursor:pointer">
+        <summary style="font-weight:600;color:#1e2b22;display:flex;justify-content:space-between;align-items:center">
+          <span>Y a-t-il des frais de transaction ou de paiement client ?</span>
+          <span style="font-size:1.5rem">▸</span>
+        </summary>
+        <p style="margin-top:1rem;color:#6b7c70">Zéro. L'abonnement AVRA est votre seul coût. Pas de frais supplémentaires sur les factures, les signatures, ou les paiements reçus. Transparent comme on les aime.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION ENTERPRISE -->
+<section class="sec sec-dark">
+  <div class="wrap">
+    <div class="grid-2">
+      <div>
+        <h2>Vous avez un grand réseau ?</h2>
+        <p style="color:rgba(255,255,255,.8);margin-bottom:1.5rem;font-size:1.05rem">AVRA s'adapte aux besoins des grandes équipes, des réseaux de franchisés ou des intégrateurs.</p>
+        <ul class="check-list">
+          <li style="color:rgba(255,255,255,.8)">Tarifs dégressifs multi-utilisateurs</li>
+          <li style="color:rgba(255,255,255,.8)">Intégrations sur mesure</li>
+          <li style="color:rgba(255,255,255,.8)">Formation d'équipe complète</li>
+          <li style="color:rgba(255,255,255,.8)">Account manager dédié</li>
+          <li style="color:rgba(255,255,255,.8)">SLA 99.5% garanti</li>
+          <li style="color:rgba(255,255,255,.8)">Support en priorité 24/7</li>
+        </ul>
+      </div>
+      <div style="background:rgba(201,169,110,.08);border-radius:20px;padding:2rem;border:1px solid rgba(201,169,110,.2);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center">
+        <p style="color:rgba(255,255,255,.9);font-size:1.1rem;margin-bottom:1.5rem">Discutons de votre projet</p>
+        <a href="mailto:contact@avra.fr"><button class="btn-gold">Prendre rendez-vous</button></a>
+        <p style="color:rgba(255,255,255,.5);font-size:.9rem;margin-top:1.5rem">Ou appelez : +33 1 23 45 67 89</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="sec sec-cream center">
+  <div class="wrap wrap-sm">
+    <h2>Prêt à vous lancer ?</h2>
+    <p style="color:#6b7c70;margin:1.5rem 0 2rem;font-size:1.05rem">14 jours d'essai gratuit. Pas de carte, pas d'engagement. Accédez à tout.</p>
+    <a href="/register"><button class="btn-gold">Démarrer maintenant</button></a>
+    <p style="color:#999;margin-top:1.5rem;font-size:.9rem">Vous avez des questions ? <a href="mailto:contact@avra.fr" style="color:#c9a96e;font-weight:500">Contactez notre équipe</a></p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="ft-grid">
+      <div class="ft-brand">
+        <span class="ft-brand-name">AVRA</span>
+        <p>L'ERP intelligent conçu pour les professionnels de l'agencement intérieur.</p>
+      </div>
+      <div class="ft-col">
+        <h5>Produit</h5>
+        <a href="/site/fonctionnalites.html">Fonctionnalités</a>
+        <a href="/site/tarifs.html">Tarifs</a>
+        <a href="/site/comment-ca-marche.html">Comment ça marche</a>
+        <a href="/site/temoignages.html">Témoignages</a>
+      </div>
+      <div class="ft-col">
+        <h5>Métiers</h5>
+        <a href="/site/metiers.html#cuisiniste">Cuisiniste</a>
+        <a href="/site/metiers.html#menuisier">Menuisier</a>
+        <a href="/site/metiers.html#architecte">Architecte d'intérieur</a>
+        <a href="/site/metiers.html#agenceur">Agenceur</a>
+      </div>
+      <div class="ft-col">
+        <h5>Contact</h5>
+        <a href="mailto:contact@avra.fr">contact@avra.fr</a>
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/confidentialite">Confidentialité</a>
+        <a href="/cgv">CGV</a>
+      </div>
+    </div>
+    <div class="ft-bottom">
+      <span>© 2025 AVRA by Luméa — Tous droits réservés</span>
+      <div class="ft-links">
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/confidentialite">Politique de confidentialité</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+function toggleMenu(){document.getElementById("mob").classList.toggle("open")}
+window.addEventListener("scroll",()=>{document.getElementById("nav").classList.toggle("scrolled",window.scrollY>20)})
+</script>
+
+</body>
+</html>

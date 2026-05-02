@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Métiers AVRA — Solutions pour Cuisiniste, Menuisier, Architecte, Agenceur</title>
+  <meta name="description" content="AVRA conçu pour vos métiers: Cuisiniste (rendus IA, devis), Menuisier (chantiers, stock), Architecte (portails, plans), Agenceur (multi-projets, équipes).">
+  <meta name="canonical" href="https://avra.fr/metiers">
+  <meta property="og:title" content="Métiers AVRA">
+  <meta property="og:description" content="Solutions spécialisées pour cuisinistes, menuisiers, architectes d'intérieur et agenceurs.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://avra.fr/metiers">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Métiers AVRA"
+  }
+  </script>
+
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Hero */
+    .hero {
+      min-height: 70vh;
+      display: flex;
+      align-items: center;
+      padding-top: 76px;
+      background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%);
+      text-align: center;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 60px 5%;
+    }
+
+    .hero h1 {
+      color: var(--white);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero p {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 1.2rem;
+    }
+
+    /* Métier Sections */
+    .metier-section {
+      padding: 100px 5%;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .metier-section.alt {
+      background: var(--cream);
+    }
+
+    .metier-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .metier-container.reverse {
+      direction: rtl;
+    }
+
+    .metier-text {
+      direction: ltr;
+    }
+
+    .metier-icon {
+      font-size: 3.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .metier-name {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 1rem;
+      font-family: var(--font-display);
+    }
+
+    .metier-intro {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+      line-height: 1.8;
+    }
+
+    .metier-benefits {
+      list-style: none;
+      margin: 2rem 0;
+    }
+
+    .metier-benefits li {
+      padding: 0.9rem 0;
+      padding-left: 2.2rem;
+      position: relative;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .metier-benefits li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 1.2rem;
+    }
+
+    .metier-highlight {
+      background: rgba(201,169,110,.08);
+      border-left: 3px solid var(--gold);
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin: 2rem 0;
+      color: var(--text);
+    }
+
+    .metier-highlight strong {
+      color: var(--text);
+    }
+
+    .metier-mockup {
+      background: var(--green);
+      border-radius: 16px;
+      padding: 2rem;
+      min-height: 400px;
+      border: 1px solid rgba(201,169,110,.2);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .mockup-section {
+      background: linear-gradient(135deg, rgba(74,99,80,.4), rgba(201,169,110,.15));
+      border-radius: 12px;
+      padding: 1.2rem;
+      border: 1px solid rgba(201,169,110,.2);
+      margin-bottom: 1rem;
+    }
+
+    .mockup-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-title-small {
+      color: var(--gold);
+      font-weight: 600;
+      margin-bottom: 0.6rem;
+      font-size: 0.85rem;
+    }
+
+    .mockup-bar {
+      height: 6px;
+      background: rgba(255,255,255,.1);
+      border-radius: 3px;
+      margin-bottom: 0.4rem;
+    }
+
+    .mockup-bar:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Integration Section */
+    .integration-section {
+      padding: 100px 5%;
+      background: linear-gradient(180deg, var(--white) 0%, var(--cream) 100%);
+    }
+
+    .integration-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .integration-header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .integration-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 30px;
+    }
+
+    .integration-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .integration-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .integration-card h3 {
+      margin-bottom: 0.8rem;
+    }
+
+    .integration-card p {
+      font-size: 0.9rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 968px) {
+      .metier-container {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+
+      .metier-container.reverse {
+        direction: ltr;
+      }
+
+      .metier-mockup {
+        min-height: 300px;
+      }
+
+      .integration-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .hero h1 {
+        font-size: 1.8rem;
+      }
+
+      .metier-name {
+        font-size: 1.5rem;
+      }
+
+      .metier-mockup {
+        min-height: 250px;
+        padding: 1.5rem;
+      }
+
+      .mockup-section {
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav id="navbar">
+    <a href="index.html" class="nav-logo">
+      <img src="logo.png" alt="Logo AVRA" style="height:40px;width:40px;object-fit:contain;"/>
+      <span class="nav-logo-text">AVRA</span>
+    </a>
+    <div class="nav-links">
+      <a href="metiers.html">Métiers</a>
+      <a href="fonctionnalites.html">Fonctionnalités</a>
+      <a href="comment-ca-marche.html">Comment ça marche</a>
+      <a href="temoignages.html">Témoignages</a>
+      <a href="tarifs.html">Tarifs</a>
+    </div>
+    <div class="nav-cta">
+      <a href="http://localhost:3002/login" class="btn-nav-login">Se connecter</a>
+      <a href="http://localhost:3002/register" class="btn-nav-primary">Essai gratuit — 14 jours</a>
+    </div>
+    <div class="nav-hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Conçu pour les artisans de l'excellence</h1>
+      <p>AVRA s'adapte à votre métier. Cuisiniste, menuisier, architecte d'intérieur ou agenceur: découvrez la solution pensée pour vous.</p>
+    </div>
+  </section>
+
+  <!-- Cuisiniste -->
+  <section class="metier-section reveal">
+    <div class="metier-container">
+      <div class="metier-text">
+        <div class="metier-icon">👨‍🍳</div>
+        <h2 class="metier-name">Cuisiniste</h2>
+        <p class="metier-intro">Piloter vos projets de cuisine de la conception à la pose. Rendus IA, devis précis, planning chantier, signature électronique du contrat.</p>
+
+        <ul class="metier-benefits">
+          <li><strong>Rendus IA Studios:</strong> Montrez vos projets en photorréaliste avant production</li>
+          <li><strong>Pipeline CRM:</strong> Suivi prospects, devis en attente, relances automatiques</li>
+          <li><strong>Devis & Facturation:</strong> Intégration matériaux, CAUE, électriques</li>
+          <li><strong>Planning chantier:</strong> Mesure, commande, fabrication, pose, garantie</li>
+          <li><strong>Signature électronique:</strong> Contrats et bons de commande signés légalement</li>
+          <li><strong>Gestion stock:</strong> Matériaux, quincaillerie, électroménager</li>
+        </ul>
+
+        <div class="metier-highlight">
+          <strong>Résultat:</strong> Vos devis se font en 5 minutes. Les rendus 3D augmentent votre taux de signature de 40%. Plus de papier à gérer.
+        </div>
+
+        <a href="http://localhost:3002/register?industry=cuisiniste" class="btn-primary">Essayer pour cuisiniste</a>
+      </div>
+
+      <div class="metier-mockup">
+        <div class="mockup-section">
+          <div class="section-title-small">Cuisine moderne 2026</div>
+          <div class="mockup-bar" style="width: 90%;"></div>
+          <div class="mockup-bar" style="width: 70%;"></div>
+        </div>
+        <div class="mockup-section">
+          <div class="section-title-small">Devis #2024-001</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+          <div class="mockup-bar" style="width: 80%; background: var(--gold);"></div>
+        </div>
+        <div class="mockup-section">
+          <div class="section-title-small">Chantier semaine 12</div>
+          <div class="mockup-bar" style="width: 85%;"></div>
+          <div class="mockup-bar" style="width: 40%;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Menuisier -->
+  <section class="metier-section alt reveal">
+    <div class="metier-container reverse">
+      <div class="metier-text">
+        <div class="metier-icon">🔨</div>
+        <h2 class="metier-name">Menuisier</h2>
+        <p class="metier-intro">Gérer chantiers, équipes et stock de matériaux. Planning précis, attribution des tâches, suivi des ressources, alertes retard.</p>
+
+        <ul class="metier-benefits">
+          <li><strong>Planning multi-chantiers:</strong> Vue calendrier par équipe, par intervenant</li>
+          <li><strong>Gestion Stock:</strong> Bois, vernis, quincaillerie, prix fournisseurs à jour</li>
+          <li><strong>Attribution équipe:</strong> Qui intervient où, quand, avec quel matériel</li>
+          <li><strong>Alertes chantier:</strong> Retard, rupture stock, dépassement budget</li>
+          <li><strong>Signatures digitales:</strong> Bons de commande, changements d'ordre sur site</li>
+          <li><strong>Reporting:</strong> Marges réelles, coûts matériaux, productivité équipe</li>
+        </ul>
+
+        <div class="metier-highlight">
+          <strong>Résultat:</strong> Vous pouvez piloter 2x plus de chantiers sans recruter. Plus de rupture stock. Marges augmentent de 12% en moyenne.
+        </div>
+
+        <a href="http://localhost:3002/register?industry=menuisier" class="btn-primary">Essayer pour menuisier</a>
+      </div>
+
+      <div class="metier-mockup">
+        <div class="mockup-section">
+          <div class="section-title-small">Chantier Dubois</div>
+          <div class="mockup-bar" style="width: 60%;"></div>
+          <div class="mockup-bar" style="width: 40%;"></div>
+        </div>
+        <div class="mockup-section">
+          <div class="section-title-small">Équipe: Martin, Lefevre</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+          <div class="mockup-bar" style="width: 70%;"></div>
+        </div>
+        <div class="mockup-section">
+          <div class="section-title-small">Stock bois chene</div>
+          <div class="mockup-bar" style="width: 90%; background: var(--gold);"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecte d'Intérieur -->
+  <section class="metier-section reveal">
+    <div class="metier-container">
+      <div class="metier-text">
+        <div class="metier-icon">📐</div>
+        <h2 class="metier-name">Architecte d'Intérieur</h2>
+        <p class="metier-intro">Collaborer avec les professionnels: cuisiniste, menuisier, agenceur. Portails sécurisés, partage de plans, validation étapes.</p>
+
+        <ul class="metier-benefits">
+          <li><strong>Portail partenaires:</strong> Chaque intervenant voit son périmètre, valide et signe</li>
+          <li><strong>Partage plans & rendus:</strong> Upload plans, rendus IA, specs de matériaux</li>
+          <li><strong>Dossier projet centralisé:</strong> Tous les documents, chat, historique en un endroit</li>
+          <li><strong>Validation étapes:</strong> Mesure, conception, avant-commande, livraison</li>
+          <li><strong>Permis & devis:</strong> Création facile, signature électronique clients</li>
+          <li><strong>Suivi budget:</strong> Totalité du projet vs devis initial</li>
+        </ul>
+
+        <div class="metier-highlight">
+          <strong>Résultat:</strong> Fin des appels répétés avec les partenaires. Tous les docs au même endroit. Gain 5h par projet en temps administratif.
+        </div>
+
+        <a href="http://localhost:3002/register?industry=architecte" class="btn-primary">Essayer pour architecte</a>
+      </div>
+
+      <div class="metier-mockup">
+        <div class="mockup-section">
+          <div class="section-title-small">Projet: Villa Moderna</div>
+          <div class="mockup-bar" style="width: 85%;"></div>
+          <div class="mockup-bar" style="width: 60%;"></div>
+        </div>
+        <div class="mockup-section">
+          <div class="section-title-small">Portail Cuisiniste</div>
+          <div class="mockup-bar" style="width: 100%; background: var(--gold);"></div>
+        </div>
+        <div class="mockup-section">
+          <div class="section-title-small">En validation menuisier</div>
+          <div class="mockup-bar" style="width: 50%;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Agenceur -->
+  <section class="metier-section alt reveal">
+    <div class="metier-container reverse">
+      <div class="metier-text">
+        <div class="metier-icon">🏗️</div>
+        <h2 class="metier-name">Agenceur</h2>
+        <p class="metier-intro">Piloter plusieurs projets simultanément. Multi-équipes, multi-phases, multi-professionnels. Un seul logiciel pour tout coordonner.</p>
+
+        <ul class="metier-benefits">
+          <li><strong>Multi-projets:</strong> Gérer 10, 20, 30 projets en parallèle sans chaos</li>
+          <li><strong>Équipes par projet:</strong> Chaque projet a sa propre équipe et permissions</li>
+          <li><strong>Coordination partenaires:</strong> Invitez cuisiniste, menuisier, électricien, plombier...</li>
+          <li><strong>Planning global:</strong> Vue tous les projets, identifier les ressources libres</li>
+          <li><strong>Gestion budget:</strong> Alertes dépassement par projet, par phase</li>
+          <li><strong>Reportings:</strong> CA par projet, par type, marge consolidée</li>
+        </ul>
+
+        <div class="metier-highlight">
+          <strong>Résultat:</strong> Vous pilotez comme une vraie agence. Pas d'improvisation. Ressources optimisées. Rentabilité clairement visible.
+        </div>
+
+        <a href="http://localhost:3002/register?industry=agenceur" class="btn-primary">Essayer pour agenceur</a>
+      </div>
+
+      <div class="metier-mockup">
+        <div class="mockup-section">
+          <div class="section-title-small">Projet 1: Bureau</div>
+          <div class="mockup-bar" style="width: 100%;"></div>
+          <div class="mockup-bar" style="width: 70%;"></div>
+        </div>
+        <div class="mockup-section">
+          <div class="section-title-small">Projet 2: Showroom</div>
+          <div class="mockup-bar" style="width: 85%;"></div>
+          <div class="mockup-bar" style="width: 50%;"></div>
+        </div>
+        <div class="mockup-section">
+          <div class="section-title-small">Équipe A: 4 pers.</div>
+          <div class="mockup-bar" style="width: 100%; background: var(--gold);"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Intégrations & Outils -->
+  <section class="integration-section reveal">
+    <div class="integration-container">
+      <div class="integration-header">
+        <span class="section-label">ÉCOSYSTÈME</span>
+        <h2 class="section-title">AVRA s'intègre à vos outils</h2>
+        <p class="section-subtitle">Connectez AVRA à vos logiciels existants. APIs disponibles sur les plans Pro et Enterprise.</p>
+      </div>
+
+      <div class="integration-grid">
+        <div class="integration-card reveal">
+          <div class="integration-icon">📊</div>
+          <h3>Comptabilité</h3>
+          <p>Exports vers Sage, Ciel, Zoho Facture. Factures numérotées légalement, TVA, EIRL/SARL.</p>
+        </div>
+
+        <div class="integration-card reveal">
+          <div class="integration-icon">☁️</div>
+          <h3>Stockage Cloud</h3>
+          <p>Google Drive, OneDrive, Dropbox. Sauvegarde automatique vos plans et documents.</p>
+        </div>
+
+        <div class="integration-card reveal">
+          <div class="integration-icon">📧</div>
+          <h3>Email & SMS</h3>
+          <p>Webhooks pour emails transactionnels, SMS relances. Mailchimp, Twilio supportés.</p>
+        </div>
+
+        <div class="integration-card reveal">
+          <div class="integration-icon">💳</div>
+          <h3>Paiements</h3>
+          <p>Stripe, PayPal. Acceptez paiements en ligne directement depuis vos factures.</p>
+        </div>
+
+        <div class="integration-card reveal">
+          <div class="integration-icon">🤖</div>
+          <h3>API Complète</h3>
+          <p>REST API pour toutes les données. Créez vos propres intégrations, automatisez workflows.</p>
+        </div>
+
+        <div class="integration-card reveal">
+          <div class="integration-icon">🔐</div>
+          <h3>SSO & Authentification</h3>
+          <p>OAuth2, LDAP. Pour les grands comptes et agences multi-sites.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section style="padding: 100px 5%; background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%); text-align: center;">
+    <div style="max-width: 700px; margin: 0 auto;">
+      <h2 style="color: var(--white); margin-bottom: 1.5rem;">AVRA pour votre métier</h2>
+      <p style="color: rgba(255,255,255,.85); margin-bottom: 2rem; font-size: 1.1rem;">Découvrez la solution spécialisée pour vos besoins. Essai gratuit 14 jours, sans engagement.</p>
+      <a href="http://localhost:3002/register" class="btn-primary">Démarrer maintenant</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer role="contentinfo">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-logo" style="margin-bottom:1rem;">
+            <img src="logo.png" alt="Logo AVRA" style="height:36px;width:36px;object-fit:contain;"/>
+            <span class="nav-logo-text">AVRA</span>
+          </div>
+          <p>L'ERP et assistant IA N°1 pour les professionnels de l'agencement intérieur.</p>
+        </div>
+        <div class="footer-col">
+          <h5>Produit</h5>
+          <a href="fonctionnalites.html">Fonctionnalités</a>
+          <a href="tarifs.html">Tarifs</a>
+          <a href="comment-ca-marche.html">Comment ça marche</a>
+          <a href="metiers.html">Métiers</a>
+        </div>
+        <div class="footer-col">
+          <h5>Entreprise</h5>
+          <a href="temoignages.html">Témoignages</a>
+          <a href="#">Blog</a>
+          <a href="#">À propos</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-col">
+          <h5>Légal</h5>
+          <a href="#">Mentions légales</a>
+          <a href="#">CGU</a>
+          <a href="#">Confidentialité</a>
+          <a href="#">Cookies</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 AVRA — Luméa SAS. Tous droits réservés.</span>
+        <div class="footer-bottom-links">
+          <a href="#">LinkedIn</a>
+          <a href="#">Twitter</a>
+          <a href="#">YouTube</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const nav = document.getElementById('navbar');
+    window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 20));
+
+    const reveals = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e, i) => {
+        if(e.isIntersecting){
+          setTimeout(() => e.target.classList.add('revealed'), i * 80);
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(el => io.observe(el));
+
+    function toggleMenu(){
+      const links = document.querySelector('.nav-links');
+      links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    // Set active nav link
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      if(link.getAttribute('href') === 'metiers.html') {
+        link.classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>

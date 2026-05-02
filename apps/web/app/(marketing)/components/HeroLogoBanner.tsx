@@ -1,0 +1,147 @@
+'use client';
+
+import Image from 'next/image';
+
+/**
+ * Bannière hero AVRA — version professionnelle et épurée.
+ *
+ * - Fond vert foncé uni (identique à la maquette produit)
+ * - 3 éléments : logo A circulaire (gauche), mot AVRA (centre), chouette (droite)
+ * - Aucun "wow effect" : pas de particules, comètes, auroras, anneaux, prismes…
+ * - Animations conservées : entrée en fondu + léger flottement vertical
+ */
+export default function HeroLogoBanner() {
+  // Logos toujours visibles — pas de flash invisible au chargement
+  const mounted = true;
+
+  return (
+    <div
+      className="hero-logo-banner"
+      style={{
+        position: 'relative',
+        zIndex: 2,
+        width: '100%',
+        marginTop: '-76px',   // remonte la bannière pour coller sous la navbar fixe (76px = hauteur nav)
+        // Fond vert foncé identique à la maquette
+        background: '#0f1a14',
+        borderTop: '1px solid rgba(201,169,110,0.18)',
+        borderBottom: '1px solid rgba(201,169,110,0.18)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '0px',
+        padding: '0 2%',
+        flexShrink: 0,
+        overflow: 'hidden',
+        height: '320px',
+      }}
+    >
+      {/* Logo A circulaire (gauche) */}
+      <div
+        className="hero-logo-left"
+        style={{
+          position: 'relative',
+          width: 240,
+          height: 240,
+          flexShrink: 0,
+          marginRight: '-150px',
+          alignSelf: 'center',
+          transition: 'transform 1s ease-out, opacity 1s ease-out',
+          transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(-40px,0,0)',
+          opacity: mounted ? 1 : 0,
+          zIndex: 1,
+        }}
+      >
+        <div style={{ position: 'absolute', inset: 0 }}>
+          <Image
+            src="/nouveaulogoA.png"
+            alt="AVRA — logo principal"
+            fill
+            priority
+            sizes="240px"
+            style={{ objectFit: 'contain' }}
+          />
+        </div>
+      </div>
+
+      {/* Mot AVRA (centre) */}
+      <div
+        className="hero-logo-center"
+        style={{
+          position: 'relative',
+          width: 920,
+          height: 390,
+          flexShrink: 0,
+          alignSelf: 'center',
+          zIndex: 2,
+          transition: 'transform 1.1s ease-out, opacity 1.1s ease-out',
+          transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(0,20px,0)',
+          opacity: mounted ? 1 : 0,
+        }}
+      >
+        <Image
+          src="/nouveaulogoavra.png"
+          alt="AVRA — typographie"
+          fill
+          priority
+          sizes="(max-width: 768px) 90vw, 920px"
+          style={{ objectFit: 'contain' }}
+        />
+      </div>
+
+      {/* Chouette (droite) */}
+      <div
+        className="hero-logo-right"
+        style={{
+          position: 'relative',
+          width: 240,
+          height: 240,
+          flexShrink: 0,
+          marginLeft: '-150px',
+          alignSelf: 'center',
+          transition: 'transform 1s ease-out, opacity 1s ease-out',
+          transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(40px,0,0)',
+          opacity: mounted ? 1 : 0,
+          zIndex: 1,
+        }}
+      >
+        <div style={{ position: 'absolute', inset: 0 }}>
+          <Image
+            src="/nouveaulogochouette.png"
+            alt="AVRA — chouette emblème"
+            fill
+            priority
+            sizes="240px"
+            style={{ objectFit: 'contain' }}
+          />
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes heroLogoFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
+        @media (max-width: 1200px) {
+          .hero-logo-banner { gap: 24px !important; padding: 20px 3% !important; height: 260px !important; }
+          .hero-logo-center { width: 520px !important; height: 180px !important; }
+          .hero-logo-left, .hero-logo-right { width: 160px !important; height: 160px !important; margin-left: -100px !important; margin-right: -100px !important; }
+          .hero-logo-left { margin-right: -100px !important; margin-left: 0 !important; }
+          .hero-logo-right { margin-left: -100px !important; margin-right: 0 !important; }
+        }
+        @media (max-width: 768px) {
+          .hero-logo-banner { gap: 0 !important; padding: 24px 4% !important; height: 180px !important; margin-top: 0 !important; flex-wrap: nowrap; }
+          .hero-logo-center { width: 260px !important; height: 90px !important; }
+          .hero-logo-left { width: 80px !important; height: 80px !important; margin-right: -30px !important; margin-left: 0 !important; }
+          .hero-logo-right { width: 80px !important; height: 80px !important; margin-left: -30px !important; margin-right: 0 !important; }
+        }
+        @media (max-width: 480px) {
+          .hero-logo-banner { padding: 20px 4% !important; height: 150px !important; }
+          .hero-logo-center { width: 200px !important; height: 72px !important; }
+          .hero-logo-left { width: 64px !important; height: 64px !important; margin-right: -20px !important; }
+          .hero-logo-right { width: 64px !important; height: 64px !important; margin-left: -20px !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
