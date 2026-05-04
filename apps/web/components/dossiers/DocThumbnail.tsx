@@ -118,6 +118,9 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
   // Pour les PDFs : data URL de la 1ère page rendue via pdfjs-dist
   const [pdfThumbDataUrl, setPdfThumbDataUrl] = useState<string | null>(null);
   const [pdfRendering, setPdfRendering] = useState(false);
+  // Pour les Office (Word/Excel/PowerPoint) : signed URL pour iframe scaled
+  const [officeUrl, setOfficeUrl] = useState<string | null>(null);
+  const [officeFailed, setOfficeFailed] = useState(false);
   const renderTriggeredRef = useRef(false);
 
   // Fetch URL signée pour les images stockées côté backend
@@ -179,8 +182,26 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
     return () => { cancelled = true; };
   }, [bucket, doc.docId, doc.dataUrl, dossierId]);
 
+  // Fetch signed URL pour les Office (Word/Excel/PowerPoint) — utilisé par
+  // l'iframe Office Online viewer en mode mini (thumbnail).
+  useEffect(() => {
+    if (bucket !== 'word' && bucket !== 'excel') return;
+    if (!doc.docId) return; // placeholder local sans contenu
+    let cancelled = false;
+    (async () => {
+      try {
+        const { signedUrl } = await getDocSignedUrl(dossierId, doc.docId!);
+        if (!cancelled) setOfficeUrl(signedUrl);
+      } catch {
+        if (!cancelled) setOfficeFailed(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [bucket, doc.docId, dossierId]);
+
   const showImage = bucket === 'image' && imgUrl && !imgFailed;
   const showPdfThumb = bucket === 'pdf' && pdfThumbDataUrl !== null;
+  const showOfficeThumb = (bucket === 'word' || bucket === 'excel') && officeUrl && !officeFailed;
 
   return (
     <div
@@ -209,6 +230,24 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
           object-fit: cover; object-position: top center;
           display: block;
           background: #fff;
+        }
+        /* Office Online viewer en thumbnail :
+           on rend l'iframe à sa taille native (1000x750) et on la scale à 25%
+           pour rentrer dans 250x187. overflow:hidden cache le surplus.
+           pointer-events:none → l'utilisateur ne peut pas cliquer dans
+           l'iframe Microsoft (le clic doit ouvrir la grande modale parente). */
+        .dt-office-thumb-wrap {
+          position: absolute; inset: 0;
+          background: #fff;
+          overflow: hidden;
+          pointer-events: none;
+        }
+        .dt-office-thumb-frame {
+          position: absolute; top: 0; left: 0;
+          width: 1000px; height: 750px;
+          border: 0;
+          transform: scale(0.25);
+          transform-origin: top left;
         }
         .dt-icon-bg-loading {
           background: rgba(255, 255, 255, 0.85);
@@ -272,6 +311,22 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
           <div className="dt-icon-bg dt-icon-bg-loading">
             <span className="dt-pdf-spinner" />
           </div>
+        </div>
+      ) : showOfficeThumb ? (
+        // Rendu Word/Excel via Office Online viewer en iframe scaled.
+        // L'iframe est rendue à sa taille native (~800px) puis transformée
+        // pour rentrer dans le thumbnail. pointer-events: none → l'utilisateur
+        // ne peut pas interagir avec l'iframe (le clic sur la carte parent
+        // garde son rôle de "ouvrir la grande modale").
+        <div className="dt-office-thumb-wrap">
+          <iframe
+            className="dt-office-thumb-frame"
+            src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(officeUrl!)}`}
+            title={`Aperçu de ${doc.name}`}
+            scrolling="no"
+            tabIndex={-1}
+            aria-hidden="true"
+          />
         </div>
       ) : (
         <div className="dt-icon-wrap">
