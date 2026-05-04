@@ -479,7 +479,11 @@ export const useDossierStore = create<DossierState>()(
           set(s => ({
             dossiersSignes: s.dossiersSignes.map(d =>
               d.id === dossierId
-                ? { ...d, signedSubfolders: d.signedSubfolders.filter(sf => sf.label !== label) }
+                ? {
+                    ...d,
+                    subfolders: d.subfolders.filter(sf => sf.label !== label),
+                    signedSubfolders: d.signedSubfolders.filter(sf => sf.label !== label),
+                  }
                 : d,
             ),
           }));
@@ -504,9 +508,16 @@ export const useDossierStore = create<DossierState>()(
             ),
           }));
         } else {
+          // Sync subfolders + signedSubfolders pour les dossiers signés
           set(s => ({
             dossiersSignes: s.dossiersSignes.map(d =>
-              d.id === dossierId ? { ...d, signedSubfolders: [...d.signedSubfolders, { label, date }] } : d
+              d.id === dossierId
+                ? {
+                    ...d,
+                    subfolders: [...d.subfolders, { label, date }],
+                    signedSubfolders: [...d.signedSubfolders, { label, date }],
+                  }
+                : d,
             ),
           }));
         }
@@ -526,7 +537,13 @@ export const useDossierStore = create<DossierState>()(
         } else {
           set(s => ({
             dossiersSignes: s.dossiersSignes.map(d =>
-              d.id === dossierId ? { ...d, signedSubfolders: d.signedSubfolders.map(toggle) } : d
+              d.id === dossierId
+                ? {
+                    ...d,
+                    subfolders: d.subfolders.map(toggle),
+                    signedSubfolders: d.signedSubfolders.map(toggle),
+                  }
+                : d,
             ),
           }));
         }
@@ -550,9 +567,20 @@ export const useDossierStore = create<DossierState>()(
             ),
           }));
         } else {
+          // BUG FIX 04/05/2026 : pour un dossier signé, on doit mettre à jour
+          // À LA FOIS subfolders ET signedSubfolders. La page /dossiers/[id]
+          // affiche `dossier.subfolders` partout (>10 endroits) — sans mise à
+          // jour des deux, le doc uploadé était stocké dans signedSubfolders
+          // mais invisible côté UI car la modale lit subfolders.
           set(s => ({
             dossiersSignes: s.dossiersSignes.map(d =>
-              d.id === dossierId ? { ...d, signedSubfolders: d.signedSubfolders.map(addDoc) } : d
+              d.id === dossierId
+                ? {
+                    ...d,
+                    subfolders: d.subfolders.map(addDoc),
+                    signedSubfolders: d.signedSubfolders.map(addDoc),
+                  }
+                : d,
             ),
           }));
         }
@@ -591,7 +619,13 @@ export const useDossierStore = create<DossierState>()(
         } else {
           set(s => ({
             dossiersSignes: s.dossiersSignes.map(d =>
-              d.id === dossierId ? { ...d, signedSubfolders: d.signedSubfolders.map(rmDoc) } : d
+              d.id === dossierId
+                ? {
+                    ...d,
+                    subfolders: d.subfolders.map(rmDoc),
+                    signedSubfolders: d.signedSubfolders.map(rmDoc),
+                  }
+                : d,
             ),
           }));
         }
