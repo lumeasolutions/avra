@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3002",
+    "prebuild": "node scripts/copy-pdf-worker.js",
     "build": "next build",
+    "postinstall": "node scripts/copy-pdf-worker.js",
     "start": "next start",
     "lint": "next lint",
     "clean": "rm -rf .next"

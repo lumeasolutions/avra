@@ -1608,13 +1608,25 @@ export default function DossierDetailPage() {
                   <div className="h-5 w-5 border-2 border-[#a67749] border-t-transparent rounded-full animate-spin" />
                   Chargement sécurisé…
                 </div>
-              ) : previewDoc.type?.startsWith('image/') ? (
+              ) : previewDoc.type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|avif)$/i.test(previewDoc.name) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={previewUrl} alt={previewDoc.name} className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-md" />
-              ) : previewDoc.type === 'application/pdf' ? (
+              ) : previewDoc.type === 'application/pdf' || /\.pdf$/i.test(previewDoc.name) ? (
                 <iframe src={previewUrl} title={previewDoc.name} className="w-full h-[80vh] rounded-lg bg-white" />
-              ) : previewDoc.type?.startsWith('text/') ? (
+              ) : previewDoc.type?.startsWith('text/') || /\.(txt|md|csv|json|xml|log)$/i.test(previewDoc.name) ? (
                 <iframe src={previewUrl} title={previewDoc.name} className="w-full h-[80vh] rounded-lg bg-white" />
+              ) : /\.(docx?|xlsx?|pptx?|xlsm)$/i.test(previewDoc.name) || previewDoc.type?.includes('officedocument') || previewDoc.type?.includes('msword') || previewDoc.type?.includes('ms-excel') || previewDoc.type?.includes('ms-powerpoint') ? (
+                // Office Online viewer — gère .docx, .xlsx, .pptx (et leurs variantes
+                // legacy .doc/.xls/.ppt). Nécessite que previewUrl soit publiquement
+                // accessible HTTPS (Supabase signed URL = OK). Microsoft télécharge
+                // le fichier sur leurs serveurs, le rend, et nous renvoie un iframe
+                // avec le rendu. Aucune trace côté Microsoft (signed URL = expire).
+                <iframe
+                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewUrl)}`}
+                  title={previewDoc.name}
+                  className="w-full h-[80vh] rounded-lg bg-white"
+                  allow="fullscreen"
+                />
               ) : (
                 <div className="text-center py-12 px-6">
                   <FileText className="h-16 w-16 text-[#304035]/20 mx-auto mb-4" />

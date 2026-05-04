@@ -40,14 +40,11 @@ async function renderPdfFirstPageThumbnail(pdfUrl: string, maxWidth = 320): Prom
   try {
     // Lazy import pour ne pas alourdir le bundle initial
     const pdfjsLib = await import('pdfjs-dist');
-    // Le worker doit être pointé sur la version locale servie par Next.js
-    // (le fichier sera copié dans /public via le script build, voir plus bas).
+    // Worker servi en LOCAL depuis /public (copié via scripts/copy-pdf-worker.js
+    // au prebuild + postinstall). Avant on pointait sur cdnjs.cloudflare.com mais
+    // la CSP `script-src 'self'` bloquait le worker → silent fail → fallback icône.
     if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
-      // Utilise le worker bundlé via CDN (cdnjs) — alternative : copier le worker
-      // dans /public/pdf.worker.min.mjs et le servir local. CDN = simple + cache HTTP.
-      const version = pdfjsLib.version;
-      pdfjsLib.GlobalWorkerOptions.workerSrc =
-        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.mjs`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
     }
 
     const loadingTask = pdfjsLib.getDocument({ url: pdfUrl, disableAutoFetch: true, disableStream: true });
