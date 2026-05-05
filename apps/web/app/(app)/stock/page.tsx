@@ -13,7 +13,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 
 /* ── CONSTANTES ── */
-/** Liste de catégories par défaut (architectes / menuisiers / hors cuisiniste). */
+/** Liste de catégories par défaut (menuisier / hors cuisiniste / hors architecte). */
 const CATEGORIES_DEFAULT = ['TOUTES', 'MEUBLES', 'ELECTRO', 'DECO', 'SANITAIRE', 'AUTRE'];
 
 /** Liste enrichie pour le module cuisiniste — la cuisine demande une
@@ -35,10 +35,30 @@ const CATEGORIES_CUISINISTE = [
   'AUTRE',
 ];
 
+/** Liste enrichie pour le module architecte d'intérieur — quasi identique
+ *  à la cuisiniste mais on remplace 'MEUBLES' par 'MOBILIER' (terminologie
+ *  métier : un architecte parle de "mobilier" pas de "meubles"). */
+const CATEGORIES_ARCHITECTE = [
+  'TOUTES',
+  'MOBILIER',
+  'ECLAIRAGE',
+  'PLAN_DE_TRAVAIL',
+  'SANITAIRE',
+  'ELECTRO',
+  'PETIT_ELECTRO',
+  'MATERIEL_ELECTRIQUE',
+  'QUINCAILLERIE',
+  'ACCESSOIRES',
+  'CHAISES_TABOURETS',
+  'DECO',
+  'AUTRE',
+];
+
 /** Libellés humains pour l'affichage des chips et badges. */
 const CAT_LABEL: Record<string, string> = {
   TOUTES:               'Toutes',
   MEUBLES:              'Meubles',
+  MOBILIER:             'Mobilier',
   ELECTRO:              'Électro',
   PETIT_ELECTRO:        'Petit électro',
   DECO:                 'Déco',
@@ -54,6 +74,7 @@ const CAT_LABEL: Record<string, string> = {
 
 const CAT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   MEUBLES:              { bg: '#5b9bd5', text: '#fff',     dot: '#5b9bd5' },
+  MOBILIER:             { bg: '#5b9bd5', text: '#fff',     dot: '#5b9bd5' },
   ELECTRO:              { bg: '#f0c040', text: '#304035',  dot: '#f0c040' },
   PETIT_ELECTRO:        { bg: '#a855f7', text: '#fff',     dot: '#a855f7' },
   DECO:                 { bg: '#e07050', text: '#fff',     dot: '#e07050' },
@@ -123,11 +144,21 @@ export default function StockPage() {
   const updateStockDot  = useStockStore(s => s.updateStockDot);
   const updateStockItem = useStockStore(s => s.updateStockItem);
   const deleteStockItem = useStockStore(s => s.deleteStockItem);
-  // Profession-aware : cuisiniste → liste de catégories enrichie + photo agrandie.
-  // Les autres professions gardent l'ancien comportement compact.
+  // Profession-aware :
+  // - cuisiniste / architecte → liste catégories enrichie (13) + photo agrandie
+  // - menuisier / autre → liste compacte (6) + photo en mini-thumbnail
   const profession    = useAuthStore(s => s.profession);
   const isCuisiniste  = profession === 'cuisiniste';
-  const CATEGORIES    = isCuisiniste ? CATEGORIES_CUISINISTE : CATEGORIES_DEFAULT;
+  const isArchitecte  = profession === 'architecte';
+  /** Vrai si on doit afficher la version enrichie (cat + photo XL). */
+  const isEnriched    = isCuisiniste || isArchitecte;
+  const CATEGORIES    = isCuisiniste
+    ? CATEGORIES_CUISINISTE
+    : isArchitecte
+      ? CATEGORIES_ARCHITECTE
+      : CATEGORIES_DEFAULT;
+  /** Catégorie par défaut au form (différente selon profession). */
+  const DEFAULT_CAT   = isArchitecte ? 'MOBILIER' : 'MEUBLES';
 
   /* ── ÉTAT ── */
   const [search,      setSearch]      = useState('');
@@ -140,7 +171,7 @@ export default function StockPage() {
   const [editId,      setEditId]      = useState<string | null>(null);
   const [form, setForm] = useState({
     supplier: '', model: '', purchase: '', sale: '',
-    category: 'MEUBLES', material: '', dot: 'green' as StockItem['dot'],
+    category: DEFAULT_CAT, material: '', dot: 'green' as StockItem['dot'],
     quantity: '', minQuantity: '', reference: '', image: '',
   });
   const [editForm, setEditForm] = useState<Partial<StockItem>>({});
@@ -223,7 +254,7 @@ export default function StockPage() {
       image: form.image || undefined,
       createdAt: new Date().toISOString(),
     });
-    setForm({ supplier: '', model: '', purchase: '', sale: '', category: 'MEUBLES', material: '', dot: 'green', quantity: '', minQuantity: '', reference: '', image: '' });
+    setForm({ supplier: '', model: '', purchase: '', sale: '', category: DEFAULT_CAT, material: '', dot: 'green', quantity: '', minQuantity: '', reference: '', image: '' });
     setShowAdd(false);
   };
 
@@ -238,7 +269,7 @@ export default function StockPage() {
         supplier: (editForm.supplier ?? '').toUpperCase(),
         model: (editForm.model ?? '').toUpperCase(),
         material: (editForm.material ?? '').toUpperCase(),
-        category: editForm.category ?? 'MEUBLES',
+        category: editForm.category ?? DEFAULT_CAT,
         purchase: Number(editForm.purchase) || 0,
         sale: editForm.sale !== undefined && editForm.sale !== null ? Number(editForm.sale) : null,
         dot: editForm.dot ?? 'green',
@@ -513,11 +544,11 @@ export default function StockPage() {
                       <img
                         src={item.image}
                         alt={item.model}
-                        className={`${isCuisiniste ? 'h-16 w-16' : 'h-8 w-8'} rounded-lg object-cover border border-[#304035]/8 shadow-sm`}
+                        className={`${isEnriched ? 'h-16 w-16' : 'h-8 w-8'} rounded-lg object-cover border border-[#304035]/8 shadow-sm`}
                       />
                     ) : (
-                      <div className={`${isCuisiniste ? 'h-16 w-16' : 'h-8 w-8'} rounded-lg bg-[#304035]/5 flex items-center justify-center border border-[#304035]/8`}>
-                        <ImageIcon className={`${isCuisiniste ? 'h-7 w-7' : 'h-4 w-4'} text-[#304035]/25`} />
+                      <div className={`${isEnriched ? 'h-16 w-16' : 'h-8 w-8'} rounded-lg bg-[#304035]/5 flex items-center justify-center border border-[#304035]/8`}>
+                        <ImageIcon className={`${isEnriched ? 'h-7 w-7' : 'h-4 w-4'} text-[#304035]/25`} />
                       </div>
                     )}
                   </div>
@@ -549,11 +580,13 @@ export default function StockPage() {
                   {/* Catégorie */}
                   {isEditing ? (
                     <select
-                      value={editForm.category ?? 'MEUBLES'}
+                      value={editForm.category ?? DEFAULT_CAT}
                       onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
                       className="rounded-lg border border-[#304035]/20 bg-[#f5eee8]/60 px-2 py-1.5 text-xs font-bold text-[#304035] focus:outline-none mr-2"
                     >
-                      {CATEGORIES.filter(c => c !== 'TOUTES').map(c => <option key={c}>{c}</option>)}
+                      {CATEGORIES.filter(c => c !== 'TOUTES').map(c => (
+                        <option key={c} value={c}>{CAT_LABEL[c] ?? c}</option>
+                      ))}
                     </select>
                   ) : (
                     <span className="inline-flex items-center">
@@ -703,7 +736,7 @@ export default function StockPage() {
                 {/* Image section — cuisiniste : zone agrandie (h-44 ~176px)
                     car la photo est l'element le plus important pour identifier
                     un meuble. Autres : reste a h-24 (~96px). */}
-                <div className={`${isCuisiniste ? 'h-44' : 'h-24'} bg-gradient-to-br from-[#304035]/3 to-[#304035]/1 flex items-center justify-center relative overflow-hidden border-b border-[#304035]/8`}>
+                <div className={`${isEnriched ? 'h-44' : 'h-24'} bg-gradient-to-br from-[#304035]/3 to-[#304035]/1 flex items-center justify-center relative overflow-hidden border-b border-[#304035]/8`}>
                   {item.image ? (
                     <img
                       src={item.image}
@@ -712,7 +745,7 @@ export default function StockPage() {
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1">
-                      <ImageIcon className={`${isCuisiniste ? 'h-10 w-10' : 'h-6 w-6'} text-[#304035]/15`} />
+                      <ImageIcon className={`${isEnriched ? 'h-10 w-10' : 'h-6 w-6'} text-[#304035]/15`} />
                       <span className="text-[10px] text-[#304035]/20 font-medium">Pas d'image</span>
                     </div>
                   )}
