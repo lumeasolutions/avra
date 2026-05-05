@@ -7,10 +7,6 @@ import '../(marketing)/marketing.css'
 export const metadata: Metadata = {
   title: 'Politique de confidentialité — AVRA',
   description: 'Politique de confidentialité d\'AVRA. Comment nous collectons, traitons et protégeons vos données personnelles conformément au RGPD.',
-  robots: {
-    index: false,
-    follow: true,
-  },
 }
 
 export default function ConfidentialitePage() {

@@ -71,9 +71,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url('/agencement-toulouse', { changeFrequency: 'monthly', priority: 0.8 }),
     url('/agencement-nantes', { changeFrequency: 'monthly', priority: 0.8 }),
 
-    // ── Note : pages legales (CGV/mentions/confidentialite) volontairement
-    //    retirees du sitemap — elles ont noindex, et y mettre creait une
-    //    "anomalie" Search Console. /e-facturation est un sous-dossier
-    //    dynamique [token], pas une page publique (404 si appelee directement).
+    // ── Pages légales (indexables, importantes pour la confiance utilisateur)
+    url('/mentions-legales', { changeFrequency: 'yearly', priority: 0.4 }),
+    url('/confidentialite', { changeFrequency: 'yearly', priority: 0.4 }),
+    url('/cgv', { changeFrequency: 'yearly', priority: 0.4 }),
   ];
 }

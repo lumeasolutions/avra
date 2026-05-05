@@ -7,10 +7,6 @@ import '../(marketing)/marketing.css'
 export const metadata: Metadata = {
   title: 'Conditions Générales de Vente — AVRA',
   description: 'CGV d\'AVRA. Conditions de vente, tarifs, droit de rétractation et modalités de résiliation de l\'abonnement.',
-  robots: {
-    index: false,
-    follow: true,
-  },
 }
 
 export default function CGVPage() {

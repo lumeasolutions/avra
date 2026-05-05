@@ -7,10 +7,6 @@ import '../(marketing)/marketing.css'
 export const metadata: Metadata = {
   title: 'Mentions légales — AVRA by Luméa Solutions',
   description: 'Mentions légales d\'AVRA. Éditeur, hébergeur, propriété intellectuelle et conditions d\'utilisation.',
-  robots: {
-    index: false,
-    follow: true,
-  },
 }
 
 export default function MentionsLegalesPage() {
