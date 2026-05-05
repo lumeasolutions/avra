@@ -128,9 +128,9 @@ export interface DateButoireItem {
 }
 
 /**
- * Liste fixe par défaut des items affichés dans le panneau "Enregistrer date
- * butoir pour rappel" lors de la validation d'un dossier signé.
- * Cette liste correspond exactement à la maquette validée par le client.
+ * Liste par défaut (fallback) des items affichés dans le panneau
+ * "Enregistrer date butoir pour rappel" — utilisé si aucune profession
+ * n'est définie ou si le métier n'a pas de liste dédiée.
  */
 export const DEFAULT_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'SUIVI DE CHANTIER',    kind: 'date'   },
@@ -141,6 +141,59 @@ export const DEFAULT_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'FICHE DE POSE',        kind: 'date'   },
   { label: 'PERMIS DE CONSTRUIRE', kind: 'date'   },
   { label: 'SAV',                  kind: 'static' },
+];
+
+/**
+ * MENUISIER — 11 items alignés sur la maquette client (DOSSIER SIGNÉ MENUISIER).
+ * Le label "PROJET VALIDÉ" est réécrit dynamiquement en "PROJET <N> VALIDÉ"
+ * (voir buildItemsForProfession ci-dessous).
+ */
+export const MENUISIER_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
+  { label: 'AVANT VENTE',           kind: 'static' },
+  { label: 'PROJET VALIDÉ',         kind: 'static' },
+  { label: 'RELEVÉ SUR MESURE',     kind: 'date'   },
+  { label: 'DÉBIT / LISTE MATÉRIAUX', kind: 'date' },
+  { label: 'FABRICATION',           kind: 'date'   },
+  { label: 'LANCEMENT',             kind: 'date'   },
+  { label: 'COMMANDES FOURNISSEURS', kind: 'access' },
+  { label: 'FICHE DE POSE',         kind: 'date'   },
+  { label: 'LIVRAISON',             kind: 'access' },
+  { label: 'MODIFICATIONS',         kind: 'date'   },
+  { label: 'SAV',                   kind: 'static' },
+];
+
+/**
+ * CUISINISTE — 9 items alignés sur la maquette MODULE CUISINISTE.
+ * Le label "OPTION VALIDÉE" est réécrit en "OPTION <N> VALIDÉE".
+ */
+export const CUISINISTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
+  { label: 'AVANT VENTE',                       kind: 'static' },
+  { label: 'OPTION VALIDÉE',                    kind: 'static' },
+  { label: 'RELEVÉ DÉFINITIF',                  kind: 'date'   },
+  { label: 'PLAN TECHNIQUE',                    kind: 'date'   },
+  { label: 'COMMANDE',                          kind: 'access' },
+  { label: 'CONFIRMATIONS / FACTURES ACHATS',   kind: 'access' },
+  { label: 'LIVRAISON',                         kind: 'access' },
+  { label: 'FICHE DE POSE',                     kind: 'date'   },
+  { label: 'SAV',                               kind: 'static' },
+];
+
+/**
+ * ARCHITECTE D'INTÉRIEUR — 11 items alignés sur la maquette MODULE ARCHITECTE.
+ * Le label "APD VERSION VALIDÉE" est réécrit en "APD VERSION <N> (DOSSIER SIGNÉ)".
+ */
+export const ARCHITECTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
+  { label: 'AVANT VENTE',                                      kind: 'static' },
+  { label: 'APD VERSION VALIDÉE',                              kind: 'static' },
+  { label: 'PERMIS DE CONSTRUIRE',                             kind: 'date'   },
+  { label: 'DCE',                                              kind: 'date'   },
+  { label: 'MARCHÉ / SIGNATURES',                              kind: 'date'   },
+  { label: 'COMMANDES FOURNISSEURS',                           kind: 'access' },
+  { label: 'CONFIRMATIONS / FACTURES ACHATS FOURNISSEURS',     kind: 'access' },
+  { label: 'LIVRAISON',                                        kind: 'access' },
+  { label: 'SUIVI DE CHANTIER',                                kind: 'date'   },
+  { label: 'DOSSIER MODIFICATIONS',                            kind: 'date'   },
+  { label: 'RÉCEPTION SAV',                                    kind: 'static' },
 ];
 
 export interface DateButoireValidationProps {
@@ -208,15 +261,53 @@ export function DateButoireValidationModal({
   open, items, signedSubfolders, dossierId, clientName, subfolders, profession, loading,
   onAccessItem, onConfirm, onCancel,
 }: DateButoireValidationProps) {
-  // Résolution des items affichés : `items` prioritaire, sinon mapping legacy
-  // depuis `signedSubfolders` (tous en 'date'), sinon liste par défaut.
+  // Résolution des items affichés :
+  //  1. `items` prop explicite → priorité absolue (override depuis le parent)
+  //  2. `signedSubfolders` legacy → mapping en 'date'
+  //  3. Sinon, profession-aware :
+  //     - menuisier → MENUISIER_DATE_BUTOIRE_ITEMS (PROJET N VALIDÉ dynamique)
+  //     - cuisiniste → CUISINISTE_DATE_BUTOIRE_ITEMS (OPTION N VALIDÉE)
+  //     - architecte → ARCHITECTE_DATE_BUTOIRE_ITEMS (APD VERSION N — DOSSIER SIGNÉ)
+  //     - default → DEFAULT_DATE_BUTOIRE_ITEMS générique
   const resolvedItems: DateButoireItem[] = useMemo(() => {
     if (items && items.length > 0) return items;
     if (signedSubfolders && signedSubfolders.length > 0) {
       return signedSubfolders.map((label) => ({ label, kind: 'date' as const }));
     }
-    return DEFAULT_DATE_BUTOIRE_ITEMS;
-  }, [items, signedSubfolders]);
+
+    // Choisit la liste selon la profession
+    let baseList: DateButoireItem[];
+    if (profession === 'menuisier') baseList = MENUISIER_DATE_BUTOIRE_ITEMS;
+    else if (profession === 'cuisiniste') baseList = CUISINISTE_DATE_BUTOIRE_ITEMS;
+    else if (profession === 'architecte') baseList = ARCHITECTE_DATE_BUTOIRE_ITEMS;
+    else return DEFAULT_DATE_BUTOIRE_ITEMS;
+
+    // Détecte le numéro du dernier projet validé pour reécrire le label dynamique
+    let bestVersion = 0;
+    for (const sf of subfolders ?? []) {
+      let v: number | null = null;
+      if (profession === 'menuisier') {
+        const m = sf.label.match(MENUISIER_PROJET_REGEX);
+        if (m) v = parseInt(m[1], 10);
+      } else if (profession === 'cuisiniste') {
+        const m = sf.label.match(CUISINISTE_OPTION_REGEX);
+        if (m) v = parseInt(m[1], 10);
+      } else if (profession === 'architecte') {
+        const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
+        if (m && m[2].toUpperCase() === 'APD') v = parseInt(m[1], 10);
+      }
+      if (v !== null && Number.isFinite(v) && v > bestVersion) bestVersion = v;
+    }
+
+    return baseList.map((it) => {
+      if (bestVersion > 0) {
+        if (it.label === 'PROJET VALIDÉ') return { ...it, label: `PROJET ${bestVersion} VALIDÉ` };
+        if (it.label === 'OPTION VALIDÉE') return { ...it, label: `OPTION ${bestVersion} VALIDÉE` };
+        if (it.label === 'APD VERSION VALIDÉE') return { ...it, label: `APD VERSION ${bestVersion} (DOSSIER SIGNÉ)` };
+      }
+      return it;
+    });
+  }, [items, signedSubfolders, profession, subfolders]);
 
   /** Items qui demandent une saisie de date — ce sont eux qui comptent dans la progression. */
   const dateItems = useMemo(
