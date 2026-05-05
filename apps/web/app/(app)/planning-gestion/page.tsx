@@ -173,6 +173,7 @@ export default function PlanningGestionPage() {
   const [weekOffset, setWeekOffset]   = useState(0);
   const [showAdd,    setShowAdd]      = useState(false);
   const [showOccasionalPicker, setShowOccasionalPicker] = useState(false);
+  const [showOccasionalLegend, setShowOccasionalLegend] = useState(false);
   const [newEvent,   setNewEvent]     = useState<{ type: string; client: string; duration: number; intervenantId: string | null }>({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null });
   const [modalDate,  setModalDate]    = useState('');
   const [modalHour,  setModalHour]    = useState(9);
@@ -714,6 +715,42 @@ export default function PlanningGestionPage() {
                 </div>
               ))}
             </div>
+
+            {/* Bouton + pour afficher les artisans occasionnels */}
+            {!showOccasionalLegend ? (
+              <button
+                type="button"
+                onClick={() => setShowOccasionalLegend(true)}
+                className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold text-[#a67749] hover:bg-[#a67749]/10 transition-colors"
+                title="Afficher les autres types d'artisans"
+              >
+                <span className="text-sm leading-none">+</span>
+                <span>Voir autres artisans ({OCCASIONAL_INTERVENTION_TYPES.length})</span>
+              </button>
+            ) : (
+              <>
+                <div className="mt-3 pt-3 border-t border-[#304035]/8">
+                  <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">Artisans occasionnels</p>
+                  <div className="space-y-1.5">
+                    {OCCASIONAL_INTERVENTION_TYPES.map(({ key, label, color, icon }) => (
+                      <div key={key} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-[#f5eee8]/60 transition-colors">
+                        <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-xs font-semibold text-[#304035]">{icon} {label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowOccasionalLegend(false)}
+                  className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold text-[#304035]/60 hover:bg-[#304035]/5 transition-colors"
+                  title="Replier la liste"
+                >
+                  <span className="text-sm leading-none">−</span>
+                  <span>Masquer</span>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Intervenants — tableau Nom + Métier branche sur le store reel */}

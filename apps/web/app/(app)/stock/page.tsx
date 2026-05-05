@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Package, Search, Plus, Trash2, AlertTriangle, X,
   ChevronUp, ChevronDown, TrendingUp, Euro, LayoutGrid,
@@ -207,6 +207,19 @@ export default function StockPage() {
     quantity: '', minQuantity: '', reference: '', image: '',
   });
   const [editForm, setEditForm] = useState<Partial<StockItem>>({});
+  // Zoom image — 2 niveaux distincts pour ne pas mélanger hover et click :
+  // - hoverImage : preview en gros sur hover (auto-disparaît au mouseleave)
+  // - lockedImage : modal plein écran cliqué (reste tant que l'utilisateur
+  //   clique sur le X ou hors de l'image)
+  const [hoverImage,  setHoverImage]  = useState<{ url: string; name: string; x: number; y: number } | null>(null);
+  const [lockedImage, setLockedImage] = useState<{ url: string; name: string } | null>(null);
+  // ESC pour fermer le modal verrouillé
+  useEffect(() => {
+    if (!lockedImage) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLockedImage(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [lockedImage]);
 
   /* ── SORT ── */
   const handleSort = (key: SortKey) => {
