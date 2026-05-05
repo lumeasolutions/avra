@@ -581,15 +581,24 @@ export default function StockPage() {
                   </button>
 
                   {/* Image thumbnail
-                      Cuisiniste : photo agrandie (16x16 = 64px) car la photo est
-                      le critere principal d'identification d'un meuble en
-                      showroom (catalogue visuel). Autres metiers : reste compacte. */}
+                      Cuisiniste/architecte/menuisier : photo agrandie (16x16 = 64px).
+                      Hover -> preview en gros (auto). Click -> verrou plein ecran avec X. */}
                   <div className="flex items-center justify-center">
                     {item.image ? (
                       <img
                         src={item.image}
                         alt={item.model}
-                        className={`${isEnriched ? 'h-16 w-16' : 'h-8 w-8'} rounded-lg object-cover border border-[#304035]/8 shadow-sm`}
+                        className={`${isEnriched ? 'h-16 w-16' : 'h-8 w-8'} rounded-lg object-cover border border-[#304035]/8 shadow-sm cursor-zoom-in transition-transform hover:scale-[1.05]`}
+                        onMouseEnter={(e) => {
+                          const r = (e.currentTarget as HTMLImageElement).getBoundingClientRect();
+                          setHoverImage({ url: item.image!, name: item.model, x: r.right + 12, y: r.top });
+                        }}
+                        onMouseLeave={() => setHoverImage(null)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setHoverImage(null);
+                          setLockedImage({ url: item.image!, name: item.model });
+                        }}
                       />
                     ) : (
                       <div className={`${isEnriched ? 'h-16 w-16' : 'h-8 w-8'} rounded-lg bg-[#304035]/5 flex items-center justify-center border border-[#304035]/8`}>
@@ -780,13 +789,24 @@ export default function StockPage() {
               >
                 {/* Image section — cuisiniste : zone agrandie (h-44 ~176px)
                     car la photo est l'element le plus important pour identifier
-                    un meuble. Autres : reste a h-24 (~96px). */}
+                    un meuble. Autres : reste a h-24 (~96px).
+                    Hover -> preview / Click -> verrou plein ecran. */}
                 <div className={`${isEnriched ? 'h-44' : 'h-24'} bg-gradient-to-br from-[#304035]/3 to-[#304035]/1 flex items-center justify-center relative overflow-hidden border-b border-[#304035]/8`}>
                   {item.image ? (
                     <img
                       src={item.image}
                       alt={item.model}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover cursor-zoom-in transition-transform hover:scale-[1.02]"
+                      onMouseEnter={(e) => {
+                        const r = (e.currentTarget as HTMLImageElement).getBoundingClientRect();
+                        setHoverImage({ url: item.image!, name: item.model, x: r.right - 4, y: r.top });
+                      }}
+                      onMouseLeave={() => setHoverImage(null)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setHoverImage(null);
+                        setLockedImage({ url: item.image!, name: item.model });
+                      }}
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1">
@@ -1147,6 +1167,59 @@ export default function StockPage() {
               >
                 Annuler
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── HOVER PREVIEW (suit la souris, auto-disparaît au mouseleave) ── */}
+      {hoverImage && !lockedImage && (
+        <div
+          className="fixed z-[60] pointer-events-none rounded-2xl shadow-2xl border-2 border-white bg-white overflow-hidden"
+          style={{
+            left: Math.min(hoverImage.x, (typeof window !== 'undefined' ? window.innerWidth : 1024) - 340),
+            top: Math.min(hoverImage.y, (typeof window !== 'undefined' ? window.innerHeight : 768) - 340),
+            width: 320,
+            height: 320,
+            animation: 'cardIn 0.12s ease both',
+          }}
+        >
+          <img
+            src={hoverImage.url}
+            alt={hoverImage.name}
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2">
+            <p className="text-xs font-semibold text-white truncate">{hoverImage.name}</p>
+            <p className="text-[10px] text-white/70 mt-0.5">Cliquez pour verrouiller en grand</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── LOCKED FULLSCREEN MODAL (X pour fermer, ESC, ou click hors image) ── */}
+      {lockedImage && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm p-6"
+          onClick={() => setLockedImage(null)}
+        >
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setLockedImage(null); }}
+            className="absolute top-5 right-5 h-11 w-11 rounded-full bg-white/15 hover:bg-white/30 backdrop-blur-md text-white flex items-center justify-center transition-colors shadow-lg"
+            aria-label="Fermer l'image"
+            title="Fermer (Échap)"
+          >
+            <XIcon className="h-6 w-6" />
+          </button>
+          <div className="relative max-w-[92vw] max-h-[88vh]" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={lockedImage.url}
+              alt={lockedImage.name}
+              className="max-w-[92vw] max-h-[88vh] w-auto h-auto object-contain rounded-2xl shadow-2xl"
+            />
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent rounded-b-2xl px-5 py-4">
+              <p className="text-sm font-bold text-white truncate">{lockedImage.name}</p>
+              <p className="text-[11px] text-white/60 mt-0.5">Cliquez en dehors de l'image, sur la croix ou Échap pour fermer</p>
             </div>
           </div>
         </div>
