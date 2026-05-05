@@ -144,27 +144,29 @@ export const DEFAULT_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
 ];
 
 /**
- * MENUISIER — 11 items alignés sur la maquette client validée 05/05/2026.
- * Le label "PROJET VALIDÉ" est réécrit dynamiquement en "PROJET <N> VALIDÉ"
- * (voir résolution dans le composant ci-dessous).
+ * MENUISIER — modale Validation projet. 9 items 100% actionnables :
+ *   - 6 dates butoirs (MODIFICATIONS, RELEVÉ, DÉBIT, FABRICATION, LANCEMENT,
+ *     FICHE DE POSE) — toutes en mode "date" pour saisie directe
+ *   - 3 ACCEDER groupés en bas (COMMANDES, CONFIRMATIONS, LIVRAISON)
  *
- * Note : MODIFICATIONS n'est PAS dans cette liste (modale validation) — il
- * apparaît en 3e position dans les sous-dossiers du dossier signé
- * (MENUISIER_SIGNED_SUBFOLDERS) car le menuisier consulte les modifications
- * APRÈS signature, pas pendant la phase planification dates butoirs.
+ * AVANT VENTE / PROJET VALIDÉ / SAV ont été retirés de la modale
+ * (étapes "ancrage" non actionnables — l'utilisateur les retrouve dans
+ * les sous-dossiers du dossier signé via MENUISIER_SIGNED_SUBFOLDERS).
+ *
+ * MODIFICATIONS est en 1ère position : le menuisier saisit la date de
+ * réception des modifications client tout en haut, avant de planifier
+ * la suite du chantier.
  */
 export const MENUISIER_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
-  { label: 'AVANT VENTE',              kind: 'static' },
-  { label: 'PROJET VALIDÉ',            kind: 'static' },
+  { label: 'MODIFICATIONS',            kind: 'date'   },
   { label: 'RELEVÉ DE MESURE',         kind: 'date'   },
   { label: 'DÉBIT / LISTE MATÉRIAUX',  kind: 'date'   },
   { label: 'FABRICATION',              kind: 'date'   },
   { label: 'LANCEMENT',                kind: 'date'   },
+  { label: 'FICHE DE POSE',            kind: 'date'   },
   { label: 'COMMANDES FOURNISSEURS',   kind: 'access' },
   { label: 'CONFIRMATIONS / COMMANDE', kind: 'access' },
-  { label: 'FICHE DE POSE',            kind: 'date'   },
   { label: 'LIVRAISON',                kind: 'access' },
-  { label: 'SAV',                      kind: 'static' },
 ];
 
 /**
