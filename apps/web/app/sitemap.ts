@@ -42,7 +42,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // ── Blog ─────────────────────────────────────────────────────────
     url('/blog', { changeFrequency: 'weekly', priority: 0.8 }),
     url('/glossaire', { changeFrequency: 'monthly', priority: 0.75 }),
-    url('/blog/feed.xml', { changeFrequency: 'daily', priority: 0.6 }),
     url('/blog/comment-choisir-erp-cuisiniste', { changeFrequency: 'monthly', priority: 0.85 }),
     url('/blog/logiciel-menuisier-2026', { changeFrequency: 'monthly', priority: 0.85 }),
     url('/blog/5-erreurs-marge-cuisiniste', { changeFrequency: 'monthly', priority: 0.85 }),
@@ -72,10 +71,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url('/agencement-toulouse', { changeFrequency: 'monthly', priority: 0.8 }),
     url('/agencement-nantes', { changeFrequency: 'monthly', priority: 0.8 }),
 
-    // ── Légales ──────────────────────────────────────────────────────
-    url('/mentions-legales', { changeFrequency: 'yearly', priority: 0.3 }),
-    url('/confidentialite', { changeFrequency: 'yearly', priority: 0.3 }),
-    url('/cgv', { changeFrequency: 'yearly', priority: 0.3 }),
-    url('/e-facturation', { changeFrequency: 'yearly', priority: 0.4 }),
+    // ── Note : pages legales (CGV/mentions/confidentialite) volontairement
+    //    retirees du sitemap — elles ont noindex, et y mettre creait une
+    //    "anomalie" Search Console. /e-facturation est un sous-dossier
+    //    dynamique [token], pas une page publique (404 si appelee directement).
   ];
 }

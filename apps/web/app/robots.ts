@@ -18,11 +18,19 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           // Routes API
           '/api/',
-          // Auth
-          '/login',
+          // Auth — on laisse /login indexable (page publique)
           '/register',
           '/forgot-password',
           '/reset-password',
+          // Assets systeme : Google les explore mais on ne veut pas les indexer
+          '/_next/',
+          '/blog/feed.xml',
+          '/manifest.json',
+          '/browserconfig.xml',
+          '/opengraph-image',
+          '/sw.js',
+          '/icons/',
+          '/favicon.ico',
           // Application privée (route group app)
           '/dashboard',
           '/assistant',
