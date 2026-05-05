@@ -54,11 +54,31 @@ const CATEGORIES_ARCHITECTE = [
   'AUTRE',
 ];
 
+/** Liste enrichie pour le module menuisier — orientée matières premières
+ *  (BOIS, PANNEAUX) puis pièces transformées (meubles) puis fournitures
+ *  techniques. C'est la profession qui travaille le plus avec des stocks
+ *  matériaux bruts, donc BOIS et PANNEAUX en tête de liste. */
+const CATEGORIES_MENUISIER = [
+  'TOUTES',
+  'BOIS',
+  'PANNEAUX',
+  'MEUBLES',
+  'QUINCAILLERIE',
+  'ACCESSOIRES',
+  'MATERIEL_ELECTRIQUE',
+  'ELECTRO',
+  'PETIT_ELECTRO',
+  'SANITAIRE',
+  'AUTRE',
+];
+
 /** Libellés humains pour l'affichage des chips et badges. */
 const CAT_LABEL: Record<string, string> = {
   TOUTES:               'Toutes',
   MEUBLES:              'Meubles',
   MOBILIER:             'Mobilier',
+  BOIS:                 'Bois',
+  PANNEAUX:             'Panneaux',
   ELECTRO:              'Électro',
   PETIT_ELECTRO:        'Petit électro',
   DECO:                 'Déco',
@@ -75,6 +95,8 @@ const CAT_LABEL: Record<string, string> = {
 const CAT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   MEUBLES:              { bg: '#5b9bd5', text: '#fff',     dot: '#5b9bd5' },
   MOBILIER:             { bg: '#5b9bd5', text: '#fff',     dot: '#5b9bd5' },
+  BOIS:                 { bg: '#854d0e', text: '#fff',     dot: '#854d0e' }, // brun bois
+  PANNEAUX:             { bg: '#a16207', text: '#fff',     dot: '#a16207' }, // ocre pin
   ELECTRO:              { bg: '#f0c040', text: '#304035',  dot: '#f0c040' },
   PETIT_ELECTRO:        { bg: '#a855f7', text: '#fff',     dot: '#a855f7' },
   DECO:                 { bg: '#e07050', text: '#fff',     dot: '#e07050' },
@@ -145,20 +167,30 @@ export default function StockPage() {
   const updateStockItem = useStockStore(s => s.updateStockItem);
   const deleteStockItem = useStockStore(s => s.deleteStockItem);
   // Profession-aware :
-  // - cuisiniste / architecte → liste catégories enrichie (13) + photo agrandie
-  // - menuisier / autre → liste compacte (6) + photo en mini-thumbnail
+  // - cuisiniste → 13 cats orientées cuisine (Meubles + plan travail + ...)
+  // - architecte → 13 cats orientées design (Mobilier + éclairage + ...)
+  // - menuisier  → 11 cats orientées matières (BOIS + PANNEAUX + ...)
+  // - autre / null → fallback compact (6 cats)
+  // Toutes les professions reçoivent la photo XL — c'est le critère
+  // d'identification visuel commun à tous les métiers.
   const profession    = useAuthStore(s => s.profession);
   const isCuisiniste  = profession === 'cuisiniste';
   const isArchitecte  = profession === 'architecte';
+  const isMenuisier   = profession === 'menuisier';
   /** Vrai si on doit afficher la version enrichie (cat + photo XL). */
-  const isEnriched    = isCuisiniste || isArchitecte;
+  const isEnriched    = isCuisiniste || isArchitecte || isMenuisier;
   const CATEGORIES    = isCuisiniste
     ? CATEGORIES_CUISINISTE
     : isArchitecte
       ? CATEGORIES_ARCHITECTE
-      : CATEGORIES_DEFAULT;
-  /** Catégorie par défaut au form (différente selon profession). */
-  const DEFAULT_CAT   = isArchitecte ? 'MOBILIER' : 'MEUBLES';
+      : isMenuisier
+        ? CATEGORIES_MENUISIER
+        : CATEGORIES_DEFAULT;
+  /** Catégorie par défaut au form selon profession.
+   *  Menuisier → BOIS (matière première dominante). */
+  const DEFAULT_CAT   = isArchitecte ? 'MOBILIER'
+    : isMenuisier ? 'BOIS'
+    : 'MEUBLES';
 
   /* ── ÉTAT ── */
   const [search,      setSearch]      = useState('');
