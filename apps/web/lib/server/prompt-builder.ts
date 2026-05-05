@@ -8,7 +8,7 @@
 
 // ─────────────────────────────────────────── TYPES
 
-export type FinishType   = 'mat' | 'satiné' | 'brillant' | 'brossé' | 'bois';
+export type FinishType   = 'mat' | 'satiné' | 'brillant' | 'brossé' | 'bois' | 'miroir' | 'verre-mat';
 export type LightingType = 'naturelle' | 'spots' | 'mixte';
 export type RoomSizeType = 'petite' | 'moyenne' | 'grande' | 'ouverte';
 export type StyleType    = 'contemporain' | 'classique' | 'industriel' | 'scandinave' | 'haussmannien';
@@ -19,6 +19,10 @@ export interface ColoristParams {
   poigneeHex:        string;   // ex: "#D4A855"
   planHex:           string;   // ex: "#EDE8DC"
   facadeFinish:      FinishType;
+  /** Finition optionnelle des poignées (override du matériau standard). */
+  poigneeFinish?:    FinishType;
+  /** Finition optionnelle du plan de travail (override du matériau standard). */
+  planFinish?:       FinishType;
   handleMaterial?:   string;   // ex: "laiton brossé"
   countertopMaterial?:string;  // ex: "marbre blanc Calacatta"
   lightingStyle:     LightingType;
@@ -99,11 +103,13 @@ function approximateHue(r: number, g: number, b: number): string {
 // ─────────────────────────────────────────── BLOCS VALIDÉS
 
 const FINISH_BLOCKS: Record<FinishType, string> = {
-  mat:      'ultra-matte lacquered finish, zero reflection, velvety surface texture',
-  satiné:   'satin lacquered finish, subtle sheen, soft light reflection',
-  brillant: 'high-gloss lacquered finish, mirror-like reflections, deep color',
-  brossé:   'brushed surface finish, fine linear texture, diffused reflections',
-  bois:     'natural wood veneer, visible grain texture, organic warm tones',
+  mat:        'ultra-matte lacquered finish, zero reflection, velvety surface texture',
+  satiné:     'satin lacquered finish, subtle sheen, soft light reflection',
+  brillant:   'high-gloss lacquered finish, mirror-like reflections, deep color',
+  brossé:     'brushed surface finish, fine linear texture, diffused reflections',
+  bois:       'natural wood veneer, visible grain texture, organic warm tones',
+  miroir:     'mirror-polished glass finish, high-fidelity reflections, ultra-glossy crystal-clear surface',
+  'verre-mat':'frosted matte glass finish, soft translucent surface, subtle light diffusion, contemporary glass texture',
 };
 
 const LIGHTING_BLOCKS: Record<LightingType, string> = {
@@ -182,8 +188,16 @@ export function buildColoristPrompt(
   level: PromptLevel = 'standard'
 ): BuiltPrompt {
   const facadeName   = hexToName(params.facadeHex);
-  const poigneeName  = params.handleMaterial ?? hexToName(params.poigneeHex) + ' handles';
-  const planName     = params.countertopMaterial ?? hexToName(params.planHex) + ' countertop';
+  // Suffixe finition pour poignées / plan si l'utilisateur a choisi une finition
+  // spécifique (sinon on garde le matériau standard sans modifier).
+  const poigneeFinishSuffix = params.poigneeFinish
+    ? `, ${FINISH_BLOCKS[params.poigneeFinish]}`
+    : '';
+  const planFinishSuffix = params.planFinish
+    ? `, ${FINISH_BLOCKS[params.planFinish]}`
+    : '';
+  const poigneeName  = (params.handleMaterial ?? hexToName(params.poigneeHex) + ' handles') + poigneeFinishSuffix;
+  const planName     = (params.countertopMaterial ?? hexToName(params.planHex) + ' countertop') + planFinishSuffix;
   const finishBlock  = FINISH_BLOCKS[params.facadeFinish];
   const lightBlock   = LIGHTING_BLOCKS[params.lightingStyle];
 

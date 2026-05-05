@@ -15,7 +15,7 @@ import { useDossierStore, useHistoryStore, useAuthStore } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
 
 /* ─── Types front-end uniquement (pas d'import depuis lib/server) ─── */
-type FinishType   = 'mat' | 'satiné' | 'brillant' | 'brossé' | 'bois';
+type FinishType   = 'mat' | 'satiné' | 'brillant' | 'brossé' | 'bois' | 'miroir' | 'verre-mat';
 type LightingType = 'naturelle' | 'spots' | 'mixte';
 type RoomSizeType = 'petite' | 'moyenne' | 'grande' | 'ouverte';
 type StyleType    = 'contemporain' | 'classique' | 'industriel' | 'scandinave' | 'haussmannien';
@@ -24,6 +24,7 @@ type StyleType    = 'contemporain' | 'classique' | 'industriel' | 'scandinave' |
 async function callColoristAPI(params: {
   facadeHex: string; poigneeHex: string; planHex: string;
   facadeFinish: FinishType; lightingStyle: LightingType;
+  poigneeFinish?: FinishType; planFinish?: FinishType;
   handleMaterial?: string; countertopMaterial?: string;
   sourceImageDataUrl?: string;
   numImages?: number;
@@ -441,6 +442,10 @@ export default function IaStudioPage() {
   const [poigneeCol,   setPoigneeCol]   = useState('#a67749');
   const [planCol,      setPlanCol]      = useState('#f5f0e8');
   const [facadeFinish, setFacadeFinish] = useState<FinishType>('mat');
+  // Finitions optionnelles par élément (poignées + plan travail). Null = pas
+  // de finition spécifique (on garde le matériau standard du preset).
+  const [poigneeFinish, setPoigneeFinish] = useState<FinishType | null>(null);
+  const [planFinish,    setPlanFinish]    = useState<FinishType | null>(null);
   const [colorLight,   setColorLight]   = useState<LightingType>('naturelle');
   const [colorLoading, setColorLoading] = useState(false);
   const [colorResult,  setColorResult]  = useState<Item|null>(null);
@@ -507,6 +512,8 @@ export default function IaStudioPage() {
         poigneeHex:         preset?.poignee  ?? poigneeCol,
         planHex:            preset?.plan     ?? planCol,
         facadeFinish:       preset?.finish   ?? facadeFinish,
+        poigneeFinish:      poigneeFinish ?? undefined,
+        planFinish:         planFinish ?? undefined,
         handleMaterial:     preset?.handleMaterial,
         countertopMaterial: preset?.countertopMaterial,
         lightingStyle:      colorLight,
@@ -761,16 +768,25 @@ export default function IaStudioPage() {
                   ))}
                 </div>
 
-                {/* Color pickers manuels */}
+                {/* Color pickers manuels — chaque élément accepte couleur ET/OU finition.
+                    L'utilisateur peut ne changer que la couleur, ne changer que la finition,
+                    ou les deux. La finition pour les façades est partagée avec le chip global
+                    "Finition façades" ci-dessous (source de vérité unique). */}
                 <div className="mt-4 pt-4 border-t border-[#304035]/8">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/40 mb-3">Ou personnalisez manuellement</p>
                   <div className="flex gap-4">
                     {([
-                      { label:'Façades',     val:facadeCol,  set:setFacadeCol  },
-                      { label:'Poignées',    val:poigneeCol, set:setPoigneeCol },
-                      { label:'Plan travail',val:planCol,    set:setPlanCol    },
-                    ] as const).map(({label,val,set}) => (
-                      <div key={label} className="flex-1 text-center">
+                      { key:'facade',  label:'Façades',     val:facadeCol,  set:setFacadeCol,
+                        finishVal: facadeFinish, setFinish: (v: FinishType | null) => v && setFacadeFinish(v),
+                        finishOptional: false /* la facade a tjrs une finition (chip global) */ },
+                      { key:'poignee', label:'Poignées',    val:poigneeCol, set:setPoigneeCol,
+                        finishVal: poigneeFinish, setFinish: setPoigneeFinish,
+                        finishOptional: true },
+                      { key:'plan',    label:'Plan travail',val:planCol,    set:setPlanCol,
+                        finishVal: planFinish, setFinish: setPlanFinish,
+                        finishOptional: true },
+                    ] as const).map(({key, label, val, set, finishVal, setFinish, finishOptional}) => (
+                      <div key={key} className="flex-1 text-center">
                         <p className="text-[9px] font-bold uppercase tracking-widest text-[#304035]/45 mb-2">{label}</p>
                         <div className="relative mx-auto w-14 h-14">
                           <input type="color" value={val}
@@ -783,6 +799,29 @@ export default function IaStudioPage() {
                           </div>
                         </div>
                         <p className="text-[9px] font-mono text-[#304035]/35 mt-2">{val.toUpperCase()}</p>
+                        {/* Finition par élément — dropdown compact. Pour façades on
+                            edit le chip global, pour poignées/plan c'est optionnel. */}
+                        <select
+                          value={finishVal ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value === '' ? null : (e.target.value as FinishType);
+                            (setFinish as (v: FinishType | null) => void)(v);
+                            setPreset(null);
+                            setColorsModified(true);
+                          }}
+                          className="mt-2 w-full text-[9px] font-semibold rounded-lg border border-[#304035]/12 bg-white/80 px-1.5 py-1 text-[#304035] focus:outline-none focus:ring-1 focus:ring-[#a67749]/40"
+                          aria-label={`Finition ${label}`}
+                          title={`Finition ${label}`}
+                        >
+                          {finishOptional && <option value="">— Standard —</option>}
+                          <option value="mat">Mat</option>
+                          <option value="satiné">Satiné</option>
+                          <option value="brillant">Brillant</option>
+                          <option value="brossé">Brossé</option>
+                          <option value="bois">Bois naturel</option>
+                          <option value="miroir">Miroir</option>
+                          <option value="verre-mat">Verre mat</option>
+                        </select>
                       </div>
                     ))}
                   </div>
@@ -803,11 +842,13 @@ export default function IaStudioPage() {
                   onChange={v => { setFacadeFinish(v); setPreset(null); }}
                   accent="#a67749"
                   options={[
-                    { value:'mat',     label:'Mat' },
-                    { value:'satiné',  label:'Satiné' },
-                    { value:'brillant',label:'Brillant' },
-                    { value:'brossé',  label:'Brossé' },
-                    { value:'bois',    label:'Bois naturel' },
+                    { value:'mat',       label:'Mat' },
+                    { value:'satiné',    label:'Satiné' },
+                    { value:'brillant',  label:'Brillant' },
+                    { value:'brossé',    label:'Brossé' },
+                    { value:'bois',      label:'Bois naturel' },
+                    { value:'miroir',    label:'Miroir' },
+                    { value:'verre-mat', label:'Verre mat' },
                   ]}
                 />
 

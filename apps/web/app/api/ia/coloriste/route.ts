@@ -65,6 +65,8 @@ export async function POST(req: NextRequest) {
       poigneeHex,
       planHex,
       facadeFinish,
+      poigneeFinish:      body.poigneeFinish      ?? undefined,
+      planFinish:         body.planFinish         ?? undefined,
       handleMaterial:     body.handleMaterial     ?? undefined,
       countertopMaterial: body.countertopMaterial ?? undefined,
       lightingStyle,
