@@ -199,15 +199,16 @@ export const CUISINISTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
  * RÉCEPTION SAV (étapes "ancrage" non actionnables, retrouvables dans
  * les sous-dossiers du dossier signé via ARCHITECTE_SIGNED_SUBFOLDERS).
  *
- * Les 5 dates dans l'ordre logique du chantier architecte :
- * permis administratif → DCE → marché → suivi chantier → modifications.
+ * DOSSIER MODIFICATIONS en 1ère position (cohérent menuisier/cuisiniste) :
+ * l'architecte saisit la date de réception des modifications client
+ * tout en haut, avant les démarches administratives.
  */
 export const ARCHITECTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
+  { label: 'DOSSIER MODIFICATIONS',                            kind: 'date'   },
   { label: 'PERMIS DE CONSTRUIRE',                             kind: 'date'   },
   { label: 'DCE',                                              kind: 'date'   },
   { label: 'MARCHÉ / SIGNATURES',                              kind: 'date'   },
   { label: 'SUIVI DE CHANTIER',                                kind: 'date'   },
-  { label: 'DOSSIER MODIFICATIONS',                            kind: 'date'   },
   { label: 'COMMANDES FOURNISSEURS',                           kind: 'access' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS FOURNISSEURS',     kind: 'access' },
   { label: 'LIVRAISON',                                        kind: 'access' },

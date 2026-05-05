@@ -260,6 +260,11 @@ export const CUISINISTE_SIGNED_SUBFOLDERS: SubFolder[] = [
 export const ARCHITECTE_SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'AVANT VENTE' },
   { label: 'APD VERSION VALIDÉE' },
+  // 05/05/2026 — DOSSIER MODIFICATIONS remonté en 3e position (sous APD).
+  // Cohérent avec menuisier (MODIFICATIONS en 3e) et cuisiniste : l'architecte
+  // consulte les modifications client tout de suite après l'APD validé,
+  // avant les démarches administratives (permis, DCE, marché).
+  { label: 'DOSSIER MODIFICATIONS' },
   { label: 'PERMIS DE CONSTRUIRE' },
   { label: 'DCE' },
   { label: 'MARCHÉ / SIGNATURES' },
@@ -267,7 +272,6 @@ export const ARCHITECTE_SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'CONFIRMATIONS / FACTURES ACHATS FOURNISSEURS' },
   { label: 'LIVRAISON' },
   { label: 'SUIVI DE CHANTIER' },
-  { label: 'DOSSIER MODIFICATIONS' },
   { label: 'RÉCEPTION SAV' },
 ];
 
