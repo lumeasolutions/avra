@@ -674,7 +674,16 @@ export default function DossiersSignesPage() {
               </p>
             </div>
           ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div
+              className="grid gap-4"
+              style={{
+                // Grille adaptative auto-fit : chaque card a une largeur minimale
+                // de 280px → si l'écran est étroit (sidebar + panel assistant
+                // ouverts), on tombe naturellement à 2 voire 1 colonne au lieu
+                // de garder 4 cards écrasées et illisibles.
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              }}
+            >
               {filtered.map((d, i) => {
                 const [c1, c2] = avatarColor(d.name);
                 const initials = `${d.name.charAt(0)}${d.firstName ? d.firstName.charAt(0) : ''}`.toUpperCase();
@@ -741,11 +750,12 @@ export default function DossiersSignesPage() {
                             <span>{d.confirmations?.filter(c => c.validee && c.type === 'STANDARD').length ?? 0} conf. validée(s)</span>
                           </div>
                         )}
-                        {/* Buttons */}
-                        <div className="flex gap-2">
+                        {/* Buttons — flex-wrap pour s'empiler quand la card
+                            est trop etroite (sidebar + assistant ouverts). */}
+                        <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => { setModalDossierId(d.id); setOpenModalType('dates'); }}
-                            style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '0.75rem', backgroundColor: '#304035', color: 'white', border: 'none', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: 'background-color 0.2s' }}
+                            style={{ flex: '1 1 120px', minWidth: 0, padding: '0.5rem 0.6rem', borderRadius: '0.75rem', backgroundColor: '#304035', color: 'white', border: 'none', fontSize: '0.7rem', fontWeight: '700', letterSpacing: '0.02em', cursor: 'pointer', transition: 'background-color 0.2s', whiteSpace: 'nowrap' }}
                             onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(48, 64, 53, 0.9)')}
                             onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#304035')}
                           >
@@ -753,7 +763,7 @@ export default function DossiersSignesPage() {
                           </button>
                           <button
                             onClick={() => { setModalDossierId(d.id); setOpenModalType('tableau'); }}
-                            style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: '0.75rem', backgroundColor: 'white', color: '#304035', border: '1px solid rgba(48, 64, 53, 0.2)', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' }}
+                            style={{ flex: '1 1 120px', minWidth: 0, padding: '0.5rem 0.6rem', borderRadius: '0.75rem', backgroundColor: 'white', color: '#304035', border: '1px solid rgba(48, 64, 53, 0.2)', fontSize: '0.7rem', fontWeight: '700', letterSpacing: '0.02em', cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
                             onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(48, 64, 53, 0.05)'; e.currentTarget.style.borderColor = 'rgba(48, 64, 53, 0.3)'; }}
                             onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.borderColor = 'rgba(48, 64, 53, 0.2)'; }}
                           >
