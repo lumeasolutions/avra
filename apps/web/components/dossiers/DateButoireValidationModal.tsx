@@ -163,14 +163,15 @@ export const MENUISIER_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
 ];
 
 /**
- * CUISINISTE — 9 items alignés sur la maquette MODULE CUISINISTE.
+ * CUISINISTE — 8 items alignés sur la maquette MODULE CUISINISTE.
  * Le label "OPTION VALIDÉE" est réécrit en "OPTION <N> VALIDÉE".
+ * Pas de PLAN TECHNIQUE (specifique architecte/menuisier — un cuisiniste
+ * n'a pas besoin de cette etape distincte).
  */
 export const CUISINISTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'AVANT VENTE',                       kind: 'static' },
   { label: 'OPTION VALIDÉE',                    kind: 'static' },
   { label: 'RELEVÉ DÉFINITIF',                  kind: 'date'   },
-  { label: 'PLAN TECHNIQUE',                    kind: 'date'   },
   { label: 'COMMANDE',                          kind: 'access' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS',   kind: 'access' },
   { label: 'LIVRAISON',                         kind: 'access' },

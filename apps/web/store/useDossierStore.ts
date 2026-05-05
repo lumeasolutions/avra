@@ -235,7 +235,6 @@ export const CUISINISTE_SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'AVANT VENTE' },
   { label: 'OPTION VALIDÉE' },
   { label: 'RELEVÉ DÉFINITIF' },
-  { label: 'PLAN TECHNIQUE' },
   { label: 'COMMANDE' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS' },
   { label: 'LIVRAISON' },
