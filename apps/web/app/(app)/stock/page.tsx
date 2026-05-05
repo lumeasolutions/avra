@@ -9,17 +9,62 @@ import {
   Upload, X as XIcon
 } from 'lucide-react';
 import { useStockStore, type StockItem } from '@/store';
+import { useAuthStore } from '@/store/useAuthStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 
 /* ── CONSTANTES ── */
-const CATEGORIES = ['TOUTES', 'MEUBLES', 'ELECTRO', 'DECO', 'SANITAIRE', 'AUTRE'];
+/** Liste de catégories par défaut (architectes / menuisiers / hors cuisiniste). */
+const CATEGORIES_DEFAULT = ['TOUTES', 'MEUBLES', 'ELECTRO', 'DECO', 'SANITAIRE', 'AUTRE'];
+
+/** Liste enrichie pour le module cuisiniste — la cuisine demande une
+ *  granularité métier plus fine (matériel élec, plan travail, accessoires, etc).
+ *  L'ordre suit la fréquence d'usage en showroom cuisine. */
+const CATEGORIES_CUISINISTE = [
+  'TOUTES',
+  'MEUBLES',
+  'ELECTRO',
+  'PETIT_ELECTRO',
+  'PLAN_DE_TRAVAIL',
+  'SANITAIRE',
+  'MATERIEL_ELECTRIQUE',
+  'ECLAIRAGE',
+  'QUINCAILLERIE',
+  'ACCESSOIRES',
+  'CHAISES_TABOURETS',
+  'DECO',
+  'AUTRE',
+];
+
+/** Libellés humains pour l'affichage des chips et badges. */
+const CAT_LABEL: Record<string, string> = {
+  TOUTES:               'Toutes',
+  MEUBLES:              'Meubles',
+  ELECTRO:              'Électro',
+  PETIT_ELECTRO:        'Petit électro',
+  DECO:                 'Déco',
+  SANITAIRE:            'Sanitaire',
+  AUTRE:                'Autre',
+  QUINCAILLERIE:        'Quincaillerie',
+  ACCESSOIRES:          'Accessoires',
+  MATERIEL_ELECTRIQUE: 'Mat. électrique',
+  PLAN_DE_TRAVAIL:      'Plan travail',
+  CHAISES_TABOURETS:    'Chaises/tabourets',
+  ECLAIRAGE:            'Éclairage',
+};
 
 const CAT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  MEUBLES:   { bg: '#5b9bd5', text: '#fff', dot: '#5b9bd5' },
-  ELECTRO:   { bg: '#f0c040', text: '#304035', dot: '#f0c040' },
-  DECO:      { bg: '#e07050', text: '#fff', dot: '#e07050' },
-  SANITAIRE: { bg: '#2ecc71', text: '#fff', dot: '#2ecc71' },
-  AUTRE:     { bg: '#9b59b6', text: '#fff', dot: '#9b59b6' },
+  MEUBLES:              { bg: '#5b9bd5', text: '#fff',     dot: '#5b9bd5' },
+  ELECTRO:              { bg: '#f0c040', text: '#304035',  dot: '#f0c040' },
+  PETIT_ELECTRO:        { bg: '#a855f7', text: '#fff',     dot: '#a855f7' },
+  DECO:                 { bg: '#e07050', text: '#fff',     dot: '#e07050' },
+  SANITAIRE:            { bg: '#2ecc71', text: '#fff',     dot: '#2ecc71' },
+  AUTRE:                { bg: '#9b59b6', text: '#fff',     dot: '#9b59b6' },
+  QUINCAILLERIE:        { bg: '#b45309', text: '#fff',     dot: '#b45309' },
+  ACCESSOIRES:          { bg: '#7c3aed', text: '#fff',     dot: '#7c3aed' },
+  MATERIEL_ELECTRIQUE:  { bg: '#dc2626', text: '#fff',     dot: '#dc2626' },
+  PLAN_DE_TRAVAIL:      { bg: '#0891b2', text: '#fff',     dot: '#0891b2' },
+  CHAISES_TABOURETS:    { bg: '#ea580c', text: '#fff',     dot: '#ea580c' },
+  ECLAIRAGE:            { bg: '#facc15', text: '#304035',  dot: '#facc15' },
 };
 
 const DOT_CONFIG = {
@@ -78,6 +123,11 @@ export default function StockPage() {
   const updateStockDot  = useStockStore(s => s.updateStockDot);
   const updateStockItem = useStockStore(s => s.updateStockItem);
   const deleteStockItem = useStockStore(s => s.deleteStockItem);
+  // Profession-aware : cuisiniste → liste de catégories enrichie + photo agrandie.
+  // Les autres professions gardent l'ancien comportement compact.
+  const profession    = useAuthStore(s => s.profession);
+  const isCuisiniste  = profession === 'cuisiniste';
+  const CATEGORIES    = isCuisiniste ? CATEGORIES_CUISINISTE : CATEGORIES_DEFAULT;
 
   /* ── ÉTAT ── */
   const [search,      setSearch]      = useState('');
@@ -361,7 +411,7 @@ export default function StockPage() {
                 border: catFilter === c ? 'none' : '1.5px solid rgba(48,64,53,0.12)',
               }}
             >
-              {c === 'TOUTES' ? 'Toutes' : c.charAt(0) + c.slice(1).toLowerCase()}
+              {CAT_LABEL[c] ?? (c.charAt(0) + c.slice(1).toLowerCase())}
             </button>
           ))}
           <div className="flex items-center gap-1.5 ml-3 mr-1">
@@ -454,17 +504,20 @@ export default function StockPage() {
                     />
                   </button>
 
-                  {/* Image thumbnail */}
+                  {/* Image thumbnail
+                      Cuisiniste : photo agrandie (16x16 = 64px) car la photo est
+                      le critere principal d'identification d'un meuble en
+                      showroom (catalogue visuel). Autres metiers : reste compacte. */}
                   <div className="flex items-center justify-center">
                     {item.image ? (
                       <img
                         src={item.image}
                         alt={item.model}
-                        className="h-8 w-8 rounded-lg object-cover border border-[#304035]/8"
+                        className={`${isCuisiniste ? 'h-16 w-16' : 'h-8 w-8'} rounded-lg object-cover border border-[#304035]/8 shadow-sm`}
                       />
                     ) : (
-                      <div className="h-8 w-8 rounded-lg bg-[#304035]/5 flex items-center justify-center border border-[#304035]/8">
-                        <ImageIcon className="h-4 w-4 text-[#304035]/25" />
+                      <div className={`${isCuisiniste ? 'h-16 w-16' : 'h-8 w-8'} rounded-lg bg-[#304035]/5 flex items-center justify-center border border-[#304035]/8`}>
+                        <ImageIcon className={`${isCuisiniste ? 'h-7 w-7' : 'h-4 w-4'} text-[#304035]/25`} />
                       </div>
                     )}
                   </div>
@@ -508,7 +561,7 @@ export default function StockPage() {
                         className="text-[10px] font-bold px-2.5 py-1 rounded-full"
                         style={{ background: (catColor?.bg ?? '#304035') + '22', color: catColor?.bg ?? '#304035' }}
                       >
-                        {item.category}
+                        {CAT_LABEL[item.category] ?? item.category}
                       </span>
                     </span>
                   )}
@@ -647,8 +700,10 @@ export default function StockPage() {
                 className="card-in rounded-2xl bg-white border border-[#304035]/8 shadow-sm hover:shadow-lg transition-all group flex flex-col gap-3 overflow-hidden"
                 style={{ animationDelay: `${idx * 40}ms` }}
               >
-                {/* Image section */}
-                <div className="h-24 bg-gradient-to-br from-[#304035]/3 to-[#304035]/1 flex items-center justify-center relative overflow-hidden border-b border-[#304035]/8">
+                {/* Image section — cuisiniste : zone agrandie (h-44 ~176px)
+                    car la photo est l'element le plus important pour identifier
+                    un meuble. Autres : reste a h-24 (~96px). */}
+                <div className={`${isCuisiniste ? 'h-44' : 'h-24'} bg-gradient-to-br from-[#304035]/3 to-[#304035]/1 flex items-center justify-center relative overflow-hidden border-b border-[#304035]/8`}>
                   {item.image ? (
                     <img
                       src={item.image}
@@ -657,7 +712,7 @@ export default function StockPage() {
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1">
-                      <ImageIcon className="h-6 w-6 text-[#304035]/15" />
+                      <ImageIcon className={`${isCuisiniste ? 'h-10 w-10' : 'h-6 w-6'} text-[#304035]/15`} />
                       <span className="text-[10px] text-[#304035]/20 font-medium">Pas d'image</span>
                     </div>
                   )}
@@ -702,7 +757,7 @@ export default function StockPage() {
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
                       style={{ background: (catColor?.bg ?? '#304035') + '22', color: catColor?.bg ?? '#304035' }}
                     >
-                      {item.category}
+                      {CAT_LABEL[item.category] ?? item.category}
                     </span>
                   </div>
 
@@ -837,7 +892,7 @@ export default function StockPage() {
                           color: form.category === c ? (CAT_COLORS[c]?.text ?? '#fff') : (CAT_COLORS[c]?.bg ?? '#304035'),
                         }}
                       >
-                        {c}
+                        {CAT_LABEL[c] ?? c}
                       </button>
                     ))}
                   </div>
