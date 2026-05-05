@@ -50,6 +50,61 @@ export class DossierDocumentsController {
     return this.docs.upload(user.workspaceId, userId, dossierId, subfolderLabel, file);
   }
 
+  /**
+   * Direct upload — étape 1 : génère une signed URL d'upload Supabase.
+   * Le client PUT directement vers Supabase via cette URL (pas de double-hop
+   * browser→Vercel→Supabase). Toutes les validations sécurité sont faites
+   * ici AVANT de générer la URL.
+   */
+  @Post('init-upload')
+  async initUpload(
+    @CurrentUser() user: JwtPayload,
+    @Param('dossierId') dossierId: string,
+    @Body() body: { subfolderLabel: string; fileName: string; fileSize: number; mimeType: string },
+  ) {
+    const { subfolderLabel, fileName, fileSize, mimeType } = body ?? ({} as any);
+    if (!subfolderLabel) throw new BadRequestException('subfolderLabel requis');
+    if (!fileName) throw new BadRequestException('fileName requis');
+    if (typeof fileSize !== 'number' || fileSize <= 0) throw new BadRequestException('fileSize invalide');
+    if (!mimeType) throw new BadRequestException('mimeType requis');
+    return this.docs.initDirectUpload(
+      user.workspaceId,
+      dossierId,
+      subfolderLabel,
+      fileName,
+      fileSize,
+      mimeType,
+    );
+  }
+
+  /**
+   * Direct upload — étape 2 : finalise un upload direct.
+   * Vérifie que le fichier existe à ce path, fait l'AV scan post-upload
+   * (si configuré), et crée l'enregistrement DossierDocument.
+   */
+  @Post('finalize-upload')
+  async finalizeUpload(
+    @CurrentUser() user: JwtPayload,
+    @Param('dossierId') dossierId: string,
+    @Body() body: { storagePath: string; subfolderLabel: string; fileName: string; fileSize: number; mimeType: string },
+  ) {
+    const { storagePath, subfolderLabel, fileName, fileSize, mimeType } = body ?? ({} as any);
+    if (!storagePath) throw new BadRequestException('storagePath requis');
+    if (!subfolderLabel) throw new BadRequestException('subfolderLabel requis');
+    if (!fileName) throw new BadRequestException('fileName requis');
+    const userId = (user as any).id ?? (user as any).sub;
+    return this.docs.finalizeDirectUpload(
+      user.workspaceId,
+      userId,
+      dossierId,
+      subfolderLabel,
+      storagePath,
+      fileName,
+      fileSize ?? 0,
+      mimeType ?? 'application/octet-stream',
+    );
+  }
+
   @Get()
   list(@CurrentUser() user: JwtPayload, @Param('dossierId') dossierId: string) {
     return this.docs.listByProject(user.workspaceId, dossierId);

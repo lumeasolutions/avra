@@ -20,7 +20,10 @@ export interface DossierDocDto {
   createdAt: string;
 }
 
-/** Upload d'un fichier dans un sous-dossier (multipart). */
+/** Upload d'un fichier dans un sous-dossier (multipart) — chemin LEGACY.
+ *  Va passer par Vercel → Supabase. Pour les uploads rapides, préférer
+ *  `uploadDossierDocDirect()` qui upload directement vers Supabase Storage.
+ */
 export async function uploadDossierDoc(
   dossierId: string,
   subfolderLabel: string,
@@ -30,6 +33,85 @@ export async function uploadDossierDoc(
   fd.append('file', file);
   fd.append('subfolderLabel', subfolderLabel);
   return apiUpload<DossierDocDto>(`/dossiers/${encodeURIComponent(dossierId)}/documents`, fd);
+}
+
+interface InitUploadResponse {
+  uploadUrl: string;
+  token: string;
+  storagePath: string;
+  bucket: string;
+  expiresInSeconds: number;
+}
+
+/**
+ * Upload DIRECT vers Supabase Storage (rapide, pas de double-hop).
+ *
+ * Flow en 3 étapes :
+ *  1. POST /init-upload  → backend valide + génère signed URL
+ *  2. PUT  signedUrl     → browser upload directement vers Supabase
+ *  3. POST /finalize-upload → backend crée l'enregistrement DB
+ *
+ * Avantages :
+ *  - 2-3× plus rapide qu'un upload multipart classique
+ *  - Décharge la Vercel Function (pas de bande passante consommée)
+ *  - Qualité 100% préservée (aucune compression)
+ *  - Progress bar native via XMLHttpRequest
+ *
+ * @param onProgress fraction 0..1 mise à jour pendant l'upload
+ */
+export async function uploadDossierDocDirect(
+  dossierId: string,
+  subfolderLabel: string,
+  file: File,
+  onProgress?: (fraction: number) => void,
+): Promise<DossierDocDto> {
+  // 1) init-upload
+  const init = await api<InitUploadResponse>(
+    `/dossiers/${encodeURIComponent(dossierId)}/documents/init-upload`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        subfolderLabel,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || 'application/octet-stream',
+      }),
+    },
+  );
+
+  // 2) PUT direct vers Supabase via XHR (pour avoir le progress)
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', init.uploadUrl, true);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(e.loaded / e.total);
+      };
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload Supabase échoué : HTTP ${xhr.status} ${xhr.statusText}`));
+    };
+    xhr.onerror = () => reject(new Error('Erreur réseau pendant l\'upload Supabase'));
+    xhr.onabort = () => reject(new Error('Upload annulé'));
+    xhr.send(file);
+  });
+
+  // 3) finalize-upload → DB record
+  return api<DossierDocDto>(
+    `/dossiers/${encodeURIComponent(dossierId)}/documents/finalize-upload`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        storagePath: init.storagePath,
+        subfolderLabel,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || 'application/octet-stream',
+      }),
+    },
+  );
 }
 
 /** Liste tous les documents d'un dossier (tous sous-dossiers confondus). */

@@ -14,7 +14,7 @@ import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
 import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
-import { uploadDossierDoc, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
+import { uploadDossierDoc, uploadDossierDocDirect, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
 import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
 import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
 import { useProjectActions } from '@/hooks/useProjectActions';
@@ -1222,8 +1222,12 @@ export default function DossierDetailPage() {
           setNewDocName('');
         };
 
-        // Upload réel via l'API NestJS → Supabase Storage.
-        // Toutes les vérifs (MIME, taille, ownership) sont faites côté serveur.
+        // Upload direct vers Supabase Storage (rapide, pas de double-hop).
+        // Avec fallback sur l'upload classique multipart en cas d'erreur
+        // (compat backend qui n'aurait pas encore les endpoints init/finalize).
+        // Tous les fichiers uploadent EN PARALLÈLE via Promise.all → si tu
+        // déposes 5 fichiers, ils partent tous en même temps au lieu d'être
+        // sériés.
         const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
           const files = e.target.files;
           if (!files) return;
@@ -1231,10 +1235,34 @@ export default function DossierDetailPage() {
           let succeeded = 0;
           let failed = 0;
           let lastError = '';
-          setDocOpStatus({ kind: 'uploading', message: `Téléversement en cours (${arr.length} fichier${arr.length > 1 ? 's' : ''})…` });
-          for (const f of arr) {
+          // Map fichier → progression 0..1, pour afficher un % moyen global.
+          const progress: number[] = arr.map(() => 0);
+          const updateGlobalProgress = () => {
+            const total = progress.reduce((sum, p) => sum + p, 0);
+            const pct = Math.round((total / arr.length) * 100);
+            setDocOpStatus({
+              kind: 'uploading',
+              message: `Téléversement ${pct}% (${arr.length} fichier${arr.length > 1 ? 's' : ''})…`,
+            });
+          };
+          updateGlobalProgress();
+
+          const uploadOne = async (f: File, idx: number) => {
             try {
-              const uploaded = await uploadDossierDoc(id, openedSubfolder, f);
+              let uploaded;
+              try {
+                // Essai direct upload (rapide)
+                uploaded = await uploadDossierDocDirect(id, openedSubfolder, f, (p) => {
+                  progress[idx] = p;
+                  updateGlobalProgress();
+                });
+              } catch (directErr: any) {
+                // Fallback multipart classique
+                console.warn(`[Dossier] direct upload failed (${f.name}), fallback multipart:`, directErr?.message);
+                uploaded = await uploadDossierDoc(id, openedSubfolder, f);
+                progress[idx] = 1;
+                updateGlobalProgress();
+              }
               addDocumentToSubfolder(id, openedSubfolder, {
                 docId: uploaded.id,
                 name: uploaded.originalName,
@@ -1248,7 +1276,11 @@ export default function DossierDetailPage() {
               lastError = err?.message ?? 'erreur réseau';
               console.error(`[Dossier] upload failed for ${f.name}:`, err);
             }
-          }
+          };
+
+          // Tous les uploads en parallèle
+          await Promise.all(arr.map((f, idx) => uploadOne(f, idx)));
+
           e.target.value = '';
           if (failed === 0) {
             setDocOpStatus({ kind: 'success', message: `${succeeded} fichier${succeeded > 1 ? 's' : ''} téléversé${succeeded > 1 ? 's' : ''}` });
