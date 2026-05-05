@@ -620,7 +620,36 @@ export function DateButoireValidationModal({
       const { signedUrl } = await getDocSignedUrl(dossierId, doc.docId);
       setPreviewDoc({ url: signedUrl, name: doc.name, type: doc.type });
     } catch (err) {
+      // Erreur visible : on alerte l'utilisateur au lieu d'échouer en silence.
+      // Cas typiques : fichier supprimé du storage, RLS, expired session.
       console.error('[validation-modal] preview failed:', err);
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      setError(`Impossible d'ouvrir "${doc.name}" : ${msg}`);
+      // Auto-clear après 5s pour ne pas bloquer la modale
+      setTimeout(() => setError((e) => (e?.includes(doc.name) ? null : e)), 5000);
+    } finally {
+      setPreviewLoadingId(null);
+    }
+  };
+
+  /** Ouvre le doc dans un nouvel onglet (fallback fiable si l'iframe pose problème). */
+  const handleOpenDocExternal = async (doc: DocumentFile) => {
+    const previewKey = doc.docId ?? doc.name;
+    // Cas legacy : on a déjà la dataUrl
+    if (doc.dataUrl) {
+      window.open(doc.dataUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (!doc.docId || !dossierId) return;
+    setPreviewLoadingId(previewKey);
+    try {
+      const { signedUrl } = await getDocSignedUrl(dossierId, doc.docId);
+      window.open(signedUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      console.error('[validation-modal] open external failed:', err);
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      setError(`Impossible d'ouvrir "${doc.name}" : ${msg}`);
+      setTimeout(() => setError((e) => (e?.includes(doc.name) ? null : e)), 5000);
     } finally {
       setPreviewLoadingId(null);
     }
@@ -1638,20 +1667,34 @@ export function DateButoireValidationModal({
                                   {!doc.size && !doc.type && doc.addedAt ? `Ajouté le ${doc.addedAt}` : ''}
                                 </div>
                               </div>
-                              <button
-                                type="button"
-                                className="dbv-preview-btn"
-                                onClick={() => canPreview && handlePreviewDoc(doc)}
-                                disabled={!canPreview || isLoading}
-                                title={canPreview ? 'Voir le document' : 'Aperçu indisponible (placeholder sans contenu)'}
-                                aria-label={`Voir ${doc.name}`}
-                              >
-                                {isLoading ? (
-                                  <Loader2 style={{ width: 14, height: 14, animation: 'dbv-spin 0.9s linear infinite' }} />
-                                ) : (
-                                  <Eye style={{ width: 14, height: 14 }} />
-                                )}
-                              </button>
+                              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  className="dbv-preview-btn"
+                                  onClick={() => canPreview && handlePreviewDoc(doc)}
+                                  disabled={!canPreview || isLoading}
+                                  title={canPreview ? 'Aperçu dans la modale' : 'Aperçu indisponible (placeholder sans contenu)'}
+                                  aria-label={`Aperçu ${doc.name}`}
+                                >
+                                  {isLoading ? (
+                                    <Loader2 style={{ width: 14, height: 14, animation: 'dbv-spin 0.9s linear infinite' }} />
+                                  ) : (
+                                    <Eye style={{ width: 14, height: 14 }} />
+                                  )}
+                                </button>
+                                {/* Bouton fallback fiable : ouvre dans un nouvel onglet
+                                    (utile quand l'iframe a un souci de CSP / type fichier non supporté). */}
+                                <button
+                                  type="button"
+                                  className="dbv-preview-btn"
+                                  onClick={() => canPreview && handleOpenDocExternal(doc)}
+                                  disabled={!canPreview || isLoading}
+                                  title="Ouvrir dans un nouvel onglet"
+                                  aria-label={`Ouvrir ${doc.name} dans un nouvel onglet`}
+                                >
+                                  <ExternalLink style={{ width: 14, height: 14 }} />
+                                </button>
+                              </div>
                             </div>
                           );
                         })}
