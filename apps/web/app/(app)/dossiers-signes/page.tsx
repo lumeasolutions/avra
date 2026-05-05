@@ -6,7 +6,7 @@ import {
   FolderCheck, Search, X, ChevronRight, TrendingUp, BadgeCheck,
   Calendar, LayoutGrid, List, ArrowUpRight, Package, CheckCircle2,
   Clock, AlertTriangle, Plus, Trash2, Check, BarChart3, Target,
-  ExternalLink,
+  ExternalLink, ShoppingCart,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useDossierStore, useFacturationStore, type ConfirmationFournisseur, type CommandeType } from '@/store';
@@ -483,7 +483,7 @@ export default function DossiersSignesPage() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'montant'>('date');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [activeTab, setActiveTab] = useState<'commandes' | 'confirmations'>('commandes');
+  const [activeTab, setActiveTab] = useState<'commandes' | 'commande-fournisseur' | 'confirmations'>('commandes');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [openModalType, setOpenModalType] = useState<'dates' | 'tableau' | null>(null);
   const [modalDossierId, setModalDossierId] = useState<string | null>(null);
@@ -631,7 +631,13 @@ export default function DossiersSignesPage() {
           onClick={() => setActiveTab('commandes')}
           className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all', activeTab === 'commandes' ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/50 hover:text-[#304035]')}
         >
-          <FolderCheck className="h-4 w-4" /> Dossier Commandes
+          <FolderCheck className="h-4 w-4" /> Dossier signé
+        </button>
+        <button
+          onClick={() => setActiveTab('commande-fournisseur')}
+          className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all', activeTab === 'commande-fournisseur' ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/50 hover:text-[#304035]')}
+        >
+          <ShoppingCart className="h-4 w-4" /> Commande fournisseur
         </button>
         <button
           onClick={() => setActiveTab('confirmations')}
@@ -892,6 +898,50 @@ export default function DossiersSignesPage() {
         </>
       )}
 
+      {/* ── CONTENU ONGLET COMMANDE FOURNISSEUR ── */}
+      {activeTab === 'commande-fournisseur' && (
+        <div className="space-y-4">
+          {/* Légende */}
+          <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-800">
+            <p className="font-bold mb-1">Commandes fournisseurs</p>
+            <p className="text-xs">Suivi des commandes passées aux fournisseurs pour chaque dossier signé. Cliquez sur un dossier pour gérer ses commandes.</p>
+          </div>
+
+          {/* Vue globale par dossier */}
+          {dossiersSignes.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-[#304035]/8 p-12 text-center">
+              <ShoppingCart className="h-10 w-10 text-[#304035]/20 mx-auto mb-3" />
+              <p className="font-semibold text-[#304035]/50">Aucun dossier signé</p>
+              <p className="text-xs text-[#304035]/35 mt-1">Les commandes fournisseurs apparaîtront ici une fois des dossiers signés.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+              {dossiersSignes.map(d => (
+                <button
+                  key={d.id}
+                  onClick={() => router.push(`/dossiers/${d.id}`)}
+                  className="text-left rounded-2xl bg-white border border-[#304035]/8 p-4 hover:border-amber-300 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-xl bg-amber-50">
+                      <ShoppingCart className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-[#304035] truncate">{d.name} {d.firstName ?? ''}</p>
+                      <p className="text-xs text-[#304035]/45">Signé le {formatDate(d.signedDate)}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-[#304035]/30 shrink-0" />
+                  </div>
+                  <div className="text-xs text-[#304035]/55">
+                    Voir les commandes fournisseurs du dossier
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── CONTENU ONGLET CONFIRMATIONS ── */}
       {activeTab === 'confirmations' && (
         <div className="space-y-4">
@@ -935,7 +985,7 @@ export default function DossiersSignesPage() {
 
           {/* Bouton ajout rapide */}
           <div className="rounded-xl border border-dashed border-[#304035]/15 p-4 text-center text-sm text-[#304035]/40">
-            Pour ajouter des confirmations, ouvrez un dossier depuis l'onglet <strong>"Dossier Commandes"</strong> en vue liste.
+            Pour ajouter des confirmations, ouvrez un dossier depuis l'onglet <strong>"Dossier signé"</strong> en vue liste.
           </div>
         </div>
       )}
