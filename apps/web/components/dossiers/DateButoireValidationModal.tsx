@@ -170,20 +170,23 @@ export const MENUISIER_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
 ];
 
 /**
- * CUISINISTE — 8 items alignés sur la maquette MODULE CUISINISTE.
- * Le label "OPTION VALIDÉE" est réécrit en "OPTION <N> VALIDÉE".
- * Pas de PLAN TECHNIQUE (specifique architecte/menuisier — un cuisiniste
- * n'a pas besoin de cette etape distincte).
+ * CUISINISTE — modale Validation projet. 5 items 100% actionnables :
+ *   - 2 dates (RELEVÉ DÉFINITIF, FICHE DE POSE)
+ *   - 3 ACCEDER groupés en bas (COMMANDE, CONFIRMATIONS, LIVRAISON)
+ *
+ * Refonte 05/05/2026 — retiré : AVANT VENTE, OPTION VALIDÉE, SAV
+ * (étapes "ancrage" non actionnables, retrouvables dans les sous-dossiers
+ * du dossier signé via CUISINISTE_SIGNED_SUBFOLDERS).
+ *
+ * FICHE DE POSE remontée avant les ACCEDER pour grouper les 3 ACCEDER
+ * ensemble (cohérent avec menuisier — meilleure scannabilité visuelle).
  */
 export const CUISINISTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
-  { label: 'AVANT VENTE',                       kind: 'static' },
-  { label: 'OPTION VALIDÉE',                    kind: 'static' },
   { label: 'RELEVÉ DÉFINITIF',                  kind: 'date'   },
+  { label: 'FICHE DE POSE',                     kind: 'date'   },
   { label: 'COMMANDE',                          kind: 'access' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS',   kind: 'access' },
   { label: 'LIVRAISON',                         kind: 'access' },
-  { label: 'FICHE DE POSE',                     kind: 'date'   },
-  { label: 'SAV',                               kind: 'static' },
 ];
 
 /**
