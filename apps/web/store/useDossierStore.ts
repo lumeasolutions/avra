@@ -237,6 +237,10 @@ export const MENUISIER_SIGNED_SUBFOLDERS: SubFolder[] = [
 export const CUISINISTE_SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'AVANT VENTE' },
   { label: 'OPTION VALIDÉE' },
+  // 05/05/2026 — MODIFICATIONS en 3e position (cohérent avec menuisier).
+  // Le cuisiniste consulte les modifications demandées par le client juste
+  // après signature (avant relevé définitif et commandes).
+  { label: 'MODIFICATIONS' },
   { label: 'RELEVÉ DÉFINITIF' },
   { label: 'COMMANDE' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS' },
