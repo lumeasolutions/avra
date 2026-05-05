@@ -1,0 +1,10 @@
+{
+  "name": "@avra/landing",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx serve . -p 3002",
+    "build": "echo 'Static site - no build needed'",
+    "preview": "npx serve . -p 3002"
+  }
+}

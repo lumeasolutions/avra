@@ -26,7 +26,8 @@ async function callColoristAPI(params: {
   facadeFinish: FinishType; lightingStyle: LightingType;
   handleMaterial?: string; countertopMaterial?: string;
   sourceImageDataUrl?: string;
-}): Promise<{ imageUrl: string | null; error?: string }> {
+  numImages?: number;
+}): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -39,7 +40,8 @@ async function callRenduAPI(params: {
   facades: string; planTravail: string; style: StyleType;
   lightingStyle: LightingType; roomSize: RoomSizeType; hasPlanFile: boolean;
   planImageDataUrl?: string;
-}): Promise<{ imageUrl: string | null; error?: string }> {
+  numImages?: number;
+}): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/rendu', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -91,7 +93,7 @@ const CSS = `
 /* ─────────────────────────────────────────── TYPES */
 type Module = 'coloriste' | 'rendu';
 interface Preset { name:string; facade:string; poignee:string; plan:string; desc:string; mood:string; finish:FinishType; handleMaterial:string; countertopMaterial:string }
-interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:string; color:string; imageUrl?:string }
+interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:string; color:string; imageUrl?:string; imageUrls?:string[] }
 
 const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 8);
 
@@ -290,25 +292,29 @@ function ChipSelector<T extends string>({
   );
 }
 
-/** Résultat avec image réelle ou mock */
+/** Résultat avec image réelle ou mock + miniatures variantes si plusieurs images. */
 function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon }: {
   item: Item; accentColor: string;
   onSave: () => void; onRegenerate: () => void;
   icon: React.ElementType;
 }) {
+  const allUrls = (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : []);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const mainUrl = allUrls[selectedIdx] ?? item.imageUrl;
+
   return (
     <div className="sr rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-[#10b981]" />
-          <p className="font-black text-[#304035]">Résultat prêt !</p>
+          <p className="font-black text-[#304035]">{allUrls.length > 1 ? `${allUrls.length} variantes prêtes !` : 'Résultat prêt !'}</p>
         </div>
       </div>
 
       {/* Image générée ou mock */}
       <div className="overflow-hidden rounded-2xl" style={{border:`1.5px solid ${accentColor}28`}}>
-        {item.imageUrl && !item.imageUrl.includes('placehold') ? (
-          <Image src={item.imageUrl} alt="Rendu IA" width={600} height={400} loading="lazy" className="w-full object-cover rounded-2xl" />
+        {mainUrl && !mainUrl.includes('placehold') ? (
+          <Image src={mainUrl} alt="Rendu IA" width={600} height={400} loading="lazy" className="w-full object-cover rounded-2xl" unoptimized />
         ) : (
           <div className="relative flex flex-col items-center justify-center py-12 px-6 text-center"
             style={{background:`linear-gradient(145deg, ${accentColor}12, ${accentColor}28, ${accentColor}10)`}}>
@@ -330,6 +336,22 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon }: {
           </div>
         )}
       </div>
+
+      {/* Miniatures variantes */}
+      {allUrls.length > 1 && (
+        <div className="grid grid-cols-4 gap-2">
+          {allUrls.map((u, i) => (
+            <button key={u + i} onClick={() => setSelectedIdx(i)}
+              className={`relative overflow-hidden rounded-xl border-2 transition-all ${
+                selectedIdx === i ? 'shadow-md scale-[1.02]' : 'opacity-70 hover:opacity-100'
+              }`}
+              style={{ borderColor: selectedIdx === i ? accentColor : 'transparent' }}>
+              <Image src={u} alt={`Variante ${i+1}`} width={120} height={80} loading="lazy" className="w-full h-16 object-cover" unoptimized />
+              <div className="absolute top-1 right-1 rounded-full bg-black/55 backdrop-blur-sm text-white text-[9px] font-bold px-1.5 py-0.5">{i+1}</div>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2.5">
         <button onClick={onSave}
@@ -397,6 +419,10 @@ export default function IaStudioPage() {
   /* ── Couleurs modifiées manuellement (pour détecter si l'utilisateur a changé qqch) */
   const [colorsModified, setColorsModified] = useState(false);
 
+  /* ── Nombre de variantes a generer (1-4) */
+  const [colorNumVariants, setColorNumVariants] = useState<1|2|4>(1);
+  const [rendNumVariants,  setRendNumVariants]  = useState<1|2|4>(1);
+
   /* Preview photo */
   useEffect(() => {
     if (!photoFile) { setPhotoURL(null); return; }
@@ -444,6 +470,7 @@ export default function IaStudioPage() {
         countertopMaterial: preset?.countertopMaterial,
         lightingStyle:      colorLight,
         sourceImageDataUrl,
+        numImages:          colorNumVariants,
       });
 
       if (result.error) { setColorError(result.error); setColorLoading(false); return; }
@@ -454,6 +481,7 @@ export default function IaStudioPage() {
         ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
         color: preset?.facade ?? facadeCol,
         imageUrl: result.imageUrl ?? undefined,
+        imageUrls: result.imageUrls ?? (result.imageUrl ? [result.imageUrl] : []),
       });
     } catch (err) {
       // 05/05/2026 - message vrai en priorite pour distinguer timeout serverless (TimeoutError)
@@ -500,6 +528,7 @@ export default function IaStudioPage() {
         roomSize:     rendSize,
         hasPlanFile:  !!planFile,
         planImageDataUrl,
+        numImages:    rendNumVariants,
       });
 
       if (result.error) { setRendError(result.error); setRendLoading(false); return; }
@@ -511,6 +540,7 @@ export default function IaStudioPage() {
         ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
         color: '#5b9bd5',
         imageUrl: result.imageUrl ?? undefined,
+        imageUrls: result.imageUrls ?? (result.imageUrl ? [result.imageUrl] : []),
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -764,13 +794,32 @@ export default function IaStudioPage() {
               {/* Dossier + CTA */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
                 <DossierPicker />
+
+                {/* Sélecteur variantes */}
+                <div>
+                  <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-2">Nombre de variantes</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([1,2,4] as const).map(n => (
+                      <button key={n} onClick={() => setColorNumVariants(n)}
+                        className={`flex flex-col items-center justify-center rounded-xl border-2 py-2 transition-all ${
+                          colorNumVariants === n
+                            ? 'border-[#a67749] bg-[#a67749]/8 shadow-sm'
+                            : 'border-[#304035]/12 bg-white hover:border-[#a67749]/40'
+                        }`}>
+                        <span className={`text-base font-black ${colorNumVariants === n ? 'text-[#a67749]' : 'text-[#304035]/60'}`}>{n}</span>
+                        <span className="text-[9px] uppercase tracking-wider text-[#304035]/45">{n === 1 ? 'image' : 'images'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Estimation coût */}
                 <div className="flex items-center justify-between rounded-xl bg-[#304035]/4 px-3.5 py-2.5">
                   <div className="flex items-center gap-2">
                     <Star className="h-3.5 w-3.5 text-[#a67749]" />
                     <span className="text-xs font-semibold text-[#304035]/70">Coût estimé · Flux 1.1 Pro</span>
                   </div>
-                  <span className="text-xs font-black text-[#304035]">{estimateCost('coloriste')} · {estimateDuration('coloriste')}</span>
+                  <span className="text-xs font-black text-[#304035]">~{(0.04 * colorNumVariants).toFixed(2).replace('.', ',')} € · {estimateDuration('coloriste')}</span>
                 </div>
                 {!canRunColor && !colorLoading && (
                   <p className="text-[11px] text-[#304035]/55 text-center">
@@ -1040,13 +1089,32 @@ export default function IaStudioPage() {
               {/* Dossier + CTA */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
                 <DossierPicker />
+
+                {/* Sélecteur variantes */}
+                <div>
+                  <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-2">Nombre de variantes</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([1,2,4] as const).map(n => (
+                      <button key={n} onClick={() => setRendNumVariants(n)}
+                        className={`flex flex-col items-center justify-center rounded-xl border-2 py-2 transition-all ${
+                          rendNumVariants === n
+                            ? 'border-[#5b9bd5] bg-[#5b9bd5]/8 shadow-sm'
+                            : 'border-[#304035]/12 bg-white hover:border-[#5b9bd5]/40'
+                        }`}>
+                        <span className={`text-base font-black ${rendNumVariants === n ? 'text-[#5b9bd5]' : 'text-[#304035]/60'}`}>{n}</span>
+                        <span className="text-[9px] uppercase tracking-wider text-[#304035]/45">{n === 1 ? 'image' : 'images'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Estimation coût */}
                 <div className="flex items-center justify-between rounded-xl bg-[#304035]/4 px-3.5 py-2.5">
                   <div className="flex items-center gap-2">
                     <Star className="h-3.5 w-3.5 text-[#5b9bd5]" />
                     <span className="text-xs font-semibold text-[#304035]/70">Coût estimé · Flux 1.1 Pro Ultra</span>
                   </div>
-                  <span className="text-xs font-black text-[#304035]">{estimateCost('rendu')} · {estimateDuration('rendu')}</span>
+                  <span className="text-xs font-black text-[#304035]">~{(0.06 * rendNumVariants).toFixed(2).replace('.', ',')} € · {estimateDuration('rendu')}</span>
                 </div>
                 {!rendLoading && !rendFacades.trim() && !planFile && (
                   <p className="text-[11px] text-[#304035]/55 text-center">

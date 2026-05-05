@@ -72,7 +72,10 @@ export async function POST(req: NextRequest) {
     // Plan WinnerFlex optionnel : sert de reference de proportions au modele.
     const planImageUrl: string | undefined = body.planImageDataUrl;
 
-    const result = await generateRenduImage(params, planImageUrl);
+    // Nombre de variantes a generer (1-4). Defaut 1.
+    const numImages = Math.min(Math.max(parseInt(body.numImages, 10) || 1, 1), 4);
+
+    const result = await generateRenduImage(params, planImageUrl, numImages);
 
     if (!result.success) {
       return NextResponse.json(
@@ -83,6 +86,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       imageUrl:  result.imageUrl,
+      imageUrls: result.imageUrls,
       attempts:  result.attempts,
       durationMs:result.durationMs,
       level:     result.prompt.level,

@@ -76,8 +76,11 @@ export async function POST(req: NextRequest) {
     // les transformations de couleurs/finitions au lieu de generer from scratch.
     const sourceImageUrl: string | undefined = body.sourceImageDataUrl;
 
+    // Nombre de variantes a generer (1-4). Defaut 1.
+    const numImages = Math.min(Math.max(parseInt(body.numImages, 10) || 1, 1), 4);
+
     // Construction du prompt + génération — tout côté serveur
-    const result = await generateColoristImage(params, sourceImageUrl);
+    const result = await generateColoristImage(params, sourceImageUrl, numImages);
 
     if (!result.success) {
       return NextResponse.json(
@@ -88,9 +91,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       imageUrl:  result.imageUrl,
+      imageUrls: result.imageUrls,
       attempts:  result.attempts,
       durationMs:result.durationMs,
-      // On expose le niveau utilisé mais PAS le prompt complet
       level:     result.prompt.level,
       warnings:  result.prompt.warnings,
     });

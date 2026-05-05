@@ -1,0 +1,1 @@
+export { DossierCard } from './DossierCard';

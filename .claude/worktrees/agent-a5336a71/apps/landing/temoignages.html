@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Témoignages AVRA — Transformez votre activité</title>
+  <meta name="description" content="Découvrez les témoignages des 2400+ professionnels qui font confiance à AVRA. Cuisinistes, menuisiers, architectes d'intérieur partagent leur expérience.">
+  <meta name="canonical" href="https://avra.fr/temoignages">
+  <meta property="og:title" content="Témoignages AVRA">
+  <meta property="og:description" content="Plus de 2400 professionnels ont transformé leur activité avec AVRA. 98% satisfaction, 4.9/5 note moyenne.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://avra.fr/temoignages">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Témoignages AVRA",
+    "description": "Témoignages de clients AVRA"
+  }
+  </script>
+
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Hero */
+    .hero {
+      min-height: 70vh;
+      display: flex;
+      align-items: center;
+      padding-top: 76px;
+      background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%);
+      text-align: center;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 60px 5%;
+    }
+
+    .hero h1 {
+      color: var(--white);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero p {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 1.2rem;
+    }
+
+    /* Testimonials Grid */
+    .testimonials-section {
+      padding: 100px 5%;
+      background: var(--white);
+    }
+
+    .testimonials-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin-bottom: 100px;
+    }
+
+    .testimonial-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      transition: var(--transition);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .testimonial-card:hover {
+      transform: translateY(-8px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--gold);
+    }
+
+    .testimonial-stars {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+    }
+
+    .testimonial-quote {
+      color: var(--text-muted);
+      font-style: italic;
+      line-height: 1.8;
+      margin-bottom: 1.5rem;
+      min-height: 80px;
+    }
+
+    .testimonial-author {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.3rem;
+    }
+
+    .testimonial-job {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    /* Featured Testimonial */
+    .featured-testimonial {
+      padding: 60px 5%;
+      background: linear-gradient(135deg, var(--green-deep) 0%, var(--green) 100%);
+      margin-bottom: 0;
+    }
+
+    .featured-content {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(201,169,110,.2);
+      border-radius: 24px;
+      padding: 3rem;
+      backdrop-filter: blur(20px);
+      text-align: center;
+      color: var(--white);
+    }
+
+    .featured-stars {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+    }
+
+    .featured-quote {
+      font-size: 1.4rem;
+      line-height: 1.8;
+      margin-bottom: 2rem;
+      font-style: italic;
+      font-weight: 300;
+    }
+
+    .featured-author {
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .featured-job {
+      color: rgba(255,255,255,.8);
+      font-size: 1rem;
+    }
+
+    /* Stats Section */
+    .stats-section {
+      padding: 100px 5%;
+      background: var(--cream);
+    }
+
+    .stats-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .stats-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 40px;
+    }
+
+    .stat-card {
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: clamp(2.4rem, 5vw, 4rem);
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+      font-family: var(--font-display);
+    }
+
+    .stat-label {
+      font-size: 1.1rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .stat-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    /* Video testimonials */
+    .video-testimonials-section {
+      padding: 100px 5%;
+      background: var(--white);
+    }
+
+    .video-testimonials-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+    }
+
+    .video-item {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(135deg, var(--green), var(--green-dark));
+      border-radius: 16px;
+      border: 1px solid rgba(201,169,110,.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      overflow: hidden;
+      transition: var(--transition);
+    }
+
+    .video-item:hover {
+      transform: scale(1.02);
+      box-shadow: 0 12px 40px rgba(201,169,110,.2);
+    }
+
+    .video-play {
+      font-size: 3rem;
+      color: var(--gold);
+      z-index: 2;
+    }
+
+    .video-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,.2);
+      z-index: 1;
+    }
+
+    .video-label {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, transparent, var(--green-deep));
+      color: var(--white);
+      padding: 1.5rem 1rem;
+      font-weight: 600;
+      z-index: 3;
+    }
+
+    /* Responsive */
+    @media (max-width: 968px) {
+      .testimonials-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .featured-quote {
+        font-size: 1.2rem;
+      }
+
+      .featured-content {
+        padding: 2rem;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .hero h1 {
+        font-size: 1.8rem;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .featured-stars {
+        font-size: 1.5rem;
+      }
+
+      .featured-quote {
+        font-size: 1rem;
+      }
+
+      .stat-number {
+        font-size: 2.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav id="navbar">
+    <a href="index.html" class="nav-logo">
+      <img src="logo.png" alt="Logo AVRA" style="height:40px;width:40px;object-fit:contain;"/>
+      <span class="nav-logo-text">AVRA</span>
+    </a>
+    <div class="nav-links">
+      <a href="metiers.html">Métiers</a>
+      <a href="fonctionnalites.html">Fonctionnalités</a>
+      <a href="comment-ca-marche.html">Comment ça marche</a>
+      <a href="temoignages.html">Témoignages</a>
+      <a href="tarifs.html">Tarifs</a>
+    </div>
+    <div class="nav-cta">
+      <a href="http://localhost:3002/login" class="btn-nav-login">Se connecter</a>
+      <a href="http://localhost:3002/register" class="btn-nav-primary">Essai gratuit — 14 jours</a>
+    </div>
+    <div class="nav-hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Ils ont transformé leur activité avec AVRA</h1>
+      <p>Plus de 2400 professionnels de l'agencement font confiance à AVRA. Découvrez leurs histoires de succès.</p>
+    </div>
+  </section>
+
+  <!-- Testimonials Grid -->
+  <section class="testimonials-section reveal">
+    <div class="testimonials-container">
+      <div class="testimonials-grid">
+        <div class="testimonial-card reveal">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"Mes devis se font en 5 minutes au lieu de 2 heures. Les rendus IA ont doublé mon taux de signature."</p>
+          <p class="testimonial-author">Marie Dubois</p>
+          <p class="testimonial-job">Cuisiniste, Lyon</p>
+        </div>
+
+        <div class="testimonial-card reveal">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"AVRA m'a permis de passer de 2 à 5 chantiers simultanés sans recruter. Le planning est magique."</p>
+          <p class="testimonial-author">Pierre Lefevre</p>
+          <p class="testimonial-job">Menuisier, Marseille</p>
+        </div>
+
+        <div class="testimonial-card reveal">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"Avec le portail client, les architectes et cuisinistes ne m'appellent plus 5 fois pour valider. Vraiment gagnant."</p>
+          <p class="testimonial-author">Sophie Martin</p>
+          <p class="testimonial-job">Architecte d'intérieur, Bordeaux</p>
+        </div>
+
+        <div class="testimonial-card reveal">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"J'ai enfin une vraie facturation légale. Excel ne me manque pas."</p>
+          <p class="testimonial-author">Jean Rousseau</p>
+          <p class="testimonial-job">Agenceur, Nantes</p>
+        </div>
+
+        <div class="testimonial-card reveal">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"Les alertes stock m'ont économisé 2000€ en ruptures. Ça vaut le prix de l'abonnement à lui seul."</p>
+          <p class="testimonial-author">Luc Bernard</p>
+          <p class="testimonial-job">Menuisier, Lille</p>
+        </div>
+
+        <div class="testimonial-card reveal">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"Mon équipe l'adore. C'est tellement simple qu'ils n'ont même pas eu besoin de formation."</p>
+          <p class="testimonial-author">Caroline Dupont</p>
+          <p class="testimonial-job">Cuisiniste, Paris</p>
+        </div>
+
+        <div class="testimonial-card reveal">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"Les stats me montrent enfin où est mon argent. Mes marges ont augmenté de 8% en 3 mois."</p>
+          <p class="testimonial-author">Stéphane Moreau</p>
+          <p class="testimonial-job">Agenceur, Toulouse</p>
+        </div>
+
+        <div class="testimonial-card reveal">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"L'import Excel des clients m'a sauvé. Je n'aurais jamais eu le temps de retaper 300 clients."</p>
+          <p class="testimonial-author">Fabienne Leclerc</p>
+          <p class="testimonial-job">Cuisiniste, Strasbourg</p>
+        </div>
+
+        <div class="testimonial-card reveal">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"Signature électronique légale = plus de retours de papier signé par la poste. Gain de 2 semaines par dossier."</p>
+          <p class="testimonial-author">Thomas Vidal</p>
+          <p class="testimonial-job">Menuisier, Nice</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Featured Testimonial -->
+  <section class="featured-testimonial reveal">
+    <div class="featured-content">
+      <div class="featured-stars">★★★★★</div>
+      <p class="featured-quote">"AVRA n'est pas juste un logiciel, c'est mon assistant de direction. Il gère les devis, le planning, la facturation pendant que moi je me concentre sur le commercial et la qualité. Mon business a grandi de 40% en un an."</p>
+      <p class="featured-author">Christophe Blanchard</p>
+      <p class="featured-job">Directeur Concept Cuisine - Île de France</p>
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="stats-section reveal">
+    <div class="stats-container">
+      <div class="stats-header">
+        <span class="section-label">PAR LES CHIFFRES</span>
+        <h2 class="section-title">Pourquoi les professionnels font confiance à AVRA</h2>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card reveal">
+          <div class="stat-number">2400+</div>
+          <div class="stat-label">Professionnels</div>
+          <div class="stat-desc">Cuisinistes, menuisiers, architectes, agenceurs</div>
+        </div>
+
+        <div class="stat-card reveal">
+          <div class="stat-number">98%</div>
+          <div class="stat-label">Satisfaction</div>
+          <div class="stat-desc">Taux de satisfaction client mesuré</div>
+        </div>
+
+        <div class="stat-card reveal">
+          <div class="stat-number">4.9/5</div>
+          <div class="stat-label">Note moyenne</div>
+          <div class="stat-desc">Avis des utilisateurs</div>
+        </div>
+
+        <div class="stat-card reveal">
+          <div class="stat-number">75%</div>
+          <div class="stat-label">Gain de temps</div>
+          <div class="stat-desc">Réduction du temps administratif</div>
+        </div>
+
+        <div class="stat-card reveal">
+          <div class="stat-number">12%</div>
+          <div class="stat-label">Croissance CA</div>
+          <div class="stat-desc">Croissance moyenne première année</div>
+        </div>
+
+        <div class="stat-card reveal">
+          <div class="stat-number">50+</div>
+          <div class="stat-label">Fonctionnalités</div>
+          <div class="stat-desc">Pour gérer chaque aspect de votre métier</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Video Testimonials -->
+  <section class="video-testimonials-section reveal">
+    <div class="video-testimonials-container">
+      <div style="text-align: center; margin-bottom: 4rem;">
+        <span class="section-label">VIDÉOS</span>
+        <h2 class="section-title">Témoignages vidéo</h2>
+        <p class="section-subtitle">Écoutez directement nos clients partager leur expérience AVRA.</p>
+      </div>
+
+      <div class="video-grid">
+        <div class="video-item" onclick="alert('Vidéo: Marie Dubois - Cuisiniste')">
+          <div class="video-overlay"></div>
+          <div class="video-play">▶️</div>
+          <div class="video-label">Marie Dubois - Cuisiniste</div>
+        </div>
+
+        <div class="video-item" onclick="alert('Vidéo: Pierre Lefevre - Menuisier')">
+          <div class="video-overlay"></div>
+          <div class="video-play">▶️</div>
+          <div class="video-label">Pierre Lefevre - Menuisier</div>
+        </div>
+
+        <div class="video-item" onclick="alert('Vidéo: Sophie Martin - Architecte')">
+          <div class="video-overlay"></div>
+          <div class="video-play">▶️</div>
+          <div class="video-label">Sophie Martin - Architecte</div>
+        </div>
+
+        <div class="video-item" onclick="alert('Vidéo: Christophe Blanchard - Directeur')">
+          <div class="video-overlay"></div>
+          <div class="video-play">▶️</div>
+          <div class="video-label">Christophe Blanchard - Directeur</div>
+        </div>
+
+        <div class="video-item" onclick="alert('Vidéo: Caroline Dupont - Cuisiniste')">
+          <div class="video-overlay"></div>
+          <div class="video-play">▶️</div>
+          <div class="video-label">Caroline Dupont - Cuisiniste</div>
+        </div>
+
+        <div class="video-item" onclick="alert('Vidéo: Stéphane Moreau - Agenceur')">
+          <div class="video-overlay"></div>
+          <div class="video-play">▶️</div>
+          <div class="video-label">Stéphane Moreau - Agenceur</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section style="padding: 100px 5%; background: var(--cream); text-align: center;">
+    <div style="max-width: 700px; margin: 0 auto;">
+      <h2 style="margin-bottom: 1.5rem;">Rejoignez les 2400+ professionnels</h2>
+      <p style="margin-bottom: 2rem; font-size: 1.1rem; color: var(--text-muted);">Commencez votre essai gratuit de 14 jours. Pas de carte bancaire requise.</p>
+      <a href="http://localhost:3002/register" class="btn-primary">Démarrer maintenant</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer role="contentinfo">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="nav-logo" style="margin-bottom:1rem;">
+            <img src="logo.png" alt="Logo AVRA" style="height:36px;width:36px;object-fit:contain;"/>
+            <span class="nav-logo-text">AVRA</span>
+          </div>
+          <p>L'ERP et assistant IA N°1 pour les professionnels de l'agencement intérieur.</p>
+        </div>
+        <div class="footer-col">
+          <h5>Produit</h5>
+          <a href="fonctionnalites.html">Fonctionnalités</a>
+          <a href="tarifs.html">Tarifs</a>
+          <a href="comment-ca-marche.html">Comment ça marche</a>
+          <a href="metiers.html">Métiers</a>
+        </div>
+        <div class="footer-col">
+          <h5>Entreprise</h5>
+          <a href="temoignages.html">Témoignages</a>
+          <a href="#">Blog</a>
+          <a href="#">À propos</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-col">
+          <h5>Légal</h5>
+          <a href="#">Mentions légales</a>
+          <a href="#">CGU</a>
+          <a href="#">Confidentialité</a>
+          <a href="#">Cookies</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 AVRA — Luméa SAS. Tous droits réservés.</span>
+        <div class="footer-bottom-links">
+          <a href="#">LinkedIn</a>
+          <a href="#">Twitter</a>
+          <a href="#">YouTube</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const nav = document.getElementById('navbar');
+    window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 20));
+
+    const reveals = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e, i) => {
+        if(e.isIntersecting){
+          setTimeout(() => e.target.classList.add('revealed'), i * 80);
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(el => io.observe(el));
+
+    function toggleMenu(){
+      const links = document.querySelector('.nav-links');
+      links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    // Set active nav link
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      if(link.getAttribute('href') === 'temoignages.html') {
+        link.classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>

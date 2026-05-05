@@ -28,6 +28,7 @@ import {
 export interface GenerationResult {
   success:   boolean;
   imageUrl:  string | null;
+  imageUrls: string[];
   prompt:    BuiltPrompt;
   attempts:  number;
   durationMs:number;
@@ -61,7 +62,7 @@ const POLL_MAX_ATTEMPTS   = 60;      // 60 × 2s = 2 min max de polling
  * Soumet une génération à fal.ai (mode asynchrone) et retourne l'imageUrl.
  * Gestion complète : submit → poll → extract.
  */
-async function callFalApi(model: string, input: FluxInput): Promise<string> {
+async function callFalApi(model: string, input: FluxInput): Promise<string[]> {
   const falKey = process.env.FAL_KEY;
   if (!falKey) {
     throw new Error('FAL_KEY manquante dans les variables d\'environnement');
@@ -92,8 +93,8 @@ async function callFalApi(model: string, input: FluxInput): Promise<string> {
   };
 
   // Si sync_mode=true était actif, l'image peut être directement dans la réponse
-  const directUrl = extractUrl(submitData);
-  if (directUrl) return directUrl;
+  const directUrls = extractUrls(submitData);
+  if (directUrls.length) return directUrls;
 
   const requestId = submitData.request_id;
   if (!requestId) {
@@ -126,8 +127,8 @@ async function callFalApi(model: string, input: FluxInput): Promise<string> {
       throw new Error(`FAL generation failed: ${pollData.error ?? 'unknown'}`);
     }
 
-    const url = extractUrl(pollData);
-    if (url) return url;
+    const urls = extractUrls(pollData);
+    if (urls.length) return urls;
 
     // status 'IN_PROGRESS' ou 'IN_QUEUE' → on continue
   }
@@ -135,12 +136,14 @@ async function callFalApi(model: string, input: FluxInput): Promise<string> {
   throw new Error(`FAL timeout: aucun résultat après ${POLL_MAX_ATTEMPTS * POLL_INTERVAL_MS / 1000}s`);
 }
 
-/** Extrait l'URL d'image depuis les différents formats de réponse FAL */
-function extractUrl(data: any): string | null {
-  if (data?.images?.[0]?.url) return data.images[0].url;
-  if (data?.image?.url)       return data.image.url;
-  if (data?.url)              return data.url;
-  return null;
+/** Extrait toutes les URLs d'image (1-4) depuis les différents formats de réponse FAL */
+function extractUrls(data: any): string[] {
+  if (Array.isArray(data?.images) && data.images.length) {
+    return data.images.map((i: any) => i?.url).filter(Boolean);
+  }
+  if (data?.image?.url) return [data.image.url];
+  if (data?.url)        return [data.url];
+  return [];
 }
 
 function sleep(ms: number): Promise<void> {
@@ -149,11 +152,16 @@ function sleep(ms: number): Promise<void> {
 
 // ─────────────────────────────────────────── CORE ENGINE
 
-async function callFlux(built: BuiltPrompt, model: string, sourceImageUrl?: string): Promise<string> {
+async function callFlux(
+  built: BuiltPrompt,
+  model: string,
+  sourceImageUrl?: string,
+  numImages: number = 1,
+): Promise<string[]> {
   const input: FluxInput = {
     prompt:           built.prompt,
     negative_prompt:  built.negative,
-    num_images:       1,
+    num_images:       Math.min(Math.max(numImages, 1), 4),
     image_size:       'landscape_16_9',
     output_format:    'jpeg',
     seed:             built.seed,
@@ -176,6 +184,7 @@ async function generateWithRetry(
   model: string,
   startTime: number,
   sourceImageUrl?: string,
+  numImages: number = 1,
 ): Promise<GenerationResult> {
   let attempts   = 0;
   let lastError  = '';
@@ -185,8 +194,8 @@ async function generateWithRetry(
     const built = buildPrompt(level);
 
     try {
-      const imageUrl = await Promise.race([
-        callFlux(built, model, sourceImageUrl),
+      const imageUrls = await Promise.race([
+        callFlux(built, model, sourceImageUrl, numImages),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Timeout dépassé')), TIMEOUT_MS)
         ),
@@ -194,7 +203,8 @@ async function generateWithRetry(
 
       return {
         success:    true,
-        imageUrl,
+        imageUrl:   imageUrls[0] ?? null,
+        imageUrls,
         prompt:     built,
         attempts,
         durationMs: Date.now() - startTime,
@@ -211,10 +221,11 @@ async function generateWithRetry(
   // Fallback absolu — prompt validé manuellement
   attempts++;
   try {
-    const imageUrl = await callFlux(fallbackPrompt, model);
+    const imageUrls = await callFlux(fallbackPrompt, model, undefined, 1);
     return {
       success:    true,
-      imageUrl,
+      imageUrl:   imageUrls[0] ?? null,
+      imageUrls,
       prompt:     fallbackPrompt,
       attempts,
       durationMs: Date.now() - startTime,
@@ -223,6 +234,7 @@ async function generateWithRetry(
     return {
       success:    false,
       imageUrl:   null,
+      imageUrls:  [],
       prompt:     fallbackPrompt,
       attempts,
       durationMs: Date.now() - startTime,
@@ -240,6 +252,7 @@ async function generateWithRetry(
 export async function generateColoristImage(
   params: ColoristParams,
   sourceImageUrl?: string,
+  numImages: number = 1,
 ): Promise<GenerationResult> {
   return generateWithRetry(
     ['standard', 'simplified', 'minimal'],
@@ -248,6 +261,7 @@ export async function generateColoristImage(
     FLUX_MODEL_COLORISTE,
     Date.now(),
     sourceImageUrl,
+    numImages,
   );
 }
 
@@ -258,6 +272,7 @@ export async function generateColoristImage(
 export async function generateRenduImage(
   params: RenduParams,
   sourceImageUrl?: string,
+  numImages: number = 1,
 ): Promise<GenerationResult> {
   return generateWithRetry(
     ['standard', 'simplified', 'minimal'],
@@ -266,6 +281,7 @@ export async function generateRenduImage(
     FLUX_MODEL_RENDU,
     Date.now(),
     sourceImageUrl,
+    numImages,
   );
 }
 
