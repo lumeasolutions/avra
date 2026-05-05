@@ -27,6 +27,10 @@ async function callColoristAPI(params: {
   poigneeFinish?: FinishType; planFinish?: FinishType;
   handleMaterial?: string; countertopMaterial?: string;
   sourceImageDataUrl?: string;
+  /** Texture data URL importée par l'utilisateur, par élément (mode manuel uniquement). */
+  facadeTextureDataUrl?: string;
+  poigneeTextureDataUrl?: string;
+  planTextureDataUrl?: string;
   numImages?: number;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste', {
@@ -450,6 +454,12 @@ export default function IaStudioPage() {
   // de finition spécifique (on garde le matériau standard du preset).
   const [poigneeFinish, setPoigneeFinish] = useState<FinishType | null>(null);
   const [planFinish,    setPlanFinish]    = useState<FinishType | null>(null);
+  // Textures importées par l'utilisateur (mode manuel uniquement) — data URL.
+  // Limite 1 Mo par fichier. Si défini, remplace visuellement le fond plat de
+  // la pastille par l'image, et est cité dans le prompt fal.ai côté serveur.
+  const [facadeTexture,  setFacadeTexture]  = useState<string | null>(null);
+  const [poigneeTexture, setPoigneeTexture] = useState<string | null>(null);
+  const [planTexture,    setPlanTexture]    = useState<string | null>(null);
   const [colorLight,   setColorLight]   = useState<LightingType>('naturelle');
   const [colorLoading, setColorLoading] = useState(false);
   const [colorResult,  setColorResult]  = useState<Item|null>(null);
@@ -497,8 +507,43 @@ export default function IaStudioPage() {
     setFacadeFinish(p.finish);
   };
 
-  /* ── Coloriste : peut-on lancer ? (preset OU couleurs modifiées manuellement OU photo uploadée) */
-  const canRunColor = !!preset || colorsModified || !!photoFile;
+  /* ── Coloriste : peut-on lancer ? (preset OU couleurs/textures modifiées OU photo uploadée) */
+  const canRunColor = !!preset || colorsModified || !!photoFile
+    || !!facadeTexture || !!poigneeTexture || !!planTexture;
+
+  /**
+   * Charge une image de texture depuis un <input type=file/>, la convertit en
+   * data URL et la stocke dans le state correspondant. Limite stricte à 1 Mo
+   * pour ne pas saturer la mémoire React (et pour rester sous la limite Vercel
+   * de payload). Affiche une alerte simple si dépassement.
+   */
+  const handleTextureUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (v: string | null) => void,
+  ) => {
+    const file = e.target.files?.[0];
+    // Reset le champ pour permettre de re-sélectionner le même fichier après
+    // un retrait.
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Format invalide : sélectionnez une image (jpg, png, webp...).');
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      alert('Image trop lourde : maximum 1 Mo. Utilisez une version compressée.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : null;
+      setter(dataUrl);
+      setPreset(null);
+      setColorsModified(true);
+    };
+    reader.onerror = () => alert('Impossible de lire le fichier. Réessayez.');
+    reader.readAsDataURL(file);
+  };
 
   /* ── Coloriste : lancer */
   const runColor = async () => {
@@ -529,6 +574,10 @@ export default function IaStudioPage() {
         countertopMaterial: preset?.countertopMaterial,
         lightingStyle:      colorLight,
         sourceImageDataUrl,
+        // Textures importées (mode manuel uniquement — les presets gardent leurs couleurs).
+        facadeTextureDataUrl:  preset ? undefined : (facadeTexture  ?? undefined),
+        poigneeTextureDataUrl: preset ? undefined : (poigneeTexture ?? undefined),
+        planTextureDataUrl:    preset ? undefined : (planTexture    ?? undefined),
         numImages:          colorNumVariants,
       });
 
@@ -791,27 +840,71 @@ export default function IaStudioPage() {
                     {([
                       { key:'facade',  label:'Façades',     val:facadeCol,  set:setFacadeCol,
                         finishVal: facadeFinish, setFinish: (v: FinishType | null) => v && setFacadeFinish(v),
-                        finishOptional: false /* la facade a tjrs une finition (chip global) */ },
+                        finishOptional: false /* la facade a tjrs une finition (chip global) */,
+                        texture: facadeTexture,  setTexture: setFacadeTexture },
                       { key:'poignee', label:'Poignées',    val:poigneeCol, set:setPoigneeCol,
                         finishVal: poigneeFinish, setFinish: setPoigneeFinish,
-                        finishOptional: true },
+                        finishOptional: true,
+                        texture: poigneeTexture, setTexture: setPoigneeTexture },
                       { key:'plan',    label:'Plan travail',val:planCol,    set:setPlanCol,
                         finishVal: planFinish, setFinish: setPlanFinish,
-                        finishOptional: true },
-                    ] as const).map(({key, label, val, set, finishVal, setFinish, finishOptional}) => (
+                        finishOptional: true,
+                        texture: planTexture,    setTexture: setPlanTexture },
+                    ] as const).map(({key, label, val, set, finishVal, setFinish, finishOptional, texture, setTexture}) => (
                       <div key={key} className="flex-1 text-center">
                         <p className="text-[9px] font-bold uppercase tracking-widest text-[#304035]/45 mb-2">{label}</p>
                         <div className="relative mx-auto w-14 h-14">
+                          {/* Le color picker reste cliquable même quand une texture
+                              est définie : on permet à l'utilisateur de garder
+                              une couleur de fallback en mémoire. */}
                           <input type="color" value={val}
                             onChange={e => { (set as (v:string)=>void)(e.target.value); setPreset(null); setColorsModified(true); }}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                           <div className="w-14 h-14 rounded-2xl border-2 border-[#304035]/10 shadow-md cursor-pointer hover:scale-105 transition-transform duration-200"
-                            style={{background:val}} />
+                            style={
+                              texture
+                                ? { background: `url(${texture}) center/cover` }
+                                : { background: val }
+                            } />
                           <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white border border-[#304035]/12 shadow">
                             <Paintbrush className="h-3 w-3 text-[#304035]/50" />
                           </div>
+                          {/* Bouton "X" pour retirer la texture, visible uniquement
+                              quand une texture est active. Au clic : retour à la
+                              couleur plate. */}
+                          {texture && (
+                            <button
+                              type="button"
+                              onClick={() => (setTexture as (v: string | null) => void)(null)}
+                              className="absolute -top-1 -right-1 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-[#dc2626] text-white shadow hover:scale-110 transition-transform"
+                              aria-label={`Retirer la texture ${label}`}
+                              title="Retirer la texture"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
-                        <p className="text-[9px] font-mono text-[#304035]/35 mt-2">{val.toUpperCase()}</p>
+
+                        {/* Bouton import texture : déclenche le file picker.
+                            Utilise un <label> pour garder l'input file natif
+                            mais invisible. Limite 1 Mo (cf handleTextureUpload). */}
+                        <label
+                          className="mt-2 inline-flex items-center justify-center gap-1 cursor-pointer rounded-full bg-[#a67749]/10 hover:bg-[#a67749]/20 px-2 py-0.5 text-[9px] font-bold text-[#a67749] transition-colors"
+                          title={texture ? 'Remplacer la texture importée' : 'Importer une image de texture (max 1 Mo)'}
+                        >
+                          <Upload className="h-2.5 w-2.5" />
+                          {texture ? 'Changer' : 'Texture'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={e => handleTextureUpload(e, setTexture as (v: string | null) => void)}
+                          />
+                        </label>
+
+                        <p className="text-[9px] font-mono text-[#304035]/35 mt-1">
+                          {texture ? 'Texture importée' : val.toUpperCase()}
+                        </p>
                         {/* Finition par élément — dropdown compact. Pour façades on
                             edit le chip global, pour poignées/plan c'est optionnel. */}
                         <select

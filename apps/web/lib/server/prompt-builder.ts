@@ -27,6 +27,18 @@ export interface ColoristParams {
   countertopMaterial?:string;  // ex: "marbre blanc Calacatta"
   lightingStyle:     LightingType;
   extraContext?:     string;
+  /**
+   * Textures importées par l'utilisateur (data URL) pour chaque élément.
+   * NOTE : fal.ai en mode image-to-image n'accepte qu'une seule image source
+   * (la photo de cuisine de référence). Ces textures ne sont donc PAS injectées
+   * dans le pipeline image — elles sont uniquement *mentionnées* dans le prompt
+   * texte ("matching imported texture pattern and material") pour inciter le
+   * modèle à respecter la matière. C'est un best-effort, mieux que rien pour
+   * l'utilisateur qui veut un marbre, un bois ou un tissu spécifique.
+   */
+  facadeTextureDataUrl?:  string;
+  poigneeTextureDataUrl?: string;
+  planTextureDataUrl?:    string;
 }
 
 export interface RenduParams {
@@ -205,13 +217,28 @@ export function buildColoristPrompt(
   const finishBlock  = FINISH_BLOCKS[params.facadeFinish];
   const lightBlock   = LIGHTING_BLOCKS[params.lightingStyle];
 
+  // Suffixes "texture importée" — quand l'utilisateur a uploadé une image de
+  // matière pour un élément, on incite le modèle à respecter ce motif/matière.
+  // Best-effort : fal.ai ne consomme pas réellement l'image de texture (un
+  // seul image-input possible, déjà occupé par la photo source img2img),
+  // mais le mentionner en texte aide souvent le modèle à orienter la matière.
+  const facadeTextureHint  = params.facadeTextureDataUrl
+    ? ' (matching the imported custom texture pattern and material reference)'
+    : '';
+  const poigneeTextureHint = params.poigneeTextureDataUrl
+    ? ' (matching the imported custom texture pattern and material reference)'
+    : '';
+  const planTextureHint    = params.planTextureDataUrl
+    ? ' (matching the imported custom texture pattern and material reference)'
+    : '';
+
   let prompt = '';
 
   if (level === 'standard') {
     prompt = [
       `Professional architectural interior photography of a modern French kitchen.`,
-      `Kitchen cabinet fronts in ${facadeName}, ${finishBlock}.`,
-      `${poigneeName}, ${planName}.`,
+      `Kitchen cabinet fronts in ${facadeName}, ${finishBlock}${facadeTextureHint}.`,
+      `${poigneeName}${poigneeTextureHint}, ${planName}${planTextureHint}.`,
       lightBlock + '.',
       `Perfectly clean and staged kitchen, showroom presentation.`,
       TECH_SUFFIX + '.',
@@ -220,7 +247,7 @@ export function buildColoristPrompt(
 
   else if (level === 'simplified') {
     prompt = [
-      `Interior photography of a kitchen with ${facadeName} cabinets, ${poigneeName}.`,
+      `Interior photography of a kitchen with ${facadeName} cabinets${facadeTextureHint}, ${poigneeName}${poigneeTextureHint}.`,
       `${lightBlock}.`,
       `Photorealistic, professional quality, high-end kitchen.`,
       `Canon EOS R5, 8K, interior design magazine.`,

@@ -71,6 +71,12 @@ export async function POST(req: NextRequest) {
       countertopMaterial: body.countertopMaterial ?? undefined,
       lightingStyle,
       extraContext:       body.extraContext        ?? undefined,
+      // Textures importées par l'utilisateur, par élément. Quand présentes,
+      // le prompt mentionne "matching imported texture pattern" pour aider
+      // le modèle à respecter la matière (cf prompt-builder).
+      facadeTextureDataUrl:  body.facadeTextureDataUrl  ?? undefined,
+      poigneeTextureDataUrl: body.poigneeTextureDataUrl ?? undefined,
+      planTextureDataUrl:    body.planTextureDataUrl    ?? undefined,
     };
 
     // Photo de cuisine optionnelle pour img2img (data URL ou URL publique).
