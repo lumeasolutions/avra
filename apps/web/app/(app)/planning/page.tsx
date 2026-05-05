@@ -6,6 +6,7 @@ import {
   Calendar, ChevronLeft, ChevronRight, Plus, X, Clock,
   AlertTriangle, Circle, CheckCircle, Zap, CalendarDays,
   MapPin, User, ArrowRight, TrendingUp, Target, Wrench,
+  Pencil, Trash2,
 } from 'lucide-react';
 import { useDossierStore, usePlanningStore } from '@/store';
 import { useDemandesStore } from '@/store/useDemandesStore';
@@ -192,6 +193,7 @@ export default function PlanningPage() {
   const dossiersSignes  = useDossierStore(s => s.dossiersSignes);
   const planningEvents  = usePlanningStore(s => s.planningEvents);
   const addPlanningEvent   = usePlanningStore(s => s.addPlanningEvent);
+  const updatePlanningEvent = usePlanningStore(s => s.updatePlanningEvent);
   const deletePlanningEvent = usePlanningStore(s => s.deletePlanningEvent);
 
   // Profession active → filtre les types de RDV proposes
@@ -215,7 +217,7 @@ export default function PlanningPage() {
   const [weekOffset, setWeekOffset]   = useState(0);
   const [showAdd,    setShowAdd]      = useState(false);
   const [addCell,    setAddCell]      = useState<{ day: number; hour: number } | null>(null);
-  const [newEvent,   setNewEvent]     = useState({ type: 'CLIENT', dossierId: '', title: '', duration: 2 });
+  const [newEvent,   setNewEvent]     = useState({ type: 'CLIENT', dossierId: '', title: '', duration: 2, color: '' });
   const [modalDate,  setModalDate]    = useState('');  // 'YYYY-MM-DD'
   const [modalHour,  setModalHour]    = useState(9);
   // Mini calendrier custom (modal RDV)
@@ -228,6 +230,14 @@ export default function PlanningPage() {
   const [nowPct,     setNowPct]       = useState(0);
   const [hoveredId,  setHoveredId]    = useState<string | null>(null);
   const [clickedId,  setClickedId]    = useState<string | null>(null);
+  // Popover Google-Agenda-style (clic sur RDV → menu Modifier / Supprimer)
+  const [popoverEventId, setPopoverEventId] = useState<string | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState<{ x: number; y: number } | null>(null);
+  // Modale d'édition (réutilise le state newEvent + showAdd, mais en mode "edit")
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  // Drag & drop : id de l'event en cours de drag + offset visuel
+  const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
+  const [dragOverCell, setDragOverCell] = useState<{ day: number; hour: number } | null>(null);
 
   /* Ligne "maintenant" en temps réel */
   useEffect(() => {
@@ -243,6 +253,83 @@ export default function PlanningPage() {
 
   const dates = getWeekDates(weekOffset);
   const currentEvents = planningEvents.filter(e => (e.weekOffset ?? 0) === weekOffset);
+
+  /**
+   * Layout "quinconce" — calcule pour chaque event sa colonne et le nombre
+   * total de colonnes du cluster d'overlap. Permet d'afficher 2-3 RDV
+   * côte-à-côte dans le même créneau (style Google Agenda).
+   *
+   * Algo : pour chaque jour, on traite les events triés par startHour puis
+   * duration desc. On assigne à chaque event la 1ère colonne libre. Un cluster
+   * = ensemble d'events qui s'overlapent transitivement. La largeur d'un
+   * event = 1 / (nombre max de colonnes utilisées dans son cluster).
+   */
+  const eventLayout = useMemo(() => {
+    const map = new Map<string, { col: number; cols: number }>();
+    // Group par day
+    const byDay = new Map<number, typeof currentEvents>();
+    for (const ev of currentEvents) {
+      const arr = byDay.get(ev.day) ?? [];
+      arr.push(ev);
+      byDay.set(ev.day, arr);
+    }
+    for (const [, evs] of byDay) {
+      // Trier par startHour, puis durée descendante (les plus longs d'abord)
+      const sorted = [...evs].sort((a, b) => {
+        if (a.startHour !== b.startHour) return a.startHour - b.startHour;
+        return b.duration - a.duration;
+      });
+
+      // Assignation gloutonne : pour chaque event, trouver la 1ère colonne libre
+      const colEnds: number[] = []; // colEnds[c] = endHour du dernier event de la col c
+      const colsAssigned = new Map<string, number>();
+
+      for (const ev of sorted) {
+        const evStart = ev.startHour;
+        const evEnd = ev.startHour + ev.duration;
+        let assignedCol = -1;
+        for (let c = 0; c < colEnds.length; c++) {
+          if (colEnds[c] <= evStart) {
+            assignedCol = c;
+            colEnds[c] = evEnd;
+            break;
+          }
+        }
+        if (assignedCol === -1) {
+          assignedCol = colEnds.length;
+          colEnds.push(evEnd);
+        }
+        colsAssigned.set(ev.id, assignedCol);
+      }
+
+      // Pour chaque event, calculer le nombre de colonnes "actives" dans son cluster.
+      // Un cluster = events qui s'overlapent (au moins 2 à 2 transitivement).
+      // Pour la simplicité on retourne le nombre TOTAL de colonnes du jour si
+      // l'event chevauche au moins une autre, sinon 1. C'est moins optimal mais
+      // visuellement OK et facile à comprendre.
+      for (const ev of sorted) {
+        const evStart = ev.startHour;
+        const evEnd = ev.startHour + ev.duration;
+        const overlapping = sorted.filter(other =>
+          other.id !== ev.id &&
+          !(other.startHour + other.duration <= evStart) &&
+          !(other.startHour >= evEnd),
+        );
+        // Nombre de colonnes effectives = max(col assignée + 1) parmi cet event
+        // et tous ceux qui le chevauchent.
+        let maxCol = colsAssigned.get(ev.id) ?? 0;
+        for (const o of overlapping) {
+          maxCol = Math.max(maxCol, colsAssigned.get(o.id) ?? 0);
+        }
+        map.set(ev.id, {
+          col: colsAssigned.get(ev.id) ?? 0,
+          cols: maxCol + 1,
+        });
+      }
+    }
+    return map;
+  }, [currentEvents]);
+
   const allDossiers = [...dossiers, ...dossiersSignes];
   const clientNames = allDossiers.map(d => ({ id: d.id, label: `${d.name}${('firstName' in d && d.firstName) ? ' ' + d.firstName : ''}` }));
 
@@ -259,7 +346,7 @@ export default function PlanningPage() {
   /* Ouverture modal ajout */
   const openAdd = (day: number, hour: number) => {
     setAddCell({ day, hour });
-    setNewEvent({ type: 'CLIENT', dossierId: dossiers[0]?.id ?? '', title: '', duration: 2 });
+    setNewEvent({ type: 'CLIENT', dossierId: dossiers[0]?.id ?? '', title: '', duration: 2, color: '' });
     // Calcul de la date réelle correspondant à la cellule cliquée
     const cellDate = getWeekDates(weekOffset)[day - 1];
     const yyyy = cellDate.getFullYear();
@@ -294,14 +381,92 @@ export default function PlanningPage() {
       startHour: modalHour,
       duration: newEvent.duration,
       title: newEvent.title || (dossier ? `${rdvType?.icon} ${dossier.name}` : rdvType?.label ?? 'RDV'),
-      color: rdvType?.color ?? '#5b9bd5',
+      // Couleur custom prioritaire (color picker), sinon couleur du type RDV
+      color: newEvent.color || rdvType?.color || '#5b9bd5',
       type: newEvent.type,
       weekOffset: diffWeeks,
     });
     // Naviguer vers la semaine de l'événement créé
     setWeekOffset(diffWeeks);
     setShowAdd(false);
+    setEditingEventId(null);
   };
+
+  /* Édition d'un événement existant (réutilise la modale showAdd) */
+  const openEdit = (eventId: string) => {
+    const ev = planningEvents.find(e => e.id === eventId);
+    if (!ev) return;
+    setEditingEventId(eventId);
+    setNewEvent({
+      type: ev.type ?? 'CLIENT',
+      dossierId: '',
+      title: ev.title ?? '',
+      duration: ev.duration ?? 2,
+      color: ev.color ?? '',
+    });
+    // Calcule la date réelle de l'event (jour + weekOffset)
+    const eventDates = getWeekDates(ev.weekOffset ?? 0);
+    const cellDate = eventDates[(ev.day ?? 1) - 1];
+    if (cellDate) {
+      const yyyy = cellDate.getFullYear();
+      const mm = String(cellDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(cellDate.getDate()).padStart(2, '0');
+      setModalDate(`${yyyy}-${mm}-${dd}`);
+      setModalHour(ev.startHour ?? 9);
+      setCalYear(cellDate.getFullYear());
+      setCalMonth(cellDate.getMonth());
+    }
+    setPopoverEventId(null);
+    setShowAdd(true);
+  };
+
+  /* Sauvegarde de l'édition (en cours d'édition) */
+  const handleSaveEdit = () => {
+    if (!editingEventId || !modalDate) return;
+    const dossier = allDossiers.find(d => d.id === newEvent.dossierId);
+    const rdvType = rdvTypes.find(r => r.key === newEvent.type) ?? RDV_TYPES.find(r => r.key === newEvent.type);
+    const chosen = new Date(modalDate + 'T00:00:00');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const chosenMon = new Date(chosen);
+    chosenMon.setDate(chosen.getDate() - ((chosen.getDay() + 6) % 7));
+    const baseMon = new Date(today);
+    baseMon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const diffWeeks = Math.round((chosenMon.getTime() - baseMon.getTime()) / (7 * 86400000));
+    const dayOfWeek = ((chosen.getDay() + 6) % 7) + 1;
+    updatePlanningEvent(editingEventId, {
+      day: dayOfWeek,
+      startHour: modalHour,
+      duration: newEvent.duration,
+      title: newEvent.title || (dossier ? `${rdvType?.icon} ${dossier.name}` : rdvType?.label ?? 'RDV'),
+      // Couleur custom prioritaire (color picker), sinon couleur du type RDV
+      color: newEvent.color || rdvType?.color || '#5b9bd5',
+      type: newEvent.type,
+      weekOffset: diffWeeks,
+    });
+    setWeekOffset(diffWeeks);
+    setShowAdd(false);
+    setEditingEventId(null);
+  };
+
+  /* Drop d'un event sur une autre cellule (drag & drop) */
+  const handleDropEvent = (targetDay: number, targetHour: number) => {
+    if (!draggingEventId) return;
+    updatePlanningEvent(draggingEventId, {
+      day: targetDay,
+      startHour: targetHour,
+      weekOffset: weekOffset,
+    });
+    setDraggingEventId(null);
+    setDragOverCell(null);
+  };
+
+  /* Fermer le popover si on clique ailleurs */
+  useEffect(() => {
+    if (!popoverEventId) return;
+    const onDocClick = () => setPopoverEventId(null);
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [popoverEventId]);
 
   /* Deadlines : dossiers créés avec status URGENT depuis > 7 jours */
   const deadlines = dossiers
@@ -587,38 +752,82 @@ export default function PlanningPage() {
                 {dates.map((d, di) => {
                   const today = isToday(d);
                   const cellEvents = currentEvents.filter(e => e.day === di + 1 && e.startHour === hour);
+                  const isDragOver = dragOverCell?.day === di + 1 && dragOverCell?.hour === hour;
                   return (
                     <div
                       key={di}
-                      className={`plan-cell relative border-r border-b border-[#304035]/5 last:border-r-0 ${today ? 'bg-emerald-50/20' : ''}`}
+                      className={`plan-cell relative border-r border-b border-[#304035]/5 last:border-r-0 ${today ? 'bg-emerald-50/20' : ''} ${isDragOver ? 'plan-cell-dragover' : ''}`}
                       style={{ height: CELL_H }}
                       onClick={() => openAdd(di + 1, hour)}
+                      // Drop target pour drag & drop
+                      onDragOver={(e) => {
+                        if (draggingEventId) {
+                          e.preventDefault();
+                          if (!isDragOver) setDragOverCell({ day: di + 1, hour });
+                        }
+                      }}
+                      onDragLeave={() => {
+                        if (isDragOver) setDragOverCell(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDropEvent(di + 1, hour);
+                      }}
                     >
                       {/* Hint + au hover */}
                       <div className="add-hint absolute inset-0 flex items-center justify-center">
                         <Plus className="h-3.5 w-3.5 text-[#304035]/20" />
                       </div>
 
-                      {/* Événements */}
+                      {/* Événements — affichés en quinconce si overlap */}
                       {cellEvents.map(ev => {
                         const isHovered = hoveredId === ev.id;
+                        const layout = eventLayout.get(ev.id) ?? { col: 0, cols: 1 };
+                        // Position horizontale : on partage la largeur entre cols colonnes
+                        const widthPct = 100 / layout.cols;
+                        const leftPct = layout.col * widthPct;
+                        const isDragging = draggingEventId === ev.id;
                         return (
                           <div
                             key={ev.id}
-                            className="plan-event absolute left-1 right-1 rounded-xl px-2 py-1 cursor-pointer select-none group"
+                            className="plan-event absolute rounded-xl px-2 py-1 cursor-grab active:cursor-grabbing select-none group"
                             style={{
                               top: 2,
+                              left: `calc(${leftPct}% + 2px)`,
+                              width: `calc(${widthPct}% - 4px)`,
                               height: ev.duration * CELL_H - 4,
                               background: ev.color,
                               boxShadow: isHovered
                                 ? `0 4px 16px ${ev.color}55, 0 2px 4px rgba(0,0,0,0.1)`
                                 : `0 1px 3px rgba(0,0,0,0.08)`,
                               zIndex: isHovered ? 15 : 10,
+                              opacity: isDragging ? 0.4 : 1,
+                              transition: isDragging ? 'none' : 'opacity 0.15s, box-shadow 0.15s',
+                            }}
+                            draggable
+                            onDragStart={(e) => {
+                              e.stopPropagation();
+                              setDraggingEventId(ev.id);
+                              setPopoverEventId(null);
+                              // Permet de garder le curseur "move"
+                              e.dataTransfer.effectAllowed = 'move';
+                              try { e.dataTransfer.setData('text/plain', ev.id); } catch { /* ignore */ }
+                            }}
+                            onDragEnd={() => {
+                              setDraggingEventId(null);
+                              setDragOverCell(null);
                             }}
                             onMouseEnter={() => setHoveredId(ev.id)}
                             onMouseLeave={() => setHoveredId(null)}
                             onClick={e => {
                               e.stopPropagation();
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setPopoverPosition({
+                                x: rect.right + 8,
+                                y: rect.top,
+                              });
+                              setPopoverEventId(ev.id);
                               setClickedId(ev.id);
                               setTimeout(() => setClickedId(null), 400);
                             }}
@@ -627,28 +836,6 @@ export default function PlanningPage() {
                               <div className="min-w-0">
                                 <p className="text-white text-xs font-bold truncate leading-tight">{ev.title}</p>
                                 <p className="text-white/70 text-[10px] mt-0.5">{ev.startHour}:00 — {ev.startHour + ev.duration}:00</p>
-                              </div>
-                              <div onClick={e2 => e2.stopPropagation()} className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 flex-shrink-0 flex items-center gap-1">
-                                <SendToIntervenantButton
-                                  variant="icon"
-                                  prefill={{
-                                    type: 'POSE',
-                                    title: ev.title || 'Intervention planning',
-                                    scheduledFor: undefined,
-                                    notes: `${ev.startHour}h — ${ev.startHour + ev.duration}h`,
-                                  }}
-                                  style={{
-                                    width: 18, height: 18,
-                                    background: 'rgba(255,255,255,0.2)',
-                                    color: 'white',
-                                    borderRadius: 4,
-                                  }}
-                                />
-                                <button
-                                  onClick={e2 => { e2.stopPropagation(); deletePlanningEvent(ev.id); }}
-                                >
-                                  <X className="h-3 w-3 text-white/80 hover:text-white" />
-                                </button>
                               </div>
                             </div>
                           </div>
@@ -791,6 +978,76 @@ export default function PlanningPage() {
           </button>
         </div>
       </div>
+
+      {/* ── POPOVER RDV (style Google Agenda : Modifier / Supprimer) ── */}
+      {popoverEventId && popoverPosition && (() => {
+        const ev = planningEvents.find(e => e.id === popoverEventId);
+        if (!ev) return null;
+        // Calcule la position en évitant de sortir de l'écran
+        const popoverWidth = 240;
+        const screenW = typeof window !== 'undefined' ? window.innerWidth : 1920;
+        const screenH = typeof window !== 'undefined' ? window.innerHeight : 1080;
+        let left = popoverPosition.x;
+        let top = popoverPosition.y;
+        if (left + popoverWidth > screenW - 16) left = popoverPosition.x - popoverWidth - 32;
+        if (top + 220 > screenH - 16) top = Math.max(16, screenH - 240);
+        return (
+          <div
+            className="fixed z-[60]"
+            style={{ left, top, width: popoverWidth }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl border border-[#304035]/10 overflow-hidden"
+              style={{ animation: 'cardIn 0.16s ease both' }}
+            >
+              {/* Bandeau couleur */}
+              <div className="h-1.5 w-full" style={{ background: ev.color }} />
+              <div className="p-4">
+                <div className="flex items-start gap-2 mb-3">
+                  <div
+                    className="w-3 h-3 rounded-full mt-1 flex-shrink-0"
+                    style={{ background: ev.color }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-[#304035] leading-tight">{ev.title || 'RDV'}</p>
+                    <p className="text-xs text-[#304035]/55 mt-0.5">
+                      {ev.startHour}:00 — {ev.startHour + ev.duration}:00 · {DAYS_FULL[ev.day - 1] ?? ''}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setPopoverEventId(null)}
+                    className="p-1 rounded hover:bg-[#304035]/5 text-[#304035]/40"
+                    aria-label="Fermer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openEdit(ev.id)}
+                    className="flex-1 px-3 py-2 rounded-xl bg-[#304035] text-white text-xs font-bold hover:bg-[#4a6358] transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Modifier
+                  </button>
+                  <button
+                    onClick={() => {
+                      deletePlanningEvent(ev.id);
+                      setPopoverEventId(null);
+                    }}
+                    className="flex-1 px-3 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 border border-red-200 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── MODAL AJOUT ── */}
       {showAdd && (
@@ -958,6 +1215,66 @@ export default function PlanningPage() {
                 </p>
               </div>
 
+              {/* Color picker — palette + custom (override la couleur du type) */}
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-[#304035]/70 mb-2 uppercase tracking-wider">
+                  Couleur du RDV
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    '', // Auto = couleur du type
+                    '#5b9bd5', '#4aa350', '#e07b00', '#d32f2f',
+                    '#9333ea', '#0891b2', '#db2777', '#7c3a1e',
+                    '#525252',
+                  ].map((c) => {
+                    const isAuto = c === '';
+                    const isSelected = (newEvent.color || '') === c;
+                    return (
+                      <button
+                        key={c || 'auto'}
+                        type="button"
+                        onClick={() => setNewEvent(n => ({ ...n, color: c }))}
+                        className="relative w-7 h-7 rounded-full border-2 transition-all"
+                        style={{
+                          background: isAuto
+                            ? 'conic-gradient(from 0deg, #5b9bd5, #4aa350, #e07b00, #d32f2f, #9333ea, #5b9bd5)'
+                            : c,
+                          borderColor: isSelected ? '#304035' : 'rgba(48,64,53,0.15)',
+                          transform: isSelected ? 'scale(1.1)' : 'scale(1)',
+                          boxShadow: isSelected ? '0 2px 8px rgba(48,64,53,0.25)' : 'none',
+                        }}
+                        title={isAuto ? 'Couleur auto (selon type)' : c}
+                        aria-label={isAuto ? 'Couleur automatique' : `Couleur ${c}`}
+                      >
+                        {isSelected && (
+                          <CheckCircle
+                            className="absolute inset-0 m-auto h-3.5 w-3.5"
+                            style={{ color: isAuto ? '#fff' : '#fff', strokeWidth: 3 }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                  {/* Color picker natif pour couleur 100% custom */}
+                  <label
+                    className="relative w-7 h-7 rounded-full border-2 border-dashed border-[#304035]/30 cursor-pointer flex items-center justify-center hover:border-[#304035]/60 transition-colors"
+                    title="Choisir une couleur personnalisée"
+                  >
+                    <Plus className="h-3.5 w-3.5 text-[#304035]/50" />
+                    <input
+                      type="color"
+                      value={newEvent.color || '#5b9bd5'}
+                      onChange={(e) => setNewEvent(n => ({ ...n, color: e.target.value }))}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      aria-label="Couleur personnalisée"
+                    />
+                  </label>
+                </div>
+                <p className="text-[10px] text-[#304035]/40 mt-1.5 leading-snug">
+                  Le rond multicolore = couleur auto (héritée du type RDV)
+                </p>
+              </div>
+
               {/* Dossier */}
               <div>
                 <label className="text-xs font-bold text-[#304035]/50 uppercase tracking-wider block mb-2">Dossier client</label>
@@ -1014,15 +1331,15 @@ export default function PlanningPage() {
                   Annuler
                 </button>
                 <button
-                  onClick={handleAdd}
-                  disabled={!newEvent.dossierId || !modalDate}
+                  onClick={editingEventId ? handleSaveEdit : handleAdd}
+                  disabled={(!editingEventId && !newEvent.dossierId) || !modalDate}
                   className="flex-2 flex-grow py-3 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-40"
                   style={{
                     background: 'linear-gradient(135deg, #3d5244, #304035)',
                     boxShadow: '0 4px 12px rgba(48,64,53,0.3)',
                   }}
                 >
-                  Planifier ✓
+                  {editingEventId ? 'Enregistrer ✓' : 'Planifier ✓'}
                 </button>
               </div>
             </div>

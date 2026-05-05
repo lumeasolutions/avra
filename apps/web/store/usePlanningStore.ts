@@ -48,6 +48,8 @@ interface PlanningState {
 
   // Planning actions
   addPlanningEvent: (event: Omit<PlanningEvent, 'id'>) => void;
+  /** Met à jour un événement existant (drag&drop, édition). */
+  updatePlanningEvent: (id: string, patch: Partial<Omit<PlanningEvent, 'id'>>) => void;
   deletePlanningEvent: (id: string) => void;
 
   // Gestion actions
@@ -67,6 +69,14 @@ export const usePlanningStore = create<PlanningState>()(
       addPlanningEvent: (event) => {
         const newEvent = { ...event, id: 'ev' + uid() };
         set(s => ({ planningEvents: [...s.planningEvents, newEvent] }));
+      },
+
+      updatePlanningEvent: (id, patch) => {
+        set(s => ({
+          planningEvents: s.planningEvents.map(e =>
+            e.id === id ? { ...e, ...patch } : e,
+          ),
+        }));
       },
 
       deletePlanningEvent: (id) => {
