@@ -33,7 +33,26 @@ async function callColoristAPI(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  return res.json();
+  // Même protection que callRenduAPI : fallback gracieux sur réponses non-JSON
+  // (timeout Vercel, plain text "An error occurred", HTML error page).
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as { imageUrl: string | null; imageUrls?: string[]; error?: string };
+  } catch {
+    let message = 'Le serveur n\'a pas pu générer la colorisation.';
+    if (res.status === 504 || res.status === 502) {
+      message = 'La colorisation a pris trop de temps (timeout serveur). Réessayez.';
+    } else if (res.status === 413) {
+      message = 'Image fournie trop volumineuse pour le serveur.';
+    } else if (res.status === 429) {
+      message = 'Trop de générations dans la dernière heure. Patientez un peu.';
+    } else if (res.status === 401) {
+      message = 'Session expirée — reconnectez-vous.';
+    } else if (text.toLowerCase().includes('an error occurred')) {
+      message = 'Erreur serveur (probablement timeout fal.ai). Réessayez dans 30s.';
+    }
+    return { imageUrl: null, error: message };
+  }
 }
 
 async function callRenduAPI(params: {
@@ -47,7 +66,29 @@ async function callRenduAPI(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  return res.json();
+  // FIX 05/05/2026 : Vercel peut renvoyer du texte natif (non-JSON) en cas
+  // de timeout / memory limit / erreur infrastructure → on parse avec
+  // fallback gracieux pour éviter "Unexpected token A is not valid JSON"
+  // qui ne dit rien à l'utilisateur.
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as { imageUrl: string | null; imageUrls?: string[]; error?: string };
+  } catch {
+    // Réponse non-JSON (timeout Vercel, plain text "An error occurred", HTML error page, etc.)
+    let message = 'Le serveur n\'a pas pu générer le rendu.';
+    if (res.status === 504 || res.status === 502) {
+      message = 'Le rendu a pris trop de temps (timeout serveur). Réessayez ou simplifiez votre demande.';
+    } else if (res.status === 413) {
+      message = 'Image fournie trop volumineuse pour le serveur.';
+    } else if (res.status === 429) {
+      message = 'Trop de générations dans la dernière heure. Patientez un peu.';
+    } else if (res.status === 401) {
+      message = 'Session expirée — reconnectez-vous.';
+    } else if (text.toLowerCase().includes('an error occurred')) {
+      message = 'Erreur serveur (probablement timeout fal.ai). Réessayez dans 30s.';
+    }
+    return { imageUrl: null, error: message };
+  }
 }
 
 /* ─── Helper : convertit un File en data URL pour transmission JSON ─── */

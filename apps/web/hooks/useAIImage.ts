@@ -4,6 +4,34 @@ export interface UseAIImageOptions {
   onError?: (error: Error) => void;
 }
 
+/**
+ * Parse une Response en JSON avec fallback gracieux si la réponse n'est
+ * pas du JSON (cas typique : timeout Vercel qui renvoie "An error occurred"
+ * en plain text → JSON.parse plante avec "Unexpected token A").
+ */
+async function parseJsonOrError(
+  response: Response,
+): Promise<{ imageUrl?: string; error?: string }> {
+  const text = await response.text();
+  try {
+    return JSON.parse(text) as { imageUrl?: string; error?: string };
+  } catch {
+    let message = 'Le serveur n\'a pas pu générer l\'image.';
+    if (response.status === 504 || response.status === 502) {
+      message = 'Le rendu a pris trop de temps (timeout serveur). Réessayez ou simplifiez votre demande.';
+    } else if (response.status === 413) {
+      message = 'Image fournie trop volumineuse pour le serveur.';
+    } else if (response.status === 429) {
+      message = 'Trop de générations dans la dernière heure. Patientez un peu.';
+    } else if (response.status === 401) {
+      message = 'Session expirée — reconnectez-vous.';
+    } else if (text.toLowerCase().includes('an error occurred')) {
+      message = 'Erreur serveur (probablement timeout fal.ai). Réessayez dans 30s.';
+    }
+    return { error: message };
+  }
+}
+
 export function useAIImage(options: UseAIImageOptions = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -27,7 +55,7 @@ export function useAIImage(options: UseAIImageOptions = {}) {
           body: JSON.stringify(params),
         });
 
-        const data = (await response.json()) as { imageUrl?: string; error?: string };
+        const data = await parseJsonOrError(response);
 
         if (data.error) {
           throw new Error(data.error);
@@ -71,7 +99,7 @@ export function useAIImage(options: UseAIImageOptions = {}) {
           body: JSON.stringify(params),
         });
 
-        const data = (await response.json()) as { imageUrl?: string; error?: string };
+        const data = await parseJsonOrError(response);
 
         if (data.error) {
           throw new Error(data.error);
