@@ -16,7 +16,63 @@ import { X, Save, Loader2, Tag as TagIcon, Calendar, AlertCircle } from 'lucide-
 import type { AdminDoc } from '@/store/useAdminDocsStore';
 import { parseTags, stringifyTags } from '@/store/useAdminDocsStore';
 
-const CATEGORIES = ['Juridique', 'Assurances', 'Fournisseurs', 'RH', 'Divers'] as const;
+/**
+ * Arbre des catégories : 8 dossiers principaux + sous-dossiers.
+ * Le format de stockage est "Main" ou "Main/Sub".
+ */
+const CATEGORY_GROUPS: { label: string; options: { id: string; label: string }[] }[] = [
+  { label: 'Documents entreprise', options: [
+    { id: 'Documents entreprise',            label: '📁 Documents entreprise (général)' },
+    { id: 'Documents entreprise/Kbis',       label: '↳ Kbis' },
+    { id: 'Documents entreprise/SIRET',      label: '↳ SIRET' },
+    { id: 'Documents entreprise/Statuts',    label: '↳ Statuts' },
+    { id: 'Documents entreprise/Assurances', label: '↳ Assurances' },
+  ] },
+  { label: 'Comptabilité', options: [
+    { id: 'Comptabilité',          label: '📁 Comptabilité (général)' },
+    { id: 'Comptabilité/Factures', label: '↳ Factures' },
+    { id: 'Comptabilité/TVA',      label: '↳ TVA' },
+    { id: 'Comptabilité/Bilans',   label: '↳ Bilans' },
+  ] },
+  { label: 'Juridique', options: [
+    { id: 'Juridique',                      label: '📁 Juridique (général)' },
+    { id: 'Juridique/Contrats clients',     label: '↳ Contrats clients' },
+    { id: 'Juridique/Contrats partenaires', label: '↳ Contrats partenaires' },
+    { id: 'Juridique/CGV',                  label: '↳ CGV' },
+  ] },
+  { label: 'RH', options: [
+    { id: 'RH',                label: '📁 RH (général)' },
+    { id: 'RH/Contrats',       label: '↳ Contrats' },
+    { id: 'RH/Fiches de paie', label: '↳ Fiches de paie' },
+  ] },
+  { label: 'Charges, Note de frais', options: [
+    { id: 'Charges',              label: '📁 Charges (général)' },
+    { id: 'Charges/Loyer',        label: '↳ Loyer' },
+    { id: 'Charges/Logiciels',    label: '↳ Logiciels' },
+    { id: 'Charges/Assurances',   label: '↳ Assurances' },
+    { id: 'Charges/Fournisseurs', label: '↳ Fournisseurs' },
+    { id: 'Charges/Autres',       label: '↳ Autres' },
+  ] },
+  { label: 'Impayés', options: [
+    { id: 'Impayés',           label: '📁 Impayés (général)' },
+    { id: 'Impayés/Factures',  label: '↳ Factures' },
+    { id: 'Impayés/Relances',  label: '↳ Relances' },
+    { id: 'Impayés/Procédures', label: '↳ Procédures' },
+  ] },
+  { label: 'Fiscal', options: [
+    { id: 'Fiscal',              label: '📁 Fiscal (général)' },
+    { id: 'Fiscal/Impôts',       label: '↳ Impôts' },
+    { id: 'Fiscal/Déclarations', label: '↳ Déclarations' },
+    { id: 'Fiscal/Échéances',    label: '↳ Échéances' },
+    { id: 'Fiscal/Urssaf',       label: '↳ Urssaf' },
+  ] },
+  { label: 'Banque', options: [
+    { id: 'Banque',         label: '📁 Banque (général)' },
+    { id: 'Banque/Comptes', label: '↳ Comptes' },
+    { id: 'Banque/Prêts',   label: '↳ Prêts' },
+    { id: 'Banque/Leasing', label: '↳ Leasing' },
+  ] },
+];
 
 export interface AdminDocEditProps {
   open: boolean;
@@ -275,7 +331,13 @@ export function AdminDocEditModal({ open, doc, onSave, onClose }: AdminDocEditPr
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                 >
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {CATEGORY_GROUPS.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.options.map((opt) => (
+                        <option key={opt.id} value={opt.id}>{opt.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
             </div>

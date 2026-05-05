@@ -29,6 +29,8 @@ import {
   Loader2, AlertCircle, AlertTriangle, Clock,
   LayoutDashboard, History, Link2, ListChecks, LayoutGrid, List,
   ArrowUpDown, ArrowUp, ArrowDown, Tag as TagIcon,
+  ChevronDown, ChevronRight as ChevronRightIcon,
+  Building, Calculator, UserCog, Receipt, FileWarning, Landmark, CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -49,14 +51,118 @@ import { AdminDocsDashboardPanel } from '@/components/admin-docs/AdminDocsDashbo
 import { AdminDocsAuditPanel } from '@/components/admin-docs/AdminDocsAuditPanel';
 
 // ─── Catégories ─────────────────────────────────────────────────────────────
+//
+// Arbre des 8 dossiers principaux + leurs sous-dossiers.
+// Le `folderId` stocké en DB est soit le nom du main ("Comptabilité"),
+// soit le chemin "Main/Sub" (ex "Comptabilité/Factures"). Le filtrage
+// front fait correspondre "Main" → tout doc dont le folderId commence
+// par "Main" (avec ou sans sous-dossier).
 
+interface CategoryNode {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children?: { id: string; label: string }[];
+}
+
+const CATEGORY_TREE: CategoryNode[] = [
+  {
+    id: 'Documents entreprise',
+    label: 'Documents entreprise',
+    icon: Building,
+    children: [
+      { id: 'Documents entreprise/Kbis',       label: 'Kbis' },
+      { id: 'Documents entreprise/SIRET',      label: 'SIRET' },
+      { id: 'Documents entreprise/Statuts',    label: 'Statuts' },
+      { id: 'Documents entreprise/Assurances', label: 'Assurances' },
+    ],
+  },
+  {
+    id: 'Comptabilité',
+    label: 'Comptabilité',
+    icon: Calculator,
+    children: [
+      { id: 'Comptabilité/Factures', label: 'Factures' },
+      { id: 'Comptabilité/TVA',      label: 'TVA' },
+      { id: 'Comptabilité/Bilans',   label: 'Bilans' },
+    ],
+  },
+  {
+    id: 'Juridique',
+    label: 'Juridique',
+    icon: Building2,
+    children: [
+      { id: 'Juridique/Contrats clients',     label: 'Contrats clients' },
+      { id: 'Juridique/Contrats partenaires', label: 'Contrats partenaires' },
+      { id: 'Juridique/CGV',                  label: 'CGV' },
+    ],
+  },
+  {
+    id: 'RH',
+    label: 'RH',
+    icon: UserCog,
+    children: [
+      { id: 'RH/Contrats',       label: 'Contrats' },
+      { id: 'RH/Fiches de paie', label: 'Fiches de paie' },
+    ],
+  },
+  {
+    id: 'Charges',
+    label: 'Charges, Note de frais',
+    icon: Receipt,
+    children: [
+      { id: 'Charges/Loyer',        label: 'Loyer' },
+      { id: 'Charges/Logiciels',    label: 'Logiciels' },
+      { id: 'Charges/Assurances',   label: 'Assurances' },
+      { id: 'Charges/Fournisseurs', label: 'Fournisseurs' },
+      { id: 'Charges/Autres',       label: 'Autres' },
+    ],
+  },
+  {
+    id: 'Impayés',
+    label: 'Impayés',
+    icon: FileWarning,
+    children: [
+      { id: 'Impayés/Factures',   label: 'Factures' },
+      { id: 'Impayés/Relances',   label: 'Relances' },
+      { id: 'Impayés/Procédures', label: 'Procédures' },
+    ],
+  },
+  {
+    id: 'Fiscal',
+    label: 'Fiscal',
+    icon: Landmark,
+    children: [
+      { id: 'Fiscal/Impôts',       label: 'Impôts' },
+      { id: 'Fiscal/Déclarations', label: 'Déclarations' },
+      { id: 'Fiscal/Échéances',    label: 'Échéances' },
+      { id: 'Fiscal/Urssaf',       label: 'Urssaf' },
+    ],
+  },
+  {
+    id: 'Banque',
+    label: 'Banque',
+    icon: CreditCard,
+    children: [
+      { id: 'Banque/Comptes', label: 'Comptes' },
+      { id: 'Banque/Prêts',   label: 'Prêts' },
+      { id: 'Banque/Leasing', label: 'Leasing' },
+    ],
+  },
+];
+
+/** Liste plate de toutes les catégories (pour le sélecteur upload). */
+const FLAT_CATEGORIES: { id: string; label: string }[] = [
+  ...CATEGORY_TREE.flatMap(node => [
+    { id: node.id, label: node.label },
+    ...(node.children ?? []).map(c => ({ id: c.id, label: `${node.label} → ${c.label}` })),
+  ]),
+];
+
+/** Compatibilité avec l'ancienne constante CATEGORY_DEFS (résolution de label). */
 const CATEGORY_DEFS = [
-  { id: 'all',          label: 'Tous les documents', icon: FolderOpen },
-  { id: 'Juridique',    label: 'Juridique',          icon: Building2 },
-  { id: 'Assurances',   label: 'Assurances',         icon: Shield },
-  { id: 'Fournisseurs', label: 'Fournisseurs',       icon: Package },
-  { id: 'RH',           label: 'Ressources Humaines', icon: Users },
-  { id: 'Divers',       label: 'Divers',             icon: Briefcase },
+  { id: 'all', label: 'Tous les documents', icon: FolderOpen },
+  ...FLAT_CATEGORIES.map((c) => ({ id: c.id, label: c.label, icon: FolderOpen })),
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -89,6 +195,8 @@ export default function AdminDocsPage() {
 
   // ── État UI ──────────────────────────────────────────────────────────────
   const [activeCategory, setActiveCategory] = useState('all');
+  /** Set des dossiers principaux actuellement expandés (sous-dossiers visibles). */
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [sortKey, setSortKey] = useState<SortKey>('date');
@@ -98,7 +206,7 @@ export default function AdminDocsPage() {
   // ── État upload ──────────────────────────────────────────────────────────
   const [showUpload, setShowUpload] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [newDocCat, setNewDocCat] = useState('Juridique');
+  const [newDocCat, setNewDocCat] = useState('Documents entreprise');
   const [newDocTitle, setNewDocTitle] = useState('');
   const [newDocDesc, setNewDocDesc] = useState('');
   const [newDocExpiry, setNewDocExpiry] = useState('');
@@ -168,9 +276,20 @@ export default function AdminDocsPage() {
   }, []);
 
   // ── Filtrage + tri ───────────────────────────────────────────────────────
+  // Si activeCategory = "Main" (sans /), on inclut tous les docs avec
+  // folderId === "Main" OU folderId qui commence par "Main/" (sous-dossiers).
+  // Si activeCategory = "Main/Sub", match exact uniquement.
+  const matchesCategory = (folderId: string | null, catId: string): boolean => {
+    if (!folderId) return false;
+    if (catId === folderId) return true;
+    // Main folder : inclut les sous-dossiers
+    if (!catId.includes('/')) return folderId.startsWith(catId + '/');
+    return false;
+  };
+
   const filtered = useMemo(() => {
     let list = docs;
-    if (activeCategory !== 'all') list = list.filter(d => d.folderId === activeCategory);
+    if (activeCategory !== 'all') list = list.filter(d => matchesCategory(d.folderId, activeCategory));
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(d =>
@@ -200,7 +319,7 @@ export default function AdminDocsPage() {
   }, [docs, activeCategory, search, sortKey, sortDir]);
 
   const countFor = (catId: string) =>
-    catId === 'all' ? docs.length : docs.filter(d => d.folderId === catId).length;
+    catId === 'all' ? docs.length : docs.filter(d => matchesCategory(d.folderId, catId)).length;
 
   const totalSize = useMemo(() => docs.reduce((s, d) => s + d.storedFile.sizeBytes, 0), [docs]);
 
@@ -421,29 +540,105 @@ export default function AdminDocsPage() {
 
       <div className="adm-main-layout flex gap-5">
 
-        {/* ── Sidebar catégories ── */}
-        <div className="adm-sidebar w-52 shrink-0 space-y-1">
-          {CATEGORY_DEFS.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              className={cn(
-                'w-full flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors',
-                activeCategory === cat.id
-                  ? 'bg-[#304035] text-white shadow-md'
-                  : 'bg-white border border-[#304035]/10 text-[#304035] hover:bg-[#304035]/5'
-              )}
-            >
-              <div className="flex items-center gap-2.5">
-                <cat.icon className="h-4 w-4 shrink-0" />
-                <span className="text-left leading-snug">{cat.label}</span>
+        {/* ── Sidebar catégories (arbre) ── */}
+        <div className="adm-sidebar w-60 shrink-0 space-y-1">
+          {/* "Tous les documents" en premier */}
+          <button
+            onClick={() => setActiveCategory('all')}
+            className={cn(
+              'w-full flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors',
+              activeCategory === 'all'
+                ? 'bg-[#304035] text-white shadow-md'
+                : 'bg-white border border-[#304035]/10 text-[#304035] hover:bg-[#304035]/5'
+            )}
+          >
+            <div className="flex items-center gap-2.5">
+              <FolderOpen className="h-4 w-4 shrink-0" />
+              <span className="text-left leading-snug">Tous les documents</span>
+            </div>
+            <span className={cn(
+              'text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center',
+              activeCategory === 'all' ? 'bg-white/20 text-white' : 'bg-[#304035]/10 text-[#304035]/60'
+            )}>{countFor('all')}</span>
+          </button>
+
+          {/* Arbre : 8 dossiers principaux + sous-dossiers expandables */}
+          {CATEGORY_TREE.map(node => {
+            const isActive = activeCategory === node.id;
+            const hasActiveChild = node.children?.some(c => c.id === activeCategory);
+            const isExpanded = expandedCategories.has(node.id) || isActive || hasActiveChild;
+            const Icon = node.icon;
+            return (
+              <div key={node.id} className="space-y-0.5">
+                {/* Main folder */}
+                <div
+                  className={cn(
+                    'group flex items-center rounded-xl text-sm font-semibold transition-colors overflow-hidden',
+                    isActive
+                      ? 'bg-[#304035] text-white shadow-md'
+                      : 'bg-white border border-[#304035]/10 text-[#304035] hover:bg-[#304035]/5'
+                  )}
+                >
+                  <button
+                    onClick={() => {
+                      // Toggle expand quand on clique sur l'icône chevron uniquement
+                      const next = new Set(expandedCategories);
+                      if (isExpanded && !isActive && !hasActiveChild) next.delete(node.id);
+                      else next.add(node.id);
+                      setExpandedCategories(next);
+                    }}
+                    className={cn(
+                      'shrink-0 px-2 py-2.5 transition-transform',
+                      isExpanded ? 'rotate-90' : ''
+                    )}
+                    title={isExpanded ? 'Réduire' : 'Développer'}
+                    aria-label={isExpanded ? 'Réduire' : 'Développer'}
+                  >
+                    <ChevronRightIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setActiveCategory(node.id)}
+                    className="flex-1 flex items-center justify-between pr-3 py-2.5 text-left"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{node.label}</span>
+                    </div>
+                    <span className={cn(
+                      'ml-2 text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center',
+                      isActive ? 'bg-white/20 text-white' : 'bg-[#304035]/10 text-[#304035]/60'
+                    )}>{countFor(node.id)}</span>
+                  </button>
+                </div>
+                {/* Sub-folders */}
+                {isExpanded && node.children && (
+                  <div className="ml-4 pl-2 border-l-2 border-[#304035]/10 space-y-0.5">
+                    {node.children.map(child => {
+                      const subActive = activeCategory === child.id;
+                      return (
+                        <button
+                          key={child.id}
+                          onClick={() => setActiveCategory(child.id)}
+                          className={cn(
+                            'w-full flex items-center justify-between rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                            subActive
+                              ? 'bg-[#a67749] text-white shadow-sm'
+                              : 'text-[#304035]/75 hover:bg-[#304035]/5'
+                          )}
+                        >
+                          <span className="truncate text-left">{child.label}</span>
+                          <span className={cn(
+                            'ml-2 text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center',
+                            subActive ? 'bg-white/25 text-white' : 'bg-[#304035]/10 text-[#304035]/55'
+                          )}>{countFor(child.id)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              <span className={cn(
-                'text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center',
-                activeCategory === cat.id ? 'bg-white/20 text-white' : 'bg-[#304035]/10 text-[#304035]/60'
-              )}>{countFor(cat.id)}</span>
-            </button>
-          ))}
+            );
+          })}
         </div>
 
         {/* ── Zone documents ── */}
@@ -580,8 +775,13 @@ export default function AdminDocsPage() {
                     onChange={e => setNewDocCat(e.target.value)}
                     className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/30 px-3 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
                   >
-                    {CATEGORY_DEFS.filter(c => c.id !== 'all').map(c => (
-                      <option key={c.id} value={c.id}>{c.label}</option>
+                    {CATEGORY_TREE.map(node => (
+                      <optgroup key={node.id} label={node.label}>
+                        <option value={node.id}>📁 {node.label} (général)</option>
+                        {(node.children ?? []).map(child => (
+                          <option key={child.id} value={child.id}>↳ {child.label}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>
