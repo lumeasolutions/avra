@@ -357,7 +357,16 @@ export default function IaStudioPage() {
 
   /* État global */
   const [tab,          setTab]          = useState<Module>('coloriste');
-  const [gallery,      setGallery]      = useState<Item[]>([]);
+  const [gallery,      setGallery]      = useState<Item[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { const saved = localStorage.getItem('avra-ia-gallery'); return saved ? JSON.parse(saved) : []; }
+    catch { return []; }
+  });
+  // Persiste la galerie a chaque changement
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try { localStorage.setItem('avra-ia-gallery', JSON.stringify(gallery)); } catch {}
+  }, [gallery]);
   const [dossierId,    setDossierId]    = useState(allDossiers[0]?.id ?? '');
   const dossierName = allDossiers.find(d=>d.id===dossierId)?.name ?? 'Sans dossier';
 
@@ -763,6 +772,11 @@ export default function IaStudioPage() {
                   </div>
                   <span className="text-xs font-black text-[#304035]">{estimateCost('coloriste')} · {estimateDuration('coloriste')}</span>
                 </div>
+                {!canRunColor && !colorLoading && (
+                  <p className="text-[11px] text-[#304035]/55 text-center">
+                    Choisissez une palette ou modifiez une couleur pour activer le bouton.
+                  </p>
+                )}
                 <button onClick={runColor}
                   disabled={colorLoading || !canRunColor}
                   className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1034,6 +1048,11 @@ export default function IaStudioPage() {
                   </div>
                   <span className="text-xs font-black text-[#304035]">{estimateCost('rendu')} · {estimateDuration('rendu')}</span>
                 </div>
+                {!rendLoading && !rendFacades.trim() && !planFile && (
+                  <p className="text-[11px] text-[#304035]/55 text-center">
+                    Décrivez les façades ou importez un plan WinnerFlex pour activer le bouton.
+                  </p>
+                )}
                 <button onClick={runRendu}
                   disabled={rendLoading || (!rendFacades.trim() && !planFile)}
                   className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
