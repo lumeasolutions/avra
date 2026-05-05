@@ -190,21 +190,25 @@ export const CUISINISTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
 ];
 
 /**
- * ARCHITECTE D'INTÉRIEUR — 11 items alignés sur la maquette MODULE ARCHITECTE.
- * Le label "APD VERSION VALIDÉE" est réécrit en "APD VERSION <N> (DOSSIER SIGNÉ)".
+ * ARCHITECTE D'INTÉRIEUR — modale Validation projet. 8 items 100%
+ * actionnables : 5 dates butoirs + 3 ACCEDER groupés en bas.
+ *
+ * Refonte 05/05/2026 — retiré : AVANT VENTE, APD VERSION VALIDÉE,
+ * RÉCEPTION SAV (étapes "ancrage" non actionnables, retrouvables dans
+ * les sous-dossiers du dossier signé via ARCHITECTE_SIGNED_SUBFOLDERS).
+ *
+ * Les 5 dates dans l'ordre logique du chantier architecte :
+ * permis administratif → DCE → marché → suivi chantier → modifications.
  */
 export const ARCHITECTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
-  { label: 'AVANT VENTE',                                      kind: 'static' },
-  { label: 'APD VERSION VALIDÉE',                              kind: 'static' },
   { label: 'PERMIS DE CONSTRUIRE',                             kind: 'date'   },
   { label: 'DCE',                                              kind: 'date'   },
   { label: 'MARCHÉ / SIGNATURES',                              kind: 'date'   },
+  { label: 'SUIVI DE CHANTIER',                                kind: 'date'   },
+  { label: 'DOSSIER MODIFICATIONS',                            kind: 'date'   },
   { label: 'COMMANDES FOURNISSEURS',                           kind: 'access' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS FOURNISSEURS',     kind: 'access' },
   { label: 'LIVRAISON',                                        kind: 'access' },
-  { label: 'SUIVI DE CHANTIER',                                kind: 'date'   },
-  { label: 'DOSSIER MODIFICATIONS',                            kind: 'date'   },
-  { label: 'RÉCEPTION SAV',                                    kind: 'static' },
 ];
 
 export interface DateButoireValidationProps {

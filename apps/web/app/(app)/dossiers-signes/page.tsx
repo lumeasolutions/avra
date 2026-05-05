@@ -14,7 +14,14 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DashboardTriggerButton } from '@/components/layout/DashboardTriggerButton';
-import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
+import {
+  DateButoireValidationModal,
+  MENUISIER_DATE_BUTOIRE_ITEMS,
+  CUISINISTE_DATE_BUTOIRE_ITEMS,
+  ARCHITECTE_DATE_BUTOIRE_ITEMS,
+  DEFAULT_DATE_BUTOIRE_ITEMS,
+  type DateButoireItem,
+} from '@/components/dossiers/DateButoireValidationModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,320 +62,30 @@ function formatMontant(n: number) {
 }
 
 // ─── Config dates butoires par métier ──────────────────────────────────────
+//
+// Refonte 05/05/2026 : on utilise désormais les MEMES listes que la modale
+// Validation projet (DateButoireValidationModal) pour garantir la cohérence
+// entre saisie et tableau de bord. La clé d'indexation est le `label` du
+// DateButoireItem (pas un id slug) pour matcher exactement ce que la modale
+// sauvegarde dans datesButoiresSignes[dossierId][label].
 
-type DateButoiresItem = {
-  id: string;
-  label: string;
-  showDate?: boolean;
-  isAccess?: boolean;
-  accessHref?: string;
-};
+function getDateButoireItemsForProfession(profession: string | null): DateButoireItem[] {
+  if (profession === 'menuisier') return MENUISIER_DATE_BUTOIRE_ITEMS;
+  if (profession === 'cuisiniste') return CUISINISTE_DATE_BUTOIRE_ITEMS;
+  if (profession === 'architecte') return ARCHITECTE_DATE_BUTOIRE_ITEMS;
+  return DEFAULT_DATE_BUTOIRE_ITEMS;
+}
 
-const DATES_BUTOIRES_BY_PROFESSION: Record<string, DateButoiresItem[]> = {
-  architecte: [
-    { id: 'permis-construire',   label: 'PERMIS DE CONSTRUIRE', showDate: true },
-    { id: 'dce',                 label: 'DCE', showDate: true },
-    { id: 'marche-signatures',   label: 'MARCHÉ / SIGNATURES', showDate: true },
-    { id: 'suivi-chantier',      label: 'SUIVI DE CHANTIER', showDate: true },
-    { id: 'commandes-fournisseurs', label: 'COMMANDES FOURNISSEURS', isAccess: true, accessHref: '/dossiers-signes' },
-    { id: 'confirmations-achats',   label: "CONFIRMATIONS / FACTURES D'ACHATS", isAccess: true, accessHref: '/dossiers-signes' },
-    { id: 'livraisons',             label: 'LIVRAISONS', isAccess: true, accessHref: '/dossiers-signes' },
-  ],
-  menuisier: [
-    { id: 'releve-mesures',      label: 'RELEVÉ SUR MESURE', showDate: true },
-    { id: 'debit-materiaux',     label: 'DÉBIT / LISTE MATÉRIAUX', showDate: true },
-    { id: 'fiche-pose',          label: 'FICHE DE POSE', showDate: true },
-    { id: 'commandes-fournisseurs', label: 'COMMANDES FOURNISSEURS', isAccess: true, accessHref: '/dossiers-signes' },
-    { id: 'fabrication',            label: 'FABRICATION', isAccess: true, accessHref: '/planning' },
-    { id: 'livraisons',             label: 'LIVRAISONS', isAccess: true, accessHref: '/dossiers-signes' },
-  ],
-  cuisiniste: [
-    { id: 'releve-definitif',    label: 'RELEVÉ DÉFINITIF', showDate: true },
-    { id: 'plans-techniques',    label: 'PLANS TECHNIQUES', showDate: true },
-    { id: 'fiche-pose',          label: 'FICHE DE POSE', showDate: true },
-    { id: 'commandes',              label: 'COMMANDES', isAccess: true, accessHref: '/dossiers-signes' },
-    { id: 'confirmations-achats',   label: "CONFIRMATIONS / FACTURES D'ACHATS", isAccess: true, accessHref: '/dossiers-signes' },
-    { id: 'livraisons',             label: 'LIVRAISONS', isAccess: true, accessHref: '/dossiers-signes' },
-  ],
-  default: [
-    { id: 'suivi-chantier',      label: 'SUIVI DE CHANTIER', showDate: true },
-    { id: 'releve-mesures',      label: 'RELEVÉ DE MESURES', showDate: true },
-    { id: 'plan-technique',      label: 'PLAN TECHNIQUE', showDate: true },
-    { id: 'fiche-pose',          label: 'FICHE DE POSE', showDate: true },
-    { id: 'permis-construire',   label: 'PERMIS DE CONSTRUIRE', showDate: true },
-    { id: 'commandes',              label: 'COMMANDES', isAccess: true, accessHref: '/dossiers-signes' },
-    { id: 'livraisons',             label: 'LIVRAISONS', isAccess: true, accessHref: '/dossiers-signes' },
-  ],
-};
-
-// ─── Sous-composant : Modal dates butoires ──────────────────────────────────
+// ─── Sous-composant : Modal dates butoires (legacy, conservé en _UNUSED_) ──
+// La saisie des dates butoires utilise maintenant DateButoireValidationModal
+// (cohérent avec la modale Validation projet en cours). Cette fonction
+// reste typée pour ne pas casser la compilation, mais n'est plus rendue.
 
 type DateButoiresData = {
   [key: string]: string;
 };
 
-function DateButoiresModal({ dossierId, onClose, profession }: { dossierId: string; onClose: () => void; profession: string | null }) {
-  const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
-  const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
-  const saved = datesButoiresSignes[dossierId] ?? {};
-
-  const [dates, setDates] = useState<DateButoiresData>(saved);
-
-  const items = DATES_BUTOIRES_BY_PROFESSION[profession ?? 'default'] ?? DATES_BUTOIRES_BY_PROFESSION.default;
-
-  const handleDateChange = (id: string, value: string) => {
-    setDates(prev => ({ ...prev, [id]: value }));
-  };
-
-  const handleSave = () => {
-    setDatesButoiresSignes(dossierId, dates);
-    onClose();
-  };
-
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 50,
-    }} onClick={onClose}>
-      <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '1.5rem',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-          width: '100%',
-          maxWidth: '600px',
-          maxHeight: '90vh',
-          overflow: 'auto',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{
-          padding: '1.5rem',
-          borderBottom: '1px solid rgba(48, 64, 53, 0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Target style={{ width: '1.25rem', height: '1.25rem', color: '#304035' }} />
-            <h2 style={{ fontSize: '1.125rem', fontWeight: '700', color: '#304035' }}>DATES BUTOIRES</h2>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem',
-              borderRadius: '0.5rem',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'rgba(48, 64, 53, 0.4)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'rgba(48, 64, 53, 0.6)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(48, 64, 53, 0.4)')}
-          >
-            <X style={{ width: '1.25rem', height: '1.25rem' }} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {/* Section dates butoires */}
-          <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(48,64,53,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.25rem' }}>
-            Dates butoires
-          </p>
-          {items.filter(i => i.showDate).map((item) => {
-            const hasSaved = !!saved[item.id];
-            return (
-              <div
-                key={item.id}
-                style={{
-                  padding: '0.875rem 1rem',
-                  border: `1px solid ${hasSaved ? 'rgba(16,185,129,0.3)' : 'rgba(48, 64, 53, 0.1)'}`,
-                  borderRadius: '0.875rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  backgroundColor: hasSaved ? 'rgba(16,185,129,0.04)' : 'transparent',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-                  {hasSaved && <CheckCircle2 style={{ width: '1rem', height: '1rem', color: '#10b981', flexShrink: 0 }} />}
-                  <label style={{
-                    fontSize: '0.875rem',
-                    fontWeight: '700',
-                    color: hasSaved ? '#10b981' : '#304035',
-                  }}>
-                    {item.label}
-                  </label>
-                </div>
-                <input
-                  type="date"
-                  value={dates[item.id] || ''}
-                  onChange={e => handleDateChange(item.id, e.target.value)}
-                  style={{
-                    padding: '0.4rem 0.6rem',
-                    border: '1px solid rgba(48, 64, 53, 0.15)',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.8rem',
-                    color: '#304035',
-                    fontFamily: 'inherit',
-                    cursor: 'pointer',
-                    backgroundColor: 'white',
-                  }}
-                />
-              </div>
-            );
-          })}
-
-          {/* Section ACCÉDER */}
-          {items.some(i => i.isAccess) && (
-            <>
-              <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(48,64,53,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '0.5rem', marginBottom: '0.25rem' }}>
-                Accès rapide
-              </p>
-              {items.filter(i => i.isAccess).map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    padding: '0.875rem 1rem',
-                    border: '1px solid rgba(48, 64, 53, 0.1)',
-                    borderRadius: '0.875rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <label style={{ fontSize: '0.875rem', fontWeight: '700', color: '#304035', flex: 1 }}>
-                    {item.label}
-                  </label>
-                  <Link
-                    href={item.accessHref ?? '/dossiers-signes'}
-                    onClick={onClose}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.375rem',
-                      padding: '0.4rem 0.875rem',
-                      borderRadius: '0.5rem',
-                      backgroundColor: '#304035',
-                      color: 'white',
-                      border: 'none',
-                      fontSize: '0.75rem',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    ACCÉDER <ExternalLink style={{ width: '0.75rem', height: '0.75rem' }} />
-                  </Link>
-                </div>
-              ))}
-            </>
-          )}
-
-          {/* Section SAV — disponible pour tous les métiers */}
-          <div style={{ marginTop: '0.75rem', padding: '1rem', border: '1px solid rgba(120,80,180,0.2)', borderRadius: '0.875rem', backgroundColor: 'rgba(120,80,180,0.03)' }}>
-            <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(120,80,180,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
-              SAV — Suivi après vente
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-              {/* Date butoire SAV */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#304035', flex: 1 }}>
-                  DATE BUTOIRE SAV
-                </label>
-                <input
-                  type="date"
-                  value={dates['sav-date'] || ''}
-                  onChange={e => handleDateChange('sav-date', e.target.value)}
-                  style={{ padding: '0.4rem 0.6rem', border: '1px solid rgba(48,64,53,0.15)', borderRadius: '0.5rem', fontSize: '0.8rem', color: '#304035', fontFamily: 'inherit', cursor: 'pointer', backgroundColor: 'white' }}
-                />
-              </div>
-              {/* Commande et confirmation SAV */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: '700', color: '#304035', flex: 1 }}>
-                  COMMANDE & CONFIRMATION SAV
-                </label>
-                <Link
-                  href="/dossiers-signes"
-                  onClick={handleSave}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.4rem 0.875rem', borderRadius: '0.5rem', backgroundColor: 'rgba(120,80,180,0.12)', color: 'rgba(120,80,180,0.9)', border: '1px solid rgba(120,80,180,0.2)', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', textDecoration: 'none' }}
-                >
-                  ACCÉDER <ExternalLink style={{ width: '0.75rem', height: '0.75rem' }} />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{
-          padding: '1.5rem',
-          borderTop: '1px solid rgba(48, 64, 53, 0.1)',
-          display: 'flex',
-          gap: '0.75rem',
-          justifyContent: 'flex-end',
-        }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              borderRadius: '0.5rem',
-              backgroundColor: 'transparent',
-              border: '1px solid rgba(48, 64, 53, 0.15)',
-              color: 'rgba(48, 64, 53, 0.6)',
-              fontSize: '0.875rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = 'rgba(48, 64, 53, 0.05)';
-              e.currentTarget.style.color = '#304035';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'rgba(48, 64, 53, 0.6)';
-            }}
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handleSave}
-            style={{
-              padding: '0.5rem 1.25rem',
-              borderRadius: '0.5rem',
-              backgroundColor: '#304035',
-              color: 'white',
-              border: 'none',
-              fontSize: '0.875rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(48, 64, 53, 0.9)')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#304035')}
-          >
-            Enregistrer les dates
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 // ─── Sous-composant : Modal tableau de bord ──────────────────────────────────
 
 function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: string; onClose: () => void; profession: string | null }) {
@@ -376,12 +93,14 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
   const dossier = useDossierStore(s => s.dossiersSignes.find(d => d.id === dossierId));
   const saved = datesButoiresSignes[dossierId] ?? {};
 
-  const items = DATES_BUTOIRES_BY_PROFESSION[profession ?? 'default'] ?? DATES_BUTOIRES_BY_PROFESSION.default;
-  const dateItems = items.filter(i => i.showDate);
+  // 05/05/2026 — listes profession-aware partagées avec DateButoireValidationModal.
+  // La clé d'indexation est le `label` du DateButoireItem (pas un id slug).
+  const items = getDateButoireItemsForProfession(profession);
+  const dateItems = items.filter(i => i.kind === 'date');
   const today = new Date();
 
   // Pour chaque date butoire, calculer l'état (à venir, passée, non définie)
-  const completedCount = dateItems.filter(i => saved[i.id]).length;
+  const completedCount = dateItems.filter(i => saved[i.label]).length;
   const totalCount = dateItems.length;
 
   const getDateStatus = (id: string) => {
@@ -496,14 +215,14 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
           {/* Status Items */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {dateItems.map((item) => {
-              const status = getDateStatus(item.id);
-              const val = saved[item.id];
+              const status = getDateStatus(item.label);
+              const val = saved[item.label];
               const dotColor = status === 'ok' ? '#10b981' : status === 'urgent' ? '#f97316' : status === 'past' ? '#6b7280' : '#e5e7eb';
               const bgColor = status === 'ok' ? 'rgba(16,185,129,0.06)' : status === 'urgent' ? 'rgba(249,115,22,0.06)' : 'transparent';
               const borderColor = status === 'ok' ? 'rgba(16,185,129,0.2)' : status === 'urgent' ? 'rgba(249,115,22,0.2)' : 'rgba(48,64,53,0.08)';
               return (
                 <div
-                  key={item.id}
+                  key={item.label}
                   style={{
                     padding: '0.75rem 1rem',
                     border: `1px solid ${borderColor}`,
@@ -960,8 +679,8 @@ export default function DossiersSignesPage() {
                 const [c1, c2] = avatarColor(d.name);
                 const initials = `${d.name.charAt(0)}${d.firstName ? d.firstName.charAt(0) : ''}`.toUpperCase();
                 const datesCount = Object.keys(datesButoiresSignes[d.id] ?? {}).length;
-                const itemsForPro = DATES_BUTOIRES_BY_PROFESSION[profession ?? 'default'] ?? DATES_BUTOIRES_BY_PROFESSION.default;
-                const totalDates = itemsForPro.filter(it => it.showDate).length;
+                const itemsForPro = getDateButoireItemsForProfession(profession);
+                const totalDates = itemsForPro.filter(it => it.kind === 'date').length;
                 return (
                   <div key={d.id} className="signe-card group" style={{ animationDelay: `${i * 40}ms` }}>
                     <div className="relative bg-white rounded-2xl border border-emerald-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
@@ -1054,8 +773,8 @@ export default function DossiersSignesPage() {
               {filtered.map((d, i) => {
                 const [c1, c2] = avatarColor(d.name);
                 const datesCountList = Object.keys(datesButoiresSignes[d.id] ?? {}).length;
-                const itemsForProList = DATES_BUTOIRES_BY_PROFESSION[profession ?? 'default'] ?? DATES_BUTOIRES_BY_PROFESSION.default;
-                const totalDateslist = itemsForProList.filter(it => it.showDate).length;
+                const itemsForProList = getDateButoireItemsForProfession(profession);
+                const totalDateslist = itemsForProList.filter(it => it.kind === 'date').length;
                 return (
                   <div key={d.id}>
                     <div
