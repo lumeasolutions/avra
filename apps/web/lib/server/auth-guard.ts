@@ -53,3 +53,21 @@ export function isAuthenticated(req: NextRequest): boolean {
   }
   return false;
 }
+
+/**
+ * Extrait l'ID utilisateur depuis le JWT du cookie access_token.
+ * Utilisé pour scoper les fichiers stockés (ex: ia-renders/<userId>/...).
+ * Retourne null si le token est absent ou invalide.
+ */
+export function getUserIdFromRequest(req: NextRequest): string | null {
+  const accessToken = req.cookies.get('access_token')?.value;
+  if (!accessToken) return null;
+  try {
+    const parts = accessToken.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+    return (payload.sub ?? payload.id ?? payload.userId ?? null) || null;
+  } catch {
+    return null;
+  }
+}

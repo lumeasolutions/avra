@@ -32,6 +32,10 @@ export interface ColoristParams {
 export interface RenduParams {
   facades:           string;   // description façades depuis le textarea
   planTravail:       string;   // matière plan de travail
+  /** Optionnel : description du sol (parquet chêne, carrelage grand format, etc). */
+  sol?:              string;
+  /** Optionnel : description des murs (peinture mate, papier peint, etc). */
+  murs?:             string;
   style:             StyleType;
   lightingStyle:     LightingType;
   roomSize:          RoomSizeType;
@@ -253,6 +257,11 @@ export function buildRenduPrompt(
 
   let prompt = '';
 
+  // Lignes optionnelles "Sol" et "Murs" : seulement injectées si présentes
+  // (sinon on laisse le modèle décider du sol et des murs sans contrainte).
+  const solLine  = params.sol  ? `Floor: ${params.sol}.` : '';
+  const mursLine = params.murs ? `Walls: ${params.murs}.` : '';
+
   if (level === 'standard') {
     prompt = [
       `Professional architectural interior photography of a ${sizeBlock}.`,
@@ -260,11 +269,13 @@ export function buildRenduPrompt(
       planSource + '.',
       `Kitchen featuring: ${params.facades}.`,
       `${params.planTravail} countertop with perfect surface finish.`,
+      solLine,
+      mursLine,
       lightBlock + '.',
       `Immaculate staging, zero clutter, only essential decorative elements.`,
       `Perfect architectural proportions, straight perspective lines.`,
       TECH_SUFFIX + '.',
-    ].join(' ');
+    ].filter(Boolean).join(' ');
   }
 
   else if (level === 'simplified') {

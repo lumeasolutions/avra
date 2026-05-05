@@ -59,6 +59,10 @@ async function callColoristAPI(params: {
 async function callRenduAPI(params: {
   facades: string; planTravail: string; style: StyleType;
   lightingStyle: LightingType; roomSize: RoomSizeType; hasPlanFile: boolean;
+  /** Optionnel : description du sol (parquet, carrelage, béton ciré...) */
+  sol?: string;
+  /** Optionnel : description des murs (peinture, papier peint, lambris...) */
+  murs?: string;
   planImageDataUrl?: string;
   numImages?: number;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
@@ -455,9 +459,16 @@ export default function IaStudioPage() {
   const [planFile,     setPlanFile]     = useState<File|null>(null);
   const [rendStyle,    setRendStyle]    = useState<StyleType>('contemporain');
   const [rendLight,    setRendLight]    = useState<LightingType>('naturelle');
-  const [rendSize,     setRendSize]     = useState<RoomSizeType>('moyenne');
+  // rendSize : valeur fixe en interne (le ChipSelector "Taille de la cuisine" a
+  // été retiré — peu pertinent quand un plan WinnerFlex est uploadé, qui dicte
+  // déjà les proportions exactes). On garde 'moyenne' comme fallback côté prompt.
+  const [rendSize]                      = useState<RoomSizeType>('moyenne');
   const [rendFacades,  setRendFacades]  = useState('');
   const [rendPlan,     setRendPlan]     = useState('');
+  // Nouveaux champs Sol + Murs — laissés optionnels, n'apparaissent dans le
+  // prompt que si l'utilisateur les renseigne.
+  const [rendSol,      setRendSol]      = useState('');
+  const [rendMurs,     setRendMurs]     = useState('');
   const [rendLoading,  setRendLoading]  = useState(false);
   const [rendResult,   setRendResult]   = useState<Item|null>(null);
   const [rendError,    setRendError]    = useState<string|null>(null);
@@ -571,6 +582,8 @@ export default function IaStudioPage() {
       const result = await callRenduAPI({
         facades:      rendFacades || 'Façades modernes, finitions haut de gamme',
         planTravail:  rendPlan    || 'quartz blanc mat',
+        sol:          rendSol.trim() || undefined,
+        murs:         rendMurs.trim() || undefined,
         style:        rendStyle,
         lightingStyle:rendLight,
         roomSize:     rendSize,
@@ -1089,18 +1102,10 @@ export default function IaStudioPage() {
                   ]}
                 />
 
-                <ChipSelector<RoomSizeType>
-                  label="Taille de la cuisine"
-                  value={rendSize}
-                  onChange={setRendSize}
-                  accent="#5b9bd5"
-                  options={[
-                    { value:'petite',  label:'Petite' },
-                    { value:'moyenne', label:'Moyenne' },
-                    { value:'grande',  label:'Grande' },
-                    { value:'ouverte', label:'Ouverte sur salon' },
-                  ]}
-                />
+                {/* "Taille de la cuisine" retiré : peu pertinent quand un plan
+                    WinnerFlex est uploadé (qui dicte déjà les proportions
+                    exactes), et dilue le prompt sinon. La proportion par défaut
+                    est 'moyenne' côté serveur. */}
               </div>
 
               {/* Façades et plan — champs courts ciblés */}
@@ -1139,6 +1144,44 @@ export default function IaStudioPage() {
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {['Marbre blanc Calacatta', 'Dekton gris', 'Quartz noir', 'Pierre bleue', 'Granit anthracite'].map(s => (
                       <button key={s} onClick={() => setRendPlan(s)}
+                        className="rounded-full border border-[#5b9bd5]/20 bg-[#5b9bd5]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#5b9bd5]/50 hover:bg-[#5b9bd5]/10 transition-all">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* SOL — optionnel, n'est injecté dans le prompt que si rempli */}
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Sol <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                  <input
+                    value={rendSol}
+                    onChange={e => setRendSol(e.target.value)}
+                    placeholder="Ex : Parquet chêne contrecollé, carrelage grand format gris"
+                    className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#5b9bd5]/25 transition-shadow"
+                  />
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {['Parquet chêne clair', 'Carrelage grand format gris', 'Béton ciré', 'Travertin', 'Tomettes terre cuite'].map(s => (
+                      <button key={s} onClick={() => setRendSol(s)}
+                        className="rounded-full border border-[#5b9bd5]/20 bg-[#5b9bd5]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#5b9bd5]/50 hover:bg-[#5b9bd5]/10 transition-all">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* MURS — optionnel, n'est injecté dans le prompt que si rempli */}
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Murs <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                  <input
+                    value={rendMurs}
+                    onChange={e => setRendMurs(e.target.value)}
+                    placeholder="Ex : Peinture mate blanche, lambris bois, papier peint"
+                    className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#5b9bd5]/25 transition-shadow"
+                  />
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {['Peinture mate blanche', 'Crédence céramique blanche', 'Lambris bois clair', 'Faïence métro blanche', 'Pierre apparente'].map(s => (
+                      <button key={s} onClick={() => setRendMurs(s)}
                         className="rounded-full border border-[#5b9bd5]/20 bg-[#5b9bd5]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#5b9bd5]/50 hover:bg-[#5b9bd5]/10 transition-all">
                         {s}
                       </button>

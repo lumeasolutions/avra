@@ -62,6 +62,8 @@ export async function POST(req: NextRequest) {
     const params: RenduParams = {
       facades,
       planTravail:  planTravail  ?? 'quartz blanc mat',
+      sol:          body.sol  ?? undefined,
+      murs:         body.murs ?? undefined,
       style,
       lightingStyle,
       roomSize,
