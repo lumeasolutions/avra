@@ -25,6 +25,7 @@ async function callColoristAPI(params: {
   facadeHex: string; poigneeHex: string; planHex: string;
   facadeFinish: FinishType; lightingStyle: LightingType;
   handleMaterial?: string; countertopMaterial?: string;
+  sourceImageDataUrl?: string;
 }): Promise<{ imageUrl: string | null; error?: string }> {
   const res = await fetch('/api/ia/coloriste', {
     method: 'POST',
@@ -37,6 +38,7 @@ async function callColoristAPI(params: {
 async function callRenduAPI(params: {
   facades: string; planTravail: string; style: StyleType;
   lightingStyle: LightingType; roomSize: RoomSizeType; hasPlanFile: boolean;
+  planImageDataUrl?: string;
 }): Promise<{ imageUrl: string | null; error?: string }> {
   const res = await fetch('/api/ia/rendu', {
     method: 'POST',
@@ -44,6 +46,16 @@ async function callRenduAPI(params: {
     body: JSON.stringify(params),
   });
   return res.json();
+}
+
+/* ─── Helper : convertit un File en data URL pour transmission JSON ─── */
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Lecture du fichier impossible'));
+    reader.readAsDataURL(file);
+  });
 }
 
 /* ─── Estimations affichées (données statiques, pas besoin du serveur) ─── */
@@ -402,6 +414,18 @@ export default function IaStudioPage() {
     setColorLoading(true); setColorResult(null); setColorError(null);
 
     try {
+      // Si une photo de cuisine a ete uploadee, on l'envoie au backend pour
+      // que fal.ai fasse de l'img2img (transformation reelle de la photo).
+      let sourceImageDataUrl: string | undefined;
+      if (photoFile) {
+        try {
+          sourceImageDataUrl = await fileToDataUrl(photoFile);
+        } catch {
+          setColorError('Impossible de lire la photo. Reessayez avec un autre fichier.');
+          setColorLoading(false); return;
+        }
+      }
+
       const result = await callColoristAPI({
         facadeHex:          preset?.facade   ?? facadeCol,
         poigneeHex:         preset?.poignee  ?? poigneeCol,
@@ -410,6 +434,7 @@ export default function IaStudioPage() {
         handleMaterial:     preset?.handleMaterial,
         countertopMaterial: preset?.countertopMaterial,
         lightingStyle:      colorLight,
+        sourceImageDataUrl,
       });
 
       if (result.error) { setColorError(result.error); setColorLoading(false); return; }
@@ -447,6 +472,17 @@ export default function IaStudioPage() {
     setRendLoading(true); setRendResult(null); setRendError(null);
 
     try {
+      // Plan WinnerFlex optionnel : reference de proportions pour le modele.
+      let planImageDataUrl: string | undefined;
+      if (planFile) {
+        try {
+          planImageDataUrl = await fileToDataUrl(planFile);
+        } catch {
+          setRendError('Impossible de lire le plan. Reessayez avec un autre fichier.');
+          setRendLoading(false); return;
+        }
+      }
+
       const result = await callRenduAPI({
         facades:      rendFacades || 'Façades modernes, finitions haut de gamme',
         planTravail:  rendPlan    || 'quartz blanc mat',
@@ -454,6 +490,7 @@ export default function IaStudioPage() {
         lightingStyle:rendLight,
         roomSize:     rendSize,
         hasPlanFile:  !!planFile,
+        planImageDataUrl,
       });
 
       if (result.error) { setRendError(result.error); setRendLoading(false); return; }

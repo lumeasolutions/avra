@@ -69,7 +69,10 @@ export async function POST(req: NextRequest) {
       extraContext: body.extraContext ?? undefined,
     };
 
-    const result = await generateRenduImage(params);
+    // Plan WinnerFlex optionnel : sert de reference de proportions au modele.
+    const planImageUrl: string | undefined = body.planImageDataUrl;
+
+    const result = await generateRenduImage(params, planImageUrl);
 
     if (!result.success) {
       return NextResponse.json(

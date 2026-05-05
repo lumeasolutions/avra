@@ -42,6 +42,8 @@ export interface FluxInput {
   output_format:    string;
   seed:             number;
   safety_tolerance?: number;
+  image_url?:       string;
+  strength?:        number;
 }
 
 // ─────────────────────────────────────────── CONFIG
@@ -147,7 +149,7 @@ function sleep(ms: number): Promise<void> {
 
 // ─────────────────────────────────────────── CORE ENGINE
 
-async function callFlux(built: BuiltPrompt, model: string): Promise<string> {
+async function callFlux(built: BuiltPrompt, model: string, sourceImageUrl?: string): Promise<string> {
   const input: FluxInput = {
     prompt:           built.prompt,
     negative_prompt:  built.negative,
@@ -157,6 +159,10 @@ async function callFlux(built: BuiltPrompt, model: string): Promise<string> {
     seed:             built.seed,
     safety_tolerance: 2,
   };
+  if (sourceImageUrl) {
+    input.image_url = sourceImageUrl;
+    input.strength = 0.85;
+  }
 
   return callFalApi(model, input);
 }
@@ -169,6 +175,7 @@ async function generateWithRetry(
   fallbackPrompt: BuiltPrompt,
   model: string,
   startTime: number,
+  sourceImageUrl?: string,
 ): Promise<GenerationResult> {
   let attempts   = 0;
   let lastError  = '';
@@ -179,7 +186,7 @@ async function generateWithRetry(
 
     try {
       const imageUrl = await Promise.race([
-        callFlux(built, model),
+        callFlux(built, model, sourceImageUrl),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Timeout dépassé')), TIMEOUT_MS)
         ),
@@ -231,7 +238,8 @@ async function generateWithRetry(
  * Modèle : FLUX Dev (img2img rapide, optimisé colorisation)
  */
 export async function generateColoristImage(
-  params: ColoristParams
+  params: ColoristParams,
+  sourceImageUrl?: string,
 ): Promise<GenerationResult> {
   return generateWithRetry(
     ['standard', 'simplified', 'minimal'],
@@ -239,6 +247,7 @@ export async function generateColoristImage(
     getBestFallback(params),
     FLUX_MODEL_COLORISTE,
     Date.now(),
+    sourceImageUrl,
   );
 }
 
@@ -247,7 +256,8 @@ export async function generateColoristImage(
  * Modèle : FLUX Pro 1.1 Ultra (meilleure qualité)
  */
 export async function generateRenduImage(
-  params: RenduParams
+  params: RenduParams,
+  sourceImageUrl?: string,
 ): Promise<GenerationResult> {
   return generateWithRetry(
     ['standard', 'simplified', 'minimal'],
@@ -255,6 +265,7 @@ export async function generateRenduImage(
     getBestFallback(params),
     FLUX_MODEL_RENDU,
     Date.now(),
+    sourceImageUrl,
   );
 }
 

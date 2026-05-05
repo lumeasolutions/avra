@@ -71,8 +71,13 @@ export async function POST(req: NextRequest) {
       extraContext:       body.extraContext        ?? undefined,
     };
 
+    // Photo de cuisine optionnelle pour img2img (data URL ou URL publique).
+    // Quand presente, fal.ai utilise cette image comme base et applique
+    // les transformations de couleurs/finitions au lieu de generer from scratch.
+    const sourceImageUrl: string | undefined = body.sourceImageDataUrl;
+
     // Construction du prompt + génération — tout côté serveur
-    const result = await generateColoristImage(params);
+    const result = await generateColoristImage(params, sourceImageUrl);
 
     if (!result.success) {
       return NextResponse.json(
