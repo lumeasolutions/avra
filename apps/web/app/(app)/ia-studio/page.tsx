@@ -1065,12 +1065,14 @@ export default function IaStudioPage() {
                 </div>
               </div>
 
-              {/* Options qualité */}
+              {/* Options qualité — informatif (toujours actifs sur Flux Pro Ultra) */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-1">
                   <Layers className="h-4 w-4 text-[#5b9bd5]" />
                   <p className="font-bold text-[#304035]">Qualité & format</p>
+                  <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-[#10b981]/80 bg-[#10b981]/8 px-2 py-0.5 rounded-full">Inclus automatiquement</span>
                 </div>
+                <p className="text-xs text-[#304035]/50 mb-3">Tous ces réglages sont activés par défaut sur Flux 1.1 Pro Ultra.</p>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { icon:Star,   label:'4K Ultra HD',    desc:'Print & présentation' },
