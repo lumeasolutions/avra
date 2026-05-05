@@ -17,6 +17,24 @@ import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenant
 
 /* ── CONSTANTES ── */
 const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19];
+/** Granularité de saisie : quart d'heure (style Google Agenda). */
+const MINUTE_STEPS = [0, 15, 30, 45];
+
+/** Helpers pour gérer la rétrocompat startHour/duration → startMinute/durationMinutes. */
+function getStartMinute(ev: { startMinute?: number }): number {
+  return ev.startMinute ?? 0;
+}
+function getDurationMinutes(ev: { duration: number; durationMinutes?: number }): number {
+  return ev.durationMinutes ?? Math.round(ev.duration * 60);
+}
+/** Convertit un horaire (h, m) en label "8h45" / "13h00". */
+function formatTime(h: number, m: number): string {
+  return `${h}h${String(m).padStart(2, '0')}`;
+}
+/** Snap d'une minute (0-59) au quart d'heure le plus proche. */
+function snapToQuarter(minutes: number): number {
+  return Math.round(minutes / 15) * 15;
+}
 const DAYS_SHORT = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
 const DAYS_FULL  = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 const CELL_H = 52;
@@ -220,6 +238,7 @@ export default function PlanningPage() {
   const [newEvent,   setNewEvent]     = useState({ type: 'CLIENT', dossierId: '', title: '', duration: 2, color: '' });
   const [modalDate,  setModalDate]    = useState('');  // 'YYYY-MM-DD'
   const [modalHour,  setModalHour]    = useState(9);
+  const [modalMinute, setModalMinute] = useState(0); // 0 / 15 / 30 / 45
   // Mini calendrier custom (modal RDV)
   const [calYear,  setCalYear]  = useState(() => new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(() => new Date().getMonth()); // 0-11
@@ -274,19 +293,22 @@ export default function PlanningPage() {
       byDay.set(ev.day, arr);
     }
     for (const [, evs] of byDay) {
-      // Trier par startHour, puis durée descendante (les plus longs d'abord)
+      // Tri par début (en minutes), puis durée desc (les plus longs d'abord)
       const sorted = [...evs].sort((a, b) => {
-        if (a.startHour !== b.startHour) return a.startHour - b.startHour;
-        return b.duration - a.duration;
+        const aStart = a.startHour * 60 + getStartMinute(a);
+        const bStart = b.startHour * 60 + getStartMinute(b);
+        if (aStart !== bStart) return aStart - bStart;
+        return getDurationMinutes(b) - getDurationMinutes(a);
       });
 
       // Assignation gloutonne : pour chaque event, trouver la 1ère colonne libre
-      const colEnds: number[] = []; // colEnds[c] = endHour du dernier event de la col c
+      // (calculs en minutes pour gérer les quarts d'heure)
+      const colEnds: number[] = []; // colEnds[c] = endMinutes du dernier event
       const colsAssigned = new Map<string, number>();
 
       for (const ev of sorted) {
-        const evStart = ev.startHour;
-        const evEnd = ev.startHour + ev.duration;
+        const evStart = ev.startHour * 60 + getStartMinute(ev);
+        const evEnd = evStart + getDurationMinutes(ev);
         let assignedCol = -1;
         for (let c = 0; c < colEnds.length; c++) {
           if (colEnds[c] <= evStart) {
@@ -302,21 +324,15 @@ export default function PlanningPage() {
         colsAssigned.set(ev.id, assignedCol);
       }
 
-      // Pour chaque event, calculer le nombre de colonnes "actives" dans son cluster.
-      // Un cluster = events qui s'overlapent (au moins 2 à 2 transitivement).
-      // Pour la simplicité on retourne le nombre TOTAL de colonnes du jour si
-      // l'event chevauche au moins une autre, sinon 1. C'est moins optimal mais
-      // visuellement OK et facile à comprendre.
       for (const ev of sorted) {
-        const evStart = ev.startHour;
-        const evEnd = ev.startHour + ev.duration;
-        const overlapping = sorted.filter(other =>
-          other.id !== ev.id &&
-          !(other.startHour + other.duration <= evStart) &&
-          !(other.startHour >= evEnd),
-        );
-        // Nombre de colonnes effectives = max(col assignée + 1) parmi cet event
-        // et tous ceux qui le chevauchent.
+        const evStart = ev.startHour * 60 + getStartMinute(ev);
+        const evEnd = evStart + getDurationMinutes(ev);
+        const overlapping = sorted.filter(other => {
+          if (other.id === ev.id) return false;
+          const oStart = other.startHour * 60 + getStartMinute(other);
+          const oEnd = oStart + getDurationMinutes(other);
+          return !(oEnd <= evStart) && !(oStart >= evEnd);
+        });
         let maxCol = colsAssigned.get(ev.id) ?? 0;
         for (const o of overlapping) {
           maxCol = Math.max(maxCol, colsAssigned.get(o.id) ?? 0);
@@ -343,17 +359,19 @@ export default function PlanningPage() {
   const usedSlots  = currentEvents.filter(e => e.day <= 5).reduce((s, e) => s + (e.duration || 1), 0);
   const occupPct   = Math.round(Math.min(100, (usedSlots / totalSlots) * 100));
 
-  /* Ouverture modal ajout */
-  const openAdd = (day: number, hour: number) => {
+  /* Ouverture modal ajout — `minute` permet de pré-remplir le quart d'heure
+   * cliqué dans la cellule (style Google Agenda : on tombe sur l'horaire
+   * exact du clic plutôt que pile à l'heure). */
+  const openAdd = (day: number, hour: number, minute: number = 0) => {
     setAddCell({ day, hour });
     setNewEvent({ type: 'CLIENT', dossierId: dossiers[0]?.id ?? '', title: '', duration: 2, color: '' });
-    // Calcul de la date réelle correspondant à la cellule cliquée
     const cellDate = getWeekDates(weekOffset)[day - 1];
     const yyyy = cellDate.getFullYear();
     const mm = String(cellDate.getMonth() + 1).padStart(2, '0');
     const dd = String(cellDate.getDate()).padStart(2, '0');
     setModalDate(`${yyyy}-${mm}-${dd}`);
     setModalHour(hour);
+    setModalMinute(snapToQuarter(minute));
     setCalYear(cellDate.getFullYear());
     setCalMonth(cellDate.getMonth());
     setShowAdd(true);
@@ -379,7 +397,9 @@ export default function PlanningPage() {
     addPlanningEvent({
       day: dayOfWeek,
       startHour: modalHour,
+      startMinute: modalMinute,
       duration: newEvent.duration,
+      durationMinutes: Math.round(newEvent.duration * 60),
       title: newEvent.title || (dossier ? `${rdvType?.icon} ${dossier.name}` : rdvType?.label ?? 'RDV'),
       // Couleur custom prioritaire (color picker), sinon couleur du type RDV
       color: newEvent.color || rdvType?.color || '#5b9bd5',
@@ -413,6 +433,7 @@ export default function PlanningPage() {
       const dd = String(cellDate.getDate()).padStart(2, '0');
       setModalDate(`${yyyy}-${mm}-${dd}`);
       setModalHour(ev.startHour ?? 9);
+      setModalMinute(getStartMinute(ev));
       setCalYear(cellDate.getFullYear());
       setCalMonth(cellDate.getMonth());
     }
@@ -436,7 +457,9 @@ export default function PlanningPage() {
     updatePlanningEvent(editingEventId, {
       day: dayOfWeek,
       startHour: modalHour,
+      startMinute: modalMinute,
       duration: newEvent.duration,
+      durationMinutes: Math.round(newEvent.duration * 60),
       title: newEvent.title || (dossier ? `${rdvType?.icon} ${dossier.name}` : rdvType?.label ?? 'RDV'),
       // Couleur custom prioritaire (color picker), sinon couleur du type RDV
       color: newEvent.color || rdvType?.color || '#5b9bd5',
@@ -448,12 +471,15 @@ export default function PlanningPage() {
     setEditingEventId(null);
   };
 
-  /* Drop d'un event sur une autre cellule (drag & drop) */
-  const handleDropEvent = (targetDay: number, targetHour: number) => {
+  /* Drop d'un event sur une autre cellule (drag & drop).
+   * targetMinute permet de snapper au quart d'heure le plus proche selon
+   * la position Y du drop dans la cellule (calculée par le caller). */
+  const handleDropEvent = (targetDay: number, targetHour: number, targetMinute = 0) => {
     if (!draggingEventId) return;
     updatePlanningEvent(draggingEventId, {
       day: targetDay,
       startHour: targetHour,
+      startMinute: snapToQuarter(targetMinute),
       weekOffset: weekOffset,
     });
     setDraggingEventId(null);
@@ -771,9 +797,23 @@ export default function PlanningPage() {
                     <div
                       key={di}
                       className={`plan-cell relative border-r border-b border-[#304035]/5 last:border-r-0 ${today ? 'bg-emerald-50/20' : ''} ${isDragOver ? 'plan-cell-dragover' : ''}`}
-                      style={{ height: CELL_H }}
-                      onClick={() => openAdd(di + 1, hour)}
-                      // Drop target pour drag & drop
+                      style={{
+                        height: CELL_H,
+                        // Lignes pointillées subtiles toutes les 15min pour repère
+                        // visuel du quart d'heure (sans surcharger l'UI).
+                        backgroundImage: today
+                          ? undefined
+                          : 'linear-gradient(to bottom, transparent calc(25% - 1px), rgba(48,64,53,0.04) 25%, transparent calc(25% + 1px), transparent calc(50% - 1px), rgba(48,64,53,0.07) 50%, transparent calc(50% + 1px), transparent calc(75% - 1px), rgba(48,64,53,0.04) 75%, transparent calc(75% + 1px))',
+                      }}
+                      onClick={(e) => {
+                        // Calcul de la minute en fonction de la position Y du clic
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        const offsetY = e.clientY - rect.top;
+                        const rawMinute = (offsetY / CELL_H) * 60;
+                        const snappedMinute = snapToQuarter(Math.max(0, Math.min(45, rawMinute)));
+                        openAdd(di + 1, hour, snappedMinute);
+                      }}
+                      // Drop target pour drag & drop avec snap au 15 min
                       onDragOver={(e) => {
                         if (draggingEventId) {
                           e.preventDefault();
@@ -786,7 +826,11 @@ export default function PlanningPage() {
                       onDrop={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        handleDropEvent(di + 1, hour);
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        const offsetY = e.clientY - rect.top;
+                        const rawMinute = (offsetY / CELL_H) * 60;
+                        const snappedMinute = snapToQuarter(Math.max(0, Math.min(45, rawMinute)));
+                        handleDropEvent(di + 1, hour, snappedMinute);
                       }}
                     >
                       {/* Hint + au hover */}
@@ -794,7 +838,9 @@ export default function PlanningPage() {
                         <Plus className="h-3.5 w-3.5 text-[#304035]/20" />
                       </div>
 
-                      {/* Événements — affichés en quinconce si overlap */}
+                      {/* Événements — affichés en quinconce si overlap.
+                          La position verticale (top) et la hauteur (height) sont
+                          calculées en MINUTES pour gérer le quart d'heure. */}
                       {cellEvents.map(ev => {
                         const isHovered = hoveredId === ev.id;
                         const layout = eventLayout.get(ev.id) ?? { col: 0, cols: 1 };
@@ -802,15 +848,20 @@ export default function PlanningPage() {
                         const widthPct = 100 / layout.cols;
                         const leftPct = layout.col * widthPct;
                         const isDragging = draggingEventId === ev.id;
+                        // Top relatif à la cellule = (startMinute / 60) * CELL_H
+                        const startMin = getStartMinute(ev);
+                        const durationMin = getDurationMinutes(ev);
+                        const topPx = (startMin / 60) * CELL_H + 2;
+                        const heightPx = (durationMin / 60) * CELL_H - 4;
                         return (
                           <div
                             key={ev.id}
                             className="plan-event absolute rounded-xl px-2 py-1 cursor-grab active:cursor-grabbing select-none group"
                             style={{
-                              top: 2,
+                              top: topPx,
                               left: `calc(${leftPct}% + 2px)`,
                               width: `calc(${widthPct}% - 4px)`,
-                              height: ev.duration * CELL_H - 4,
+                              height: heightPx,
                               background: ev.color,
                               boxShadow: isHovered
                                 ? `0 4px 16px ${ev.color}55, 0 2px 4px rgba(0,0,0,0.1)`
@@ -849,7 +900,16 @@ export default function PlanningPage() {
                             <div className="flex items-start justify-between">
                               <div className="min-w-0">
                                 <p className="text-white text-xs font-bold truncate leading-tight">{ev.title}</p>
-                                <p className="text-white/70 text-[10px] mt-0.5">{ev.startHour}:00 — {ev.startHour + ev.duration}:00</p>
+                                <p className="text-white/70 text-[10px] mt-0.5">
+                                  {(() => {
+                                    const startMin = getStartMinute(ev);
+                                    const durationMin = getDurationMinutes(ev);
+                                    const totalEndMin = ev.startHour * 60 + startMin + durationMin;
+                                    const endH = Math.floor(totalEndMin / 60);
+                                    const endM = totalEndMin % 60;
+                                    return `${formatTime(ev.startHour, startMin)} — ${formatTime(endH, endM)}`;
+                                  })()}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -1027,7 +1087,14 @@ export default function PlanningPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-[#304035] leading-tight">{ev.title || 'RDV'}</p>
                     <p className="text-xs text-[#304035]/55 mt-0.5">
-                      {ev.startHour}:00 — {ev.startHour + ev.duration}:00 · {DAYS_FULL[ev.day - 1] ?? ''}
+                      {(() => {
+                        const startMin = getStartMinute(ev);
+                        const durationMin = getDurationMinutes(ev);
+                        const totalEndMin = ev.startHour * 60 + startMin + durationMin;
+                        const endH = Math.floor(totalEndMin / 60);
+                        const endM = totalEndMin % 60;
+                        return `${formatTime(ev.startHour, startMin)} — ${formatTime(endH, endM)}`;
+                      })()} · {DAYS_FULL[ev.day - 1] ?? ''}
                     </p>
                   </div>
                   <button
@@ -1169,10 +1236,12 @@ export default function PlanningPage() {
                 </div>
               </div>
 
-              {/* Heure */}
+              {/* Heure de début + minutes (granularité 15min — style Google Agenda) */}
               <div>
-                <label className="text-xs font-bold text-[#304035]/50 uppercase tracking-wider block mb-2">Heure de début</label>
-                <div className="flex flex-wrap gap-1.5">
+                <label className="text-xs font-bold text-[#304035]/50 uppercase tracking-wider block mb-2">
+                  Heure de début · {formatTime(modalHour, modalMinute)}
+                </label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
                   {HOURS.map(h => (
                     <button
                       key={h}
@@ -1185,6 +1254,26 @@ export default function PlanningPage() {
                       }}
                     >
                       {h}h
+                    </button>
+                  ))}
+                </div>
+                {/* Quart d'heure */}
+                <div className="flex gap-1.5">
+                  <span className="text-[10px] text-[#304035]/40 font-bold uppercase tracking-wider self-center mr-1">
+                    + min
+                  </span>
+                  {MINUTE_STEPS.map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setModalMinute(m)}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all border"
+                      style={{
+                        background: modalMinute === m ? '#a67749' : 'transparent',
+                        color: modalMinute === m ? 'white' : '#304035',
+                        borderColor: modalMinute === m ? '#a67749' : 'rgba(48,64,53,0.15)',
+                      }}
+                    >
+                      :{String(m).padStart(2, '0')}
                     </button>
                   ))}
                 </div>

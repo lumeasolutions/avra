@@ -8,8 +8,15 @@ import { persist } from 'zustand/middleware';
 export interface PlanningEvent {
   id: string;
   day: number;
+  /** Heure de début (entier 0-23). Toujours requis pour rétrocompat. */
   startHour: number;
+  /** Minute de début (0, 15, 30, 45) — granularité quart d'heure.
+   *  Optionnel : si absent, on considère 0 (event commence à pile l'heure). */
+  startMinute?: number;
+  /** Durée en heures (entier ou décimal). Rétrocompat. */
   duration: number;
+  /** Durée en minutes (multiple de 15). Si défini, override `duration`. */
+  durationMinutes?: number;
   title: string;
   color: string;
   type?: string;
@@ -20,7 +27,11 @@ export interface GestEvent {
   id: string;
   day: number;
   startHour: number;
+  /** Minute de début (0, 15, 30, 45) — quart d'heure. Optionnel. */
+  startMinute?: number;
   duration: number;
+  /** Durée en minutes — override `duration` si défini. */
+  durationMinutes?: number;
   type: string;
   client: string;
   weekOffset: number;

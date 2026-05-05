@@ -45,6 +45,22 @@ function formatTypeLabel(type: string | null | undefined): string {
 
 /* ── CONSTANTES ── */
 const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19,20];
+/** Granularité de saisie : quart d'heure (style Google Agenda). */
+const MINUTE_STEPS = [0, 15, 30, 45];
+
+/** Helpers minutes (rétrocompat pour events sans startMinute/durationMinutes). */
+function getStartMinute(ev: { startMinute?: number }): number {
+  return ev.startMinute ?? 0;
+}
+function getDurationMinutes(ev: { duration: number; durationMinutes?: number }): number {
+  return ev.durationMinutes ?? Math.round(ev.duration * 60);
+}
+function formatTime(h: number, m: number): string {
+  return `${h}h${String(m).padStart(2, '0')}`;
+}
+function snapToQuarter(minutes: number): number {
+  return Math.round(minutes / 15) * 15;
+}
 const DAYS_SHORT = ['LUN','MAR','MERC','JEU','VEN','SAM','DIM'];
 const CELL_H = 56;
 const START_HOUR = 8;
@@ -158,6 +174,7 @@ export default function PlanningGestionPage() {
   const [newEvent,   setNewEvent]     = useState<{ type: string; client: string; duration: number; intervenantId: string | null }>({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null });
   const [modalDate,  setModalDate]    = useState('');
   const [modalHour,  setModalHour]    = useState(9);
+  const [modalMinute, setModalMinute] = useState(0); // 0 / 15 / 30 / 45
   const [calYear,    setCalYear]      = useState(() => new Date().getFullYear());
   const [calMonth,   setCalMonth]     = useState(() => new Date().getMonth());
   const [showWeekPicker, setShowWeekPicker] = useState(false);
@@ -171,13 +188,14 @@ export default function PlanningGestionPage() {
 
   const typeInfo = ALL_INTERVENTION_TYPES.find(t => t.key === newEvent.type) || INTERVENTION_TYPES[0];
 
-  const openAdd = (day: number, hour: number) => {
+  const openAdd = (day: number, hour: number, minute: number = 0) => {
     const cellDate = getWeekDates(weekOffset)[day - 1];
     const yyyy = cellDate.getFullYear();
     const mm   = String(cellDate.getMonth() + 1).padStart(2, '0');
     const dd   = String(cellDate.getDate()).padStart(2, '0');
     setModalDate(yyyy + '-' + mm + '-' + dd);
     setModalHour(hour);
+    setModalMinute(snapToQuarter(minute));
     setCalYear(cellDate.getFullYear());
     setCalMonth(cellDate.getMonth());
     setNewEvent({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null });
@@ -202,7 +220,9 @@ export default function PlanningGestionPage() {
     addGestEvent({
       day: dayOfWeek,
       startHour: modalHour,
+      startMinute: modalMinute,
       duration: newEvent.duration,
+      durationMinutes: Math.round(newEvent.duration * 60),
       type: newEvent.type,
       client: newEvent.client,
       weekOffset: diffWeeks,
@@ -408,8 +428,20 @@ export default function PlanningGestionPage() {
                       <div
                         key={hIdx}
                         className="border-b border-[#304035]/5 hover:bg-[#304035]/2 transition-colors cursor-pointer group relative"
-                        style={{ height: CELL_H + 'px' }}
-                        onClick={() => openAdd(dayIdx + 1, hour)}
+                        style={{
+                          height: CELL_H + 'px',
+                          backgroundImage: 'linear-gradient(to bottom, transparent calc(25% - 1px), rgba(48,64,53,0.04) 25%, transparent calc(25% + 1px), transparent calc(50% - 1px), rgba(48,64,53,0.06) 50%, transparent calc(50% + 1px), transparent calc(75% - 1px), rgba(48,64,53,0.04) 75%, transparent calc(75% + 1px))',
+                        }}
+                        onClick={(e) => {
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          const offsetY = e.clientY - rect.top;
+                          const minute = snapToQuarter((offsetY / CELL_H) * 60);
+                          if (minute >= 60) {
+                            openAdd(dayIdx + 1, hour + 1, 0);
+                          } else {
+                            openAdd(dayIdx + 1, hour, minute);
+                          }
+                        }}
                       >
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                           <div className="h-7 w-7 rounded-full bg-[#a67749] text-white flex items-center justify-center shadow-md">
@@ -422,10 +454,16 @@ export default function PlanningGestionPage() {
 
                   {/* Événements */}
                   {currentEvents.filter(e => e.day === dayIdx + 1).map(ev => {
-                    const top    = (ev.startHour - START_HOUR) * CELL_H;
-                    const height = ev.duration * CELL_H - 4;
+                    const startMin    = getStartMinute(ev);
+                    const durationMin = getDurationMinutes(ev);
+                    const top    = (ev.startHour - START_HOUR) * CELL_H + (startMin / 60) * CELL_H;
+                    const height = (durationMin / 60) * CELL_H - 4;
                     const color  = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.color || '#a67749';
                     const icon   = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.icon || '🔨';
+                    // Calcul heure de fin avec minutes
+                    const totalEndMin = ev.startHour * 60 + startMin + durationMin;
+                    const endHour     = Math.floor(totalEndMin / 60);
+                    const endMinute   = totalEndMin % 60;
                     return (
                       <div
                         key={ev.id}
@@ -455,7 +493,7 @@ export default function PlanningGestionPage() {
                             {ev.intervenantType && <span className="opacity-75">· {formatTypeLabel(ev.intervenantType)}</span>}
                           </div>
                         )}
-                        <div className="text-[10px] opacity-70 mt-0.5">{ev.startHour}:00 — {ev.startHour + ev.duration}:00</div>
+                        <div className="text-[10px] opacity-70 mt-0.5">{formatTime(ev.startHour, startMin)} — {formatTime(endHour, endMinute)}</div>
                       </div>
                     );
                   })}
@@ -770,7 +808,9 @@ export default function PlanningGestionPage() {
 
               {/* Heure */}
               <div>
-                <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">Heure de début</label>
+                <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">
+                  Heure de début <span className="text-[#304035]/40 font-normal normal-case">({formatTime(modalHour, modalMinute)})</span>
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {[8,9,10,11,12,13,14,15,16,17,18,19].map(h => (
                     <button
@@ -783,6 +823,23 @@ export default function PlanningGestionPage() {
                       }}
                     >
                       {h}h
+                    </button>
+                  ))}
+                </div>
+                {/* Minutes — granularité quart d'heure (Google Agenda style) */}
+                <div className="flex items-center gap-1.5 mt-2">
+                  <span className="text-[10px] text-[#304035]/40 font-bold uppercase tracking-wider mr-1">+ min</span>
+                  {MINUTE_STEPS.map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setModalMinute(m)}
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all"
+                      style={{
+                        background: modalMinute === m ? '#a67749' : 'rgba(166,119,73,0.08)',
+                        color: modalMinute === m ? 'white' : '#a67749',
+                      }}
+                    >
+                      :{String(m).padStart(2, '0')}
                     </button>
                   ))}
                 </div>
