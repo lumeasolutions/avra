@@ -76,6 +76,39 @@ const INTERVENTION_TYPES = [
   { key: 'MARBRIER',          label: 'Marbrier',            color: '#52525b', icon: '🪨' },
 ];
 
+/**
+ * Artisans occasionnels — affichés dans le menu "+" du sélecteur de type
+ * d'intervention. Ce sont des corps de métier avec qui on travaille moins
+ * souvent (vs liste principale ci-dessus). L'utilisateur peut quand même
+ * les sélectionner via "+" pour planifier une intervention ponctuelle.
+ */
+const OCCASIONAL_INTERVENTION_TYPES = [
+  { key: 'MACON',                 label: 'Maçon',                       color: '#a16207', icon: '🧱' },
+  { key: 'PLATRIER',              label: 'Plâtrier',                    color: '#9ca3af', icon: '🪨' },
+  { key: 'MENUISIER',             label: 'Menuisier',                   color: '#854d0e', icon: '🪵' },
+  { key: 'EBENISTE',              label: 'Ébéniste',                    color: '#78350f', icon: '🪑' },
+  { key: 'AGENCEUR',              label: 'Agenceur',                    color: '#7c2d12', icon: '🛋' },
+  { key: 'CHARPENTIER',           label: 'Charpentier',                 color: '#b45309', icon: '🪚' },
+  { key: 'CARRELEUR',             label: 'Carreleur',                   color: '#0e7490', icon: '◼' },
+  { key: 'PARQUETEUR',            label: 'Parqueteur',                  color: '#92400e', icon: '🪵' },
+  { key: 'PEINTRE_BATIMENT',      label: 'Peintre bâtiment',            color: '#dc2626', icon: '🎨' },
+  { key: 'ENDUISEUR',             label: 'Enduiseur',                   color: '#a3a3a3', icon: '🧴' },
+  { key: 'FACADIER',              label: 'Façadier',                    color: '#6b7280', icon: '🏢' },
+  { key: 'CHAUFFAGISTE',          label: 'Chauffagiste',                color: '#dc2626', icon: '🔥' },
+  { key: 'CLIMATICIEN',           label: 'Climaticien',                 color: '#0ea5e9', icon: '❄' },
+  { key: 'FRIGORISTE',            label: 'Frigoriste',                  color: '#2563eb', icon: '🧊' },
+  { key: 'INSTALLATEUR_DOMOTIQUE', label: 'Installateur domotique',     color: '#7c3aed', icon: '🏠' },
+  { key: 'TECHNICIEN_VMC',        label: 'Technicien VMC',              color: '#06b6d4', icon: '🌬' },
+  { key: 'SERRURIER',             label: 'Serrurier',                   color: '#525252', icon: '🔐' },
+  { key: 'FERRONNIER',            label: 'Ferronnier',                  color: '#404040', icon: '⚙' },
+  { key: 'MENUISIER_ALU_PVC',     label: 'Menuisier aluminium / PVC',   color: '#737373', icon: '🪟' },
+  { key: 'MIROITIER',             label: 'Miroitier',                   color: '#0891b2', icon: '🪞' },
+  { key: 'TAPISSIER',             label: 'Tapissier',                   color: '#9d174d', icon: '🛋' },
+];
+
+/** Tous les types possibles, fusionnés (pour la résolution de label/color). */
+const ALL_INTERVENTION_TYPES = [...INTERVENTION_TYPES, ...OCCASIONAL_INTERVENTION_TYPES];
+
 /* ── INTERVENANTS ── */
 // Migration vers useIntervenantStore : la liste est maintenant lue
 // dynamiquement depuis le store (page /intervenants). Plus de tableau
@@ -121,6 +154,7 @@ export default function PlanningGestionPage() {
 
   const [weekOffset, setWeekOffset]   = useState(0);
   const [showAdd,    setShowAdd]      = useState(false);
+  const [showOccasionalPicker, setShowOccasionalPicker] = useState(false);
   const [newEvent,   setNewEvent]     = useState<{ type: string; client: string; duration: number; intervenantId: string | null }>({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null });
   const [modalDate,  setModalDate]    = useState('');
   const [modalHour,  setModalHour]    = useState(9);
@@ -135,7 +169,7 @@ export default function PlanningGestionPage() {
   const currentEvents = gestEvents.filter(e => e.weekOffset === weekOffset);
   const todayDate = new Date();
 
-  const typeInfo = INTERVENTION_TYPES.find(t => t.key === newEvent.type) || INTERVENTION_TYPES[0];
+  const typeInfo = ALL_INTERVENTION_TYPES.find(t => t.key === newEvent.type) || INTERVENTION_TYPES[0];
 
   const openAdd = (day: number, hour: number) => {
     const cellDate = getWeekDates(weekOffset)[day - 1];
@@ -390,8 +424,8 @@ export default function PlanningGestionPage() {
                   {currentEvents.filter(e => e.day === dayIdx + 1).map(ev => {
                     const top    = (ev.startHour - START_HOUR) * CELL_H;
                     const height = ev.duration * CELL_H - 4;
-                    const color  = INTERVENTION_TYPES.find(t => t.key === ev.type)?.color || '#a67749';
-                    const icon   = INTERVENTION_TYPES.find(t => t.key === ev.type)?.icon || '🔨';
+                    const color  = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.color || '#a67749';
+                    const icon   = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.icon || '🔨';
                     return (
                       <div
                         key={ev.id}
@@ -565,8 +599,9 @@ export default function PlanningGestionPage() {
 
             <div className="space-y-5">
 
-              {/* Type d'intervention */}
-              <div>
+              {/* Type d'intervention — liste principale + bouton "+" pour
+                  ouvrir la liste des artisans occasionnels. */}
+              <div className="relative">
                 <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">Type d'intervention</label>
                 <div className="grid grid-cols-2 gap-2">
                   {INTERVENTION_TYPES.map(t => (
@@ -584,7 +619,85 @@ export default function PlanningGestionPage() {
                       <span className="truncate">{t.label}</span>
                     </button>
                   ))}
+                  {/* Bouton "+" → ouvre le popover des artisans occasionnels */}
+                  {(() => {
+                    const occType = OCCASIONAL_INTERVENTION_TYPES.find(t => t.key === newEvent.type);
+                    const isOccSelected = !!occType;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setShowOccasionalPicker(s => !s)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-dashed transition-all text-left text-xs font-semibold"
+                        style={{
+                          borderColor: isOccSelected ? (occType?.color ?? '#a67749') : 'rgba(166,119,73,0.4)',
+                          background: isOccSelected ? (occType!.color + '18') : 'rgba(166,119,73,0.04)',
+                          color: isOccSelected ? (occType!.color) : '#a67749',
+                        }}
+                        title="Artisans occasionnels (maçon, plâtrier, carreleur, etc.)"
+                      >
+                        {isOccSelected ? (
+                          <>
+                            <span>{occType!.icon}</span>
+                            <span className="truncate">{occType!.label}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-lg leading-none">+</span>
+                            <span className="truncate">Autre artisan</span>
+                          </>
+                        )}
+                      </button>
+                    );
+                  })()}
                 </div>
+
+                {/* Popover liste artisans occasionnels */}
+                {showOccasionalPicker && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-30"
+                      onClick={() => setShowOccasionalPicker(false)}
+                    />
+                    <div
+                      className="absolute z-40 mt-2 left-0 right-0 bg-white rounded-2xl shadow-2xl border border-[#304035]/10 overflow-hidden"
+                      style={{
+                        animation: 'cardIn 0.16s ease both',
+                        maxHeight: '320px',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      <div className="sticky top-0 bg-gradient-to-r from-[#fff8ef] to-[#fbf8f3] border-b border-[#a67749]/15 px-3 py-2">
+                        <p className="text-[10px] font-bold text-[#7c4f1d] uppercase tracking-wider">
+                          Artisans occasionnels
+                        </p>
+                        <p className="text-[10px] text-[#304035]/50 mt-0.5">
+                          Pour les corps de métier moins fréquents
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 p-2">
+                        {OCCASIONAL_INTERVENTION_TYPES.map(t => (
+                          <button
+                            key={t.key}
+                            type="button"
+                            onClick={() => {
+                              setNewEvent(p => ({ ...p, type: t.key }));
+                              setShowOccasionalPicker(false);
+                            }}
+                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-all text-left text-xs font-semibold hover:scale-[1.02]"
+                            style={{
+                              borderColor: newEvent.type === t.key ? t.color : 'rgba(48,64,53,0.08)',
+                              background: newEvent.type === t.key ? t.color + '18' : 'white',
+                              color: newEvent.type === t.key ? t.color : '#304035',
+                            }}
+                          >
+                            <span className="text-sm">{t.icon}</span>
+                            <span className="truncate">{t.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Client */}
