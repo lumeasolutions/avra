@@ -421,8 +421,15 @@ export default function IaStudioPage() {
         color: preset?.facade ?? facadeCol,
         imageUrl: result.imageUrl ?? undefined,
       });
-    } catch {
-      setColorError('Erreur réseau — vérifiez votre connexion et réessayez.');
+    } catch (err) {
+      // 05/05/2026 - message vrai en priorite pour distinguer timeout serverless (TimeoutError)
+      // d'une vraie panne reseau cote utilisateur (TypeError fetch failed)
+      const msg = err instanceof Error ? err.message : '';
+      if (msg && !msg.includes('fetch')) {
+        setColorError(msg);
+      } else {
+        setColorError('La génération a pris trop de temps ou la connexion s’est interrompue. Réessayez dans quelques secondes.');
+      }
     }
     setColorLoading(false);
   };
@@ -459,8 +466,13 @@ export default function IaStudioPage() {
         color: '#5b9bd5',
         imageUrl: result.imageUrl ?? undefined,
       });
-    } catch {
-      setRendError('Erreur réseau — vérifiez votre connexion et réessayez.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg && !msg.includes('fetch')) {
+        setRendError(msg);
+      } else {
+        setRendError('La génération a pris trop de temps ou la connexion s’est interrompue. Réessayez dans quelques secondes.');
+      }
     }
     setRendLoading(false);
   };
