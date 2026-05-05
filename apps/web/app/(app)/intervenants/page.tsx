@@ -350,7 +350,7 @@ export default function IntervenantsHubPage() {
               <p className="text-xs text-[#304035]/55">
                 {filterType === FILTER_ALERTES
                   ? 'Tous tes intervenants sont en règle. Bon travail !'
-                  : `Cliquez sur "RAJOUTER UN ${filterType}" pour en créer un.`}
+                  : 'Cliquez sur "RAJOUTER UN ARTISAN" pour en créer un.'}
               </p>
             </div>
           ) : (
@@ -389,7 +389,7 @@ export default function IntervenantsHubPage() {
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <ActionButton
-            label={`RAJOUTER UN ${filterType}`}
+            label="RAJOUTER UN ARTISAN"
             icon={<Plus className="h-5 w-5" />}
             onClick={() => setShowAddForm(true)}
           />
