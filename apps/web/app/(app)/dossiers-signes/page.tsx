@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DashboardTriggerButton } from '@/components/layout/DashboardTriggerButton';
+import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -757,6 +758,7 @@ export default function DossiersSignesPage() {
   const router = useRouter();
   const dossiersSignes = useDossierStore(s => s.dossiersSignes);
   const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
+  const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
   const invoices = useFacturationStore(s => s.invoices);
   const profession = useAuthStore(s => s.profession);
   const [search, setSearch] = useState('');
@@ -1210,13 +1212,30 @@ export default function DossiersSignesPage() {
       )}
 
       {/* Modals */}
-      {openModalType === 'dates' && modalDossierId && (
-        <DateButoiresModal
-          dossierId={modalDossierId}
-          profession={profession}
-          onClose={() => { setOpenModalType(null); setModalDossierId(null); }}
-        />
-      )}
+      {/* DATES BUTOIRES — on réutilise la grande modale "Validation projet" en
+          mode edit-signed : pré-remplie avec les dates déjà saisies, bouton
+          final "Enregistrer les dates" (pas de re-signature). Cohérence UX
+          avec la signature initiale d'un dossier en cours. */}
+      {openModalType === 'dates' && modalDossierId && (() => {
+        const sourceDossier = enriched.find(d => d.id === modalDossierId);
+        return (
+          <DateButoireValidationModal
+            open={true}
+            mode="edit-signed"
+            dossierId={modalDossierId}
+            clientName={sourceDossier ? `${sourceDossier.firstName ? sourceDossier.firstName + ' ' : ''}${sourceDossier.name}`.trim() : ''}
+            subfolders={sourceDossier?.subfolders}
+            profession={profession}
+            initialDates={datesButoiresSignes[modalDossierId] ?? {}}
+            onConfirm={(dates) => {
+              setDatesButoiresSignes(modalDossierId, dates);
+              setOpenModalType(null);
+              setModalDossierId(null);
+            }}
+            onCancel={() => { setOpenModalType(null); setModalDossierId(null); }}
+          />
+        );
+      })()}
       {openModalType === 'tableau' && modalDossierId && (
         <TableauDeBordModal
           dossierId={modalDossierId}

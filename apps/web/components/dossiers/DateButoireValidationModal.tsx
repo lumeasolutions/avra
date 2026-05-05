@@ -223,6 +223,18 @@ export interface DateButoireValidationProps {
   profession?: Profession;
   loading?: boolean;
   /**
+   * Mode d'utilisation de la modale :
+   *  - 'sign'        : validation initiale (dossier en cours → signe). Bouton
+   *                    final "Valider le projet" (vert), action = signature.
+   *  - 'edit-signed' : édition des dates butoirs sur un dossier DEJA signé.
+   *                    Pas de re-signature, juste mise à jour. Header "Modifier
+   *                    les dates butoirs", bouton final "Enregistrer".
+   * Default = 'sign' (rétro-compat).
+   */
+  mode?: 'sign' | 'edit-signed';
+  /** Dates pré-remplies (mode edit-signed : on charge les dates déjà saisies). */
+  initialDates?: Record<string, string>;
+  /**
    * Callback déclenché quand l'utilisateur clique sur le bouton "ACCEDER" d'un
    * item de type 'access' (COMMANDES, LIVRAISON…). Le parent peut router vers
    * la section dédiée du dossier ou ouvrir un sub-drawer.
@@ -265,8 +277,10 @@ function dayDelta(iso: string): number {
 
 export function DateButoireValidationModal({
   open, items, signedSubfolders, dossierId, clientName, subfolders, profession, loading,
+  mode = 'sign', initialDates,
   onAccessItem, onConfirm, onCancel,
 }: DateButoireValidationProps) {
+  const isEditMode = mode === 'edit-signed';
   // Résolution des items affichés :
   //  1. `items` prop explicite → priorité absolue (override depuis le parent)
   //  2. `signedSubfolders` legacy → mapping en 'date'
@@ -357,10 +371,12 @@ export function DateButoireValidationModal({
     return commandesAccessAll[dossierId]?.[accessDrawer.label] ?? [];
   }, [accessDrawer, commandesAccessAll, dossierId]);
 
-  // Reset à chaque ouverture
+  // Reset à chaque ouverture (mode edit-signed → pré-remplit avec les
+  // dates déjà saisies pour le dossier signé, l'utilisateur peut juste
+  // modifier celles qu'il veut).
   useEffect(() => {
     if (!open) return;
-    setDates({});
+    setDates(initialDates ? { ...initialDates } : {});
     setError(null);
     setWeekOffset(0);
     setPreviewDoc(null);
@@ -368,7 +384,7 @@ export function DateButoireValidationModal({
     setExtractError(null);
     setExtractInfo(null);
     setExtracting(false);
-  }, [open]);
+  }, [open, initialDates]);
 
   // Escape pour fermer
   useEffect(() => {
@@ -638,7 +654,10 @@ export function DateButoireValidationModal({
   };
 
   const handleSubmit = async () => {
-    if (!allFilled) {
+    // En mode signature, toutes les dates doivent être remplies.
+    // En mode edit-signed, on autorise sauvegarde partielle (mise à jour
+    // ponctuelle d'une ou plusieurs dates parmi celles déjà saisies).
+    if (!isEditMode && !allFilled) {
       setError('Toutes les dates butoires doivent être renseignées avant la validation.');
       return;
     }
@@ -646,7 +665,7 @@ export function DateButoireValidationModal({
     try {
       await onConfirm(dates);
     } catch (e: any) {
-      setError(e?.message ?? 'Erreur lors de la validation');
+      setError(e?.message ?? (isEditMode ? "Erreur lors de l'enregistrement" : 'Erreur lors de la validation'));
       setSubmitting(false);
     }
   };
@@ -1373,8 +1392,13 @@ export function DateButoireValidationModal({
               <div className="dbv-titles">
                 <div className="dbv-icon"><Calendar style={{ width: 24, height: 24 }} /></div>
                 <div>
-                  <h2 id="dbv-h2">Validation projet</h2>
-                  <p>{clientName ? `Dossier ${clientName} · ` : ''}Renseignez les dates butoires avant de valider</p>
+                  <h2 id="dbv-h2">{isEditMode ? 'Modifier les dates butoirs' : 'Validation projet'}</h2>
+                  <p>
+                    {clientName ? `Dossier ${clientName} · ` : ''}
+                    {isEditMode
+                      ? 'Mettez à jour les dates butoirs du chantier signé'
+                      : 'Renseignez les dates butoires avant de valider'}
+                  </p>
                 </div>
               </div>
               <div className="dbv-head-actions">
@@ -1773,19 +1797,26 @@ export function DateButoireValidationModal({
             </button>
             <button
               type="button"
-              className={`dbv-btn dbv-confirm${allFilled ? ' ready' : ''}${submitting ? ' submitting' : ''}`}
+              className={`dbv-btn dbv-confirm${(isEditMode || allFilled) ? ' ready' : ''}${submitting ? ' submitting' : ''}`}
               onClick={handleSubmit}
-              disabled={!allFilled || submitting || loading}
+              // En mode edit-signed, on autorise l'enregistrement même partiel :
+              // l'utilisateur peut sauvegarder une mise à jour sur seulement
+              // certaines dates sans devoir tout remplir.
+              disabled={(!isEditMode && !allFilled) || submitting || loading}
             >
               {submitting || loading ? (
                 <>
                   <Loader2 className="dbv-spin" style={{ width: 14, height: 14 }} />
-                  Validation…
+                  {isEditMode ? 'Enregistrement…' : 'Validation…'}
                 </>
               ) : (
                 <>
                   <FileCheck style={{ width: 14, height: 14 }} />
-                  {allFilled ? 'Valider le projet' : `Encore ${total - filledCount} date${total - filledCount > 1 ? 's' : ''}`}
+                  {isEditMode
+                    ? 'Enregistrer les dates'
+                    : allFilled
+                      ? 'Valider le projet'
+                      : `Encore ${total - filledCount} date${total - filledCount > 1 ? 's' : ''}`}
                 </>
               )}
             </button>
