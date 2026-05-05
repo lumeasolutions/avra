@@ -170,18 +170,20 @@ export const MENUISIER_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
 ];
 
 /**
- * CUISINISTE — modale Validation projet. 5 items 100% actionnables :
- *   - 2 dates (RELEVÉ DÉFINITIF, FICHE DE POSE)
+ * CUISINISTE — modale Validation projet. 6 items 100% actionnables :
+ *   - 3 dates (MODIFICATIONS, RELEVÉ DÉFINITIF, FICHE DE POSE)
  *   - 3 ACCEDER groupés en bas (COMMANDE, CONFIRMATIONS, LIVRAISON)
+ *
+ * MODIFICATIONS en 1ère position : le cuisiniste saisit la date de
+ * réception des modifications client tout en haut, avant de planifier
+ * la suite du chantier (cohérent avec menuisier).
  *
  * Refonte 05/05/2026 — retiré : AVANT VENTE, OPTION VALIDÉE, SAV
  * (étapes "ancrage" non actionnables, retrouvables dans les sous-dossiers
  * du dossier signé via CUISINISTE_SIGNED_SUBFOLDERS).
- *
- * FICHE DE POSE remontée avant les ACCEDER pour grouper les 3 ACCEDER
- * ensemble (cohérent avec menuisier — meilleure scannabilité visuelle).
  */
 export const CUISINISTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
+  { label: 'MODIFICATIONS',                     kind: 'date'   },
   { label: 'RELEVÉ DÉFINITIF',                  kind: 'date'   },
   { label: 'FICHE DE POSE',                     kind: 'date'   },
   { label: 'COMMANDE',                          kind: 'access' },
