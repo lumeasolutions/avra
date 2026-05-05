@@ -211,15 +211,18 @@ export const SIGNED_SUBFOLDERS: SubFolder[] = [
 export const MENUISIER_SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'AVANT VENTE' },
   { label: 'PROJET VALIDÉ' },
-  { label: 'RELEVÉ SUR MESURE' },
+  // 05/05/2026 — MODIFICATIONS remonté en 3e position : le menuisier consulte
+  // les modifications demandées par le client tout de suite après signature
+  // (avant de lancer le relevé sur mesure et la fabrication).
+  { label: 'MODIFICATIONS' },
+  { label: 'RELEVÉ DE MESURE' },
   { label: 'DÉBIT / LISTE MATÉRIAUX' },
   { label: 'FABRICATION' },
   { label: 'LANCEMENT' },
   { label: 'COMMANDES FOURNISSEURS' },
-  { label: 'CONFIRMATIONS / FACTURES ACHATS FOURNISSEURS' },
+  { label: 'CONFIRMATIONS / COMMANDE' },
   { label: 'FICHE DE POSE' },
   { label: 'LIVRAISON' },
-  { label: 'MODIFICATIONS' },
   { label: 'SAV' },
 ];
 

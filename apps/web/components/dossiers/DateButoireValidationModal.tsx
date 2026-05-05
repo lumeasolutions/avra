@@ -144,22 +144,27 @@ export const DEFAULT_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
 ];
 
 /**
- * MENUISIER — 11 items alignés sur la maquette client (DOSSIER SIGNÉ MENUISIER).
+ * MENUISIER — 11 items alignés sur la maquette client validée 05/05/2026.
  * Le label "PROJET VALIDÉ" est réécrit dynamiquement en "PROJET <N> VALIDÉ"
- * (voir buildItemsForProfession ci-dessous).
+ * (voir résolution dans le composant ci-dessous).
+ *
+ * Note : MODIFICATIONS n'est PAS dans cette liste (modale validation) — il
+ * apparaît en 3e position dans les sous-dossiers du dossier signé
+ * (MENUISIER_SIGNED_SUBFOLDERS) car le menuisier consulte les modifications
+ * APRÈS signature, pas pendant la phase planification dates butoirs.
  */
 export const MENUISIER_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
-  { label: 'AVANT VENTE',           kind: 'static' },
-  { label: 'PROJET VALIDÉ',         kind: 'static' },
-  { label: 'RELEVÉ SUR MESURE',     kind: 'date'   },
-  { label: 'DÉBIT / LISTE MATÉRIAUX', kind: 'date' },
-  { label: 'FABRICATION',           kind: 'date'   },
-  { label: 'LANCEMENT',             kind: 'date'   },
-  { label: 'COMMANDES FOURNISSEURS', kind: 'access' },
-  { label: 'FICHE DE POSE',         kind: 'date'   },
-  { label: 'LIVRAISON',             kind: 'access' },
-  { label: 'MODIFICATIONS',         kind: 'date'   },
-  { label: 'SAV',                   kind: 'static' },
+  { label: 'AVANT VENTE',              kind: 'static' },
+  { label: 'PROJET VALIDÉ',            kind: 'static' },
+  { label: 'RELEVÉ DE MESURE',         kind: 'date'   },
+  { label: 'DÉBIT / LISTE MATÉRIAUX',  kind: 'date'   },
+  { label: 'FABRICATION',              kind: 'date'   },
+  { label: 'LANCEMENT',                kind: 'date'   },
+  { label: 'COMMANDES FOURNISSEURS',   kind: 'access' },
+  { label: 'CONFIRMATIONS / COMMANDE', kind: 'access' },
+  { label: 'FICHE DE POSE',            kind: 'date'   },
+  { label: 'LIVRAISON',                kind: 'access' },
+  { label: 'SAV',                      kind: 'static' },
 ];
 
 /**
