@@ -16,10 +16,13 @@ export function useIAStudio() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
   const [selectedDossier, setSelectedDossier] = useState('');
+  // 05/05/2026 - expose l'erreur a l'utilisateur (auparavant log console only)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const generateImage = useCallback(async (params: any) => {
     setIsLoading(true);
     setCurrentStep(0);
+    setErrorMessage(null);
     try {
       const response = await fetch(`/api/ia/${activeModule}`, {
         method: 'POST',
@@ -28,14 +31,21 @@ export function useIAStudio() {
       });
       if (!response.ok) {
         const err = await response.json().catch(() => ({ error: 'Erreur serveur' }));
+        if (response.status === 429) {
+          throw new Error('Vous avez atteint la limite de 10 générations par heure. Réessayez dans quelques minutes.');
+        }
         throw new Error(err.error ?? `Erreur ${response.status}`);
       }
       const data = await response.json();
       if (data.imageUrl) {
         setGeneratedImage(data.imageUrl);
+      } else {
+        throw new Error('Aucune image générée dans la réponse');
       }
     } catch (error) {
-      console.error('Erreur génération:', error);
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue';
+      console.error('Erreur génération:', msg);
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
@@ -55,5 +65,7 @@ export function useIAStudio() {
     setSelectedDossier,
     allDossiers,
     generateImage,
+    errorMessage,
+    setErrorMessage,
   };
 }

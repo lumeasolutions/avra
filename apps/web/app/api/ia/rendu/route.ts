@@ -13,6 +13,13 @@ import { generateRenduImage } from '@/lib/server/flux-api';
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit';
 import { isAuthenticated } from '@/lib/server/auth-guard';
 
+// Vercel serverless function timeout :
+// fal.ai peut prendre jusqu'a 90s + retry sur 3 niveaux de prompt.
+// Sans cette ligne, Vercel utilise le defaut Hobby (10s) -> "Erreur reseau"
+// pour l'utilisateur car la function est tuee avant que fal.ai reponde.
+// 300s = max plan Pro. 60s = max Hobby.
+export const maxDuration = 300;
+
 // Limite : 10 générations par IP/utilisateur par heure (appels fal.ai coûteux)
 const IA_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
 
