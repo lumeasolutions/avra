@@ -460,12 +460,26 @@ export default function PlanningPage() {
     setDragOverCell(null);
   };
 
-  /* Fermer le popover si on clique ailleurs */
+  /* Fermer le popover si on clique ailleurs.
+   * Bug fix : on utilise `click` au lieu de `mousedown` pour que le onClick
+   * React (sur les boutons Modifier/Supprimer du popover) soit déclenché
+   * AVANT que le listener document. Sinon le popover se fermait avant que
+   * le bouton "Modifier" ne soit traité, et openEdit n'était jamais appelé.
+   * On vérifie aussi que le target n'est pas dans le popover pour éviter
+   * de fermer en plein milieu d'une interaction. */
   useEffect(() => {
     if (!popoverEventId) return;
-    const onDocClick = () => setPopoverEventId(null);
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('.plan-popover')) return;
+      setPopoverEventId(null);
+    };
+    // setTimeout(0) pour ne pas attraper le click qui vient d'ouvrir le popover
+    const t = setTimeout(() => document.addEventListener('click', onDocClick), 0);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('click', onDocClick);
+    };
   }, [popoverEventId]);
 
   /* Deadlines : dossiers créés avec status URGENT depuis > 7 jours */
@@ -993,7 +1007,7 @@ export default function PlanningPage() {
         if (top + 220 > screenH - 16) top = Math.max(16, screenH - 240);
         return (
           <div
-            className="fixed z-[60]"
+            className="plan-popover fixed z-[60]"
             style={{ left, top, width: popoverWidth }}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
