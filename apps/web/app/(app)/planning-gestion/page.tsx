@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   CalendarCog, ChevronLeft, ChevronRight, Plus, X,
   Hammer, Truck, Zap, Wrench, Users, TrendingUp,
-  AlertTriangle, CheckCircle, Clock, ChevronDown
+  AlertTriangle, CheckCircle, Clock, ChevronDown,
+  Pencil, Trash2,
 } from 'lucide-react';
 import { useDossierStore, usePlanningStore } from '@/store';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
@@ -164,6 +165,7 @@ export default function PlanningGestionPage() {
   const dossiersSignes  = useDossierStore(s => s.dossiersSignes);
   const gestEvents      = usePlanningStore(s => s.gestEvents);
   const addGestEvent    = usePlanningStore(s => s.addGestEvent);
+  const updateGestEvent = usePlanningStore(s => s.updateGestEvent);
   const deleteGestEvent = usePlanningStore(s => s.deleteGestEvent);
   // Liste des intervenants du workspace (la vraie liste creee dans /intervenants)
   const intervenantsList = useIntervenantStore(s => s.intervenants);
@@ -175,6 +177,14 @@ export default function PlanningGestionPage() {
   const [modalDate,  setModalDate]    = useState('');
   const [modalHour,  setModalHour]    = useState(9);
   const [modalMinute, setModalMinute] = useState(0); // 0 / 15 / 30 / 45
+  // Popover sur clic d'un event (Modifier / Supprimer)
+  const [popoverEventId, setPopoverEventId] = useState<string | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState<{ x: number; y: number } | null>(null);
+  // Modale en mode édition
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  // Drag & drop : id de l'event en cours de drag + cellule survolée + minute snap
+  const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
+  const [dragHover, setDragHover] = useState<{ day: number; hour: number; minute: number } | null>(null);
   const [calYear,    setCalYear]      = useState(() => new Date().getFullYear());
   const [calMonth,   setCalMonth]     = useState(() => new Date().getMonth());
   const [showWeekPicker, setShowWeekPicker] = useState(false);
@@ -201,6 +211,95 @@ export default function PlanningGestionPage() {
     setNewEvent({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null });
     setShowAdd(true);
   };
+
+  /** Ouvre la modale en mode édition pour un event existant. */
+  const openEdit = (eventId: string) => {
+    const ev = gestEvents.find(e => e.id === eventId);
+    if (!ev) return;
+    setEditingEventId(eventId);
+    setNewEvent({
+      type: ev.type,
+      client: ev.client,
+      duration: ev.duration,
+      intervenantId: ev.intervenantId ?? null,
+    });
+    // Calcule la date réelle (jour + weekOffset)
+    const eventDates = getWeekDates(ev.weekOffset ?? 0);
+    const cellDate = eventDates[(ev.day ?? 1) - 1];
+    if (cellDate) {
+      const yyyy = cellDate.getFullYear();
+      const mm = String(cellDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(cellDate.getDate()).padStart(2, '0');
+      setModalDate(yyyy + '-' + mm + '-' + dd);
+      setModalHour(ev.startHour ?? 9);
+      setModalMinute(getStartMinute(ev));
+      setCalYear(cellDate.getFullYear());
+      setCalMonth(cellDate.getMonth());
+    }
+    setPopoverEventId(null);
+    setShowAdd(true);
+  };
+
+  /** Sauvegarde de l'édition d'un event existant. */
+  const handleSaveEdit = () => {
+    if (!editingEventId || !newEvent.client.trim() || !modalDate) return;
+    const chosen = new Date(modalDate + 'T00:00:00');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const chosenMon = new Date(chosen);
+    chosenMon.setDate(chosen.getDate() - ((chosen.getDay() + 6) % 7));
+    const baseMon = new Date(today);
+    baseMon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const diffWeeks = Math.round((chosenMon.getTime() - baseMon.getTime()) / (7 * 86400000));
+    const dayOfWeek = ((chosen.getDay() + 6) % 7) + 1;
+    const assignedIntervenant = newEvent.intervenantId
+      ? intervenantsList.find((iv) => iv.id === newEvent.intervenantId) ?? null
+      : null;
+    updateGestEvent(editingEventId, {
+      day: dayOfWeek,
+      startHour: modalHour,
+      startMinute: modalMinute,
+      duration: newEvent.duration,
+      durationMinutes: Math.round(newEvent.duration * 60),
+      type: newEvent.type,
+      client: newEvent.client,
+      weekOffset: diffWeeks,
+      intervenantId: assignedIntervenant?.id,
+      intervenantName: assignedIntervenant?.name,
+      intervenantType: assignedIntervenant?.type,
+    });
+    setWeekOffset(diffWeeks);
+    setShowAdd(false);
+    setEditingEventId(null);
+  };
+
+  /** Drop d'un event sur une autre cellule (drag & drop). */
+  const handleDropEvent = (targetDay: number, targetHour: number, targetMinute = 0) => {
+    if (!draggingEventId) return;
+    updateGestEvent(draggingEventId, {
+      day: targetDay,
+      startHour: targetHour,
+      startMinute: snapToQuarter(targetMinute),
+      weekOffset: weekOffset,
+    });
+    setDraggingEventId(null);
+    setDragHover(null);
+  };
+
+  /* Fermer le popover si on clique ailleurs (même fix que /planning :
+     event 'click' + setTimeout + check .pg-popover). */
+  useEffect(() => {
+    if (!popoverEventId) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('.pg-popover')) return;
+      setPopoverEventId(null);
+    };
+    const t = setTimeout(() => document.addEventListener('click', onDocClick), 0);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('click', onDocClick);
+    };
+  }, [popoverEventId]);
 
   const handleAdd = () => {
     if (!newEvent.client.trim() || !modalDate) return;
@@ -424,6 +523,7 @@ export default function PlanningGestionPage() {
                 <div key={dayIdx} className="relative border-l border-[#304035]/5">
                   {HOURS.map((_, hIdx) => {
                     const hour = START_HOUR + hIdx;
+                    const isDragOverCell = dragHover?.day === dayIdx + 1 && dragHover?.hour === hour;
                     return (
                       <div
                         key={hIdx}
@@ -431,6 +531,7 @@ export default function PlanningGestionPage() {
                         style={{
                           height: CELL_H + 'px',
                           backgroundImage: 'linear-gradient(to bottom, transparent calc(25% - 1px), rgba(48,64,53,0.04) 25%, transparent calc(25% + 1px), transparent calc(50% - 1px), rgba(48,64,53,0.06) 50%, transparent calc(50% + 1px), transparent calc(75% - 1px), rgba(48,64,53,0.04) 75%, transparent calc(75% + 1px))',
+                          background: isDragOverCell ? 'rgba(166,119,73,0.06)' : undefined,
                         }}
                         onClick={(e) => {
                           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -442,12 +543,83 @@ export default function PlanningGestionPage() {
                             openAdd(dayIdx + 1, hour, minute);
                           }
                         }}
+                        onDragOver={(e) => {
+                          if (!draggingEventId) return;
+                          e.preventDefault();
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          const offsetY = e.clientY - rect.top;
+                          const rawMinute = (offsetY / CELL_H) * 60;
+                          const snappedMinute = snapToQuarter(Math.max(0, Math.min(45, rawMinute)));
+                          if (
+                            !dragHover
+                            || dragHover.day !== dayIdx + 1
+                            || dragHover.hour !== hour
+                            || dragHover.minute !== snappedMinute
+                          ) {
+                            setDragHover({ day: dayIdx + 1, hour, minute: snappedMinute });
+                          }
+                        }}
+                        onDragLeave={() => {
+                          // Ne reset que si on quitte vraiment la cellule (pas un enfant)
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          const offsetY = e.clientY - rect.top;
+                          const rawMinute = (offsetY / CELL_H) * 60;
+                          const snappedMinute = snapToQuarter(Math.max(0, Math.min(45, rawMinute)));
+                          handleDropEvent(dayIdx + 1, hour, snappedMinute);
+                        }}
                       >
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                           <div className="h-7 w-7 rounded-full bg-[#a67749] text-white flex items-center justify-center shadow-md">
                             <Plus className="h-4 w-4" />
                           </div>
                         </div>
+
+                        {/* INDICATEUR DRAG : ligne horizontale + label heure + ghost rectangle
+                            au niveau du snap quart d'heure pendant le drag. */}
+                        {isDragOverCell && draggingEventId && (() => {
+                          const draggedEv = gestEvents.find(e => e.id === draggingEventId);
+                          const ghostDurMin = draggedEv ? getDurationMinutes(draggedEv) : 60;
+                          const ghostColor = draggedEv
+                            ? (ALL_INTERVENTION_TYPES.find(t => t.key === draggedEv.type)?.color || '#a67749')
+                            : '#a67749';
+                          const yPx = (dragHover.minute / 60) * CELL_H;
+                          const ghostHeight = (ghostDurMin / 60) * CELL_H;
+                          return (
+                            <>
+                              {/* Ghost rectangle de l'event au point de snap */}
+                              <div
+                                className="absolute left-1 right-1 rounded-xl pointer-events-none border-2 border-dashed"
+                                style={{
+                                  top: yPx + 'px',
+                                  height: Math.max(20, ghostHeight - 4) + 'px',
+                                  borderColor: ghostColor,
+                                  background: ghostColor + '22',
+                                  zIndex: 5,
+                                }}
+                              />
+                              {/* Ligne pleine + bulle heure */}
+                              <div
+                                className="absolute left-0 right-0 pointer-events-none"
+                                style={{ top: yPx + 'px', zIndex: 20 }}
+                              >
+                                <div
+                                  className="h-[2px]"
+                                  style={{ background: ghostColor, boxShadow: '0 0 0 1px rgba(255,255,255,0.6)' }}
+                                />
+                                <div
+                                  className="absolute -top-2.5 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-md"
+                                  style={{ background: ghostColor }}
+                                >
+                                  {formatTime(hour, dragHover.minute)}
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -460,6 +632,7 @@ export default function PlanningGestionPage() {
                     const height = (durationMin / 60) * CELL_H - 4;
                     const color  = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.color || '#a67749';
                     const icon   = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.icon || '🔨';
+                    const isDragging = draggingEventId === ev.id;
                     // Calcul heure de fin avec minutes
                     const totalEndMin = ev.startHour * 60 + startMin + durationMin;
                     const endHour     = Math.floor(totalEndMin / 60);
@@ -467,18 +640,40 @@ export default function PlanningGestionPage() {
                     return (
                       <div
                         key={ev.id}
-                        className="event-in absolute left-1 right-1 rounded-xl px-2.5 py-2 text-white shadow-lg border border-white/20 group flex flex-col justify-center transition-all duration-200 hover:border-white/50"
+                        className="event-in absolute left-1 right-1 rounded-xl px-2.5 py-2 text-white shadow-lg border border-white/20 group flex flex-col justify-center transition-all duration-200 hover:border-white/50 cursor-grab active:cursor-grabbing select-none"
                         style={{
                           top: (top + 2) + 'px',
                           height: height + 'px',
                           backgroundColor: color,
                           zIndex: 10,
                           boxShadow: '0 4px 16px ' + color + '55',
+                          opacity: isDragging ? 0.4 : 1,
+                          transition: isDragging ? 'none' : 'opacity 0.15s, box-shadow 0.15s',
                         }}
-                        onClick={e => e.stopPropagation()}
+                        draggable
+                        onDragStart={(e) => {
+                          e.stopPropagation();
+                          setDraggingEventId(ev.id);
+                          setPopoverEventId(null);
+                          e.dataTransfer.effectAllowed = 'move';
+                          try { e.dataTransfer.setData('text/plain', ev.id); } catch { /* ignore */ }
+                        }}
+                        onDragEnd={() => {
+                          setDraggingEventId(null);
+                          setDragHover(null);
+                        }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setPopoverPosition({
+                            x: rect.right + 8,
+                            y: rect.top,
+                          });
+                          setPopoverEventId(ev.id);
+                        }}
                       >
                         <button
-                          onClick={() => deleteGestEvent(ev.id)}
+                          onClick={(e) => { e.stopPropagation(); deleteGestEvent(ev.id); }}
                           className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-md hover:bg-white/25"
                         >
                           <X className="h-3 w-3" />
@@ -615,11 +810,53 @@ export default function PlanningGestionPage() {
         </div>
       </div>
 
-      {/* ── MODAL NOUVELLE INTERVENTION ── */}
+      {/* ── POPOVER EVENT (Modifier / Supprimer) ── */}
+      {popoverEventId && popoverPosition && (() => {
+        const ev = gestEvents.find(e => e.id === popoverEventId);
+        if (!ev) return null;
+        const popoverWidth = 220;
+        const screenW = typeof window !== 'undefined' ? window.innerWidth : 1024;
+        const screenH = typeof window !== 'undefined' ? window.innerHeight : 768;
+        let left = popoverPosition.x;
+        let top = popoverPosition.y;
+        if (left + popoverWidth > screenW - 16) left = popoverPosition.x - popoverWidth - 32;
+        if (top + 140 > screenH - 16) top = screenH - 156;
+        if (top < 16) top = 16;
+        const color = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.color || '#a67749';
+        const icon  = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.icon || '🔨';
+        return (
+          <div
+            className="pg-popover fixed z-[60] rounded-xl bg-white shadow-2xl border border-[#304035]/10 overflow-hidden"
+            style={{ left, top, width: popoverWidth, animation: 'cardIn 0.16s ease both' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-3 py-2.5 border-b border-[#304035]/8" style={{ background: color + '12' }}>
+              <p className="text-[11px] font-bold text-[#304035] truncate">{icon} {ev.client}</p>
+              <p className="text-[10px] text-[#304035]/55 mt-0.5">
+                {formatTime(ev.startHour, getStartMinute(ev))} · {ev.duration}h
+              </p>
+            </div>
+            <button
+              onClick={() => openEdit(ev.id)}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-[#304035] hover:bg-[#f5eee8] transition-colors"
+            >
+              <Pencil className="h-3.5 w-3.5" /> Modifier
+            </button>
+            <button
+              onClick={() => { deleteGestEvent(ev.id); setPopoverEventId(null); }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors border-t border-[#304035]/8"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Supprimer
+            </button>
+          </div>
+        );
+      })()}
+
+      {/* ── MODAL NOUVELLE INTERVENTION / ÉDITION ── */}
       {showAdd && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm overflow-y-auto py-6"
-          onClick={() => setShowAdd(false)}
+          onClick={() => { setShowAdd(false); setEditingEventId(null); }}
         >
           <div
             className="w-full max-w-md rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10 max-h-[90vh] overflow-y-auto"
@@ -627,10 +864,10 @@ export default function PlanningGestionPage() {
           >
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-xl font-bold text-[#304035]">Nouvelle intervention</h3>
+                <h3 className="text-xl font-bold text-[#304035]">{editingEventId ? 'Modifier l\'intervention' : 'Nouvelle intervention'}</h3>
                 <p className="text-sm text-[#304035]/50 mt-0.5">{typeInfo.icon} {typeInfo.label}</p>
               </div>
-              <button onClick={() => setShowAdd(false)} className="p-2 rounded-xl hover:bg-[#f5eee8] transition-colors">
+              <button onClick={() => { setShowAdd(false); setEditingEventId(null); }} className="p-2 rounded-xl hover:bg-[#f5eee8] transition-colors">
                 <X className="h-5 w-5 text-[#304035]/50" />
               </button>
             </div>
@@ -898,15 +1135,15 @@ export default function PlanningGestionPage() {
 
             <div className="mt-6 flex gap-3">
               <button
-                onClick={handleAdd}
+                onClick={editingEventId ? handleSaveEdit : handleAdd}
                 disabled={!newEvent.client.trim() || !modalDate}
                 className="flex-1 rounded-xl py-3 font-bold text-white transition-all disabled:opacity-40"
                 style={{ background: typeInfo.color }}
               >
-                Planifier l'intervention
+                {editingEventId ? 'Enregistrer ✓' : 'Planifier l\'intervention'}
               </button>
               <button
-                onClick={() => setShowAdd(false)}
+                onClick={() => { setShowAdd(false); setEditingEventId(null); }}
                 className="flex-1 rounded-xl border border-[#304035]/20 py-3 font-semibold text-[#304035] hover:bg-[#f5eee8] transition-colors"
               >
                 Annuler

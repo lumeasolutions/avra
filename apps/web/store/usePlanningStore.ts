@@ -65,6 +65,8 @@ interface PlanningState {
 
   // Gestion actions
   addGestEvent: (event: Omit<GestEvent, 'id'>) => void;
+  /** Met à jour un événement existant (drag&drop, édition). */
+  updateGestEvent: (id: string, patch: Partial<Omit<GestEvent, 'id'>>) => void;
   deleteGestEvent: (id: string) => void;
 
   // Reset
@@ -97,6 +99,14 @@ export const usePlanningStore = create<PlanningState>()(
       addGestEvent: (event) => {
         const newEvent = { ...event, id: 'gev' + uid() };
         set(s => ({ gestEvents: [...s.gestEvents, newEvent] }));
+      },
+
+      updateGestEvent: (id, patch) => {
+        set(s => ({
+          gestEvents: s.gestEvents.map(e =>
+            e.id === id ? { ...e, ...patch } : e,
+          ),
+        }));
       },
 
       deleteGestEvent: (id) => {

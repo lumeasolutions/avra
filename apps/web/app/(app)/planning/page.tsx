@@ -257,6 +257,8 @@ export default function PlanningPage() {
   // Drag & drop : id de l'event en cours de drag + offset visuel
   const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
   const [dragOverCell, setDragOverCell] = useState<{ day: number; hour: number } | null>(null);
+  /** Position de drag précise (avec minute snappée) — pour afficher l'indicateur visuel. */
+  const [dragHover, setDragHover] = useState<{ day: number; hour: number; minute: number } | null>(null);
 
   /* Ligne "maintenant" en temps réel */
   useEffect(() => {
@@ -818,6 +820,19 @@ export default function PlanningPage() {
                         if (draggingEventId) {
                           e.preventDefault();
                           if (!isDragOver) setDragOverCell({ day: di + 1, hour });
+                          // Calcul minute snappée pour l'indicateur visuel
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          const offsetY = e.clientY - rect.top;
+                          const rawMinute = (offsetY / CELL_H) * 60;
+                          const snappedMinute = snapToQuarter(Math.max(0, Math.min(45, rawMinute)));
+                          if (
+                            !dragHover
+                            || dragHover.day !== di + 1
+                            || dragHover.hour !== hour
+                            || dragHover.minute !== snappedMinute
+                          ) {
+                            setDragHover({ day: di + 1, hour, minute: snappedMinute });
+                          }
                         }
                       }}
                       onDragLeave={() => {
@@ -831,12 +846,54 @@ export default function PlanningPage() {
                         const rawMinute = (offsetY / CELL_H) * 60;
                         const snappedMinute = snapToQuarter(Math.max(0, Math.min(45, rawMinute)));
                         handleDropEvent(di + 1, hour, snappedMinute);
+                        setDragHover(null);
                       }}
                     >
                       {/* Hint + au hover */}
                       <div className="add-hint absolute inset-0 flex items-center justify-center">
                         <Plus className="h-3.5 w-3.5 text-[#304035]/20" />
                       </div>
+
+                      {/* INDICATEUR DRAG : ligne horizontale + bulle heure + ghost rectangle
+                          au point de snap quart d'heure pendant le drag. */}
+                      {draggingEventId && dragHover && dragHover.day === di + 1 && dragHover.hour === hour && (() => {
+                        const draggedEv = planningEvents.find(e => e.id === draggingEventId);
+                        const ghostDurMin = draggedEv ? getDurationMinutes(draggedEv) : 60;
+                        const ghostColor = draggedEv?.color || '#5b9bd5';
+                        const yPx = (dragHover.minute / 60) * CELL_H;
+                        const ghostHeight = (ghostDurMin / 60) * CELL_H;
+                        return (
+                          <>
+                            {/* Ghost rectangle */}
+                            <div
+                              className="absolute left-1 right-1 rounded-xl pointer-events-none border-2 border-dashed"
+                              style={{
+                                top: yPx + 'px',
+                                height: Math.max(20, ghostHeight - 4) + 'px',
+                                borderColor: ghostColor,
+                                background: ghostColor + '22',
+                                zIndex: 5,
+                              }}
+                            />
+                            {/* Ligne pleine + bulle heure */}
+                            <div
+                              className="absolute left-0 right-0 pointer-events-none"
+                              style={{ top: yPx + 'px', zIndex: 20 }}
+                            >
+                              <div
+                                className="h-[2px]"
+                                style={{ background: ghostColor, boxShadow: '0 0 0 1px rgba(255,255,255,0.6)' }}
+                              />
+                              <div
+                                className="absolute -top-2.5 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-md"
+                                style={{ background: ghostColor }}
+                              >
+                                {formatTime(hour, dragHover.minute)}
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
 
                       {/* Événements — affichés en quinconce si overlap.
                           La position verticale (top) et la hauteur (height) sont
@@ -882,6 +939,7 @@ export default function PlanningPage() {
                             onDragEnd={() => {
                               setDraggingEventId(null);
                               setDragOverCell(null);
+                              setDragHover(null);
                             }}
                             onMouseEnter={() => setHoveredId(ev.id)}
                             onMouseLeave={() => setHoveredId(null)}
