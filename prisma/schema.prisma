@@ -512,7 +512,7 @@ model ProjectFolder {
   project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parent          ProjectFolder? @relation("FolderTree", fields: [parentFolderId], references: [id])
   children        ProjectFolder[] @relation("FolderTree")
-  documents       Document[]
+  // documents relation removed 2026-05-05 : Document.folderId is now free-form
 
   @@index([projectId])
 }
@@ -609,7 +609,10 @@ model Document {
   project           Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   storedFile        StoredFile     @relation(fields: [storedFileId], references: [id])
   createdBy         User           @relation(fields: [createdById], references: [id])
-  folder            ProjectFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  // folder relation removed 2026-05-05 : Document.folderId is now a free-form
+  // string (admin-docs categories like "Documents entreprise/Kbis"), not a FK.
+  // The DB constraint Document_folderId_fkey was dropped in migration
+  // 20260505_admin_docs_freeform_folderid.
   parentDocument    Document?      @relation("DocumentVersions", fields: [parentDocumentId], references: [id], onDelete: SetNull)
   childVersions     Document[]     @relation("DocumentVersions")
   shares            DocumentShare[]
