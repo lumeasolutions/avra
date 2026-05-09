@@ -24,6 +24,7 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { createIntervenant as apiCreateIntervenant, deleteIntervenant as apiDeleteIntervenant } from '@/lib/intervenants-api';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -79,8 +80,16 @@ interface IntervenantState {
   intervenants: Intervenant[];
 
   // Actions intervenants
-  addIntervenant: (data: { type: string; name: string; phone: string; email: string; notes?: string }) => void;
-  removeIntervenant: (id: string) => void;
+  /**
+   * Cree un intervenant cote backend puis l'ajoute au state local.
+   * Throw en cas d'echec API — le caller affiche un toast/erreur.
+   */
+  addIntervenant: (data: { type: string; name: string; phone: string; email: string; notes?: string }) => Promise<Intervenant>;
+  /**
+   * Supprime un intervenant cote backend puis le retire du state local.
+   * Throw en cas d'echec API — le caller affiche un toast/erreur.
+   */
+  removeIntervenant: (id: string) => Promise<void>;
   updateIntervenant: (id: string, data: Partial<Omit<Intervenant, 'id' | 'dossiers'>>) => void;
 
   // Actions dossiers
@@ -103,12 +112,38 @@ export const useIntervenantStore = create<IntervenantState>()(
     (set, get) => ({
       intervenants: INITIAL_INTERVENANTS,
 
-      addIntervenant: (data) => {
-        const newIntervenant: Intervenant = { id: 'i' + uid(), ...data, dossiers: [] };
+      addIntervenant: async (data) => {
+        // 1) POST backend — si ca echoue on throw, le state local n'est pas touche.
+        const created = await apiCreateIntervenant({
+          type: data.type,
+          name: data.name,
+          email: data.email || undefined,
+          phone: data.phone || undefined,
+          notes: data.notes || undefined,
+        });
+        // 2) Reconstruction du shape local (idem useDataSync.syncIntervenants).
+        const displayName = created.companyName
+          ? created.companyName
+          : `${created.lastName || ''} ${created.firstName || ''}`.trim() || data.name;
+        const newIntervenant: Intervenant = {
+          id: created.id,
+          type: created.type || data.type,
+          name: displayName,
+          phone: created.phone || '',
+          email: created.email || '',
+          notes: created.notes || '',
+          rating: created.rating ?? null,
+          ratingComment: created.ratingComment ?? null,
+          tagsCsv: created.tagsCsv ?? null,
+          dossiers: [],
+        };
         set(s => ({ intervenants: [newIntervenant, ...s.intervenants] }));
+        return newIntervenant;
       },
 
-      removeIntervenant: (id) => {
+      removeIntervenant: async (id) => {
+        // DELETE backend d'abord, mute le state ensuite.
+        await apiDeleteIntervenant(id);
         set(s => ({ intervenants: s.intervenants.filter(i => i.id !== id) }));
       },
 

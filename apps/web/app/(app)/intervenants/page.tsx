@@ -126,8 +126,8 @@ const QUICK_DEMANDES: QuickDemandeDef[] = [
 export default function IntervenantsHubPage() {
   // Store annuaire intervenants (sync via useDataSync)
   const intervenants = useIntervenantStore(s => s.intervenants);
-  const addLocalIntervenant = useIntervenantStore(s => s.addIntervenant);
-  const removeLocalIntervenant = useIntervenantStore(s => s.removeIntervenant);
+  const addIntervenantBackend = useIntervenantStore(s => s.addIntervenant);
+  const removeIntervenantBackend = useIntervenantStore(s => s.removeIntervenant);
 
   // Store dossiers/items (sync backend)
   const dossiers = useIntervenantDossiersStore(s => s.dossiers);
@@ -415,9 +415,13 @@ export default function IntervenantsHubPage() {
           <AddIntervenantModal
             defaultType={filterType}
             onClose={() => setShowAddForm(false)}
-            onCreate={(data) => {
-              addLocalIntervenant(data);
-              setShowAddForm(false);
+            onCreate={async (data) => {
+              try {
+                await addIntervenantBackend(data);
+                setShowAddForm(false);
+              } catch (err: any) {
+                alert(`Erreur creation intervenant : ${err?.message ?? 'inconnu'}`);
+              }
             }}
           />
         )}
@@ -558,10 +562,14 @@ export default function IntervenantsHubPage() {
           <ConfirmDeleteModal
             name={selectedIntervenant.name}
             onCancel={() => setConfirmDeleteIntervenant(null)}
-            onConfirm={() => {
-              removeLocalIntervenant(selectedIntervenant.id);
-              setConfirmDeleteIntervenant(null);
-              setSelectedIntervenantId(null);
+            onConfirm={async () => {
+              try {
+                await removeIntervenantBackend(selectedIntervenant.id);
+                setConfirmDeleteIntervenant(null);
+                setSelectedIntervenantId(null);
+              } catch (err: any) {
+                alert(`Erreur suppression : ${err?.message ?? 'inconnu'}`);
+              }
             }}
           />
         )}
@@ -1229,9 +1237,19 @@ function AddIntervenantModal({
 }: {
   defaultType: string;
   onClose: () => void;
-  onCreate: (data: { type: string; name: string; phone: string; email: string; notes?: string }) => void;
+  onCreate: (data: { type: string; name: string; phone: string; email: string; notes?: string }) => void | Promise<void>;
 }) {
   const [form, setForm] = useState({ type: defaultType, name: '', phone: '', email: '', notes: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const handleSubmit = async () => {
+    if (!form.name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onCreate(form);
+    } finally {
+      setSubmitting(false);
+    }
+  };
   return (
     <div onClick={onClose} className="fixed inset-0 z-90 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
@@ -1246,23 +1264,33 @@ function AddIntervenantModal({
           <textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes / spécialité" rows={2} className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm" />
         </div>
         <div className="flex gap-2 mt-5">
-          <button onClick={onClose} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60">Annuler</button>
-          <button onClick={() => form.name.trim() && onCreate(form)} disabled={!form.name.trim()} className="flex-1 rounded-lg bg-[#10b981] text-white px-4 py-2 text-sm font-bold disabled:opacity-50">Créer</button>
+          <button onClick={onClose} disabled={submitting} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60 disabled:opacity-50">Annuler</button>
+          <button onClick={handleSubmit} disabled={!form.name.trim() || submitting} className="flex-1 rounded-lg bg-[#10b981] text-white px-4 py-2 text-sm font-bold disabled:opacity-50">{submitting ? 'Creation…' : 'Créer'}</button>
         </div>
       </div>
     </div>
   );
 }
 
-function ConfirmDeleteModal({ name, onCancel, onConfirm }: { name: string; onCancel: () => void; onConfirm: () => void }) {
+function ConfirmDeleteModal({ name, onCancel, onConfirm }: { name: string; onCancel: () => void; onConfirm: () => void | Promise<void> }) {
+  const [submitting, setSubmitting] = useState(false);
+  const handleConfirm = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setSubmitting(false);
+    }
+  };
   return (
     <div onClick={onCancel} className="fixed inset-0 z-90 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-[#304035] mb-2">Supprimer {name} ?</h2>
-        <p className="text-sm text-[#304035]/60 mb-5">Cette action est irréversible (côté frontend local — le backend n'est pas touché).</p>
+        <p className="text-sm text-[#304035]/60 mb-5">Cette action est irréversible. L'intervenant sera supprimé côté serveur.</p>
         <div className="flex gap-2">
-          <button onClick={onCancel} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60">Annuler</button>
-          <button onClick={onConfirm} className="flex-1 rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-bold">Supprimer</button>
+          <button onClick={onCancel} disabled={submitting} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60 disabled:opacity-50">Annuler</button>
+          <button onClick={handleConfirm} disabled={submitting} className="flex-1 rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-bold disabled:opacity-50">{submitting ? 'Suppression…' : 'Supprimer'}</button>
         </div>
       </div>
     </div>
