@@ -25,6 +25,7 @@ import { SignatureModule } from './modules/signature/signature.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { DossierDocumentsModule } from './modules/dossier-documents/dossier-documents.module';
+import { QuotesModule } from './modules/quotes/quotes.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { DossierDocumentsModule } from './modules/dossier-documents/dossier-docu
     PaymentsModule,
     AuditModule,
     DossierDocumentsModule,
+    QuotesModule,
   ],
   providers: [
     // ✅ Apply ThrottlerGuard globally
