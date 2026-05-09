@@ -25,6 +25,14 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function parseFrDate(s: string | undefined | null): number {
+  if (!s) return 0;
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return 0;
+  const [, dd, mm, yyyy] = m;
+  return new Date(Number(yyyy), Number(mm) - 1, Number(dd)).getTime();
+}
+
 function avatarColor(name: string) {
   const palettes = [
     ['#2d5a30', '#4aa350'],
@@ -195,7 +203,7 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
               <div style={{
                 height: '100%',
                 backgroundColor: '#2d9d78',
-                width: `${(completedCount / totalCount) * 100}%`,
+                width: totalCount > 0 ? `${(completedCount / totalCount) * 100}%` : '0%',
                 transition: 'width 0.3s',
               }} />
             </div>
@@ -517,7 +525,7 @@ export default function DossiersSignesPage() {
     list.sort((a, b) => {
       if (sortBy === 'name') return a.name.localeCompare(b.name);
       if (sortBy === 'montant') return b.montantHT - a.montantHT;
-      return b.signedDate.localeCompare(a.signedDate);
+      return parseFrDate(b.signedDate) - parseFrDate(a.signedDate);
     });
     return list;
   }, [enriched, search, sortBy]);
@@ -526,7 +534,7 @@ export default function DossiersSignesPage() {
   const totalCA = enriched.reduce((s, d) => s + d.montantHT, 0);
   const moyenneCA = enriched.length > 0 ? totalCA / enriched.length : 0;
   const dernierSigne = enriched.length > 0
-    ? [...enriched].sort((a, b) => b.signedDate.localeCompare(a.signedDate))[0]
+    ? [...enriched].sort((a, b) => parseFrDate(b.signedDate) - parseFrDate(a.signedDate))[0]
     : null;
 
   // Stats confirmations
