@@ -1351,7 +1351,7 @@ function OngletEPaiement() {
   return (
     <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-sm overflow-hidden">
       <iframe
-        src="/epaiement"
+        src="/e-paiement"
         style={{ width: '100%', height: 'calc(100vh - 260px)', border: 'none', display: 'block' }}
         title="E Paiement"
       />

@@ -14,7 +14,7 @@ const HIDDEN_PREFIXES = [
   '/commandes',
   '/dossiers',
   '/dossiers-signes',
-  '/epaiement',
+  '/e-paiement',
   '/facturation',
   '/historique',
   '/ia-studio',

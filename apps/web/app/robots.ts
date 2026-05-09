@@ -37,7 +37,7 @@ export default function robots(): MetadataRoute.Robots {
           '/commandes',
           '/dossiers',
           '/dossiers-signes',
-          '/epaiement',
+          '/e-paiement',
           '/facturation',
           '/historique',
           '/ia-studio',

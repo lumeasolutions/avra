@@ -50,7 +50,7 @@ const APP_PREFIXES = [
   '/portal-select',
   '/intervenant',
   '/invitation',
-  '/epaiement',
+  '/e-paiement',
 ];
 
 const CookieBanner = dynamic(() => import('@/app/(marketing)/components/CookieBanner'), {
