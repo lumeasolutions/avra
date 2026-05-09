@@ -81,6 +81,14 @@ export class EnvironmentVariables {
   @IsString()
   YOUSIGN_WEBHOOK_SECRET?: string;
 
+  /**
+   * Mode d'authentification YouSign :
+   *  - 'otp_sms' (défaut) : OTP envoyé par SMS au signataire — niveau eIDAS avancé
+   *  - 'no_otp'           : Lien email simple — legacy / dev uniquement
+   */
+  @IsEnum(['otp_sms', 'no_otp'])
+  YOUSIGN_AUTH_MODE?: 'otp_sms' | 'no_otp';
+
   @IsString()
   STRIPE_SECRET_KEY?: string;
 

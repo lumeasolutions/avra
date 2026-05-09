@@ -1,5 +1,39 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
+/**
+ * Normalize a raw phone number to E.164 format.
+ * Required by YouSign for OTP-SMS authentication mode.
+ *
+ * Examples:
+ *   "06 12 34 56 78"     -> "+33612345678"
+ *   "06.12.34.56.78"     -> "+33612345678"
+ *   "+33 6 12 34 56 78"  -> "+33612345678"
+ *   "0033612345678"      -> "+33612345678"
+ */
+export function normalizePhone(raw: string | undefined | null, defaultCountry = 'FR'): string | null {
+  if (!raw) return null;
+  // Strip everything except digits and leading +
+  let cleaned = raw.replace(/[^\d+]/g, '');
+  if (!cleaned) return null;
+
+  if (cleaned.startsWith('+')) {
+    return cleaned;
+  }
+  // 0033... -> +33...
+  if (cleaned.startsWith('00')) {
+    return '+' + cleaned.slice(2);
+  }
+  // National FR number starting with 0 -> +33XXXXXXXXX
+  if (defaultCountry === 'FR' && cleaned.startsWith('0') && cleaned.length === 10) {
+    return '+33' + cleaned.slice(1);
+  }
+  // Fallback: assume already a national number, prepend country code
+  if (defaultCountry === 'FR') {
+    return '+33' + cleaned;
+  }
+  return '+' + cleaned;
+}
 
 export interface SignatureRequestResponse {
   id: string;
@@ -124,6 +158,23 @@ export class YouSignService {
       phone?: string;
     }
   ): Promise<SignerResponse> {
+    // Determine auth mode (default to OTP SMS for eIDAS-advanced compliance).
+    // YOUSIGN_AUTH_MODE=no_otp explicitly disables OTP for legacy/dev use.
+    const authMode =
+      this.configService.get<string>('YOUSIGN_AUTH_MODE') === 'no_otp'
+        ? 'no_otp'
+        : 'otp_sms';
+
+    const normalizedPhone = normalizePhone(signer.phone);
+
+    if (authMode === 'otp_sms' && !normalizedPhone) {
+      // Do not silently fall back to a weaker auth level — surface the issue.
+      throw new BadRequestException(
+        'Téléphone requis pour signature OTP SMS (mode YOUSIGN_AUTH_MODE=otp_sms). ' +
+          'Renseigner un numéro pour le signataire ou définir YOUSIGN_AUTH_MODE=no_otp.'
+      );
+    }
+
     return this.request<SignerResponse>(
       `/signature_requests/${signatureRequestId}/signers`,
       {
@@ -134,11 +185,11 @@ export class YouSignService {
             first_name: signer.firstName,
             last_name: signer.lastName,
             email: signer.email,
-            phone: signer.phone || undefined,
+            phone_number: normalizedPhone || undefined,
             locale: 'fr',
           },
           signature_level: 'electronic_signature',
-          signature_authentication_mode: 'no_otp',
+          signature_authentication_mode: authMode,
           fields: [
             {
               document_id: documentId,

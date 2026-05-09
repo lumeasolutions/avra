@@ -709,6 +709,7 @@ function ModalSignature({ devis, onClose }: { devis: Devis; onClose: () => void 
   const [email, setEmail] = useState(devis.clientEmail ?? '');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState(devis.client ?? '');
+  const [phone, setPhone] = useState('');
   const [message, setMessage] = useState(`Bonjour,\n\nVeuillez trouver ci-joint votre devis ${devis.ref} d'un montant de ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(devis.totalTTC)} TTC.\n\nMerci de bien vouloir nous retourner votre accord pour validation.\n\nCordialement,\nL'équipe AVRA`);
   const [piecesJointes, setPiecesJointes] = useState<string[]>([]);
   const [newPiece, setNewPiece] = useState('');
@@ -724,6 +725,10 @@ function ModalSignature({ devis, onClose }: { devis: Devis; onClose: () => void 
       setError('Veuillez saisir le prénom et le nom du client');
       return;
     }
+    if (!phone.trim()) {
+      setError('Numéro de téléphone requis (signature OTP par SMS — niveau eIDAS avancé)');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -735,6 +740,7 @@ function ModalSignature({ devis, onClose }: { devis: Devis; onClose: () => void 
           signerEmail: email,
           signerFirstName: firstName,
           signerLastName: lastName,
+          signerPhone: phone,
           message,
         }),
       });
@@ -857,6 +863,21 @@ function ModalSignature({ devis, onClose }: { devis: Devis; onClose: () => void 
             />
           </div>
 
+          {/* Téléphone client (requis pour OTP SMS — niveau eIDAS avancé) */}
+          <div>
+            <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">
+              Téléphone du client *
+              <span className="ml-1 font-normal text-[#304035]/40">(OTP SMS — eIDAS avancé)</span>
+            </label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="+33 6 12 34 56 78"
+              className="w-full rounded-xl border border-[#304035]/12 px-3 py-2 text-sm text-[#304035] focus:outline-none focus:border-violet-400"
+            />
+          </div>
+
           {/* Pièces jointes */}
           <div>
             <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">
@@ -917,7 +938,7 @@ function ModalSignature({ devis, onClose }: { devis: Devis; onClose: () => void 
             </button>
             <button
               onClick={handleSend}
-              disabled={!email.trim() || !firstName.trim() || !lastName.trim() || loading}
+              disabled={!email.trim() || !firstName.trim() || !lastName.trim() || !phone.trim() || loading}
               className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold bg-violet-600 text-white hover:bg-violet-700 transition-colors disabled:opacity-40"
             >
               <Send className="h-4 w-4" /> {loading ? 'Envoi...' : 'Envoyer pour signature'}
