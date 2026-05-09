@@ -1210,7 +1210,7 @@ export default function PlanningPage() {
                   <h3 className="text-base font-bold text-[#304035]">Planifier un RDV</h3>
                   {modalDate && (
                     <p className="text-xs text-[#304035]/40 mt-0.5">
-                      {new Date(modalDate + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à {modalHour}h00
+                      {new Date(modalDate + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à {formatTime(modalHour, modalMinute)}
                     </p>
                   )}
                 </div>
