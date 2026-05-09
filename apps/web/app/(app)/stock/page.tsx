@@ -11,6 +11,7 @@ import {
 import { useStockStore, type StockItem } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { ConfirmModal } from '@/components/layout/ConfirmModal';
 
 /* ── CONSTANTES ── */
 /** Liste de catégories par défaut (menuisier / hors cuisiniste / hors architecte). */
@@ -166,6 +167,7 @@ export default function StockPage() {
   const updateStockDot  = useStockStore(s => s.updateStockDot);
   const updateStockItem = useStockStore(s => s.updateStockItem);
   const deleteStockItem = useStockStore(s => s.deleteStockItem);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
   // Profession-aware :
   // - cuisiniste → 13 cats orientées cuisine (Meubles + plan travail + ...)
   // - architecte → 13 cats orientées design (Mobilier + éclairage + ...)
@@ -736,7 +738,7 @@ export default function StockPage() {
                           <Edit3 className="h-3.5 w-3.5" />
                         </button>
                         <button
-                          onClick={() => deleteStockItem(item.id)}
+                          onClick={() => setConfirmDelete({ id: item.id, name: item.model })}
                           className="p-1.5 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -823,7 +825,7 @@ export default function StockPage() {
                       <Edit3 className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      onClick={() => deleteStockItem(item.id)}
+                      onClick={() => setConfirmDelete({ id: item.id, name: item.model })}
                       className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-all bg-white/40 backdrop-blur-sm"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -1224,6 +1226,16 @@ export default function StockPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!confirmDelete}
+        title="Supprimer l'article ?"
+        message={confirmDelete ? `« ${confirmDelete.name} » sera supprimé définitivement.` : undefined}
+        confirmLabel="Supprimer"
+        danger
+        onConfirm={() => { if (confirmDelete) deleteStockItem(confirmDelete.id); setConfirmDelete(null); }}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

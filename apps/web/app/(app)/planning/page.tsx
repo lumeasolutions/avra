@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
+import { ConfirmModal } from '@/components/layout/ConfirmModal';
 
 /* ── CONSTANTES ── */
 const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19];
@@ -213,6 +214,7 @@ export default function PlanningPage() {
   const addPlanningEvent   = usePlanningStore(s => s.addPlanningEvent);
   const updatePlanningEvent = usePlanningStore(s => s.updatePlanningEvent);
   const deletePlanningEvent = usePlanningStore(s => s.deletePlanningEvent);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
 
   // Profession active → filtre les types de RDV proposes
   const profession = useAuthStore(s => s.profession);
@@ -1173,8 +1175,7 @@ export default function PlanningPage() {
                   </button>
                   <button
                     onClick={() => {
-                      deletePlanningEvent(ev.id);
-                      setPopoverEventId(null);
+                      setConfirmDelete({ id: ev.id, title: ev.title || 'RDV' });
                     }}
                     className="flex-1 px-3 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 border border-red-200 transition-colors flex items-center justify-center gap-1.5"
                   >
@@ -1507,6 +1508,20 @@ export default function PlanningPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!confirmDelete}
+        title="Supprimer ce RDV ?"
+        message={confirmDelete ? `« ${confirmDelete.title} » sera supprimé définitivement.` : undefined}
+        confirmLabel="Supprimer"
+        danger
+        onConfirm={() => {
+          if (confirmDelete) deletePlanningEvent(confirmDelete.id);
+          setPopoverEventId(null);
+          setConfirmDelete(null);
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

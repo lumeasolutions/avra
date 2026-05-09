@@ -20,6 +20,7 @@ import { DateButoireValidationModal } from '@/components/dossiers/DateButoireVal
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
+import { ConfirmModal } from '@/components/layout/ConfirmModal';
 
 /** Normalise un document (string legacy ou objet) pour affichage. */
 const normalizeDoc = (d: SubFolderDocument): DocumentFile =>
@@ -233,6 +234,7 @@ export default function DossierDetailPage() {
   const [newDocName, setNewDocName] = useState('');
   // États transitoires pour les opérations docs (loading + erreur visible).
   const [docOpStatus, setDocOpStatus] = useState<{ kind: 'idle' | 'uploading' | 'deleting' | 'error' | 'success'; message?: string }>({ kind: 'idle' });
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<DocumentFile | null>(null);
 
   // Mode d'affichage des docs dans le modal sous-dossier (liste / grille).
   // Préférence persistée localStorage pour rester cohérent entre sessions.
@@ -1405,7 +1407,7 @@ export default function DossierDetailPage() {
                           <Download className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(doc)}
+                          onClick={() => setConfirmDeleteDoc(doc)}
                           className="p-1.5 rounded-lg text-[#304035]/40 hover:text-red-500 hover:bg-red-50 transition-colors"
                           aria-label="Supprimer"
                         >
@@ -1493,7 +1495,7 @@ export default function DossierDetailPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); handleDelete(doc); }}
+                                onClick={(e) => { e.stopPropagation(); setConfirmDeleteDoc(doc); }}
                                 className="dt-action-btn dt-action-rm"
                                 title="Supprimer"
                                 aria-label="Supprimer"
@@ -1580,6 +1582,23 @@ export default function DossierDetailPage() {
                 </button>
               </div>
             </div>
+
+            <ConfirmModal
+              open={!!confirmDeleteDoc}
+              title="Supprimer ce document ?"
+              message={confirmDeleteDoc ? `« ${confirmDeleteDoc.name} » sera supprimé définitivement (DB + bucket).` : undefined}
+              confirmLabel="Supprimer"
+              danger
+              loading={docOpStatus.kind === 'deleting'}
+              onConfirm={async () => {
+                if (confirmDeleteDoc) {
+                  const docToDelete = confirmDeleteDoc;
+                  setConfirmDeleteDoc(null);
+                  await handleDelete(docToDelete);
+                }
+              }}
+              onCancel={() => setConfirmDeleteDoc(null)}
+            />
           </div>
         );
       })()}

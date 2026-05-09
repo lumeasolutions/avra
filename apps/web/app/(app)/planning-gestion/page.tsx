@@ -10,6 +10,7 @@ import {
 import { useDossierStore, usePlanningStore } from '@/store';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { ConfirmModal } from '@/components/layout/ConfirmModal';
 
 /**
  * Genere une couleur stable a partir d'un nom (hash deterministe).
@@ -167,6 +168,7 @@ export default function PlanningGestionPage() {
   const addGestEvent    = usePlanningStore(s => s.addGestEvent);
   const updateGestEvent = usePlanningStore(s => s.updateGestEvent);
   const deleteGestEvent = usePlanningStore(s => s.deleteGestEvent);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string } | null>(null);
   // Liste des intervenants du workspace (la vraie liste creee dans /intervenants)
   const intervenantsList = useIntervenantStore(s => s.intervenants);
 
@@ -674,7 +676,7 @@ export default function PlanningGestionPage() {
                         }}
                       >
                         <button
-                          onClick={(e) => { e.stopPropagation(); deleteGestEvent(ev.id); }}
+                          onClick={(e) => { e.stopPropagation(); setConfirmDelete({ id: ev.id, title: `${ev.type}${ev.client ? ' — ' + ev.client : ''}` }); }}
                           className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-md hover:bg-white/25"
                         >
                           <X className="h-3 w-3" />
@@ -880,7 +882,7 @@ export default function PlanningGestionPage() {
               <Pencil className="h-3.5 w-3.5" /> Modifier
             </button>
             <button
-              onClick={() => { deleteGestEvent(ev.id); setPopoverEventId(null); }}
+              onClick={() => { setConfirmDelete({ id: ev.id, title: `${ev.type}${ev.client ? ' — ' + ev.client : ''}` }); }}
               className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors border-t border-[#304035]/8"
             >
               <Trash2 className="h-3.5 w-3.5" /> Supprimer
@@ -1189,6 +1191,20 @@ export default function PlanningGestionPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!confirmDelete}
+        title="Supprimer cette intervention ?"
+        message={confirmDelete ? `« ${confirmDelete.title} » sera supprimée définitivement.` : undefined}
+        confirmLabel="Supprimer"
+        danger
+        onConfirm={() => {
+          if (confirmDelete) deleteGestEvent(confirmDelete.id);
+          setPopoverEventId(null);
+          setConfirmDelete(null);
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }
