@@ -16,6 +16,8 @@ export default function DemoClient() {
     message: '',
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
@@ -24,20 +26,81 @@ export default function DemoClient() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('Formulaire de démo soumis:', formData);
-    setIsSubmitted(true);
-    setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      profession: 'autre',
-      teamSize: 'solo',
-      message: '',
-    });
-    setTimeout(() => setIsSubmitted(false), 3000);
+    if (loading) return;
+
+    const firstName = formData.firstName.trim();
+    const lastName = formData.lastName.trim();
+    const email = formData.email.trim();
+    const phone = formData.phone.trim();
+    const message = formData.message.trim();
+    const profession = formData.profession;
+
+    if (!firstName) {
+      setError('Veuillez renseigner votre prénom.');
+      return;
+    }
+    if (!lastName) {
+      setError('Veuillez renseigner votre nom.');
+      return;
+    }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!email || !emailRe.test(email)) {
+      setError('Veuillez saisir une adresse email valide.');
+      return;
+    }
+    if (!profession) {
+      setError('Veuillez sélectionner votre métier.');
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/demo-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          phone: phone || undefined,
+          metier: profession,
+          message: message
+            ? `${message}\n\nTaille équipe : ${formData.teamSize}`
+            : `Taille équipe : ${formData.teamSize}`,
+          source: 'demo-form',
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        const msg =
+          (data && typeof data.error === 'string' && data.error) ||
+          'Une erreur est survenue. Réessayez dans un instant.';
+        setError(msg);
+        setLoading(false);
+        return;
+      }
+
+      setIsSubmitted(true);
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        profession: 'autre',
+        teamSize: 'solo',
+        message: '',
+      });
+      setTimeout(() => setIsSubmitted(false), 5000);
+    } catch {
+      setError('Une erreur réseau est survenue. Réessayez dans un instant.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -147,13 +210,29 @@ export default function DemoClient() {
                       <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Message optionnel</label>
                       <textarea aria-label="Parlez-nous de votre activité et vos besoins spécifiques..." name="message" value={formData.message} onChange={handleChange} placeholder="Parlez-nous de votre activité et vos besoins spécifiques..." rows={4} style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit', resize: 'none' }} />
                     </div>
+                    {error && (
+                      <div
+                        role="alert"
+                        style={{
+                          background: '#fdecec',
+                          border: '1px solid #e8b4b4',
+                          color: '#8a1f1f',
+                          padding: '12px 16px',
+                          borderRadius: 8,
+                          fontSize: 14,
+                        }}
+                      >
+                        {error}
+                      </div>
+                    )}
                     <button
                       type="submit"
-                      style={{ background: '#1e2b22', color: '#ffffff', border: 'none', padding: '16px 32px', borderRadius: 8, fontSize: 18, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
-                      onMouseOver={(e) => { (e.target as HTMLElement).style.background = '#304035'; }}
-                      onMouseOut={(e) => { (e.target as HTMLElement).style.background = '#1e2b22'; }}
+                      disabled={loading}
+                      style={{ background: '#1e2b22', color: '#ffffff', border: 'none', padding: '16px 32px', borderRadius: 8, fontSize: 18, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, transition: 'background 0.2s' }}
+                      onMouseOver={(e) => { if (!loading) (e.target as HTMLElement).style.background = '#304035'; }}
+                      onMouseOut={(e) => { if (!loading) (e.target as HTMLElement).style.background = '#1e2b22'; }}
                     >
-                      Réserver ma démo
+                      {loading ? 'Envoi…' : 'Réserver ma démo'}
                     </button>
                   </form>
                 )}
