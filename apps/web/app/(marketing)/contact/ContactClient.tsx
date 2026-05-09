@@ -14,6 +14,8 @@ export default function ContactClient() {
     message: '',
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
@@ -22,12 +24,64 @@ export default function ContactClient() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const SUBJECT_LABELS: Record<string, string> = {
+    support: 'Support technique',
+    commercial: 'Questions commerciales',
+    partnership: 'Partenariat',
+    feedback: 'Retour / Suggestion',
+    other: 'Autre',
+  };
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('Formulaire de contact soumis:', formData);
-    setIsSubmitted(true);
-    setFormData({ firstName: '', lastName: '', email: '', subject: 'support', message: '' });
-    setTimeout(() => setIsSubmitted(false), 3000);
+    setError(null);
+
+    const firstName = formData.firstName.trim();
+    const lastName = formData.lastName.trim();
+    const email = formData.email.trim();
+    const message = formData.message.trim();
+
+    if (!firstName || !lastName || !message) {
+      setError('Merci de remplir tous les champs obligatoires.');
+      return;
+    }
+    if (!EMAIL_RE.test(email)) {
+      setError('Email invalide. Vérifiez votre adresse.');
+      return;
+    }
+
+    const subjectLabel = SUBJECT_LABELS[formData.subject] ?? formData.subject;
+    const fullMessage = `[${subjectLabel}] ${message}`;
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          message: fullMessage,
+          source: 'contact-form',
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      setIsSubmitted(true);
+      setFormData({ firstName: '', lastName: '', email: '', subject: 'support', message: '' });
+      setTimeout(() => setIsSubmitted(false), 5000);
+    } catch (err) {
+      console.error('[contact-form] error:', err);
+      setError('Erreur, réessayez ou contactez nous@avra.fr');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -90,13 +144,19 @@ export default function ContactClient() {
                       <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Message</label>
                       <textarea aria-label="Décrivez votre question ou problème..." name="message" value={formData.message} onChange={handleChange} placeholder="Décrivez votre question ou problème..." rows={5} required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit', resize: 'none' }} />
                     </div>
+                    {error && (
+                      <div role="alert" style={{ background: '#fdf2f2', border: '1px solid #d97373', borderRadius: 8, padding: '12px 16px', color: '#8a1f1f', fontSize: 14 }}>
+                        {error}
+                      </div>
+                    )}
                     <button
                       type="submit"
-                      style={{ background: '#1e2b22', color: '#ffffff', border: 'none', padding: '16px 32px', borderRadius: 8, fontSize: 18, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
-                      onMouseOver={(e) => { (e.target as HTMLElement).style.background = '#304035'; }}
-                      onMouseOut={(e) => { (e.target as HTMLElement).style.background = '#1e2b22'; }}
+                      disabled={loading}
+                      style={{ background: loading ? '#5a6a60' : '#1e2b22', color: '#ffffff', border: 'none', padding: '16px 32px', borderRadius: 8, fontSize: 18, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', transition: 'background 0.2s', opacity: loading ? 0.8 : 1 }}
+                      onMouseOver={(e) => { if (!loading) (e.target as HTMLElement).style.background = '#304035'; }}
+                      onMouseOut={(e) => { if (!loading) (e.target as HTMLElement).style.background = '#1e2b22'; }}
                     >
-                      Envoyer le message
+                      {loading ? 'Envoi…' : 'Envoyer le message'}
                     </button>
                   </form>
                 )}
