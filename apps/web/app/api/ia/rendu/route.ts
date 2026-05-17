@@ -10,8 +10,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RenduParams } from '@/lib/server/prompt-builder';
 import { generateRenduImage } from '@/lib/server/flux-api';
-import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit';
-import { isAuthenticated } from '@/lib/server/auth-guard';
+import { checkRateLimit } from '@/lib/server/rate-limit';
+import { getUserContextFromRequest } from '@/lib/server/auth-guard';
+import { prisma } from '@/lib/server/prisma';
+import {
+  copyExternalImageToIaRenders,
+  buildIaRenderPath,
+} from '@/lib/server/supabase-storage';
 
 // Vercel serverless function timeout :
 // fal.ai peut prendre jusqu'a 90s + retry sur 3 niveaux de prompt.
@@ -24,83 +29,151 @@ export const maxDuration = 300;
 const IA_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
 
 export async function POST(req: NextRequest) {
+  // ── 1) Auth + extraction contexte
+  const userCtx = getUserContextFromRequest(req);
+  if (!userCtx) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const { userId, workspaceId } = userCtx;
+
+  // ── 2) Rate limit par userId
+  const rateResult = checkRateLimit(`ia-rendu:user:${userId}`, IA_RATE_LIMIT);
+  if (!rateResult.success) {
+    return NextResponse.json(
+      { error: 'Trop de générations cette heure. Réessayez plus tard.' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit':     String(IA_RATE_LIMIT.limit),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset':     String(Math.ceil(rateResult.resetAt / 1000)),
+          'Retry-After':           String(Math.ceil((rateResult.resetAt - Date.now()) / 1000)),
+        },
+      },
+    );
+  }
+
+  // ── 3) Parse + validation
+  let body: Record<string, unknown>;
+  try { body = await req.json(); }
+  catch {
+    return NextResponse.json({ error: 'JSON invalide' }, { status: 400 });
+  }
+
+  const { facades, planTravail, style, lightingStyle, roomSize } = body as Record<string, unknown>;
+  if (!facades || !style || !lightingStyle || !roomSize) {
+    return NextResponse.json(
+      { error: 'Paramètres manquants : facades, style, lightingStyle, roomSize requis' },
+      { status: 400 },
+    );
+  }
+
+  const params: RenduParams = {
+    facades:       String(facades),
+    planTravail:   typeof planTravail === 'string' && planTravail.length > 0 ? planTravail : 'quartz blanc mat',
+    sol:           (body.sol  as string | undefined) ?? undefined,
+    murs:          (body.murs as string | undefined) ?? undefined,
+    style:         style as RenduParams['style'],
+    lightingStyle: lightingStyle as RenduParams['lightingStyle'],
+    roomSize:      roomSize as RenduParams['roomSize'],
+    hasPlanFile:   false,
+    extraContext:  (body.extraContext as string | undefined) ?? undefined,
+  };
+  const numImages = Math.min(Math.max(parseInt(String(body.numImages), 10) || 1, 1), 4);
+  const projectId = typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
+
+  // ── 4) INSERT IaJob (QUEUED)
+  const job = await prisma.iaJob.create({
+    data: {
+      workspaceId,
+      createdById: userId,
+      projectId,
+      type:        'PHOTOREALISM_ENHANCE',
+      status:      'QUEUED',
+      modelsUsed:  ['fal-ai/flux-pro/v1.1-ultra'],
+      params: {
+        facades:       params.facades,
+        planTravail:   params.planTravail,
+        sol:           params.sol ?? null,
+        murs:          params.murs ?? null,
+        style:         params.style,
+        lightingStyle: params.lightingStyle,
+        roomSize:      params.roomSize,
+        numImages,
+      },
+    },
+  });
+
+  const fail = async (status: number, message: string, durationMs: number) => {
+    await prisma.iaJob.update({
+      where: { id: job.id },
+      data:  {
+        status:       'FAILED',
+        errorMessage: message,
+        durationMs,
+        completedAt:  new Date(),
+      },
+    });
+    return NextResponse.json({ error: message, jobId: job.id }, { status });
+  };
+
+  const tStart = Date.now();
   try {
-    // ── Authentification ─────────────────────────────────────────────────
-    if (!isAuthenticated(req)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // ── 5) Transition PROCESSING
+    await prisma.iaJob.update({
+      where: { id: job.id },
+      data:  { status: 'PROCESSING' },
+    });
 
-    // ── Rate limiting ────────────────────────────────────────────────────
-    const ip = getClientIp(req);
-    const rateResult = checkRateLimit(`ia-rendu:${ip}`, IA_RATE_LIMIT);
-    if (!rateResult.success) {
-      return NextResponse.json(
-        { error: 'Trop de requêtes. Réessayez dans quelques minutes.' },
-        {
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': String(IA_RATE_LIMIT.limit),
-            'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': String(Math.ceil(rateResult.resetAt / 1000)),
-            'Retry-After': String(Math.ceil((rateResult.resetAt - Date.now()) / 1000)),
-          },
-        }
-      );
-    }
-
-    const body = await req.json();
-
-    const { facades, planTravail, style, lightingStyle, roomSize } = body;
-
-    if (!facades || !style || !lightingStyle || !roomSize) {
-      return NextResponse.json(
-        { error: 'Paramètres manquants : facades, style, lightingStyle, roomSize requis' },
-        { status: 400 }
-      );
-    }
-
-    const params: RenduParams = {
-      facades,
-      planTravail:  planTravail  ?? 'quartz blanc mat',
-      sol:          body.sol  ?? undefined,
-      murs:         body.murs ?? undefined,
-      style,
-      lightingStyle,
-      roomSize,
-      // hasPlanFile / planImageDataUrl ont été retirés : Flux Pro Ultra est
-      // un modèle text-to-image pur qui ignore toute image source. Pour
-      // contraindre la disposition via un plan, il faudrait basculer sur
-      // un modèle ControlNet/Kontext — pas le cas actuel.
-      hasPlanFile:  false,
-      extraContext: body.extraContext ?? undefined,
-    };
-
-    // Nombre de variantes a generer (1-4). Defaut 1.
-    const numImages = Math.min(Math.max(parseInt(body.numImages, 10) || 1, 1), 4);
-
+    // ── 6) Génération (text-to-image pur, pas d'inputImageUrls)
     const result = await generateRenduImage(params, numImages);
 
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error ?? 'Génération échouée' },
-        { status: 500 }
-      );
+      const err = (result.error ?? '').toLowerCase();
+      const status = err.includes('timeout') || err.includes('aucun résultat') ? 504 : 500;
+      return fail(status, result.error ?? 'Génération échouée', Date.now() - tStart);
     }
 
+    // ── 7) Copie fal-cdn → Supabase
+    const copied = await Promise.all(
+      result.imageUrls.map((falUrl, idx) =>
+        copyExternalImageToIaRenders(falUrl, buildIaRenderPath(workspaceId, job.id, idx))
+          .then(({ path, signedUrl }) => ({ path, signedUrl, falUrl })),
+      ),
+    );
+
+    // ── 8) UPDATE DONE
+    const costEUR = 0.06 * result.imageUrls.length; // ~$0.06 / image Flux Ultra
+    await prisma.iaJob.update({
+      where: { id: job.id },
+      data:  {
+        status:          'DONE',
+        prompt:          result.prompt.prompt,
+        resultImageUrls: {
+          paths:      copied.map(c => c.path),
+          signedUrls: copied.map(c => c.signedUrl),
+          falRaw:     copied.map(c => c.falUrl),
+        },
+        durationMs:      Date.now() - tStart,
+        costEUR,
+        completedAt:     new Date(),
+      },
+    });
+
     return NextResponse.json({
-      imageUrl:  result.imageUrl,
-      imageUrls: result.imageUrls,
-      attempts:  result.attempts,
-      durationMs:result.durationMs,
-      level:     result.prompt.level,
-      warnings:  result.prompt.warnings,
+      jobId:      job.id,
+      imageUrl:   copied[0]?.signedUrl ?? null,
+      imageUrls:  copied.map(c => c.signedUrl),
+      attempts:   result.attempts,
+      durationMs: Date.now() - tStart,
+      level:      result.prompt.level,
+      warnings:   result.prompt.warnings,
+      rateLimit:  { remaining: rateResult.remaining, resetAt: rateResult.resetAt },
     });
 
   } catch (err) {
-    console.error('[API /ia/rendu]', err);
-    return NextResponse.json(
-      { error: 'Erreur serveur interne' },
-      { status: 500 }
-    );
+    console.error('[API /ia/rendu] exception:', err);
+    const message = err instanceof Error ? err.message : 'Erreur serveur interne';
+    return fail(500, message, Date.now() - tStart);
   }
 }

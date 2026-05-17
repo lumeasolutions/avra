@@ -71,3 +71,52 @@ export function getUserIdFromRequest(req: NextRequest): string | null {
     return null;
   }
 }
+
+/**
+ * Contexte utilisateur extrait du JWT — pour les routes serverless qui doivent
+ * scoper en DB (workspaceId) et auditer (createdById).
+ *
+ * Le backend NestJS encode `workspaceId` directement dans le payload JWT
+ * (cf. workspace.guard.ts L32 : `user.workspaceId`).
+ *
+ * Retourne null si le token est absent / invalide / sans workspaceId.
+ * NB : la signature crypto n'est PAS vérifiée ici — elle l'est côté NestJS
+ * pour tout appel sortant. Pour les routes serverless qui n'appellent pas
+ * NestJS (comme /api/ia/*), on accepte le payload tel quel.
+ */
+export interface UserContext {
+  userId:      string;
+  workspaceId: string;
+  email?:      string;
+  role?:       string;
+}
+
+export function getUserContextFromRequest(req: NextRequest): UserContext | null {
+  const accessToken = req.cookies.get('access_token')?.value;
+  if (!accessToken) return null;
+  try {
+    const parts = accessToken.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+
+    const userId      = payload.sub ?? payload.id ?? payload.userId;
+    const workspaceId = payload.workspaceId ?? payload.workspace?.id;
+
+    if (!userId || !workspaceId) return null;
+
+    // Expiration : si le JWT est expiré, on rejette (cohérent avec isAuthenticated)
+    if (payload.exp && typeof payload.exp === 'number') {
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (nowSec > payload.exp) return null;
+    }
+
+    return {
+      userId:      String(userId),
+      workspaceId: String(workspaceId),
+      email:       payload.email,
+      role:        payload.role,
+    };
+  } catch {
+    return null;
+  }
+}

@@ -235,7 +235,7 @@ async function uploadToFalStorage(dataUrl: string): Promise<string> {
  * Si c'est un data URI, on l'upload vers fal storage et on renvoie l'URL HTTPS.
  * Tout autre format = erreur.
  */
-async function ensureHttpsUrl(input: string): Promise<string> {
+export async function ensureHttpsUrl(input: string): Promise<string> {
   if (input.startsWith('https://') || input.startsWith('http://')) return input;
   if (input.startsWith('data:')) return uploadToFalStorage(input);
   throw new Error('URL d\'image invalide (attendu: https:// ou data:<mime>;base64,...)');

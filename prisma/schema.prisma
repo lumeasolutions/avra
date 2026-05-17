@@ -1189,6 +1189,21 @@ model IaJob {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
+  // Sprint historique IA (mai 2026) — persistance des générations Kontext/Ultra.
+  // inputImageUrls  : URLs https des inputs (photo source + textures) telles
+  //                   qu'envoyées à fal.ai. Garde la trace pour debug + replay.
+  // resultImageUrls : URLs Supabase **signées** (30 jours) des images générées.
+  //                   Les URLs fal-cdn brutes étant éphémères (~7j), on copie.
+  // params          : snapshot des paramètres user (couleurs, finitions, style…).
+  // modelsUsed      : ex. ["fal-ai/flux-pro/kontext/max/multi"] — utile pour
+  //                   suivre les coûts par modèle et debugger un changement.
+  inputImageUrls   Json?
+  resultImageUrls  Json?
+  costEUR          Float?
+  durationMs       Int?
+  params           Json?
+  modelsUsed       String[]    @default([])
+
   workspace        Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy        User       @relation(fields: [createdById], references: [id])
   project          Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -1196,6 +1211,9 @@ model IaJob {
   resultDocument   Document?  @relation("IaResultDoc", fields: [resultDocumentId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, type, createdAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

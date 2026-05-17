@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useDossierStore, useHistoryStore, useAuthStore } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
+import HistoryPanel, { type IaJobRow } from './HistoryPanel';
 
 /* ─── Types front-end uniquement (pas d'import depuis lib/server) ─── */
 type FinishType   = 'mat' | 'satiné' | 'brillant' | 'brossé' | 'bois' | 'miroir' | 'verre-mat';
@@ -475,6 +476,19 @@ export default function IaStudioPage() {
 
   /* État global */
   const [tab,          setTab]          = useState<Module>('coloriste');
+  // Bump pour forcer le rafraîchissement du HistoryPanel après une génération
+  // réussie. Le panneau écoute ce nombre dans son useEffect.
+  const [iaHistoryRefresh, setIaHistoryRefresh] = useState(0);
+
+  // Handler partagé : clic sur une vignette de l'historique → ouvre l'image
+  // pleine taille dans un nouvel onglet (le plus simple pour télécharger /
+  // partager / envoyer par email au client). Affiner plus tard avec une
+  // modale ou un mode "ré-éditer ce rendu".
+  const openHistoryJob = (job: IaJobRow) => {
+    const url = job.resultImageUrls?.signedUrls?.[0];
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const [gallery,      setGallery]      = useState<Item[]>(() => {
     if (typeof window === 'undefined') return [];
     try { const saved = localStorage.getItem('avra-ia-gallery'); return saved ? JSON.parse(saved) : []; }
@@ -640,6 +654,10 @@ export default function IaStudioPage() {
 
       if (result.error) { setColorError(result.error); setColorLoading(false); return; }
 
+      // Génération OK → rafraîchir l'historique DB en parallèle (la route a déjà
+      // persisté l'IaJob avec status=DONE, on lit juste la nouvelle entrée).
+      setIaHistoryRefresh(n => n + 1);
+
       const desc = preset ? `${preset.name} — ${preset.desc}` : `Façades ${facadeCol} ${facadeFinish}`;
       setColorResult({
         id: uid(), module: 'coloriste', prompt: desc, dossier: dossierName,
@@ -686,6 +704,8 @@ export default function IaStudioPage() {
       });
 
       if (result.error) { setRendError(result.error); setRendLoading(false); return; }
+
+      setIaHistoryRefresh(n => n + 1);
 
       setRendResult({
         id: uid(), module: 'rendu',
@@ -1151,25 +1171,13 @@ export default function IaStudioPage() {
                 </>
               )}
 
-              {/* Mini historique coloriste */}
-              {gallery.filter(g=>g.module==='coloriste').length > 0 && (
-                <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/40 mb-3">
-                    Historique ({gallery.filter(g=>g.module==='coloriste').length})
-                  </p>
-                  <div className="space-y-2">
-                    {gallery.filter(g=>g.module==='coloriste').slice(0,5).map(item => (
-                      <div key={item.id} className="flex items-center gap-3 rounded-xl border border-[#304035]/6 p-2.5 hover:bg-[#f5eee8]/40 transition-colors">
-                        <div className="h-9 w-9 shrink-0 rounded-xl shadow-sm" style={{background:item.color}} />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-[#304035] truncate">{item.prompt}</p>
-                          <p className="text-[10px] text-[#304035]/40 mt-0.5">{item.dossier} · {item.ts}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Historique IA persistant (DB IaJob — partagé workspace) */}
+              <HistoryPanel
+                filterType="COLOR_VARIATION"
+                accent="#a67749"
+                refreshTrigger={iaHistoryRefresh}
+                onSelect={openHistoryJob}
+              />
             </div>
           </div>
         )}
@@ -1455,27 +1463,13 @@ export default function IaStudioPage() {
                 </>
               )}
 
-              {/* Mini historique rendu */}
-              {gallery.filter(g=>g.module==='rendu').length > 0 && (
-                <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/40 mb-3">
-                    Rendus générés ({gallery.filter(g=>g.module==='rendu').length})
-                  </p>
-                  <div className="space-y-2">
-                    {gallery.filter(g=>g.module==='rendu').slice(0,5).map(item => (
-                      <div key={item.id} className="flex items-center gap-3 rounded-xl border border-[#304035]/6 p-2.5 hover:bg-[#f5eee8]/40 transition-colors">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#5b9bd5]/10">
-                          <Wand2 className="h-4 w-4 text-[#5b9bd5]" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-[#304035] truncate">{item.prompt}</p>
-                          <p className="text-[10px] text-[#304035]/40 mt-0.5">{item.dossier} · {item.ts}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Historique IA persistant (DB IaJob — partagé workspace) */}
+              <HistoryPanel
+                filterType="PHOTOREALISM_ENHANCE"
+                accent="#5b9bd5"
+                refreshTrigger={iaHistoryRefresh}
+                onSelect={openHistoryJob}
+              />
             </div>
           </div>
         )}
