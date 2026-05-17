@@ -54,10 +54,17 @@ export interface FluxInput {
 const FLUX_MODEL_RENDU            = 'fal-ai/flux-pro/v1.1-ultra';
 const FLUX_MODEL_COLORISTE        = 'fal-ai/flux/dev'; // legacy, plus utilisé
 const FLUX_MODEL_KONTEXT_MULTI    = 'fal-ai/flux-pro/kontext/max/multi';
-const MAX_ATTEMPTS        = 3;
-const TIMEOUT_MS          = 120_000; // 2 min max par tentative
+
+// Timeouts ajustés pour rester sous la limite Vercel Pro (300s par fonction
+// serverless). Budget cible :
+//   - 1ère tentative : 90s max (polling jusqu'à 80s + marge réseau)
+//   - 2ème tentative : 90s max
+//   - Total worst-case : ~180s, + upload + Supabase copy = ~220s
+// On garde 80s de marge avant que Vercel ne kill la fonction (504).
+const MAX_ATTEMPTS        = 2;       // 1 retry au lieu de 2 (le 3ème ne sauve quasi jamais)
+const TIMEOUT_MS          = 90_000;  // 90s max par tentative (avant: 120s)
 const POLL_INTERVAL_MS    = 2_000;   // sonde le résultat toutes les 2s
-const POLL_MAX_ATTEMPTS   = 60;      // 60 × 2s = 2 min max de polling
+const POLL_MAX_ATTEMPTS   = 40;      // 40 × 2s = 80s max de polling (avant: 120s)
 
 // ─────────────────────────────────────────── FAL API CLIENT
 

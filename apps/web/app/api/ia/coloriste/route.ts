@@ -143,7 +143,23 @@ export async function POST(req: NextRequest) {
   };
 
   const tStart = Date.now();
+
+  // ── Garde-fou global : on déclenche notre propre timeout à 250s,
+  //    50s avant que Vercel ne tue la fonction (300s max sur Pro). Ça nous
+  //    laisse le temps de faire un UPDATE IaJob status=FAILED avant le kill,
+  //    sinon le job resterait coincé en PROCESSING pour toujours.
+  const GLOBAL_TIMEOUT_MS = 250_000;
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  const globalTimeout = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(
+      () => reject(new Error('Délai serveur dépassé (250s). Le service IA est probablement saturé.')),
+      GLOBAL_TIMEOUT_MS,
+    );
+  });
+
   try {
+    // Wrap toute l'opération dans une race contre le global timeout.
+    return await Promise.race([globalTimeout, (async () => {
     // ── 5) Pré-upload des images vers fal-cdn (pour pouvoir les enregistrer
     //       dans IaJob.inputImageUrls avant de lancer la génération).
     //       Si une URL est déjà https, `ensureHttpsUrl` la passe directement.
@@ -220,10 +236,15 @@ export async function POST(req: NextRequest) {
       warnings:   result.prompt.warnings,
       rateLimit:  { remaining: rateResult.remaining, resetAt: rateResult.resetAt },
     });
+    })()]);
 
   } catch (err) {
     console.error('[API /ia/coloriste] exception:', err);
     const message = err instanceof Error ? err.message : 'Erreur serveur interne';
-    return fail(500, message, Date.now() - tStart);
+    // 504 si c'est notre garde-fou global qui a triggered, sinon 500.
+    const status = message.includes('Délai serveur dépassé') ? 504 : 500;
+    return fail(status, message, Date.now() - tStart);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
   }
 }
