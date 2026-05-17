@@ -176,7 +176,7 @@ export default function HomePage() {
                   letterSpacing: '.1em',
                 }}
               >
-                N°1 de l&apos;agencement · Lancé en 2026
+                Logiciel d&apos;agencement · Lancé en 2026
               </span>
             </div>
 

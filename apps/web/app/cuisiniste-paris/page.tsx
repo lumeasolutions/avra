@@ -10,11 +10,11 @@ import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
   title: 'Logiciel cuisiniste Paris — ERP & IA pour cuisinistes en Île-de-France',
-  description: 'AVRA est le logiciel N°1 pour les cuisinistes parisiens. Gérez vos dossiers, devis, planning et générez des rendus IA en 10s. Demandez une démo.',
+  description: 'AVRA est le logiciel dédié aux cuisinistes parisiens. Gérez vos dossiers, devis, planning et générez des rendus IA en 10s. Demandez une démo.',
   alternates: { canonical: 'https://avra-app.fr/cuisiniste-paris' },
   openGraph: {
     title: 'Logiciel cuisiniste Paris — ERP & IA pour cuisinistes en Île-de-France',
-    description: 'AVRA est le logiciel N°1 pour les cuisinistes parisiens. Gérez vos dossiers, devis, planning et générez des rendus IA en 10s. Demandez une démo.',
+    description: 'AVRA est le logiciel dédié aux cuisinistes parisiens. Gérez vos dossiers, devis, planning et générez des rendus IA en 10s. Demandez une démo.',
     url: 'https://avra-app.fr/cuisiniste-paris',
 
     images: ['/opengraph-image.png'],

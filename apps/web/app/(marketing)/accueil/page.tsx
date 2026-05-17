@@ -7,7 +7,7 @@ import ScrollReveal from '../components/ScrollReveal';
 export const metadata: Metadata = {
   title: "AVRA — ERP + IA pour les professionnels de l'agencement",
   description:
-    "AVRA est l'ERP et assistant IA N°1 pour les cuisinistes, menuisiers, architectes d'intérieur. Gérez vos projets sans friction avec facturation, planning, dossiers et rendus IA.",
+    "AVRA est l'ERP et assistant IA dédié aux cuisinistes, menuisiers et architectes d'intérieur. Gérez vos projets sans friction avec facturation, planning, dossiers et rendus IA.",
   alternates: { canonical: 'https://avra-app.fr/accueil' },
   openGraph: {
     title: "AVRA — ERP + IA pour les professionnels de l'agencement",
@@ -93,7 +93,7 @@ export default function AccueilPage() {
           alignItems: 'center', width: '100%',
         }}>
           <div>
-            <div className="section-label">N°1 de l&apos;agencement intérieur</div>
+            <div className="section-label">ERP & IA pour l&apos;agencement intérieur</div>
             <h1 style={{ color: '#fff', marginBottom: '1.5rem', fontSize: 'clamp(2.2rem,4vw,3.6rem)', fontFamily: 'var(--font-display, "Playfair Display", Georgia, serif)', lineHeight: 1.15 }}>Le logiciel qui libère les pros de l&apos;agencement</h1>
             <p style={{ color: 'rgba(255,255,255,.85)', fontSize: '1.2rem', marginBottom: '2rem', maxWidth: 500, lineHeight: 1.6 }}>
               Dossiers clients, facturation, planning, stock et IA photo-réalisme —

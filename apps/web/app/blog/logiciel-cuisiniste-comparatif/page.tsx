@@ -195,7 +195,7 @@ export default function ComparatifCuisiniste() {
 
             <h2 style={{ fontSize: '1.5rem', marginTop: '40px', marginBottom: '16px', color: '#1e2b22' }}>Notre recommandation</h2>
             <p style={{ marginBottom: '16px' }}>
-              Si vous cherchez un logiciel moderne avec IA intégrée et conforme e-facture 2026, <strong>AVRA</strong> est notre choix numéro 1. Son interface intuitive réduit la courbe d'apprentissage et ses rendus IA vous permettent de vendre plus vite.
+              Si vous cherchez un logiciel moderne avec IA intégrée et conforme e-facture 2026, <strong>AVRA</strong> est notre choix éditorial. Son interface intuitive réduit la courbe d'apprentissage et ses rendus IA vous permettent de vendre plus vite.
             </p>
             <p style={{ marginBottom: '40px' }}>
               Pour les budgets plus serrés, Organilog et Tactidevis sont solides mais limités en fonctionnalités avancées.

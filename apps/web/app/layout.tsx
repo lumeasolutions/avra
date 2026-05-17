@@ -45,11 +45,11 @@ const playfairDisplay = Playfair_Display({
 
 export const metadata: Metadata = {
   title: {
-    default: "AVRA — Logiciel de gestion N°1 pour les professionnels de l'agencement",
+    default: "AVRA — Logiciel d'agencement avec IA pour cuisinistes & menuisiers",
     template: '%s | AVRA',
   },
   description:
-    "AVRA, le logiciel complet avec assistant IA dédié aux pros de l'agencement. Dossiers, devis, facturation, rendus IA et planning — tout en une seule app.",
+    "Dossiers, devis, facturation, planning et rendus IA dans une seule app dédiée aux pros de l'agencement : cuisinistes, menuisiers, architectes.",
   keywords: [
     'logiciel agencement',
     'ERP cuisiniste',
@@ -75,9 +75,9 @@ export const metadata: Metadata = {
     startupImage: '/icons/apple-touch-icon.png',
   },
   openGraph: {
-    title: "AVRA — Logiciel N°1 des pros de l'agencement",
+    title: "AVRA — Logiciel d'agencement avec IA pour cuisinistes & menuisiers",
     description:
-      "AVRA, le logiciel complet avec assistant IA dédié aux pros de l'agencement. Dossiers, devis, facturation, rendus IA et planning — tout en une seule app.",
+      "Dossiers, devis, facturation, planning et rendus IA dans une seule app dédiée aux pros de l'agencement : cuisinistes, menuisiers, architectes.",
     url: 'https://avra-app.fr',
     siteName: 'AVRA',
     locale: 'fr_FR',
@@ -87,15 +87,15 @@ export const metadata: Metadata = {
         url: '/opengraph-image.png',
         width: 1200,
         height: 630,
-        alt: "AVRA - Logiciel N°1 des professionnels de l'agencement",
+        alt: "AVRA - Logiciel d'agencement avec IA pour cuisinistes & menuisiers",
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: "AVRA — Logiciel N°1 de l'agencement",
+    title: "AVRA — Logiciel d'agencement avec IA",
     description:
-      "Gérez vos projets d'agencement sans effort. Dossiers, facturation, IA, planning — tout en un.",
+      "Dossiers, devis, facturation, planning et rendus IA dans une seule app dédiée aux pros de l'agencement.",
     creator: '@avra_app',
     images: ['/opengraph-image.png'],
   },

@@ -13,7 +13,7 @@ export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: {
-    default: "AVRA — Logiciel N°1 des professionnels de l'agencement",
+    default: "AVRA — Logiciel d'agencement avec IA pour cuisinistes & menuisiers",
     template: '%s | AVRA',
   },
   description:
