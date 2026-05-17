@@ -8,8 +8,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { buildColoristPrompt, ColoristParams } from '@/lib/server/prompt-builder';
-import { generateColoristImage } from '@/lib/server/flux-api';
+import { ColoristParams } from '@/lib/server/prompt-builder';
+import { generateColoristImageKontext } from '@/lib/server/flux-api';
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit';
 import { isAuthenticated } from '@/lib/server/auth-guard';
 
@@ -60,6 +60,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Photo cuisine source OBLIGATOIRE : Kontext édite une image existante.
+    // On rejette tôt avec un message utilisateur clair.
+    const sourceKitchenUrl: string | undefined = body.sourceImageDataUrl;
+    if (!sourceKitchenUrl || typeof sourceKitchenUrl !== 'string') {
+      return NextResponse.json(
+        { error: 'Photo de la cuisine requise. Importez une photo pour utiliser le coloriste IA.' },
+        { status: 400 }
+      );
+    }
+
     const params: ColoristParams = {
       facadeHex,
       poigneeHex,
@@ -71,29 +81,44 @@ export async function POST(req: NextRequest) {
       countertopMaterial: body.countertopMaterial ?? undefined,
       lightingStyle,
       extraContext:       body.extraContext        ?? undefined,
-      // Textures importées par l'utilisateur, par élément. Quand présentes,
-      // le prompt mentionne "matching imported texture pattern" pour aider
-      // le modèle à respecter la matière (cf prompt-builder).
+      // Textures importées : data URL ou URL https. Envoyées comme références
+      // image_urls[1+] à Flux Kontext Max Multi. Le prompt y fait référence
+      // explicitement par index ("apply material from image N to ...").
       facadeTextureDataUrl:  body.facadeTextureDataUrl  ?? undefined,
       poigneeTextureDataUrl: body.poigneeTextureDataUrl ?? undefined,
       planTextureDataUrl:    body.planTextureDataUrl    ?? undefined,
     };
 
-    // Photo de cuisine optionnelle pour img2img (data URL ou URL publique).
-    // Quand presente, fal.ai utilise cette image comme base et applique
-    // les transformations de couleurs/finitions au lieu de generer from scratch.
-    const sourceImageUrl: string | undefined = body.sourceImageDataUrl;
-
     // Nombre de variantes a generer (1-4). Defaut 1.
     const numImages = Math.min(Math.max(parseInt(body.numImages, 10) || 1, 1), 4);
 
-    // Construction du prompt + génération — tout côté serveur
-    const result = await generateColoristImage(params, sourceImageUrl, numImages);
+    // Génération via Flux Kontext Max Multi (multi-image édition).
+    const result = await generateColoristImageKontext(
+      params,
+      sourceKitchenUrl,
+      {
+        facade:  params.facadeTextureDataUrl,
+        poignee: params.poigneeTextureDataUrl,
+        plan:    params.planTextureDataUrl,
+      },
+      numImages,
+    );
 
     if (!result.success) {
+      // Tri par cause pour renvoyer un status HTTP cohérent. Le front
+      // utilise ce status pour afficher un message ciblé (cf callColoristAPI).
+      const err = (result.error ?? '').toLowerCase();
+      let status = 500;
+      if (err.includes('uploader') || err.includes('storage') || err.includes('fal-cdn')) {
+        status = 502; // upload vers fal-cdn impossible
+      } else if (err.includes('timeout') || err.includes('aucun résultat')) {
+        status = 504; // génération a dépassé les délais
+      } else if (err.includes('data uri') || err.includes('invalide')) {
+        status = 400;
+      }
       return NextResponse.json(
         { error: result.error ?? 'Génération échouée' },
-        { status: 500 }
+        { status },
       );
     }
 

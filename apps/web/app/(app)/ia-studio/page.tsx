@@ -45,14 +45,18 @@ async function callColoristAPI(params: {
     return JSON.parse(text) as { imageUrl: string | null; imageUrls?: string[]; error?: string };
   } catch {
     let message = 'Le serveur n\'a pas pu générer la colorisation.';
-    if (res.status === 504 || res.status === 502) {
-      message = 'La colorisation a pris trop de temps (timeout serveur). Réessayez.';
+    if (res.status === 504) {
+      message = 'La colorisation a pris trop de temps (timeout). Réessayez ou simplifiez la demande.';
+    } else if (res.status === 502) {
+      message = 'Service IA momentanément indisponible (upload images). Réessayez dans une minute.';
     } else if (res.status === 413) {
       message = 'Image fournie trop volumineuse pour le serveur.';
     } else if (res.status === 429) {
       message = 'Trop de générations dans la dernière heure. Patientez un peu.';
     } else if (res.status === 401) {
       message = 'Session expirée — reconnectez-vous.';
+    } else if (res.status === 400) {
+      message = 'Photo ou paramètres invalides. Vérifiez le format de l\'image.';
     } else if (text.toLowerCase().includes('an error occurred')) {
       message = 'Erreur serveur (probablement timeout fal.ai). Réessayez dans 30s.';
     }
@@ -62,12 +66,11 @@ async function callColoristAPI(params: {
 
 async function callRenduAPI(params: {
   facades: string; planTravail: string; style: StyleType;
-  lightingStyle: LightingType; roomSize: RoomSizeType; hasPlanFile: boolean;
+  lightingStyle: LightingType; roomSize: RoomSizeType;
   /** Optionnel : description du sol (parquet, carrelage, béton ciré...) */
   sol?: string;
   /** Optionnel : description des murs (peinture, papier peint, lambris...) */
   murs?: string;
-  planImageDataUrl?: string;
   numImages?: number;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/rendu', {
@@ -110,12 +113,57 @@ async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+/**
+ * Compresse une image côté navigateur : la redimensionne pour que son côté le
+ * plus long fasse `maxSide` px, puis l'exporte en JPEG qualité 0.85.
+ * Utilisé pour rester sous la limite Vercel (4,5 Mo par requête) quand on
+ * envoie photo cuisine + 3 textures dans le même POST.
+ *
+ * Si le fichier dépasse `maxSide` × `maxSide`, on resize. Sinon on garde tel
+ * quel (compression JPEG quand même pour normaliser le format).
+ *
+ * Fallback : si le canvas plante (HEIC iPhone, SVG, fichier corrompu), on
+ * renvoie le data URL brut. Mieux qu'un crash.
+ */
+async function compressImageToDataUrl(file: File, maxSide: number = 1280): Promise<string> {
+  try {
+    const objectUrl = URL.createObjectURL(file);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new window.Image();
+      i.onload  = () => resolve(i);
+      i.onerror = () => reject(new Error('Image illisible (format non supporté ?)'));
+      i.src = objectUrl;
+    });
+
+    // Calcul du facteur d'échelle pour respecter maxSide sur le côté le plus long
+    const longest = Math.max(img.naturalWidth, img.naturalHeight);
+    const scale = longest > maxSide ? maxSide / longest : 1;
+    const w = Math.round(img.naturalWidth  * scale);
+    const h = Math.round(img.naturalHeight * scale);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D indisponible');
+    ctx.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(objectUrl);
+
+    // JPEG q=0.85 : bon compromis qualité / taille (~5-8x plus petit que PNG)
+    return canvas.toDataURL('image/jpeg', 0.85);
+  } catch (err) {
+    // Fallback gracieux : on renvoie le data URL brut sans compression
+    console.warn('[compressImage] fallback brut:', err);
+    return fileToDataUrl(file);
+  }
+}
+
 /* ─── Estimations affichées (données statiques, pas besoin du serveur) ─── */
 function estimateCost(module: 'coloriste' | 'rendu'): string {
-  return module === 'coloriste' ? '~0,04 €' : '~0,06 €';
+  return module === 'coloriste' ? '~0,10 €' : '~0,06 €';
 }
 function estimateDuration(module: 'coloriste' | 'rendu'): string {
-  return module === 'coloriste' ? '5–10 sec' : '10–20 sec';
+  // Kontext Max prend un peu plus de temps que Flux Dev (vs ~5s avant)
+  return module === 'coloriste' ? '10–20 sec' : '10–20 sec';
 }
 
 /* ─────────────────────────────────────────── ANIMATIONS */
@@ -170,8 +218,6 @@ const LOADING_STEPS_COLOR = [
 const LOADING_STEPS_RENDU = [
   'Analyse de vos paramètres de style',
   'Construction du prompt photoréaliste',
-  'Lecture du plan WinnerFlex',
-  'Reconstruction géométrique des volumes',
   'Placement des sources lumineuses',
   'Application des textures et matériaux',
   'Calcul du rendu photoréaliste',
@@ -466,7 +512,8 @@ export default function IaStudioPage() {
   const [colorError,   setColorError]   = useState<string|null>(null);
 
   /* ── RENDU — état */
-  const [planFile,     setPlanFile]     = useState<File|null>(null);
+  // planFile : retiré — Flux Pro Ultra ignore toute image source (text-to-image pur).
+  // L'ancien drop "Plan WinnerFlex" promettait une lecture qui n'arrivait jamais.
   const [rendStyle,    setRendStyle]    = useState<StyleType>('contemporain');
   const [rendLight,    setRendLight]    = useState<LightingType>('naturelle');
   // rendSize : valeur fixe en interne (le ChipSelector "Taille de la cuisine" a
@@ -507,9 +554,14 @@ export default function IaStudioPage() {
     setFacadeFinish(p.finish);
   };
 
-  /* ── Coloriste : peut-on lancer ? (preset OU couleurs/textures modifiées OU photo uploadée) */
-  const canRunColor = !!preset || colorsModified || !!photoFile
-    || !!facadeTexture || !!poigneeTexture || !!planTexture;
+  /* ── Coloriste : peut-on lancer ?
+   * Flux Kontext édite une photo existante → la photo de cuisine est obligatoire.
+   * Le reste (preset, couleurs, textures) est optionnel mais sans la photo
+   * source on ne peut rien éditer. */
+  const canRunColor = !!photoFile && (
+    !!preset || colorsModified
+    || !!facadeTexture || !!poigneeTexture || !!planTexture
+  );
 
   /**
    * Charge une image de texture depuis un <input type=file/>, la convertit en
@@ -517,32 +569,32 @@ export default function IaStudioPage() {
    * pour ne pas saturer la mémoire React (et pour rester sous la limite Vercel
    * de payload). Affiche une alerte simple si dépassement.
    */
-  const handleTextureUpload = (
+  const handleTextureUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: (v: string | null) => void,
   ) => {
     const file = e.target.files?.[0];
-    // Reset le champ pour permettre de re-sélectionner le même fichier après
-    // un retrait.
+    // Reset le champ pour permettre de re-sélectionner le même fichier après retrait.
     e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       alert('Format invalide : sélectionnez une image (jpg, png, webp...).');
       return;
     }
-    if (file.size > 1024 * 1024) {
-      alert('Image trop lourde : maximum 1 Mo. Utilisez une version compressée.');
+    // Upload tolère jusqu'à 5 Mo : la compression suivante les ramène à ~100-300 Ko.
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image trop lourde : maximum 5 Mo.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = typeof reader.result === 'string' ? reader.result : null;
+    try {
+      // Resize à 768px max pour les textures (swatch suffit largement) + JPEG 0.85.
+      const dataUrl = await compressImageToDataUrl(file, 768);
       setter(dataUrl);
       setPreset(null);
       setColorsModified(true);
-    };
-    reader.onerror = () => alert('Impossible de lire le fichier. Réessayez.');
-    reader.readAsDataURL(file);
+    } catch {
+      alert('Impossible de lire le fichier. Réessayez.');
+    }
   };
 
   /* ── Coloriste : lancer */
@@ -551,16 +603,21 @@ export default function IaStudioPage() {
     setColorLoading(true); setColorResult(null); setColorError(null);
 
     try {
-      // Si une photo de cuisine a ete uploadee, on l'envoie au backend pour
-      // que fal.ai fasse de l'img2img (transformation reelle de la photo).
-      let sourceImageDataUrl: string | undefined;
-      if (photoFile) {
-        try {
-          sourceImageDataUrl = await fileToDataUrl(photoFile);
-        } catch {
-          setColorError('Impossible de lire la photo. Reessayez avec un autre fichier.');
-          setColorLoading(false); return;
-        }
+      // Photo de cuisine obligatoire pour Flux Kontext (édition multi-image).
+      // canRunColor garantit qu'elle est présente, mais on garde le garde-fou.
+      if (!photoFile) {
+        setColorError('Photo de la cuisine requise pour le coloriste IA.');
+        setColorLoading(false); return;
+      }
+      // Compression côté navigateur : resize à 1280px max côté long + JPEG 0.85.
+      // Photos iPhone à 3-5 Mo descendent à ~250-400 Ko → on reste largement sous
+      // la limite Vercel (4,5 Mo par requête) même avec 3 textures en plus.
+      let sourceImageDataUrl: string;
+      try {
+        sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280);
+      } catch {
+        setColorError('Impossible de lire la photo. Réessayez avec un autre fichier.');
+        setColorLoading(false); return;
       }
 
       const result = await callColoristAPI({
@@ -613,21 +670,10 @@ export default function IaStudioPage() {
 
   /* ── Rendu : lancer */
   const runRendu = async () => {
-    if (!rendFacades.trim() && !planFile) return;
+    if (!rendFacades.trim()) return;
     setRendLoading(true); setRendResult(null); setRendError(null);
 
     try {
-      // Plan WinnerFlex optionnel : reference de proportions pour le modele.
-      let planImageDataUrl: string | undefined;
-      if (planFile) {
-        try {
-          planImageDataUrl = await fileToDataUrl(planFile);
-        } catch {
-          setRendError('Impossible de lire le plan. Reessayez avec un autre fichier.');
-          setRendLoading(false); return;
-        }
-      }
-
       const result = await callRenduAPI({
         facades:      rendFacades || 'Façades modernes, finitions haut de gamme',
         planTravail:  rendPlan    || 'quartz blanc mat',
@@ -636,8 +682,6 @@ export default function IaStudioPage() {
         style:        rendStyle,
         lightingStyle:rendLight,
         roomSize:     rendSize,
-        hasPlanFile:  !!planFile,
-        planImageDataUrl,
         numImages:    rendNumVariants,
       });
 
@@ -645,7 +689,7 @@ export default function IaStudioPage() {
 
       setRendResult({
         id: uid(), module: 'rendu',
-        prompt: rendFacades || (planFile?.name ?? 'Rendu WinnerFlex'),
+        prompt: rendFacades || 'Rendu photoréaliste',
         dossier: dossierName,
         ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
         color: '#5b9bd5',
@@ -1005,13 +1049,15 @@ export default function IaStudioPage() {
                 <div className="flex items-center justify-between rounded-xl bg-[#304035]/4 px-3.5 py-2.5">
                   <div className="flex items-center gap-2">
                     <Star className="h-3.5 w-3.5 text-[#a67749]" />
-                    <span className="text-xs font-semibold text-[#304035]/70">Coût estimé · Flux 1.1 Pro</span>
+                    <span className="text-xs font-semibold text-[#304035]/70">Coût estimé · Flux Kontext Max</span>
                   </div>
-                  <span className="text-xs font-black text-[#304035]">~{(0.04 * colorNumVariants).toFixed(2).replace('.', ',')} € · {estimateDuration('coloriste')}</span>
+                  <span className="text-xs font-black text-[#304035]">~{(0.10 * colorNumVariants).toFixed(2).replace('.', ',')} € · {estimateDuration('coloriste')}</span>
                 </div>
                 {!canRunColor && !colorLoading && (
                   <p className="text-[11px] text-[#304035]/55 text-center">
-                    Choisissez une palette ou modifiez une couleur pour activer le bouton.
+                    {!photoFile
+                      ? 'Importez une photo de la cuisine puis choisissez une palette ou une texture.'
+                      : 'Choisissez une palette, modifiez une couleur ou importez une texture.'}
                   </p>
                 )}
                 <button onClick={runColor}
@@ -1058,7 +1104,7 @@ export default function IaStudioPage() {
                     </div>
                     <div>
                       <p className="font-black text-[#304035]">Coloriste IA en action</p>
-                      <p className="text-xs text-[#304035]/50 mt-0.5">Flux 1.1 Pro · Traitement en cours…</p>
+                      <p className="text-xs text-[#304035]/50 mt-0.5">Flux Kontext Max · Édition multi-image…</p>
                     </div>
                   </div>
                   <ProgressBar steps={LOADING_STEPS_COLOR} color="#a67749" />
@@ -1135,31 +1181,11 @@ export default function IaStudioPage() {
             {/* ── Panneau gauche */}
             <div className="space-y-4">
 
-              {/* Import WinnerFlex */}
-              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5">
-                <div className="flex items-center gap-2 mb-1">
-                  <FileImage className="h-4 w-4 text-[#5b9bd5]" />
-                  <p className="font-bold text-[#304035]">Plan WinnerFlex</p>
-                  <span className="ml-auto rounded-full bg-[#5b9bd5]/10 text-[#5b9bd5] text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5">Optionnel</span>
-                </div>
-                <p className="text-xs text-[#304035]/50 mb-4">Screenshot ou export image depuis WinnerFlex</p>
-                <Drop label="" sub="Importez votre plan ou perspective 3D WinnerFlex"
-                  onFile={setPlanFile} file={planFile} accent="#5b9bd5"
-                  tips={['Export vue de dessus ou 3D','Screenshot PNG/JPG depuis WinnerFlex','Inclure les fenêtres et dimensions','Vue 3D filaire = meilleur résultat']} />
-                {planFile && (
-                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#5b9bd5]/8 border border-[#5b9bd5]/20 px-3.5 py-2.5">
-                    <ScanLine className="h-4 w-4 text-[#5b9bd5] shrink-0" />
-                    <p className="text-xs font-semibold text-[#304035] flex-1">L'IA analysera les volumes, agencements et ouvertures</p>
-                    <button
-                      onClick={() => setPlanFile(null)}
-                      className="flex h-6 w-6 items-center justify-center rounded-full bg-[#304035]/10 text-[#304035]/50 hover:bg-red-100 hover:text-red-500 transition-colors shrink-0"
-                      title="Retirer le fichier"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* Bloc "Import Plan WinnerFlex" retiré : Flux Pro Ultra est un
+                  modèle text-to-image pur qui ignore toute image source. L'ancien
+                  drop promettait une lecture du plan qui n'arrivait jamais.
+                  Pour réintroduire une dépendance au plan, il faudra basculer
+                  sur un modèle Kontext ou ControlNet (cf flux-api.ts). */}
 
               {/* SÉLECTEURS STRUCTURÉS — zéro textarea libre */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-5">
@@ -1336,13 +1362,13 @@ export default function IaStudioPage() {
                   </div>
                   <span className="text-xs font-black text-[#304035]">~{(0.06 * rendNumVariants).toFixed(2).replace('.', ',')} € · {estimateDuration('rendu')}</span>
                 </div>
-                {!rendLoading && !rendFacades.trim() && !planFile && (
+                {!rendLoading && !rendFacades.trim() && (
                   <p className="text-[11px] text-[#304035]/55 text-center">
-                    Décrivez les façades ou importez un plan WinnerFlex pour activer le bouton.
+                    Décrivez les façades pour activer le bouton.
                   </p>
                 )}
                 <button onClick={runRendu}
-                  disabled={rendLoading || (!rendFacades.trim() && !planFile)}
+                  disabled={rendLoading || !rendFacades.trim()}
                   className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{background:'linear-gradient(135deg,#5b9bd5 0%,#3a78b5 100%)'}}>
                   <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">

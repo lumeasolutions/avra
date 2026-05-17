@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { buildRenduPrompt, RenduParams } from '@/lib/server/prompt-builder';
+import { RenduParams } from '@/lib/server/prompt-builder';
 import { generateRenduImage } from '@/lib/server/flux-api';
 import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit';
 import { isAuthenticated } from '@/lib/server/auth-guard';
@@ -67,17 +67,18 @@ export async function POST(req: NextRequest) {
       style,
       lightingStyle,
       roomSize,
-      hasPlanFile:  body.hasPlanFile ?? false,
+      // hasPlanFile / planImageDataUrl ont été retirés : Flux Pro Ultra est
+      // un modèle text-to-image pur qui ignore toute image source. Pour
+      // contraindre la disposition via un plan, il faudrait basculer sur
+      // un modèle ControlNet/Kontext — pas le cas actuel.
+      hasPlanFile:  false,
       extraContext: body.extraContext ?? undefined,
     };
-
-    // Plan WinnerFlex optionnel : sert de reference de proportions au modele.
-    const planImageUrl: string | undefined = body.planImageDataUrl;
 
     // Nombre de variantes a generer (1-4). Defaut 1.
     const numImages = Math.min(Math.max(parseInt(body.numImages, 10) || 1, 1), 4);
 
-    const result = await generateRenduImage(params, planImageUrl, numImages);
+    const result = await generateRenduImage(params, numImages);
 
     if (!result.success) {
       return NextResponse.json(

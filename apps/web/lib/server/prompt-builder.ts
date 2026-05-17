@@ -28,13 +28,10 @@ export interface ColoristParams {
   lightingStyle:     LightingType;
   extraContext?:     string;
   /**
-   * Textures importées par l'utilisateur (data URL) pour chaque élément.
-   * NOTE : fal.ai en mode image-to-image n'accepte qu'une seule image source
-   * (la photo de cuisine de référence). Ces textures ne sont donc PAS injectées
-   * dans le pipeline image — elles sont uniquement *mentionnées* dans le prompt
-   * texte ("matching imported texture pattern and material") pour inciter le
-   * modèle à respecter la matière. C'est un best-effort, mieux que rien pour
-   * l'utilisateur qui veut un marbre, un bois ou un tissu spécifique.
+   * Textures importées par l'utilisateur (data URL ou https URL) pour chaque
+   * élément. Injectées en tant que références dans `image_urls` du modèle
+   * Flux Kontext Max Multi, puis adressées explicitement dans le prompt
+   * (« replace the cabinet doors with the material from image N »).
    */
   facadeTextureDataUrl?:  string;
   poigneeTextureDataUrl?: string;
@@ -382,4 +379,92 @@ export function getBestFallback(params: ColoristParams | RenduParams): BuiltProm
 /** Vérifie si un prompt est valide avant envoi */
 export function isPromptValid(built: BuiltPrompt): boolean {
   return built.warnings.length === 0 && built.prompt.length >= 150;
+}
+
+// ─────────────────────────────────────────── BUILDER COLORISTE — KONTEXT MULTI
+// Flux Kontext Max Multi accepte une liste d'images de référence en `image_urls`.
+// Convention AVRA pour l'index :
+//   index 0 = photo cuisine source (toujours présente, obligatoire)
+//   index 1+ = échantillons de textures importés (façade, poignée, plan — dans cet ordre)
+// Le prompt référence ces positions explicitement pour que Kontext sache à quoi appliquer
+// chaque texture.
+
+export interface KontextImageRefs {
+  hasFacadeTexture: boolean;
+  hasPoigneeTexture: boolean;
+  hasPlanTexture: boolean;
+}
+
+export function buildKontextColoristPrompt(
+  params: ColoristParams,
+  refs: KontextImageRefs,
+  level: PromptLevel = 'standard',
+): BuiltPrompt {
+  const facadeName  = hexToName(params.facadeHex);
+  const poigneeName = params.handleMaterial      ?? hexToName(params.poigneeHex) + ' handles';
+  const planName    = params.countertopMaterial  ?? hexToName(params.planHex)    + ' countertop';
+  const finishBlock = FINISH_BLOCKS[params.facadeFinish];
+  const lightBlock  = LIGHTING_BLOCKS[params.lightingStyle];
+
+  // Calcul des index Kontext (image 1 = source ; les textures suivent dans l'ordre).
+  let next = 2; // image 1 = source kitchen, donc on commence à 2 pour les textures
+  const facadeIdx  = refs.hasFacadeTexture  ? next++ : null;
+  const poigneeIdx = refs.hasPoigneeTexture ? next++ : null;
+  const planIdx    = refs.hasPlanTexture    ? next++ : null;
+
+  // Instructions par élément : si texture importée → on dit à Kontext de copier
+  // la matière de l'image N. Sinon → description couleur/finition uniquement.
+  const facadeInstruction = facadeIdx
+    ? `replace the cabinet door fronts with the exact material, pattern and color from image ${facadeIdx}`
+    : `repaint the cabinet door fronts in ${facadeName} with a ${finishBlock}`;
+
+  const poigneeInstruction = poigneeIdx
+    ? `replace the cabinet handles with the exact material and finish from image ${poigneeIdx}`
+    : `replace the cabinet handles with ${poigneeName}`;
+
+  const planInstruction = planIdx
+    ? `replace the countertop surface with the exact material, veining and color from image ${planIdx}`
+    : `replace the countertop surface with ${planName}`;
+
+  let prompt = '';
+
+  if (level === 'standard') {
+    prompt = [
+      `Edit the kitchen shown in image 1 with these precise material changes:`,
+      `- ${facadeInstruction};`,
+      `- ${poigneeInstruction};`,
+      `- ${planInstruction}.`,
+      `Keep the exact original camera angle, framing, room layout, architecture, walls, floor and windows from image 1.`,
+      `Only modify the cabinet doors, handles and countertop materials.`,
+      `Apply ${lightBlock}.`,
+      `Output a photorealistic interior photograph, Architectural Digest magazine quality, professional staging, zero clutter.`,
+    ].join(' ');
+  }
+
+  else if (level === 'simplified') {
+    prompt = [
+      `Modify the kitchen in image 1: change cabinet fronts to ${facadeName} (${finishBlock}), handles to ${poigneeName}, countertop to ${planName}.`,
+      facadeIdx  ? `Match the cabinet material to image ${facadeIdx}.`  : '',
+      poigneeIdx ? `Match the handle material to image ${poigneeIdx}.` : '',
+      planIdx    ? `Match the countertop material to image ${planIdx}.`: '',
+      `Keep the original camera angle, room layout and architecture. Photorealistic, 8K.`,
+    ].filter(Boolean).join(' ');
+  }
+
+  else { // minimal — instructions minimales mais utiles
+    prompt = `Modify image 1: change kitchen cabinet color to ${facadeName} (${finishBlock}), keep original layout and camera angle. Photorealistic.`;
+  }
+
+  if (params.extraContext && level !== 'minimal') {
+    prompt += ` ${params.extraContext}.`;
+  }
+
+  const seed     = hashToSeed(buildSeedKey(params));
+  // Validation : on est moins strict sur la longueur car le prompt Kontext peut
+  // être plus court (instructions concises plutôt que descriptif riche).
+  const warnings: string[] = [];
+  if (prompt.length < 80)  warnings.push('Prompt Kontext trop court');
+  if (prompt.length > 900) warnings.push('Prompt trop long — risque de confusion');
+
+  return { prompt, negative: NEGATIVE_PROMPT, seed, level, warnings };
 }
