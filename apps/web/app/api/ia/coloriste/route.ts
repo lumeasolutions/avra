@@ -10,8 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ColoristParams } from '@/lib/server/prompt-builder';
 import {
-  generateColoristImageSAM,     // SAM + Inpaint — pixel-perfect, ~40-60s, mode par défaut
-  generateColoristImageKontext, // Kontext Multi — supporte les textures importées, ~30-60s
+  generateColoristImageKontext, // Kontext — mode unique (single ou multi selon textures)
   ensureHttpsUrl,
 } from '@/lib/server/flux-api';
 import { checkRateLimit } from '@/lib/server/rate-limit';
@@ -106,18 +105,18 @@ export async function POST(req: NextRequest) {
   //       champ `params` reçoit un snapshot non-sensible (les data URIs
   //       sont *exclues* — trop volumineuses et inutiles à long terme).
   //
-  // Routing du moteur (stratégie infaillible, 18/05/2026) :
-  //  - sans texture importée → SAM + Inpaint pixel-perfect (~40-60s, ~$0.12)
-  //    Garantit que tout pixel hors façades/poignées/plan reste identique au source.
-  //  - avec au moins une texture → Kontext Multi (~30-60s, ~$0.06)
-  //    Le seul mode capable d'utiliser des images de référence en multi-input.
+  // Routing du moteur (repli Kontext 18/05/2026 v4) :
+  // Toujours Kontext, single ou multi selon nombre d'inputs visuels.
+  // SAM+Inpaint a été retiré : masques trop variables (parfois ratés,
+  // parfois géants couvrant 80% de l'image → cuisine effacée).
+  // Kontext : moins infaillible (~80%) mais préserve toujours la cuisine.
   const willUseTextures = !!(
     params.facadeTextureDataUrl || params.poigneeTextureDataUrl || params.planTextureDataUrl
   );
   const modelUsed = willUseTextures
     ? 'fal-ai/flux-pro/kontext/multi'
-    : 'fal-ai/evf-sam + fal-ai/flux-lora/inpainting'; // pipeline SAM
-  const costPerImage = willUseTextures ? 0.06 : 0.12;
+    : 'fal-ai/flux-pro/kontext';
+  const costPerImage = willUseTextures ? 0.06 : 0.04;
 
   // Création initiale du job (statut QUEUED) — isolée pour ne jamais laisser
   // une erreur Prisma escape en uncaught (auquel cas Vercel renvoie son
@@ -223,17 +222,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // ── 6) Génération : routing engine selon présence de textures.
-    //       - Sans texture → SAM + Inpaint pixel-perfect (3 régions, séquentiel)
-    //       - Avec texture → Kontext Multi (multi-image, instruction-aware)
-    const result = willUseTextures
-      ? await generateColoristImageKontext(
-          params,
-          sourceHttps,
-          { facade: facadeTexHttps, poignee: poigneeTexHttps, plan: planTexHttps },
-          numImages,
-        )
-      : await generateColoristImageSAM(params, sourceHttps, numImages);
+    // ── 6) Génération : toujours Kontext.
+    //       - Sans texture : kontext single (image_url + prompt impératif)
+    //       - Avec texture : kontext multi (image_urls array + prompt par index)
+    //       Le routing single/multi est interne à generateColoristImageKontext.
+    const result = await generateColoristImageKontext(
+      params,
+      sourceHttps,
+      { facade: facadeTexHttps, poignee: poigneeTexHttps, plan: planTexHttps },
+      numImages,
+    );
 
     if (!result.success) {
       const err = (result.error ?? '').toLowerCase();

@@ -268,15 +268,13 @@ const PRESETS: Preset[] = [
   { name:'Béton Ciré',     facade:'#8A8A82', poignee:'#5A5A5A', plan:'#2A2A2A', desc:'Graphite · Ardoise noire',         mood:'Industriel chic',        finish:'brossé',  handleMaterial:'dark pewter grey bar handles',        countertopMaterial:'charcoal anthracite countertop' },
 ];
 
-// Pipeline SAM + Inpaint réel (mai 2026, mode pixel-perfect par défaut) :
-// chaque étape correspond à un VRAI appel fal.ai, plus de théâtre.
+// Pipeline Kontext (mai 2026 v4) : édition image guidée par instruction.
+// 3 vraies étapes côté serveur, on les surface ici pour l'UI.
 const LOADING_STEPS_COLOR = [
   'Upload de votre photo vers fal-cdn',
-  'Détection des façades, poignées et plan de travail',
-  'Coloration des façades (pixel-perfect)',
-  'Coloration des poignées',
-  'Coloration du plan de travail',
-  'Finalisation et sauvegarde',
+  'Construction du prompt impératif',
+  'Édition guidée par Flux Kontext',
+  'Sauvegarde du résultat',
 ];
 const LOADING_STEPS_RENDU = [
   'Analyse de vos paramètres de style',
@@ -1243,13 +1241,13 @@ export default function IaStudioPage() {
                     <Star className="h-3.5 w-3.5 text-[#a67749]" />
                     <span className="text-xs font-semibold text-[#304035]/70">
                       {(facadeTexture || poigneeTexture || planTexture)
-                        ? 'Coût estimé · Flux Kontext (textures)'
-                        : 'Coût estimé · SAM + Inpainting (pixel-perfect)'}
+                        ? 'Coût estimé · Flux Kontext Multi (textures)'
+                        : 'Coût estimé · Flux Kontext'}
                     </span>
                   </div>
                   <span className="text-xs font-black text-[#304035]">
-                    ~{(((facadeTexture || poigneeTexture || planTexture) ? 0.06 : 0.12) * colorNumVariants)
-                      .toFixed(2).replace('.', ',')} € · {(facadeTexture || poigneeTexture || planTexture) ? '30–60 sec' : '40–60 sec'}
+                    ~{(((facadeTexture || poigneeTexture || planTexture) ? 0.06 : 0.04) * colorNumVariants)
+                      .toFixed(2).replace('.', ',')} € · 15–30 sec
                   </span>
                 </div>
                 {!canRunColor && !colorLoading && (
@@ -1306,7 +1304,7 @@ export default function IaStudioPage() {
                       <p className="text-xs text-[#304035]/50 mt-0.5">
                         {(facadeTexture || poigneeTexture || planTexture)
                           ? 'Flux Kontext · Édition multi-image (textures)…'
-                          : 'SAM + Inpainting · Modification pixel-perfect des 3 zones…'}
+                          : 'Flux Kontext · Édition guidée par instruction…'}
                       </p>
                     </div>
                   </div>

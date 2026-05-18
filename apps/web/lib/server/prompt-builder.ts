@@ -560,10 +560,10 @@ export function buildKontextColoristPrompt(
   level: PromptLevel = 'standard',
 ): BuiltPrompt {
   const facadeName  = hexToName(params.facadeHex);
+  const facadeDescs = colorDescriptors(params.facadeHex);
   const poigneeName = params.handleMaterial      ?? hexToName(params.poigneeHex) + ' handles';
   const planName    = params.countertopMaterial  ?? hexToName(params.planHex)    + ' countertop';
   const finishBlock = FINISH_BLOCKS[params.facadeFinish];
-  const lightBlock  = LIGHTING_BLOCKS[params.lightingStyle];
 
   // Calcul des index Kontext (image 1 = source ; les textures suivent dans l'ordre).
   let next = 2; // image 1 = source kitchen, donc on commence à 2 pour les textures
@@ -574,56 +574,69 @@ export function buildKontextColoristPrompt(
   // Instructions par élément : si texture importée → on dit à Kontext de copier
   // la matière de l'image N. Sinon → description couleur/finition uniquement.
   const facadeInstruction = facadeIdx
-    ? `replace the cabinet door fronts with the exact material, pattern and color from image ${facadeIdx}`
-    : `repaint the cabinet door fronts in ${facadeName} with a ${finishBlock}`;
+    ? `Change cabinet door fronts and panels to match the exact material, pattern and color shown in image ${facadeIdx}`
+    : `Change cabinet door fronts and panels to ${facadeName} color (${facadeDescs}), with a ${finishBlock}`;
 
   const poigneeInstruction = poigneeIdx
-    ? `replace the cabinet handles with the exact material and finish from image ${poigneeIdx}`
-    : `replace the cabinet handles with ${poigneeName}`;
+    ? `Change cabinet handles to match the exact material from image ${poigneeIdx}`
+    : `Change cabinet handles to ${poigneeName}`;
 
   const planInstruction = planIdx
-    ? `replace the countertop surface with the exact material, veining and color from image ${planIdx}`
-    : `replace the countertop surface with ${planName}`;
+    ? `Change countertop surface to match the exact material, veining and color from image ${planIdx}`
+    : `Change countertop surface to ${planName}`;
 
   let prompt = '';
 
   if (level === 'standard') {
+    // FIX 18/05/2026 (v4) : prompt Kontext ultra-strict après repli SAM.
+    // Format LISTE NUMÉROTÉE + CONTRAINTES EXPLICITES "DO NOT CHANGE".
+    // Kontext suit mieux les instructions impératives structurées
+    // que des descriptions narratives.
     prompt = [
-      `Edit the kitchen shown in image 1 with these precise material changes:`,
-      `- ${facadeInstruction};`,
-      `- ${poigneeInstruction};`,
-      `- ${planInstruction}.`,
-      `Keep the exact original camera angle, framing, room layout, architecture, walls, floor and windows from image 1.`,
-      `Only modify the cabinet doors, handles and countertop materials.`,
-      `Apply ${lightBlock}.`,
-      `Output a photorealistic interior photograph, Architectural Digest magazine quality, professional staging, zero clutter.`,
-    ].join(' ');
+      `Carefully edit the source kitchen photo (image 1) with ONLY these 3 material changes:`,
+      ``,
+      `1. ${facadeInstruction}.`,
+      `2. ${poigneeInstruction}.`,
+      `3. ${planInstruction}.`,
+      ``,
+      `STRICTLY PRESERVE from the source photo — DO NOT CHANGE:`,
+      `- Camera angle, framing, perspective, focal length, zoom level`,
+      `- Position and shape of every cabinet, drawer and panel`,
+      `- All walls, floor tiles, ceiling, windows and doors`,
+      `- All appliances (oven, stovetop, refrigerator, microwave, hood, dishwasher)`,
+      `- Faucet, sink, plumbing fixtures, drain`,
+      `- Wall color, backsplash material and pattern`,
+      `- Lighting setup, shadows, reflections direction`,
+      `- Decorative items (plants, fruits, bottles, utensils)`,
+      ``,
+      `The output must look like the EXACT same kitchen photo, only with the cabinet doors, handles and countertop materials changed to the new specifications. Photorealistic professional interior photography.`,
+    ].join('\n');
   }
 
   else if (level === 'simplified') {
     prompt = [
-      `Modify the kitchen in image 1: change cabinet fronts to ${facadeName} (${finishBlock}), handles to ${poigneeName}, countertop to ${planName}.`,
-      facadeIdx  ? `Match the cabinet material to image ${facadeIdx}.`  : '',
-      poigneeIdx ? `Match the handle material to image ${poigneeIdx}.` : '',
-      planIdx    ? `Match the countertop material to image ${planIdx}.`: '',
-      `Keep the original camera angle, room layout and architecture. Photorealistic, 8K.`,
+      `Edit image 1: change cabinet fronts to ${facadeName} color, ${finishBlock}.`,
+      `Change cabinet handles to ${poigneeName}.`,
+      `Change countertop to ${planName}.`,
+      facadeIdx  ? `Match cabinet material to image ${facadeIdx}.`  : '',
+      poigneeIdx ? `Match handle material to image ${poigneeIdx}.` : '',
+      planIdx    ? `Match countertop material to image ${planIdx}.`: '',
+      `KEEP everything else (camera angle, walls, floor, appliances) IDENTICAL to the source. Photorealistic.`,
     ].filter(Boolean).join(' ');
   }
 
-  else { // minimal — instructions minimales mais utiles
-    prompt = `Modify image 1: change kitchen cabinet color to ${facadeName} (${finishBlock}), keep original layout and camera angle. Photorealistic.`;
+  else { // minimal
+    prompt = `Edit image 1: only change cabinet color to ${facadeName} (${finishBlock}). Keep camera angle, room and everything else identical. Photorealistic.`;
   }
 
   if (params.extraContext && level !== 'minimal') {
-    prompt += ` ${params.extraContext}.`;
+    prompt += `\n\nAdditional context: ${params.extraContext}.`;
   }
 
   const seed     = hashToSeed(buildSeedKey(params));
-  // Validation : on est moins strict sur la longueur car le prompt Kontext peut
-  // être plus court (instructions concises plutôt que descriptif riche).
   const warnings: string[] = [];
-  if (prompt.length < 80)  warnings.push('Prompt Kontext trop court');
-  if (prompt.length > 900) warnings.push('Prompt trop long — risque de confusion');
+  if (prompt.length < 80)   warnings.push('Prompt Kontext trop court');
+  if (prompt.length > 1500) warnings.push('Prompt trop long — risque de confusion');
 
   return { prompt, negative: NEGATIVE_PROMPT, seed, level, warnings };
 }
