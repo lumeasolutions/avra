@@ -723,8 +723,9 @@ export default function IaStudioPage() {
   /* ── Couleurs modifiées manuellement (pour détecter si l'utilisateur a changé qqch) */
   const [colorsModified, setColorsModified] = useState(false);
 
-  /* ── Nombre de variantes a generer (1-4) */
-  const [colorNumVariants, setColorNumVariants] = useState<1|2|4>(1);
+  /* ── Nombre de variantes : verrouillé à 1 image (sélecteur retiré 19/05/2026).
+     On garde le state pour le coût estimate et le call API, valeur fixe. */
+  const [colorNumVariants] = useState<1|2|4>(1);
   const [rendNumVariants,  setRendNumVariants]  = useState<1|2|4>(1);
 
   /* Preview photo */
@@ -1244,23 +1245,9 @@ export default function IaStudioPage() {
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
                 <DossierPicker />
 
-                {/* Sélecteur variantes */}
-                <div>
-                  <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-2">Nombre de variantes</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {([1,2,4] as const).map(n => (
-                      <button key={n} onClick={() => setColorNumVariants(n)}
-                        className={`flex flex-col items-center justify-center rounded-xl border-2 py-2 transition-all ${
-                          colorNumVariants === n
-                            ? 'border-[#a67749] bg-[#a67749]/8 shadow-sm'
-                            : 'border-[#304035]/12 bg-white hover:border-[#a67749]/40'
-                        }`}>
-                        <span className={`text-base font-black ${colorNumVariants === n ? 'text-[#a67749]' : 'text-[#304035]/60'}`}>{n}</span>
-                        <span className="text-[9px] uppercase tracking-wider text-[#304035]/45">{n === 1 ? 'image' : 'images'}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {/* Sélecteur variantes retiré 19/05/2026 : le coloriste génère
+                    toujours UNE image. Le state `colorNumVariants` reste à 1
+                    par défaut (cf. useState initialiseur). */}
 
                 {/* Estimation coût */}
                 <div className="flex items-center justify-between rounded-xl bg-[#304035]/4 px-3.5 py-2.5">
