@@ -277,6 +277,95 @@ const TECH_SUFFIX =
   'high-end French kitchen showroom quality, ' +
   'Architectural Digest magazine style, professional real estate photography';
 
+// ─────────────────────────────────────────── BLOCS RENDU PREMIUM (19/05/2026)
+// Constantes dédiées au mode "Rendu Réaliste" (Flux Pro Ultra text-to-image).
+// Volontairement séparées des blocs coloriste pour qu'on puisse perfectionner
+// le rendu sans aucun impact sur le coloriste (le user l'a explicitement
+// demandé : "sans retoucher au coloriste").
+
+const LIGHTING_BLOCKS_RENDU: Record<LightingType, string> = {
+  naturelle:
+    'natural daylight streaming through large windows, soft diffused morning sun, ' +
+    'warm golden hour atmosphere with realistic sun direction, gentle bounced light, ' +
+    'subtle shadows revealing depth, color temperature 5000K, photographed in available light',
+  spots:
+    'warm recessed LED ceiling spotlights at 2700K, dramatic three-point accent lighting, ' +
+    'under-cabinet LED strip lights casting warm glow on countertop, ' +
+    'subtle highlight on hero materials, controlled studio-quality interior lighting',
+  mixte:
+    'combination of soft natural daylight from windows and warm recessed LED spotlights at 3000K, ' +
+    'balanced multi-source lighting, perfectly exposed highlights and shadows, ' +
+    'magazine-grade interior lighting setup, golden hour blended with artificial accent',
+};
+
+const SIZE_BLOCKS_RENDU: Record<RoomSizeType, string> = {
+  petite:
+    'compact galley kitchen with thoughtful storage, narrow but deep workspace, ' +
+    'clever vertical organization, intimate yet functional layout',
+  moyenne:
+    'medium-sized L-shaped or peninsula kitchen, balanced proportions, ' +
+    'generous workflow triangle between fridge, sink and stove, room for a small breakfast bar',
+  grande:
+    'spacious open kitchen with central island, ample counter space, ' +
+    'professional-grade workflow zones, room for multiple cooks, statement pendant lighting above island',
+  ouverte:
+    'open-plan kitchen seamlessly flowing into living and dining area, ' +
+    'sight lines through full-height windows, loft-style architectural openness, ' +
+    'continuous flooring and cohesive material palette across spaces',
+};
+
+const STYLE_BLOCKS_RENDU: Record<StyleType, string> = {
+  contemporain:
+    'contemporary European minimalism, handleless integrated push-to-open cabinets, ' +
+    'flush-mount appliances, German-engineered precision joinery, ' +
+    'monolithic countertop with mitered edges, hidden storage, clean horizontal lines',
+  classique:
+    'classic French cabinetry with raised-panel shaker doors, ornate egg-and-dart molding, ' +
+    'brass cup pulls and knobs, beadboard accents, antique brass faucet, ' +
+    'timeless French country elegance with subtle ornamentation',
+  industriel:
+    'industrial Brooklyn loft kitchen style, exposed brick accent wall, ' +
+    'matte black steel frame cabinets with glass fronts, concrete or live-edge wood worktop, ' +
+    'Edison filament pendant lights, vintage-inspired hardware, raw authentic textures',
+  scandinave:
+    'Scandinavian hygge kitchen, light birch and oak wood, painted matte white cabinets, ' +
+    'subway tile splashback, brass minimalist hardware, woven natural fiber rugs, ' +
+    'potted herbs and ceramic tableware, soft cozy Nordic atmosphere',
+  haussmannien:
+    'Haussmann Parisian apartment kitchen, sky-high ceilings with ornate moldings, ' +
+    'parquet de Versailles flooring restored, marble mantel, herringbone backsplash, ' +
+    'arched windows with original ironwork, Belle Époque elegance meets modern function',
+};
+
+// Négatif renforcé pour rendu — exclut tous les défauts classiques de l'IA image
+const NEGATIVE_PROMPT_RENDU =
+  'cartoon, illustration, anime, painting, sketch, drawing, watercolor, ' +
+  '3D render look, CGI plastic finish, video game graphics, unrealistic textures, ' +
+  'blurry, out of focus, motion blur, soft focus, low resolution, pixelated, jpeg artifacts, ' +
+  'distorted cabinets, warped surfaces, melting forms, wrong proportions, ' +
+  'deformed architecture, asymmetric where it should be symmetric, ' +
+  'text overlay, watermark, signature, logo, brand name, label, sticker, ' +
+  'people, humans, faces, body parts, pets, animals, ' +
+  'dirty surfaces, messy kitchen, cluttered, dishes piled up, stains, grease, ' +
+  'unrealistic lighting, harsh shadows, blown highlights, crushed blacks, ' +
+  'overexposed, underexposed, oversaturated, fluorescent green tint, magenta cast, ' +
+  'low quality, amateur photography, snapshot, smartphone photo, ' +
+  'fish-eye distortion, ultra wide-angle distortion, lens flare excessive, ' +
+  'floating objects, levitation, missing walls, incomplete room, duplicate elements, ' +
+  'visible camera, photographer reflection, mirror shows photographer, ' +
+  'crooked horizon, tilted floor, off-axis perspective';
+
+// Suffixe technique premium pour rendu — référence haut de gamme reconnue par Flux
+const TECH_SUFFIX_RENDU =
+  'shot on Hasselblad H6D-100c medium format camera, 50mm f/2.8 prime lens, ' +
+  'f/8 aperture for maximum depth of field, ISO 100, eye-level perspective with subtle 3-point composition, ' +
+  'tack-sharp focus throughout, ultra-detailed materials and textures, ' +
+  '8K ultra-high resolution photograph, 16-bit color depth, true-to-life color accuracy, ' +
+  'hyperrealistic photorealism, magazine-quality color grading, ' +
+  'editorial interior photography in the style of Architectural Digest, Elle Décor, ' +
+  'Dwell magazine, Kinfolk aesthetic, World of Interiors curation, ' +
+  'professional architectural visualization with award-winning composition';
+
 // ─────────────────────────────────────────── SEEDS FIXES PAR CONFIGURATION
 
 function buildSeedKey(params: ColoristParams | RenduParams): string {
@@ -387,57 +476,69 @@ export function buildRenduPrompt(
   params: RenduParams,
   level: PromptLevel = 'standard'
 ): BuiltPrompt {
-  const lightBlock = LIGHTING_BLOCKS[params.lightingStyle];
-  const sizeBlock  = SIZE_BLOCKS[params.roomSize];
-  const styleBlock = STYLE_BLOCKS[params.style];
-  const planSource = params.hasPlanFile
-    ? 'Based on architectural floor plan, precise room proportions and layout'
-    : 'Spacious well-proportioned kitchen layout';
+  // Refonte 19/05/2026 : utilise les blocs RENDU dédiés (plus de constantes
+  // partagées avec le coloriste — zéro régression possible).
+  const lightBlock = LIGHTING_BLOCKS_RENDU[params.lightingStyle];
+  const sizeBlock  = SIZE_BLOCKS_RENDU[params.roomSize];
+  const styleBlock = STYLE_BLOCKS_RENDU[params.style];
 
   let prompt = '';
 
-  // Lignes optionnelles "Sol" et "Murs" : seulement injectées si présentes
-  // (sinon on laisse le modèle décider du sol et des murs sans contrainte).
-  const solLine  = params.sol  ? `Floor: ${params.sol}.` : '';
-  const mursLine = params.murs ? `Walls: ${params.murs}.` : '';
+  const solLine  = params.sol  ? `Flooring: ${params.sol} with realistic texture detail.` : '';
+  const mursLine = params.murs ? `Walls: ${params.murs}, perfectly painted with subtle texture.` : '';
 
   if (level === 'standard') {
+    // Structure en 7 sections cohérentes — flux Pro Ultra réagit mieux à un
+    // prompt narratif structuré qu'à une liste de keywords vides.
     prompt = [
-      `Professional architectural interior photography of a ${sizeBlock}.`,
-      styleBlock + '.',
-      planSource + '.',
-      `Kitchen featuring: ${params.facades}.`,
-      `${params.planTravail} countertop with perfect surface finish.`,
+      // 1. Scène : type, taille, style en une phrase forte
+      `Ultra-realistic professional interior photography of a luxury French kitchen — ${sizeBlock}.`,
+      // 2. Style architectural détaillé
+      `${styleBlock}.`,
+      // 3. Façades (description libre user + amplification)
+      `Cabinet doors and panels: ${params.facades} with flawless craftsmanship, micro-detailed material finish, seamless joinery.`,
+      // 4. Plan de travail (description libre user + amplification)
+      `Countertop: ${params.planTravail} with mirror-polished surface, visible material detail, perfect edge profile.`,
+      // 5. Sol et murs (optionnels)
       solLine,
       mursLine,
-      lightBlock + '.',
-      `Immaculate staging, zero clutter, only essential decorative elements.`,
-      `Perfect architectural proportions, straight perspective lines.`,
-      TECH_SUFFIX + '.',
+      // 6. Lumière (bloc riche)
+      `Lighting: ${lightBlock}.`,
+      // 7. Composition + atmosphere
+      `Symmetrical composition with strong leading lines, perfectly leveled horizon, ` +
+      `pristine staging with only essential decorative elements (a single vase of fresh herbs, ` +
+      `a wooden cutting board, sunlight pooling naturally on the counter). ` +
+      `Hyperrealistic detail in every material, true-to-life color accuracy, ` +
+      `balanced shadows and highlights, atmospheric depth.`,
+      // 8. Spécifications techniques caméra + style éditorial
+      TECH_SUFFIX_RENDU + '.',
     ].filter(Boolean).join(' ');
   }
 
   else if (level === 'simplified') {
     prompt = [
-      `Interior photography of a ${params.style} kitchen.`,
-      `${params.facades}, ${params.planTravail} countertop.`,
-      lightBlock + '.',
-      `Photorealistic, 8K, high-end showroom quality, Canon EOS R5.`,
-    ].join(' ');
+      `Photorealistic ${params.style} French kitchen interior photography.`,
+      `${params.facades}. ${params.planTravail} countertop.`,
+      solLine, mursLine,
+      `${lightBlock}.`,
+      `Pristine staging, magazine-quality, Hasselblad medium format, 8K, Architectural Digest style.`,
+    ].filter(Boolean).join(' ');
   }
 
-  else { // minimal
-    prompt = `Photorealistic ${params.style} kitchen interior photography, professional lighting, 8K quality, clean modern design.`;
+  else { // minimal — filet de sécurité ultime
+    prompt = `Photorealistic ${params.style} kitchen, ${params.facades}, ${params.planTravail} countertop, ${lightBlock}, 8K magazine quality, Hasselblad medium format.`;
   }
 
   if (params.extraContext && level !== 'minimal') {
-    prompt += ` ${params.extraContext}.`;
+    prompt += ` Additional details: ${params.extraContext}.`;
   }
 
   const seed     = hashToSeed(buildSeedKey(params));
-  const warnings = validatePrompt(prompt, NEGATIVE_PROMPT);
+  // Mode rendu : on utilise NEGATIVE_PROMPT_RENDU (plus riche, exclut les
+  // défauts spécifiques au text-to-image kitchen photography).
+  const warnings = validatePrompt(prompt, NEGATIVE_PROMPT_RENDU);
 
-  return { prompt, negative: NEGATIVE_PROMPT, seed, level, warnings };
+  return { prompt, negative: NEGATIVE_PROMPT_RENDU, seed, level, warnings };
 }
 
 // ─────────────────────────────────────────── SAFE FALLBACK PROMPTS

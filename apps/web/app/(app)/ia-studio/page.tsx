@@ -276,13 +276,12 @@ const LOADING_STEPS_COLOR = [
   'Édition guidée par Flux Kontext',
   'Sauvegarde du résultat',
 ];
+// Étapes réelles du pipeline rendu (19/05/2026, mode Flux Pro Ultra premium)
 const LOADING_STEPS_RENDU = [
-  'Analyse de vos paramètres de style',
-  'Construction du prompt photoréaliste',
-  'Placement des sources lumineuses',
-  'Application des textures et matériaux',
-  'Calcul du rendu photoréaliste',
-  'Optimisation qualité finale',
+  'Analyse de vos paramètres',
+  'Construction du prompt premium photoréaliste',
+  'Génération Flux Pro Ultra (Hasselblad émulation)',
+  'Optimisation finale et sauvegarde',
 ];
 
 /* ─────────────────────────────────────────── COMPOSANTS */

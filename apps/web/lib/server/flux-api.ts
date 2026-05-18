@@ -542,18 +542,30 @@ export async function generateRenduImage(
   const built = buildRenduPrompt(params, 'standard');
 
   try {
-    console.log(`[fal.subscribe] ${FLUX_MODEL_RENDU} text2img promptLen=${built.prompt.length}`);
-    // Flux Pro Ultra n'accepte pas `negative_prompt` (contrairement à Flux Pro
-    // standard) — le SDK type le refuse. Le NEGATIVE_PROMPT du prompt-builder
-    // est conservé pour les autres modèles ou un futur switch.
+    console.log(`[fal.subscribe] ${FLUX_MODEL_RENDU} text2img premium promptLen=${built.prompt.length}`);
+    // Flux Pro Ultra : params perfection 19/05/2026.
+    //
+    // Notes sur les params :
+    //  - raw: false (default) — on VEUT le rendu poli "Architectural Digest",
+    //    pas un look documentaire/raw. raw=true serait pour photos news/street.
+    //  - safety_tolerance: '2' — niveau permissif pour matériaux et décor
+    //    sans bloquer (1=très strict, 6=quasi-no-filter).
+    //  - enable_safety_checker: explicite à true (default mais on l'affirme).
+    //  - aspect_ratio: '16:9' — format paysage standard cuisine showroom.
+    //    On pourrait exposer '3:2' (Hasselblad natif) ou '4:3' plus tard.
+    //  - Le seed déterministe vient de hashToSeed(params) : même config
+    //    user → même image (utile pour A/B test).
+    //  - num_inference_steps n'est PAS exposé par Ultra (locked interne).
+    //  - Flux Pro Ultra n'accepte PAS negative_prompt côté SDK type.
     const result = await fal.subscribe(FLUX_MODEL_RENDU, {
       input: {
-        prompt:           built.prompt,
-        num_images:       Math.min(Math.max(numImages, 1), 4),
-        seed:             built.seed,
-        output_format:    'jpeg',
-        aspect_ratio:     '16:9',
-        safety_tolerance: '2',
+        prompt:                built.prompt,
+        num_images:            Math.min(Math.max(numImages, 1), 4),
+        seed:                  built.seed,
+        output_format:         'jpeg',
+        aspect_ratio:          '16:9',
+        safety_tolerance:      '2',
+        raw:                   false,
       },
       logs: false,
     });
