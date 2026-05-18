@@ -63,6 +63,7 @@ export interface BuiltPrompt {
 // ─────────────────────────────────────────── DICTIONNAIRES COULEURS
 
 const HEX_TO_NAME: Record<string, string> = {
+  // Presets existants
   '#111111': 'deep matte black',
   '#f5f3ef': 'warm off-white',
   '#7a5c3a': 'smoked oak brown',
@@ -90,6 +91,35 @@ const HEX_TO_NAME: Record<string, string> = {
   '#6a5040': 'dark chocolate leather',
   '#2c2c2c': 'matte graphite black',
   '#5a5a5a': 'dark pewter grey',
+  // FIX 18/05/2026 : ajout couleurs courantes manquantes (l'user pouvait
+  // choisir un rouge via le color picker manuel et obtenait du marron
+  // parce que approximateHue retournait "warm red-brown" pour #ff0000).
+  '#ff0000': 'pure vibrant red',
+  '#dc143c': 'crimson red',
+  '#8b0000': 'deep dark red',
+  '#800020': 'deep burgundy red',
+  '#b22222': 'firebrick red',
+  '#a52a2a': 'rich brown-red',
+  '#cd5c5c': 'soft coral red',
+  '#0000ff': 'pure vibrant blue',
+  '#4169e1': 'royal blue',
+  '#000080': 'deep navy blue',
+  '#87ceeb': 'sky blue',
+  '#00ffff': 'cyan blue',
+  '#008080': 'teal blue',
+  '#00ff00': 'pure vibrant green',
+  '#228b22': 'forest green',
+  '#006400': 'deep dark green',
+  '#808000': 'olive green',
+  '#50c878': 'emerald green',
+  '#ffff00': 'pure bright yellow',
+  '#ffd700': 'metallic gold yellow',
+  '#ffa500': 'vibrant orange',
+  '#ff7f50': 'coral orange',
+  '#800080': 'royal purple',
+  '#dda0dd': 'soft lavender purple',
+  '#000000': 'pitch black',
+  '#ffffff': 'pure bright white',
 };
 
 function hexToName(hex: string): string {
@@ -105,12 +135,60 @@ function hexToName(hex: string): string {
   return approximateHue(r, g, b);
 }
 
+/**
+ * Fallback de nommage couleur quand HEX_TO_NAME ne match pas.
+ * Refonte 18/05/2026 : avant on retournait "warm red-brown" pour TOUT rouge
+ * vibrant (#FF0000), ce qui faisait que Flux peignait du marron au lieu de
+ * rouge. Nouvelle logique :
+ *   1) Détection saturation (max-min)/max : faible → gris/neutre
+ *   2) Hue dominante selon canal max
+ *   3) Modificateur clarté/saturation : "vibrant", "deep dark", "soft pale"
+ */
 function approximateHue(r: number, g: number, b: number): string {
-  if (r > g && r > b) return b > g ? 'pink-toned' : 'warm red-brown';
-  if (g > r && g > b) return 'green-toned';
-  if (b > r && b > g) return 'blue-toned';
-  if (r === g && g === b) return 'neutral grey';
-  return 'neutral';
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const saturation = max === 0 ? 0 : (max - min) / max;
+  const lightness  = (r + g + b) / 3;
+
+  // ── Couleurs achromatiques (gris, blanc, noir) ──
+  if (saturation < 0.12) {
+    if (lightness < 40)  return 'pitch black';
+    if (lightness < 90)  return 'dark charcoal grey';
+    if (lightness < 160) return 'medium neutral grey';
+    if (lightness < 220) return 'light warm grey';
+    return 'bright white';
+  }
+
+  // ── Modificateur clarté/intensité ──
+  const intensity =
+    lightness < 70  ? 'deep dark'
+    : lightness > 200 ? 'bright pale'
+    : saturation > 0.6 ? 'vibrant'
+    : '';
+
+  // ── Détection hue dominante ──
+  let hue: string;
+  if (r === max && r > g + 30 && r > b + 30) {
+    // Dominante rouge claire
+    hue = g > b + 20 ? 'orange-red' : (b > g + 40 ? 'pink-magenta' : 'red');
+  } else if (g === max && g > r + 30 && g > b + 30) {
+    // Dominante verte claire
+    hue = r > b ? 'yellow-green' : (b > r + 30 ? 'teal-green' : 'green');
+  } else if (b === max && b > r + 30 && b > g + 30) {
+    // Dominante bleue claire
+    hue = r > g + 20 ? 'purple-blue' : (g > r + 20 ? 'cyan-blue' : 'blue');
+  } else if (r === max && g === max) {
+    hue = 'yellow';
+  } else if (g === max && b === max) {
+    hue = 'teal';
+  } else if (r === max && b === max) {
+    hue = 'magenta';
+  } else {
+    // Couleur mixte avec faible dominance — décrire par luminance
+    hue = lightness < 100 ? 'dark earthy brown' : 'beige tan';
+  }
+
+  return intensity ? `${intensity} ${hue}` : hue;
 }
 
 // ─────────────────────────────────────────── BLOCS VALIDÉS
@@ -390,37 +468,35 @@ export function isPromptValid(built: BuiltPrompt): boolean {
 
 /**
  * Prompt pour repeindre UNIQUEMENT les façades de meubles.
- * Combine : nom de couleur (depuis hex) + bloc finition.
+ * Renforcé 18/05/2026 : "solid" + "uniform color" pour éviter que Flux
+ * interprète la couleur comme un motif/dégradé.
  */
 export function buildFacadeRegionPrompt(params: ColoristParams): string {
   const color  = hexToName(params.facadeHex);
   const finish = FINISH_BLOCKS[params.facadeFinish];
-  // Format court, précis, sans décor de cuisine — l'inpaint ne fait que la zone.
-  return `${color} cabinet door surface, ${finish}, seamless flat panel, photorealistic material, sharp clean edges, even lighting consistent with surroundings`;
+  return `kitchen cabinet door panel painted in solid ${color}, uniform consistent color across entire surface, ${finish}, flat smooth panel surface, photorealistic high-end kitchen material, sharp clean edges`;
 }
 
 /**
  * Prompt pour repeindre UNIQUEMENT les poignées / boutons / tirants.
- * Préfère `handleMaterial` si fourni (preset), sinon dérive de la couleur hex.
  */
 export function buildHandleRegionPrompt(params: ColoristParams): string {
-  const material = params.handleMaterial ?? `${hexToName(params.poigneeHex)} metal handles`;
+  const material = params.handleMaterial ?? `${hexToName(params.poigneeHex)} metal cabinet handle`;
   const finishSuffix = params.poigneeFinish
     ? `, ${FINISH_BLOCKS[params.poigneeFinish]}`
     : '';
-  return `${material}${finishSuffix}, sleek hardware, photorealistic metal texture, sharp clean edges, even lighting consistent with surroundings`;
+  return `single ${material}${finishSuffix}, sleek modern hardware, photorealistic metal texture, sharp clean edges, integrated into cabinet`;
 }
 
 /**
  * Prompt pour repeindre UNIQUEMENT le plan de travail.
- * Préfère `countertopMaterial` si fourni (preset), sinon dérive de la couleur hex.
  */
 export function buildCountertopRegionPrompt(params: ColoristParams): string {
   const material = params.countertopMaterial ?? `${hexToName(params.planHex)} countertop surface`;
   const finishSuffix = params.planFinish
     ? `, ${FINISH_BLOCKS[params.planFinish]}`
     : '';
-  return `${material}${finishSuffix}, seamless surface, photorealistic stone/wood texture, sharp clean edges, even lighting consistent with surroundings, subtle natural reflections`;
+  return `kitchen countertop in ${material}${finishSuffix}, seamless uniform surface, photorealistic high-end material texture, sharp clean edges, subtle natural reflections, premium quality finish`;
 }
 
 // ─────────────────────────────────────────── BUILDER COLORISTE — KONTEXT MULTI

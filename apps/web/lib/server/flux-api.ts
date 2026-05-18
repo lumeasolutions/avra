@@ -128,15 +128,22 @@ async function segmentRegion(imageUrl: string, textPrompt: string): Promise<stri
   ensureConfigured();
   const t0 = Date.now();
   try {
+    // FIX 18/05/2026 : ajout `mask_only` (explicite), `expand_mask` pour
+    // couvrir les bords, `fill_holes` pour boucher les trous internes du masque.
+    // Sans ces params le mask était trop "déchiqueté" et l'inpainting créait
+    // des artefacts visibles ou repeignait des zones non souhaitées.
     const result = await fal.subscribe(EVF_SAM_MODEL, {
       input: {
-        image_url: imageUrl,
-        prompt:    textPrompt,
+        image_url:   imageUrl,
+        prompt:      textPrompt,
+        mask_only:   true,
+        expand_mask: 5,
+        fill_holes:  true,
       },
       logs: false,
     });
     const maskUrl = extractMaskUrl(result.data);
-    console.log(`[SAM] "${textPrompt}" → ${maskUrl ? 'OK' : 'NO MASK'} en ${Date.now() - t0}ms`);
+    console.log(`[SAM] "${textPrompt}" → ${maskUrl ?? 'NO MASK'} en ${Date.now() - t0}ms`);
     return maskUrl;
   } catch (err) {
     console.warn(`[SAM] "${textPrompt}" ÉCHEC en ${Date.now() - t0}ms:`,
@@ -163,21 +170,31 @@ async function inpaintRegion(
   ensureConfigured();
   const t0 = Date.now();
   try {
+    // FIX 18/05/2026 : strength=0.95 (au lieu de 0.85 default). On veut que
+    // la zone DANS le mask soit remplacée totalement (le mask délimite déjà
+    // précisément ce qui doit changer — pas besoin de garder du source dedans).
+    // C'est CONTRE-intuitif mais correct : strength haut + mask précis =
+    // changement total dans la zone, zéro changement hors zone.
+    // num_inference_steps=35 pour plus de qualité (default 28). 50 max = trop lent.
+    // guidance_scale=4 (default 3.5) → un peu plus d'adhérence au prompt.
     const result = await fal.subscribe(FLUX_INPAINT_MODEL, {
       input: {
         prompt,
-        image_url: imageUrl,
-        mask_url:  maskUrl,
-        num_images: 1,
-        output_format: 'jpeg',
+        image_url:           imageUrl,
+        mask_url:            maskUrl,
+        num_images:          1,
+        num_inference_steps: 35,
+        guidance_scale:      4,
+        strength:            0.95,
+        output_format:       'jpeg',
       },
       logs: false,
     });
     const urls = extractImageUrls(result.data);
-    console.log(`[Inpaint] "${prompt.slice(0, 40)}…" → ${urls[0] ? 'OK' : 'NO IMG'} en ${Date.now() - t0}ms`);
+    console.log(`[Inpaint] "${prompt.slice(0, 50)}…" → ${urls[0] ? 'OK' : 'NO IMG'} en ${Date.now() - t0}ms`);
     return urls[0] ?? null;
   } catch (err) {
-    console.warn(`[Inpaint] "${prompt.slice(0, 40)}…" ÉCHEC en ${Date.now() - t0}ms:`,
+    console.warn(`[Inpaint] "${prompt.slice(0, 50)}…" ÉCHEC en ${Date.now() - t0}ms:`,
       err instanceof Error ? err.message : err);
     return null;
   }
@@ -232,14 +249,16 @@ export async function generateColoristImageSAM(
 
   try {
     // ── ÉTAPE 1 : SAM en parallèle pour les 3 régions ──────────────────
-    // Les prompts EVF-SAM sont en anglais explicite — "and" entre synonymes
-    // augmente la couverture du mask (ex: "doors AND drawer fronts" capture
-    // les façades inférieures et supérieures).
+    // FIX 18/05/2026 : prompts SIMPLES, 1 concept par requête.
+    // Les prompts compounds ("doors AND fronts AND panels") faisaient
+    // détecter à EVF-SAM une zone trop large = masque géant = inpaint
+    // qui régénérait toute la cuisine.
+    // Un concept par mask = mask serré = inpaint chirurgical.
     console.log(`[SAM+Inpaint] Pipeline start — source=${sourceImageUrl.slice(-40)}`);
     const [maskFacade, maskHandle, maskCountertop] = await Promise.all([
-      segmentRegion(sourceImageUrl, 'cabinet doors and drawer fronts and cabinet panels'),
-      segmentRegion(sourceImageUrl, 'cabinet handles and knobs and drawer pulls'),
-      segmentRegion(sourceImageUrl, 'kitchen countertop and worktop surface'),
+      segmentRegion(sourceImageUrl, 'kitchen cabinet doors'),
+      segmentRegion(sourceImageUrl, 'cabinet handles'),
+      segmentRegion(sourceImageUrl, 'kitchen countertop'),
     ]);
 
     // ── ÉTAPE 2 : Inpainting séquentiel (chaque étape s'appuie sur la précédente)
