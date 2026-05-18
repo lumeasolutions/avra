@@ -1,512 +1,163 @@
 /**
  * ──────────────────────────────────────────────────────────────
- *  AVRA IA Studio — Flux API Client
- *  Appel REST natif vers fal.ai (sans SDK externe)
- *  Système de retry intelligent sur 3 niveaux de prompt
- *  Zéro dépendance supplémentaire — FAL_KEY dans .env.local
- * ──────────────────────────────────────────────────────────────
+ *  AVRA IA Studio — Client fal.ai (refonte SDK 18/05/2026)
  *
- *  Modèles utilisés :
- *  - Rendu réaliste  : fal-ai/flux-pro/v1.1-ultra  (meilleure qualité)
- *  - Coloriste       : fal-ai/flux/dev              (img2img, rapide)
+ *  Avant : 300 lignes de client REST fait main (upload 2-step,
+ *  submit + polling, retries 3 niveaux). Result : timeouts à 250s
+ *  systématiquement alors que le playground marchait en 1.71s.
  *
- *  Variable d'env requise : FAL_KEY (dans .env.local)
+ *  Maintenant : on utilise le SDK officiel `@fal-ai/client` qui
+ *  gère pour nous :
+ *   - Auth (FAL_KEY → header)
+ *   - Upload (fal.storage.upload)
+ *   - Submit + polling (fal.subscribe)
+ *   - Retries internes raisonnables
+ *
+ *  3 modes :
+ *   - Coloriste img2img sans textures → fal-ai/flux/dev/image-to-image
+ *   - Coloriste img2img avec textures → fal-ai/flux-pro/kontext/multi
+ *   - Rendu réaliste text-to-image    → fal-ai/flux-pro/v1.1-ultra
  * ──────────────────────────────────────────────────────────────
  */
 
+import { fal } from '@fal-ai/client';
 import {
   buildColoristPrompt,
   buildKontextColoristPrompt,
   buildRenduPrompt,
-  getBestFallback,
   ColoristParams,
   RenduParams,
   BuiltPrompt,
   KontextImageRefs,
 } from './prompt-builder';
 
+// ─────────────────────────────────────────── CONFIG SDK
+
+const FLUX_MODEL_RENDU            = 'fal-ai/flux-pro/v1.1-ultra';
+const FLUX_MODEL_COLORISTE_I2I    = 'fal-ai/flux/dev/image-to-image';
+const FLUX_MODEL_KONTEXT_SINGLE   = 'fal-ai/flux-pro/kontext';
+const FLUX_MODEL_KONTEXT_MULTI    = 'fal-ai/flux-pro/kontext/multi';
+
+let isConfigured = false;
+function ensureConfigured() {
+  if (isConfigured) return;
+  const credentials = process.env.FAL_KEY;
+  if (!credentials) throw new Error('FAL_KEY manquante dans les variables d\'environnement');
+  fal.config({ credentials });
+  isConfigured = true;
+}
+
 // ─────────────────────────────────────────── TYPES
 
 export interface GenerationResult {
-  success:   boolean;
-  imageUrl:  string | null;
-  imageUrls: string[];
-  prompt:    BuiltPrompt;
-  attempts:  number;
-  durationMs:number;
-  error?:    string;
+  success:    boolean;
+  imageUrl:   string | null;
+  imageUrls:  string[];
+  prompt:     BuiltPrompt;
+  attempts:   number;
+  durationMs: number;
+  error?:     string;
 }
 
-export interface FluxInput {
-  prompt:           string;
-  negative_prompt?: string;
-  num_images:       number;
-  image_size:       string;
-  output_format:    string;
-  seed:             number;
-  safety_tolerance?: number;
-  image_url?:       string;
-  strength?:        number;
-}
+// ─────────────────────────────────────────── HELPERS
 
-// ─────────────────────────────────────────── CONFIG
-
-const FLUX_MODEL_RENDU            = 'fal-ai/flux-pro/v1.1-ultra';
-const FLUX_MODEL_COLORISTE        = 'fal-ai/flux/dev';                  // text-to-image
-const FLUX_MODEL_COLORISTE_I2I    = 'fal-ai/flux/dev/image-to-image';   // img2img dédié
-
-// Variantes Kontext, du plus rapide au plus puissant. On choisit dynamiquement
-// selon le nombre d'images en entrée :
-//   - 1 image (photo source uniquement) → KONTEXT_SINGLE (le plus rapide)
-//   - 2-4 images (photo + textures) → KONTEXT_MULTI (multi-image standard)
-//   - jamais utilisé en routing auto, mais dispo si on veut forcer la qualité max
-const FLUX_MODEL_KONTEXT_SINGLE   = 'fal-ai/flux-pro/kontext';
-const FLUX_MODEL_KONTEXT_MULTI    = 'fal-ai/flux-pro/kontext/multi';
-const FLUX_MODEL_KONTEXT_MAX_MULTI = 'fal-ai/flux-pro/kontext/max/multi'; // legacy / fallback
-
-// Timeouts ajustés pour rester sous la limite Vercel Pro (300s par fonction
-// serverless). Budget cible :
-//   - 1ère tentative : 110s max (polling jusqu'à 100s + marge réseau)
-//   - 2ème tentative : 110s max
-//   - Total worst-case : ~225s, + upload + Supabase copy = ~245s
-// On garde 55s de marge avant que Vercel ne kill la fonction (504).
-const MAX_ATTEMPTS        = 2;       // strict : la boucle s'arrête après MAX_ATTEMPTS, pas après levels.length
-const TIMEOUT_MS          = 110_000; // 110s max par tentative
-const POLL_INTERVAL_MS    = 2_000;   // sonde le résultat toutes les 2s
-const POLL_MAX_ATTEMPTS   = 50;      // 50 × 2s = 100s max de polling
-
-// ─────────────────────────────────────────── FAL API CLIENT
-
-/**
- * Soumet une génération à fal.ai (mode asynchrone) et retourne l'imageUrl.
- * Gestion complète : submit → poll → extract.
- */
-async function callFalApi(model: string, input: Record<string, unknown>): Promise<string[]> {
-  const falKey = process.env.FAL_KEY;
-  if (!falKey) {
-    throw new Error('FAL_KEY manquante dans les variables d\'environnement');
-  }
-
-  const headers = {
-    'Authorization': `Key ${falKey}`,
-    'Content-Type':  'application/json',
-  };
-
-  // ── 1. Soumettre la génération ───────────────────────────────
-  const submitRes = await fetch(`https://queue.fal.run/${model}`, {
-    method:  'POST',
-    headers,
-    body:    JSON.stringify({ input }),
-  });
-
-  if (!submitRes.ok) {
-    const errText = await submitRes.text().catch(() => 'unknown');
-    throw new Error(`FAL submit error ${submitRes.status}: ${errText}`);
-  }
-
-  const submitData = (await submitRes.json()) as {
-    request_id?: string;
-    status?:     string;
-    images?:     Array<{ url: string }>;
-    image?:      { url: string };
-  };
-
-  // Si sync_mode=true était actif, l'image peut être directement dans la réponse
-  const directUrls = extractUrls(submitData);
-  if (directUrls.length) return directUrls;
-
-  const requestId = submitData.request_id;
-  if (!requestId) {
-    throw new Error('FAL: pas de request_id dans la réponse de soumission');
-  }
-
-  // ── 2. Polling du résultat ───────────────────────────────────
-  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
-    await sleep(POLL_INTERVAL_MS);
-
-    const pollRes = await fetch(
-      `https://queue.fal.run/${model}/requests/${requestId}`,
-      { headers }
-    );
-
-    if (!pollRes.ok) {
-      // Erreur temporaire — on continue à sonder
-      continue;
-    }
-
-    const pollData = (await pollRes.json()) as {
-      status?:  string;
-      images?:  Array<{ url: string }>;
-      image?:   { url: string };
-      url?:     string;
-      error?:   string;
-    };
-
-    if (pollData.status === 'FAILED' || pollData.error) {
-      throw new Error(`FAL generation failed: ${pollData.error ?? 'unknown'}`);
-    }
-
-    const urls = extractUrls(pollData);
-    if (urls.length) return urls;
-
-    // status 'IN_PROGRESS' ou 'IN_QUEUE' → on continue
-  }
-
-  throw new Error(`FAL timeout: aucun résultat après ${POLL_MAX_ATTEMPTS * POLL_INTERVAL_MS / 1000}s`);
-}
-
-/** Extrait toutes les URLs d'image (1-4) depuis les différents formats de réponse FAL */
-function extractUrls(data: any): string[] {
-  if (Array.isArray(data?.images) && data.images.length) {
-    return data.images.map((i: any) => i?.url).filter(Boolean);
-  }
-  if (data?.image?.url) return [data.image.url];
-  if (data?.url)        return [data.url];
-  return [];
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(r => setTimeout(r, ms));
-}
-
-// ─────────────────────────────────────────── FAL STORAGE UPLOAD
-// Flux Kontext et la plupart des modèles fal.ai préfèrent des URLs HTTPS
-// publiques. Les data URIs peuvent fonctionner sur certains modèles mais :
-// - elles gonflent le payload Vercel (4,5 Mo max par requête en plan Pro)
-// - elles ne sont pas garanties par Kontext
-// Solution : on upload chaque image vers fal-cdn-v3 et on récupère une URL
-// HTTPS éphémère qu'on passe à Kontext. Process en 2 étapes :
-//   1) POST /storage/upload/initiate → { upload_url, file_url }
-//   2) PUT {upload_url} avec le binaire → renvoie 200
-// On utilise ensuite file_url dans image_urls[].
-
-const FAL_REST_API_URL = 'https://rest.alpha.fal.ai';
-
-interface FalUploadInitiateResponse {
-  upload_url: string;
-  file_url:   string;
-}
-
-/**
- * Upload un fichier (data URI base64) vers fal-cdn-v3 et renvoie l'URL HTTPS.
- * Pour les data URIs uniquement — si l'entrée est déjà une https URL, voir
- * `ensureHttpsUrl` qui passe directement.
- *
- * @param dataUrl  data URI au format "data:image/jpeg;base64,..."
- * @returns URL HTTPS publique éphémère
- */
-async function uploadToFalStorage(dataUrl: string): Promise<string> {
-  const falKey = process.env.FAL_KEY;
-  if (!falKey) throw new Error('FAL_KEY manquante');
-
-  // Parse "data:<mime>;base64,<payload>"
+/** Convertit un data URI base64 en Blob pour le SDK */
+function dataUrlToBlob(dataUrl: string): Blob {
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!match) throw new Error('Format data URI invalide (attendu: data:<mime>;base64,...)');
-  const contentType = match[1];
-  const base64Body  = match[2];
-  const binary      = Buffer.from(base64Body, 'base64');
-
-  const ext = contentType.split('/')[1]?.split('+')[0] ?? 'bin';
-  const filename = `avra-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const t0 = Date.now();
-
-  // 1) Initiate
-  const initRes = await fetch(
-    `${FAL_REST_API_URL}/storage/upload/initiate?storage_type=fal-cdn-v3`,
-    {
-      method:  'POST',
-      headers: {
-        'Authorization': `Key ${falKey}`,
-        'Content-Type':  'application/json',
-      },
-      body: JSON.stringify({ content_type: contentType, file_name: filename }),
-    },
-  );
-  if (!initRes.ok) {
-    const errText = await initRes.text().catch(() => 'unknown');
-    throw new Error(`Fal storage initiate ${initRes.status}: ${errText}`);
-  }
-  const init = (await initRes.json()) as FalUploadInitiateResponse;
-  if (!init.upload_url || !init.file_url) {
-    throw new Error('Fal storage initiate: upload_url/file_url manquant dans la réponse');
-  }
-
-  // 2) PUT le binaire vers l'URL signée
-  const putRes = await fetch(init.upload_url, {
-    method:  'PUT',
-    headers: { 'Content-Type': contentType },
-    body:    binary,
-  });
-  if (!putRes.ok) {
-    const errText = await putRes.text().catch(() => 'unknown');
-    throw new Error(`Fal storage PUT ${putRes.status}: ${errText}`);
-  }
-
-  console.log(`[FAL storage] upload ${filename} (${(binary.length / 1024).toFixed(0)} Ko) en ${Date.now() - t0}ms → ${init.file_url}`);
-  return init.file_url;
+  if (!match) throw new Error('Format data URI invalide');
+  const mime = match[1];
+  const buffer = Buffer.from(match[2], 'base64');
+  // Node Buffer est compatible Uint8Array — Blob l'accepte
+  return new Blob([buffer], { type: mime });
 }
 
 /**
- * Si `input` est déjà une URL https://, on la passe directe.
- * Si c'est un data URI, on l'upload vers fal storage et on renvoie l'URL HTTPS.
- * Tout autre format = erreur.
+ * Si l'input est déjà une URL https, on la passe directement.
+ * Si c'est un data URI, on l'upload via fal.storage (le SDK gère le
+ * 2-step upload et l'auth pour nous).
  */
 export async function ensureHttpsUrl(input: string): Promise<string> {
   if (input.startsWith('https://') || input.startsWith('http://')) return input;
-  if (input.startsWith('data:')) return uploadToFalStorage(input);
+  if (input.startsWith('data:')) {
+    ensureConfigured();
+    const blob = dataUrlToBlob(input);
+    const t0 = Date.now();
+    const url = await fal.storage.upload(blob);
+    console.log(`[fal.storage] upload OK en ${Date.now() - t0}ms → ${url}`);
+    return url;
+  }
   throw new Error('URL d\'image invalide (attendu: https:// ou data:<mime>;base64,...)');
 }
 
-// ─────────────────────────────────────────── CORE ENGINE
-
-async function callFlux(
-  built: BuiltPrompt,
-  model: string,
-  sourceImageUrl?: string,
-  numImages: number = 1,
-): Promise<string[]> {
-  const tStart = Date.now();
-  // BUG FIX 18/05/2026 : si on a une source image ET que le model est le
-  // générique flux/dev, on bascule sur l'endpoint dédié image-to-image qui
-  // est BEAUCOUP plus rapide (l'endpoint générique avec image_url était lent
-  // à >100s en queue, le dédié répond en ~10-15s).
-  const actualModel = (sourceImageUrl && model === FLUX_MODEL_COLORISTE)
-    ? FLUX_MODEL_COLORISTE_I2I
-    : model;
-
-  // Construction du body adaptée au modèle. Flux Dev (text-to-image et
-  // image-to-image) n'accepte PAS `negative_prompt` ni `safety_tolerance`
-  // (qui sont spécifiques à Flux Pro). On envoyait ces paramètres avant
-  // ce qui faisait peut-être traîner fal.ai en validation interne.
-  const isFluxDev = actualModel.startsWith('fal-ai/flux/dev');
-  const isFluxPro = actualModel.startsWith('fal-ai/flux-pro');
-
-  const input: Record<string, unknown> = {
-    prompt:        built.prompt,
-    num_images:    Math.min(Math.max(numImages, 1), 4),
-    output_format: 'jpeg',
-    seed:          built.seed,
-  };
-
-  if (isFluxDev) {
-    // Schéma Flux Dev — params MINIMAUX (le playground marche en 1.71s avec
-    // juste image_url + prompt + strength). On ne touche pas à acceleration,
-    // num_inference_steps, etc. pour rester proche du playground qui marche.
-    if (sourceImageUrl) {
-      // image-to-image : pas d'image_size (déduit de l'image source)
-      input.image_url = sourceImageUrl;
-      input.strength  = 0.85;
-    } else {
-      // text-to-image : image_size requis
-      input.image_size = 'landscape_16_9';
-    }
-  } else if (isFluxPro) {
-    // Schéma Flux Pro Ultra (text-to-image only)
-    input.image_size       = 'landscape_16_9';
-    input.negative_prompt  = built.negative;
-    input.safety_tolerance = 2;
-  } else {
-    // Modèle inconnu : on prend une approche conservatrice
-    input.image_size = 'landscape_16_9';
-    if (sourceImageUrl) input.image_url = sourceImageUrl;
+/** Extrait les URLs d'image depuis la réponse du SDK */
+function extractImageUrls(data: unknown): string[] {
+  const d = data as { images?: Array<{ url?: string }>; image?: { url?: string } };
+  if (Array.isArray(d?.images) && d.images.length > 0) {
+    return d.images.map(i => i?.url).filter((u): u is string => typeof u === 'string');
   }
-
-  console.log(`[FAL] callFlux model=${actualModel} hasSource=${!!sourceImageUrl} promptLen=${built.prompt.length}`);
-  try {
-    const urls = await callFalApi(actualModel, input);
-    console.log(`[FAL] callFlux OK en ${Date.now() - tStart}ms (${urls.length} URL)`);
-    return urls;
-  } catch (err) {
-    console.warn(`[FAL] callFlux ÉCHEC en ${Date.now() - tStart}ms:`, err instanceof Error ? err.message : err);
-    throw err;
-  }
+  if (d?.image?.url) return [d.image.url];
+  return [];
 }
 
-// ─────────────────────────────────────────── RETRY ENGINE
+// ─────────────────────────────────────────── COLORISTE IMG2IMG (Flux Dev)
 
-async function generateWithRetry(
-  levels: Array<'standard' | 'simplified' | 'minimal'>,
-  buildPrompt: (level: 'standard' | 'simplified' | 'minimal') => BuiltPrompt,
-  fallbackPrompt: BuiltPrompt,
-  model: string,
-  startTime: number,
-  sourceImageUrl?: string,
+/**
+ * Coloriste sans textures : Flux Dev image-to-image dédié.
+ * ~5-15s en moyenne, $0.025 / image.
+ */
+export async function generateColoristImage(
+  params: ColoristParams,
+  sourceImageUrl: string,
   numImages: number = 1,
 ): Promise<GenerationResult> {
-  let attempts   = 0;
-  let lastError  = '';
+  ensureConfigured();
+  const tStart = Date.now();
+  const built = buildColoristPrompt(params, 'standard');
 
-  // Strict cap : on parcourt au plus MAX_ATTEMPTS niveaux (sinon on dépasse le
-  // budget Vercel 300s en pire cas). Le fallback absolu après la boucle reste
-  // une tentative séparée.
-  const maxLevelAttempts = Math.min(MAX_ATTEMPTS, levels.length);
-  for (let i = 0; i < maxLevelAttempts; i++) {
-    const level = levels[i];
-    attempts++;
-    const built = buildPrompt(level);
-
-    try {
-      const imageUrls = await Promise.race([
-        callFlux(built, model, sourceImageUrl, numImages),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout dépassé')), TIMEOUT_MS)
-        ),
-      ]);
-
-      return {
-        success:    true,
-        imageUrl:   imageUrls[0] ?? null,
-        imageUrls,
-        prompt:     built,
-        attempts,
-        durationMs: Date.now() - startTime,
-      };
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
-      console.warn(`[FAL] Tentative ${attempts} (${level}) échouée:`, lastError);
-      if (attempts < maxLevelAttempts) {
-        await sleep(1000 * attempts);
-      }
-    }
-  }
-
-  // Fallback absolu — prompt validé manuellement
-  attempts++;
   try {
-    const imageUrls = await callFlux(fallbackPrompt, model, undefined, 1);
+    console.log(`[fal.subscribe] ${FLUX_MODEL_COLORISTE_I2I} promptLen=${built.prompt.length}`);
+    const result = await fal.subscribe(FLUX_MODEL_COLORISTE_I2I, {
+      input: {
+        image_url:  sourceImageUrl,
+        prompt:     built.prompt,
+        strength:   0.85,
+        num_images: Math.min(Math.max(numImages, 1), 4),
+        seed:       built.seed,
+        output_format: 'jpeg',
+      },
+      logs: false,
+    });
+    const urls = extractImageUrls(result.data);
+    console.log(`[fal.subscribe] ${FLUX_MODEL_COLORISTE_I2I} OK en ${Date.now() - tStart}ms (${urls.length} URL)`);
     return {
-      success:    true,
-      imageUrl:   imageUrls[0] ?? null,
-      imageUrls,
-      prompt:     fallbackPrompt,
-      attempts,
-      durationMs: Date.now() - startTime,
+      success:    urls.length > 0,
+      imageUrl:   urls[0] ?? null,
+      imageUrls:  urls,
+      prompt:     built,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
     };
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[fal.subscribe] ${FLUX_MODEL_COLORISTE_I2I} ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
     return {
       success:    false,
       imageUrl:   null,
       imageUrls:  [],
-      prompt:     fallbackPrompt,
-      attempts,
-      durationMs: Date.now() - startTime,
-      error:      `Échec après ${attempts} tentatives. Dernière erreur: ${lastError}`,
+      prompt:     built,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      message,
     };
   }
 }
 
-// ─────────────────────────────────────────── KONTEXT MULTI ENGINE
-// Flux Kontext Max Multi : édition image guidée par instructions + références.
-// Contrairement à Flux Dev (1 seule image_url), Kontext accepte un tableau
-// d'images via le champ `image_urls`. Convention AVRA :
-//   image_urls[0] = photo cuisine source (obligatoire, c'est elle qu'on édite)
-//   image_urls[1+] = échantillons textures importées par l'user
-
-async function callKontextMulti(
-  built: BuiltPrompt,
-  imageUrls: string[],
-  numImages: number = 1,
-): Promise<string[]> {
-  if (imageUrls.length === 0) {
-    throw new Error('Kontext: au moins une image (la photo source) est requise');
-  }
-  // Routing dynamique : variant single (rapide) si 1 seule image, multi sinon.
-  // fal-ai/flux-pro/kontext (single) attend `image_url` (string).
-  // fal-ai/flux-pro/kontext/multi (multi)  attend `image_urls` (string[]).
-  const isSingle = imageUrls.length === 1;
-  const model    = isSingle ? FLUX_MODEL_KONTEXT_SINGLE : FLUX_MODEL_KONTEXT_MULTI;
-  const input: Record<string, unknown> = {
-    prompt:           built.prompt,
-    num_images:       Math.min(Math.max(numImages, 1), 4),
-    output_format:    'jpeg',
-    seed:             built.seed,
-    safety_tolerance: '2',
-    aspect_ratio:     '16:9',
-    guidance_scale:   3.5,
-  };
-  if (isSingle) input.image_url  = imageUrls[0];
-  else          input.image_urls = imageUrls;
-
-  console.log(`[Kontext] callFal model=${model} level=${built.level} promptLen=${built.prompt.length} images=${imageUrls.length}`);
-  const tStart = Date.now();
-  try {
-    const urls = await callFalApi(model, input);
-    console.log(`[Kontext] fal OK en ${Date.now() - tStart}ms, ${urls.length} URL(s) retournée(s)`);
-    return urls;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.warn(`[Kontext] fal ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
-    throw err;
-  }
-}
+// ─────────────────────────────────────────── COLORISTE KONTEXT (avec textures)
 
 /**
- * Retry engine spécifique Kontext : essaie standard → simplified → minimal,
- * tout en gardant les mêmes image_urls. Pas de fallback "from scratch" car
- * Kontext doit éditer la photo source — si toutes les tentatives échouent
- * on retourne l'erreur (l'utilisateur saura qu'il faut réessayer).
- */
-async function generateKontextWithRetry(
-  params: ColoristParams,
-  refs: KontextImageRefs,
-  imageUrls: string[],
-  numImages: number,
-): Promise<GenerationResult> {
-  const startTime = Date.now();
-  // 3 niveaux de fallback prompt ; on en consomme au plus MAX_ATTEMPTS.
-  // L'ancien code parcourait TOUS les niveaux quoi qu'il arrive, ce qui
-  // faisait sauter le plafond MAX_ATTEMPTS et dépasser le budget Vercel.
-  const levels: Array<'standard' | 'simplified' | 'minimal'> = ['standard', 'simplified', 'minimal'];
-  const maxAttempts = Math.min(MAX_ATTEMPTS, levels.length);
-  let attempts = 0;
-  let lastError = '';
-
-  for (let i = 0; i < maxAttempts; i++) {
-    const level = levels[i];
-    attempts++;
-    const built = buildKontextColoristPrompt(params, refs, level);
-    try {
-      const resultUrls = await Promise.race([
-        callKontextMulti(built, imageUrls, numImages),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout dépassé')), TIMEOUT_MS)
-        ),
-      ]);
-      return {
-        success:    true,
-        imageUrl:   resultUrls[0] ?? null,
-        imageUrls:  resultUrls,
-        prompt:     built,
-        attempts,
-        durationMs: Date.now() - startTime,
-      };
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
-      console.warn(`[Kontext] Tentative ${attempts} (${level}) échouée:`, lastError);
-      if (attempts < maxAttempts) await sleep(1000 * attempts);
-    }
-  }
-
-  return {
-    success:    false,
-    imageUrl:   null,
-    imageUrls:  [],
-    prompt:     buildKontextColoristPrompt(params, refs, 'minimal'),
-    attempts,
-    durationMs: Date.now() - startTime,
-    error:      `Échec après ${attempts} tentatives. Dernière erreur: ${lastError}`,
-  };
-}
-
-// ─────────────────────────────────────────── EXPORTS PUBLICS
-
-/**
- * Coloriste IA (nouvelle implémentation Kontext Multi).
- *
- * @param params           Paramètres couleurs/finitions/matériaux
- * @param sourceKitchenUrl Photo de cuisine de référence (data URL ou https) — OBLIGATOIRE
- * @param textureUrls      Textures par élément { facade?, poignee?, plan? } — toutes optionnelles
- * @param numImages        Nombre de variantes (1–4)
+ * Coloriste avec textures uploadées : Kontext (single ou multi selon nb d'images).
+ * Plus lent (~30-60s) mais comprend les références visuelles.
  */
 export async function generateColoristImageKontext(
   params: ColoristParams,
@@ -514,105 +165,127 @@ export async function generateColoristImageKontext(
   textureUrls: { facade?: string; poignee?: string; plan?: string },
   numImages: number = 1,
 ): Promise<GenerationResult> {
-  const t0 = Date.now();
+  ensureConfigured();
+  const tStart = Date.now();
 
-  // Construction de la liste {input → kind} dans l'ordre fixe attendu par le prompt.
-  // image_urls[0] = source kitchen, puis textures éventuelles (facade, poignee, plan).
+  const imageUrls: string[] = [sourceKitchenUrl];
   const refs: KontextImageRefs = {
     hasFacadeTexture:  !!textureUrls.facade,
     hasPoigneeTexture: !!textureUrls.poignee,
     hasPlanTexture:    !!textureUrls.plan,
   };
-  const rawInputs: Array<{ url: string; kind: string }> = [
-    { url: sourceKitchenUrl, kind: 'source' },
-  ];
-  if (textureUrls.facade)  rawInputs.push({ url: textureUrls.facade,  kind: 'texture-facade' });
-  if (textureUrls.poignee) rawInputs.push({ url: textureUrls.poignee, kind: 'texture-poignee' });
-  if (textureUrls.plan)    rawInputs.push({ url: textureUrls.plan,    kind: 'texture-plan' });
+  if (textureUrls.facade)  imageUrls.push(textureUrls.facade);
+  if (textureUrls.poignee) imageUrls.push(textureUrls.poignee);
+  if (textureUrls.plan)    imageUrls.push(textureUrls.plan);
 
-  // Conversion data URI → URL https en parallèle (upload fal-cdn-v3 pour chaque
-  // image qui n'est pas déjà sur internet). Si une seule upload échoue, on
-  // remonte l'erreur immédiatement — pas la peine de continuer.
-  console.log(`[Kontext] préparation ${rawInputs.length} image(s) (${rawInputs.map(i => i.kind).join(', ')})`);
-  let imageUrls: string[];
+  const built  = buildKontextColoristPrompt(params, refs, 'standard');
+  const isSingle = imageUrls.length === 1;
+  const model = isSingle ? FLUX_MODEL_KONTEXT_SINGLE : FLUX_MODEL_KONTEXT_MULTI;
+
   try {
-    imageUrls = await Promise.all(rawInputs.map(async ({ url, kind }) => {
-      const tUp = Date.now();
-      const httpsUrl = await ensureHttpsUrl(url);
-      const isData = url.startsWith('data:');
-      console.log(`[Kontext] ${kind} ${isData ? 'uploadée' : 'déjà https'} en ${Date.now() - tUp}ms`);
-      return httpsUrl;
-    }));
+    console.log(`[fal.subscribe] ${model} images=${imageUrls.length}`);
+    const input: Record<string, unknown> = {
+      prompt:        built.prompt,
+      num_images:    Math.min(Math.max(numImages, 1), 4),
+      seed:          built.seed,
+      output_format: 'jpeg',
+      aspect_ratio:  '16:9',
+    };
+    if (isSingle) input.image_url = imageUrls[0];
+    else          input.image_urls = imageUrls;
+
+    // Le SDK type les inputs strictement par modèle (FluxKontextInput vs
+    // FluxKontextMultiInput). On a un union legitime à runtime selon
+    // isSingle, donc on cast — c'est plus propre que de dupliquer le code.
+    const result = await fal.subscribe(model, { input: input as never, logs: false });
+    const urls = extractImageUrls(result.data);
+    console.log(`[fal.subscribe] ${model} OK en ${Date.now() - tStart}ms (${urls.length} URL)`);
+    return {
+      success:    urls.length > 0,
+      imageUrl:   urls[0] ?? null,
+      imageUrls:  urls,
+      prompt:     built,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[Kontext] échec upload fal-cdn-v3:', message);
+    console.warn(`[fal.subscribe] ${model} ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
     return {
       success:    false,
       imageUrl:   null,
       imageUrls:  [],
-      prompt:     buildKontextColoristPrompt(params, refs, 'minimal'),
-      attempts:   0,
-      durationMs: Date.now() - t0,
-      error:      `Impossible d'uploader vos images vers fal.ai (${message}). Réessayez ou réduisez la taille.`,
+      prompt:     built,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      message,
     };
   }
-
-  console.log(`[Kontext] génération start ${imageUrls.length} image(s), variants=${numImages}`);
-  const result = await generateKontextWithRetry(params, refs, imageUrls, numImages);
-  console.log(`[Kontext] génération end success=${result.success} attempts=${result.attempts} totalMs=${Date.now() - t0}`);
-  return result;
 }
 
-/**
- * @deprecated remplacée par generateColoristImageKontext. Conservée temporairement
- * au cas où l'on veuille revenir à Flux Dev (moins cher, mais textures ignorées).
- */
-export async function generateColoristImage(
-  params: ColoristParams,
-  sourceImageUrl?: string,
-  numImages: number = 1,
-): Promise<GenerationResult> {
-  return generateWithRetry(
-    ['standard', 'simplified', 'minimal'],
-    (level) => buildColoristPrompt(params, level),
-    getBestFallback(params),
-    FLUX_MODEL_COLORISTE,
-    Date.now(),
-    sourceImageUrl,
-    numImages,
-  );
-}
+// ─────────────────────────────────────────── RENDU RÉALISTE (Flux Pro Ultra)
 
 /**
- * Rendu réaliste IA — génère un visuel photoréaliste de cuisine.
- * Modèle : FLUX Pro 1.1 Ultra (text-to-image pur, ignore toute image source).
- * Pour utiliser une image de référence (ex: plan WinnerFlex), il faut basculer
- * sur un modèle ControlNet ou Kontext — pas le cas ici.
+ * Rendu réaliste text-to-image (sans photo source).
+ * Flux Pro Ultra : qualité maximale, ~10-20s, $0.06 / image.
  */
 export async function generateRenduImage(
   params: RenduParams,
   numImages: number = 1,
 ): Promise<GenerationResult> {
-  return generateWithRetry(
-    ['standard', 'simplified', 'minimal'],
-    (level) => buildRenduPrompt(params, level),
-    getBestFallback(params),
-    FLUX_MODEL_RENDU,
-    Date.now(),
-    undefined,
-    numImages,
-  );
+  ensureConfigured();
+  const tStart = Date.now();
+  const built = buildRenduPrompt(params, 'standard');
+
+  try {
+    console.log(`[fal.subscribe] ${FLUX_MODEL_RENDU} text2img promptLen=${built.prompt.length}`);
+    // Flux Pro Ultra n'accepte pas `negative_prompt` (contrairement à Flux Pro
+    // standard) — le SDK type le refuse. Le NEGATIVE_PROMPT du prompt-builder
+    // est conservé pour les autres modèles ou un futur switch.
+    const result = await fal.subscribe(FLUX_MODEL_RENDU, {
+      input: {
+        prompt:           built.prompt,
+        num_images:       Math.min(Math.max(numImages, 1), 4),
+        seed:             built.seed,
+        output_format:    'jpeg',
+        aspect_ratio:     '16:9',
+        safety_tolerance: '2',
+      },
+      logs: false,
+    });
+    const urls = extractImageUrls(result.data);
+    console.log(`[fal.subscribe] ${FLUX_MODEL_RENDU} OK en ${Date.now() - tStart}ms (${urls.length} URL)`);
+    return {
+      success:    urls.length > 0,
+      imageUrl:   urls[0] ?? null,
+      imageUrls:  urls,
+      prompt:     built,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[fal.subscribe] ${FLUX_MODEL_RENDU} ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
+    return {
+      success:    false,
+      imageUrl:   null,
+      imageUrls:  [],
+      prompt:     built,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      message,
+    };
+  }
 }
 
-// ─────────────────────────────────────────── HELPERS
+// ─────────────────────────────────────────── HELPERS PUBLICS
 
-/** Estime le coût d'une génération en € */
 export function estimateCost(module: 'coloriste' | 'rendu'): string {
-  const usd = module === 'coloriste' ? 0.04 : 0.06;
-  return `~${(usd * 0.93).toFixed(2)} €`;
+  return module === 'coloriste' ? '~0,05 €' : '~0,06 €';
 }
 
-/** Estime la durée de génération en secondes */
 export function estimateDuration(module: 'coloriste' | 'rendu'): string {
-  return module === 'coloriste' ? '5–10 sec' : '10–20 sec';
+  return module === 'coloriste' ? '10–20 sec' : '10–20 sec';
 }
