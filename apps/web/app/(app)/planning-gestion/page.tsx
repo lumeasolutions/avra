@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   CalendarCog, ChevronLeft, ChevronRight, Plus, X,
   Hammer, Truck, Zap, Wrench, Users, TrendingUp,
@@ -196,6 +196,74 @@ export default function PlanningGestionPage() {
   const dates = getWeekDates(weekOffset);
   const currentEvents = gestEvents.filter(e => e.weekOffset === weekOffset);
   const todayDate = new Date();
+
+  /**
+   * Layout "quinconce" — calcule pour chaque event sa colonne et le nombre
+   * total de colonnes du cluster d'overlap, pour afficher 2-3 interventions
+   * cote-a-cote dans le meme creneau (style Google Agenda / planning principal).
+   *
+   * Algo : par jour, tri par debut (minutes) puis duree desc. Assignation
+   * gloutonne sur la 1ere colonne libre (colEnds[c] <= evStart). La largeur
+   * d'un event = 1 / (nombre max de colonnes utilisees dans son cluster).
+   */
+  const eventLayout = useMemo(() => {
+    const map = new Map<string, { col: number; cols: number }>();
+    const byDay = new Map<number, typeof currentEvents>();
+    for (const ev of currentEvents) {
+      const arr = byDay.get(ev.day) ?? [];
+      arr.push(ev);
+      byDay.set(ev.day, arr);
+    }
+    for (const [, evs] of byDay) {
+      const sorted = [...evs].sort((a, b) => {
+        const aStart = a.startHour * 60 + getStartMinute(a);
+        const bStart = b.startHour * 60 + getStartMinute(b);
+        if (aStart !== bStart) return aStart - bStart;
+        return getDurationMinutes(b) - getDurationMinutes(a);
+      });
+
+      const colEnds: number[] = [];
+      const colsAssigned = new Map<string, number>();
+
+      for (const ev of sorted) {
+        const evStart = ev.startHour * 60 + getStartMinute(ev);
+        const evEnd = evStart + getDurationMinutes(ev);
+        let assignedCol = -1;
+        for (let c = 0; c < colEnds.length; c++) {
+          if (colEnds[c] <= evStart) {
+            assignedCol = c;
+            colEnds[c] = evEnd;
+            break;
+          }
+        }
+        if (assignedCol === -1) {
+          assignedCol = colEnds.length;
+          colEnds.push(evEnd);
+        }
+        colsAssigned.set(ev.id, assignedCol);
+      }
+
+      for (const ev of sorted) {
+        const evStart = ev.startHour * 60 + getStartMinute(ev);
+        const evEnd = evStart + getDurationMinutes(ev);
+        const overlapping = sorted.filter(other => {
+          if (other.id === ev.id) return false;
+          const oStart = other.startHour * 60 + getStartMinute(other);
+          const oEnd = oStart + getDurationMinutes(other);
+          return !(oEnd <= evStart) && !(oStart >= evEnd);
+        });
+        let maxCol = colsAssigned.get(ev.id) ?? 0;
+        for (const o of overlapping) {
+          maxCol = Math.max(maxCol, colsAssigned.get(o.id) ?? 0);
+        }
+        map.set(ev.id, {
+          col: colsAssigned.get(ev.id) ?? 0,
+          cols: maxCol + 1,
+        });
+      }
+    }
+    return map;
+  }, [currentEvents]);
 
   const typeInfo = ALL_INTERVENTION_TYPES.find(t => t.key === newEvent.type) || INTERVENTION_TYPES[0];
 
@@ -625,7 +693,7 @@ export default function PlanningGestionPage() {
                     );
                   })}
 
-                  {/* Événements */}
+                  {/* Événements — split cote-a-cote si overlap (quinconce) */}
                   {currentEvents.filter(e => e.day === dayIdx + 1).map(ev => {
                     const startMin    = getStartMinute(ev);
                     const durationMin = getDurationMinutes(ev);
@@ -634,6 +702,10 @@ export default function PlanningGestionPage() {
                     const color  = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.color || '#a67749';
                     const icon   = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.icon || '🔨';
                     const isDragging = draggingEventId === ev.id;
+                    // Layout quinconce : col/cols pour partager la largeur entre events en overlap
+                    const layout   = eventLayout.get(ev.id) ?? { col: 0, cols: 1 };
+                    const widthPct = 100 / layout.cols;
+                    const leftPct  = layout.col * widthPct;
                     // Calcul heure de fin avec minutes
                     const totalEndMin = ev.startHour * 60 + startMin + durationMin;
                     const endHour     = Math.floor(totalEndMin / 60);
@@ -641,9 +713,11 @@ export default function PlanningGestionPage() {
                     return (
                       <div
                         key={ev.id}
-                        className="event-in absolute left-1 right-1 rounded-xl px-2.5 py-2 text-white shadow-lg border border-white/20 group flex flex-col justify-center transition-all duration-200 hover:border-white/50 cursor-grab active:cursor-grabbing select-none"
+                        className="event-in absolute rounded-xl px-2.5 py-2 text-white shadow-lg border border-white/20 group flex flex-col justify-center transition-all duration-200 hover:border-white/50 cursor-grab active:cursor-grabbing select-none"
                         style={{
                           top: (top + 2) + 'px',
+                          left: `calc(${leftPct}% + 2px)`,
+                          width: `calc(${widthPct}% - 4px)`,
                           height: height + 'px',
                           backgroundColor: color,
                           zIndex: 10,
