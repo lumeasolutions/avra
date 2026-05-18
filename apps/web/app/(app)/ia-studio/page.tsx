@@ -704,8 +704,10 @@ export default function IaStudioPage() {
   // > 0.5 étrangle la créativité du prompt texte).
   const [rendRefFile,  setRendRefFile]  = useState<File | null>(null);
   const [rendRefURL,   setRendRefURL]   = useState<string | null>(null);
-  const [rendStyle,    setRendStyle]    = useState<StyleType>('contemporain');
-  const [rendLight,    setRendLight]    = useState<LightingType>('naturelle');
+  // Sélecteurs UI retirés 19/05/2026 — valeurs fixes par défaut (alimentent
+  // le prompt serveur de façon neutre, dilué automatiquement par Kontext).
+  const [rendStyle]    = useState<StyleType>('contemporain');
+  const [rendLight]    = useState<LightingType>('naturelle');
   // rendSize : valeur fixe en interne (le ChipSelector "Taille de la cuisine" a
   // été retiré — peu pertinent quand un plan WinnerFlex est uploadé, qui dicte
   // déjà les proportions exactes). On garde 'moyenne' comme fallback côté prompt.
@@ -1249,21 +1251,8 @@ export default function IaStudioPage() {
                     toujours UNE image. Le state `colorNumVariants` reste à 1
                     par défaut (cf. useState initialiseur). */}
 
-                {/* Estimation coût */}
-                <div className="flex items-center justify-between rounded-xl bg-[#304035]/4 px-3.5 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <Star className="h-3.5 w-3.5 text-[#a67749]" />
-                    <span className="text-xs font-semibold text-[#304035]/70">
-                      {(facadeTexture || poigneeTexture || planTexture)
-                        ? 'Coût estimé · Flux Kontext Multi (textures)'
-                        : 'Coût estimé · Flux Kontext'}
-                    </span>
-                  </div>
-                  <span className="text-xs font-black text-[#304035]">
-                    ~{(((facadeTexture || poigneeTexture || planTexture) ? 0.06 : 0.04) * colorNumVariants)
-                      .toFixed(2).replace('.', ',')} € · 15–30 sec
-                  </span>
-                </div>
+                {/* Bloc 'Coût estimé · Flux Kontext' retiré 19/05/2026 :
+                    les clients n'ont pas à voir le moteur ni le coût IA. */}
                 {!canRunColor && !colorLoading && (
                   <p className="text-[11px] text-[#304035]/55 text-center">
                     {!photoFile
@@ -1393,9 +1382,8 @@ export default function IaStudioPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <FileImage className="h-4 w-4 text-[#5b9bd5]" />
                   <p className="font-bold text-[#304035]">Image de référence</p>
-                  <span className="ml-auto rounded-full bg-[#5b9bd5]/10 text-[#5b9bd5] text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5">Optionnel</span>
                 </div>
-                <p className="text-xs text-[#304035]/50 mb-4">Plan WinnerFlex, photo Pinterest, sketch — guide le style sans imposer la transformation</p>
+                <p className="text-xs text-[#304035]/50 mb-4">Plan WinnerFlex, photo Pinterest ou sketch à transformer en photo réaliste</p>
                 <Drop label="" sub="Déposez un plan, perspective 3D, ou photo d'inspiration"
                   onFile={setRendRefFile} file={rendRefFile} accent="#5b9bd5"
                   tips={['Plan WinnerFlex export image', 'Photo Pinterest qui inspire', 'Sketch / croquis main', 'Photo cuisine ressemblante']} />
@@ -1414,45 +1402,11 @@ export default function IaStudioPage() {
                 )}
               </div>
 
-              {/* SÉLECTEURS STRUCTURÉS — zéro textarea libre */}
-              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-5">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-[#5b9bd5]" />
-                  <p className="font-bold text-[#304035]">Style et ambiance</p>
-                  <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-[#10b981]/80 bg-[#10b981]/8 px-2 py-0.5 rounded-full">Prompt auto</span>
-                </div>
-
-                <ChipSelector<StyleType>
-                  label="Style de cuisine"
-                  value={rendStyle}
-                  onChange={setRendStyle}
-                  accent="#5b9bd5"
-                  options={[
-                    { value:'contemporain',  label:'Contemporain',  icon:Monitor },
-                    { value:'classique',     label:'Classique',     icon:Building2 },
-                    { value:'industriel',    label:'Industriel',    icon:Layers },
-                    { value:'scandinave',    label:'Scandinave',    icon:Home },
-                    { value:'haussmannien',  label:'Haussmannien',  icon:Award },
-                  ]}
-                />
-
-                <ChipSelector<LightingType>
-                  label="Source lumineuse"
-                  value={rendLight}
-                  onChange={setRendLight}
-                  accent="#5b9bd5"
-                  options={[
-                    { value:'naturelle', label:'Naturelle', icon:Sun },
-                    { value:'spots',     label:'LED spots',  icon:Lamp },
-                    { value:'mixte',     label:'Mixte',      icon:Monitor },
-                  ]}
-                />
-
-                {/* "Taille de la cuisine" retiré : peu pertinent quand un plan
-                    WinnerFlex est uploadé (qui dicte déjà les proportions
-                    exactes), et dilue le prompt sinon. La proportion par défaut
-                    est 'moyenne' côté serveur. */}
-              </div>
+              {/* Bloc "Style et ambiance" retiré 19/05/2026 : peu utile en
+                  mode Kontext img2img où la photo source dicte déjà l'ambiance.
+                  Les states `rendStyle` et `rendLight` gardent leurs valeurs
+                  par défaut (contemporain + naturelle) qui alimentent le
+                  prompt côté serveur de façon neutre. */}
 
               {/* Façades et plan — champs courts ciblés */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
@@ -1581,14 +1535,8 @@ export default function IaStudioPage() {
                   </div>
                 </div>
 
-                {/* Estimation coût */}
-                <div className="flex items-center justify-between rounded-xl bg-[#304035]/4 px-3.5 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <Star className="h-3.5 w-3.5 text-[#5b9bd5]" />
-                    <span className="text-xs font-semibold text-[#304035]/70">Coût estimé · Flux 1.1 Pro Ultra</span>
-                  </div>
-                  <span className="text-xs font-black text-[#304035]">~{(0.06 * rendNumVariants).toFixed(2).replace('.', ',')} € · {estimateDuration('rendu')}</span>
-                </div>
+                {/* Bloc 'Coût estimé' retiré 19/05/2026 — client n'a pas à voir
+                    le moteur IA ni le coût. */}
                 {!rendLoading && !rendFacades.trim() && (
                   <p className="text-[11px] text-[#304035]/55 text-center">
                     Décrivez les façades pour activer le bouton.
@@ -1710,7 +1658,7 @@ export default function IaStudioPage() {
                 <div key={item.id} className="fu group rounded-2xl overflow-hidden border border-[#304035]/8 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-250 cursor-pointer"
                   style={{animationDelay:`${i*0.05}s`}}>
                   {item.imageUrl && !item.imageUrl.includes('placehold') ? (
-                    <Image src={item.imageUrl} alt={item.prompt} width={300} height={200} loading="lazy" className="w-full aspect-video object-cover" />
+                    <Image src={item.imageUrl} alt={item.prompt} width={300} height={200} loading="lazy" className="w-full aspect-video object-cover" unoptimized />
                   ) : (
                     <div className="relative flex items-center justify-center py-9"
                       style={{background:`linear-gradient(145deg,${item.color}18,${item.color}35)`}}>
