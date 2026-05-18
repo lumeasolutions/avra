@@ -253,6 +253,13 @@ export async function POST(req: NextRequest) {
 
     // ── 8) UPDATE IaJob (DONE) — coût aligné sur le moteur réellement utilisé
     const costEUR = costPerImage * result.imageUrls.length;
+
+    // Récupère les `steps` du pipeline SAM si dispo, pour debug
+    // (quelle région a un mask trouvé / inpaint OK / combien de ms).
+    // Ces infos vont dans params.pipelineSteps pour pouvoir auditer
+    // précisément ce qui rate sur les jobs ratés.
+    const samSteps = (result as { steps?: unknown }).steps;
+    const previousParams = (job.params as Record<string, unknown> | null) ?? {};
     await prisma.iaJob.update({
       where: { id: job.id },
       data:  {
@@ -263,6 +270,10 @@ export async function POST(req: NextRequest) {
           signedUrls: copied.map(c => c.signedUrl),
           falRaw:     copied.map(c => c.falUrl),
         },
+        // Merge des steps SAM dans params (sans écraser l'existant)
+        params: samSteps
+          ? { ...previousParams, pipelineSteps: samSteps as object }
+          : previousParams as object,
         durationMs:      Date.now() - tStart,
         costEUR,
         completedAt:     new Date(),

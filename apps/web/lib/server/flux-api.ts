@@ -128,17 +128,19 @@ async function segmentRegion(imageUrl: string, textPrompt: string): Promise<stri
   ensureConfigured();
   const t0 = Date.now();
   try {
-    // FIX 18/05/2026 : ajout `mask_only` (explicite), `expand_mask` pour
-    // couvrir les bords, `fill_holes` pour boucher les trous internes du masque.
-    // Sans ces params le mask était trop "déchiqueté" et l'inpainting créait
-    // des artefacts visibles ou repeignait des zones non souhaitées.
+    // FIX 18/05/2026 (v2) : ajout `use_grounding_dino: true` pour MULTI-instance
+    // detection. Sans ça, EVF-SAM trouve souvent UNE seule occurrence (ex: le
+    // meuble du bas) et rate les meubles du haut, surtout si visuellement
+    // différents (peint vs bois). Avec grounding DINO en pré-step, on capture
+    // TOUTES les instances du concept dans l'image.
     const result = await fal.subscribe(EVF_SAM_MODEL, {
       input: {
-        image_url:   imageUrl,
-        prompt:      textPrompt,
-        mask_only:   true,
-        expand_mask: 5,
-        fill_holes:  true,
+        image_url:          imageUrl,
+        prompt:             textPrompt,
+        mask_only:          true,
+        expand_mask:        5,
+        fill_holes:         true,
+        use_grounding_dino: true,
       },
       logs: false,
     });
@@ -249,16 +251,21 @@ export async function generateColoristImageSAM(
 
   try {
     // ── ÉTAPE 1 : SAM en parallèle pour les 3 régions ──────────────────
-    // FIX 18/05/2026 : prompts SIMPLES, 1 concept par requête.
-    // Les prompts compounds ("doors AND fronts AND panels") faisaient
-    // détecter à EVF-SAM une zone trop large = masque géant = inpaint
-    // qui régénérait toute la cuisine.
-    // Un concept par mask = mask serré = inpaint chirurgical.
+    // FIX 18/05/2026 (v2) : prompts plus INCLUSIFS pour capturer TOUTES les
+    // instances visibles (le user a constaté que les façades en bois en haut
+    // n'étaient pas détectées comme "cabinet doors", probablement classifiées
+    // comme "wooden furniture"). En ajoutant des synonymes/familles et en
+    // utilisant `use_grounding_dino: true` (cf segmentRegion), on couvre
+    // mieux les façades hétérogènes (peintes + bois + verre).
+    //
+    // Countertop : "countertop only, not backsplash" pour éviter que SAM
+    // inclue la crédence dans le masque (le user a vu des modifs sur les
+    // zones autour du plan de travail).
     console.log(`[SAM+Inpaint] Pipeline start — source=${sourceImageUrl.slice(-40)}`);
     const [maskFacade, maskHandle, maskCountertop] = await Promise.all([
-      segmentRegion(sourceImageUrl, 'kitchen cabinet doors'),
-      segmentRegion(sourceImageUrl, 'cabinet handles'),
-      segmentRegion(sourceImageUrl, 'kitchen countertop'),
+      segmentRegion(sourceImageUrl, 'all kitchen cabinet doors and drawer fronts, upper and lower cabinets'),
+      segmentRegion(sourceImageUrl, 'cabinet handles and knobs and drawer pulls'),
+      segmentRegion(sourceImageUrl, 'kitchen countertop horizontal surface only, not walls'),
     ]);
 
     // ── ÉTAPE 2 : Inpainting séquentiel (chaque étape s'appuie sur la précédente)
