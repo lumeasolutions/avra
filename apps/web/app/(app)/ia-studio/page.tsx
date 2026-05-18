@@ -1071,9 +1071,16 @@ export default function IaStudioPage() {
                 <div className="flex items-center justify-between rounded-xl bg-[#304035]/4 px-3.5 py-2.5">
                   <div className="flex items-center gap-2">
                     <Star className="h-3.5 w-3.5 text-[#a67749]" />
-                    <span className="text-xs font-semibold text-[#304035]/70">Coût estimé · Flux Kontext</span>
+                    <span className="text-xs font-semibold text-[#304035]/70">
+                      {(facadeTexture || poigneeTexture || planTexture)
+                        ? 'Coût estimé · Flux Kontext (textures)'
+                        : 'Coût estimé · Flux Dev (img2img rapide)'}
+                    </span>
                   </div>
-                  <span className="text-xs font-black text-[#304035]">~{(0.05 * colorNumVariants).toFixed(2).replace('.', ',')} € · {estimateDuration('coloriste')}</span>
+                  <span className="text-xs font-black text-[#304035]">
+                    ~{(((facadeTexture || poigneeTexture || planTexture) ? 0.06 : 0.025) * colorNumVariants)
+                      .toFixed(3).replace('.', ',')} € · {(facadeTexture || poigneeTexture || planTexture) ? '30–60 sec' : '~10 sec'}
+                  </span>
                 </div>
                 {!canRunColor && !colorLoading && (
                   <p className="text-[11px] text-[#304035]/55 text-center">
@@ -1126,7 +1133,11 @@ export default function IaStudioPage() {
                     </div>
                     <div>
                       <p className="font-black text-[#304035]">Coloriste IA en action</p>
-                      <p className="text-xs text-[#304035]/50 mt-0.5">Flux Kontext · Édition image guidée…</p>
+                      <p className="text-xs text-[#304035]/50 mt-0.5">
+                        {(facadeTexture || poigneeTexture || planTexture)
+                          ? 'Flux Kontext · Édition multi-image (textures)…'
+                          : 'Flux Dev · Img2img rapide…'}
+                      </p>
                     </div>
                   </div>
                   <ProgressBar steps={LOADING_STEPS_COLOR} color="#a67749" />

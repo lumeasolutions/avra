@@ -9,7 +9,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ColoristParams } from '@/lib/server/prompt-builder';
-import { generateColoristImageKontext, ensureHttpsUrl } from '@/lib/server/flux-api';
+import {
+  generateColoristImage,        // Flux Dev img2img — rapide (~10s), pas de textures
+  generateColoristImageKontext, // Kontext Multi — supporte les textures, ~30-60s
+  ensureHttpsUrl,
+} from '@/lib/server/flux-api';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
 import { prisma } from '@/lib/server/prisma';
@@ -101,9 +105,20 @@ export async function POST(req: NextRequest) {
   //       coûteuse pour avoir une trace même si fal.ai timeout/crash. Le
   //       champ `params` reçoit un snapshot non-sensible (les data URIs
   //       sont *exclues* — trop volumineuses et inutiles à long terme).
+  //
+  // Routing du moteur (stratégie hybride, 18/05/2026) :
+  //  - sans texture importée → Flux Dev img2img (rapide ~10s, $0.025/image)
+  //  - avec au moins une texture → Kontext Multi (lent mais comprend les refs)
+  // Raison : Kontext queue surchargée chez fal.ai, on évite ce chemin quand
+  // les couleurs hex suffisent. Pour les presets et la personnalisation
+  // couleur, Flux Dev donne d'excellents résultats en 10s.
   const willUseTextures = !!(
     params.facadeTextureDataUrl || params.poigneeTextureDataUrl || params.planTextureDataUrl
   );
+  const modelUsed = willUseTextures
+    ? 'fal-ai/flux-pro/kontext/multi'
+    : 'fal-ai/flux/dev';
+  const costPerImage = willUseTextures ? 0.06 : 0.025;
   const job = await prisma.iaJob.create({
     data: {
       workspaceId,
@@ -111,7 +126,7 @@ export async function POST(req: NextRequest) {
       projectId,
       type:        'COLOR_VARIATION',
       status:      'QUEUED',
-      modelsUsed:  [willUseTextures ? 'fal-ai/flux-pro/kontext/multi' : 'fal-ai/flux-pro/kontext'],
+      modelsUsed:  [modelUsed],
       params: {
         facadeHex:          params.facadeHex,
         poigneeHex:         params.poigneeHex,
@@ -186,14 +201,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // ── 6) Génération Kontext (les URLs sont déjà https, l'appel à
-    //       ensureHttpsUrl dans la fonction sera no-op).
-    const result = await generateColoristImageKontext(
-      params,
-      sourceHttps,
-      { facade: facadeTexHttps, poignee: poigneeTexHttps, plan: planTexHttps },
-      numImages,
-    );
+    // ── 6) Génération : routing engine selon présence de textures.
+    //       - Sans texture → Flux Dev img2img (rapide, fiable, peu cher)
+    //       - Avec texture → Kontext Multi (instruction-aware, plus lent)
+    const result = willUseTextures
+      ? await generateColoristImageKontext(
+          params,
+          sourceHttps,
+          { facade: facadeTexHttps, poignee: poigneeTexHttps, plan: planTexHttps },
+          numImages,
+        )
+      : await generateColoristImage(params, sourceHttps, numImages);
 
     if (!result.success) {
       const err = (result.error ?? '').toLowerCase();
@@ -211,11 +229,8 @@ export async function POST(req: NextRequest) {
       ),
     );
 
-    // ── 8) UPDATE IaJob (DONE)
-    //       Coût approximatif : Kontext single ~$0.04, multi ~$0.06.
-    //       On prend 0.05 de moyenne pour le tracking budget (à raffiner si
-    //       on veut un coût exact, fal.ai expose le prix dans la réponse).
-    const costEUR = 0.05 * result.imageUrls.length;
+    // ── 8) UPDATE IaJob (DONE) — coût aligné sur le moteur réellement utilisé
+    const costEUR = costPerImage * result.imageUrls.length;
     await prisma.iaJob.update({
       where: { id: job.id },
       data:  {
