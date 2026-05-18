@@ -45,6 +45,10 @@ export class DemandesController {
     });
   }
 
+  // Throttle 10/min : la sidebar polle ce endpoint toutes les 60s ; au-delà
+  // d'une dizaine d'appels/minute c'est forcément un bug de polling client.
+  // Défense en profondeur en complément du fix des deps useEffect côté UI.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Get('stats')
   stats(@CurrentUser() user: JwtPayload) {
     return this.demandes.statsForWorkspace(user.workspaceId);

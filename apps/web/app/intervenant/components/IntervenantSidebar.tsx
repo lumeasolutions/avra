@@ -21,16 +21,20 @@ export function IntervenantSidebar() {
   const logout = useAuthStore((s) => s.logout);
 
   const myStats = useDemandesStore((s) => s.myStats);
-  const fetchMyStats = useDemandesStore((s) => s.fetchMyStats);
 
   // Track previous count for desktop notification
   const prevUnreadRef = useRef<number>(0);
 
+  // 18/05/2026 - FIX hammering: deps `[fetchMyStats]` re-déclenchaient
+  // l'effet à chaque update du store → setInterval accumulés → spam 429
+  // sur /api/v1/demandes/stats. Voir Sidebar.tsx pour le même fix.
   useEffect(() => {
+    const fetchMyStats = useDemandesStore.getState().fetchMyStats;
     fetchMyStats();
-    const interval = setInterval(() => fetchMyStats(), 60_000);
+    const interval = setInterval(() => useDemandesStore.getState().fetchMyStats(), 60_000);
     return () => clearInterval(interval);
-  }, [fetchMyStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const unread = myStats?.unreadCount ?? 0;
 

@@ -45,12 +45,18 @@ export function Sidebar() {
 
   // ── Phase C : badge demandes en attente / SAV non traites ──
   const proStats = useDemandesStore(s => s.proStats);
-  const fetchProStats = useDemandesStore(s => s.fetchProStats);
+  // 18/05/2026 - FIX hammering: avant on avait `[fetchProStats]` en deps, ce
+  // qui re-trigger l'effet à chaque update du store (Zustand re-crée parfois
+  // la référence après un setState interne, surtout en mode strict ou hot
+  // reload). Résultat : des dizaines de setInterval en parallèle → spam 429
+  // sur /api/v1/demandes/stats. Deps `[]` = un seul interval par mount.
   useEffect(() => {
+    const fetchProStats = useDemandesStore.getState().fetchProStats;
     fetchProStats();
-    const id = setInterval(() => fetchProStats(), 60_000);
+    const id = setInterval(() => useDemandesStore.getState().fetchProStats(), 60_000);
     return () => clearInterval(id);
-  }, [fetchProStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const demandesActionCount = proStats?.actionRequiredCount ?? 0;
   // savPendingCount retire (sidebar SAV supprimee — voir /intervenants > demandes rapides)
 
