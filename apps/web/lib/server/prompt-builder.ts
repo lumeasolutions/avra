@@ -381,6 +381,48 @@ export function isPromptValid(built: BuiltPrompt): boolean {
   return built.warnings.length === 0 && built.prompt.length >= 150;
 }
 
+// ─────────────────────────────────────────── PROMPTS RÉGION-SPÉCIFIQUES (mode SAM+Inpaint)
+//
+// Quand on inpaint dans un masque précis (façades / poignées / plan), le
+// prompt doit être COURT et FOCALISÉ sur la matière cible, pas une scène
+// entière. L'inpainting ne peint que dans le mask, donc inutile de décrire
+// la cuisine — on décrit uniquement le matériau à appliquer dans la zone.
+
+/**
+ * Prompt pour repeindre UNIQUEMENT les façades de meubles.
+ * Combine : nom de couleur (depuis hex) + bloc finition.
+ */
+export function buildFacadeRegionPrompt(params: ColoristParams): string {
+  const color  = hexToName(params.facadeHex);
+  const finish = FINISH_BLOCKS[params.facadeFinish];
+  // Format court, précis, sans décor de cuisine — l'inpaint ne fait que la zone.
+  return `${color} cabinet door surface, ${finish}, seamless flat panel, photorealistic material, sharp clean edges, even lighting consistent with surroundings`;
+}
+
+/**
+ * Prompt pour repeindre UNIQUEMENT les poignées / boutons / tirants.
+ * Préfère `handleMaterial` si fourni (preset), sinon dérive de la couleur hex.
+ */
+export function buildHandleRegionPrompt(params: ColoristParams): string {
+  const material = params.handleMaterial ?? `${hexToName(params.poigneeHex)} metal handles`;
+  const finishSuffix = params.poigneeFinish
+    ? `, ${FINISH_BLOCKS[params.poigneeFinish]}`
+    : '';
+  return `${material}${finishSuffix}, sleek hardware, photorealistic metal texture, sharp clean edges, even lighting consistent with surroundings`;
+}
+
+/**
+ * Prompt pour repeindre UNIQUEMENT le plan de travail.
+ * Préfère `countertopMaterial` si fourni (preset), sinon dérive de la couleur hex.
+ */
+export function buildCountertopRegionPrompt(params: ColoristParams): string {
+  const material = params.countertopMaterial ?? `${hexToName(params.planHex)} countertop surface`;
+  const finishSuffix = params.planFinish
+    ? `, ${FINISH_BLOCKS[params.planFinish]}`
+    : '';
+  return `${material}${finishSuffix}, seamless surface, photorealistic stone/wood texture, sharp clean edges, even lighting consistent with surroundings, subtle natural reflections`;
+}
+
 // ─────────────────────────────────────────── BUILDER COLORISTE — KONTEXT MULTI
 // Flux Kontext Max Multi accepte une liste d'images de référence en `image_urls`.
 // Convention AVRA pour l'index :

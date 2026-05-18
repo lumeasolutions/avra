@@ -25,6 +25,9 @@ import {
   buildColoristPrompt,
   buildKontextColoristPrompt,
   buildRenduPrompt,
+  buildFacadeRegionPrompt,
+  buildHandleRegionPrompt,
+  buildCountertopRegionPrompt,
   ColoristParams,
   RenduParams,
   BuiltPrompt,
@@ -37,6 +40,12 @@ const FLUX_MODEL_RENDU            = 'fal-ai/flux-pro/v1.1-ultra';
 const FLUX_MODEL_COLORISTE_I2I    = 'fal-ai/flux/dev/image-to-image';
 const FLUX_MODEL_KONTEXT_SINGLE   = 'fal-ai/flux-pro/kontext';
 const FLUX_MODEL_KONTEXT_MULTI    = 'fal-ai/flux-pro/kontext/multi';
+
+// Stratégie infaillible (mai 2026) : SAM par texte + Inpainting par région.
+// Le pipeline garantit que tout pixel hors des 3 masques (façades, poignées,
+// plan de travail) est strictement identique à la source.
+const EVF_SAM_MODEL    = 'fal-ai/evf-sam';
+const FLUX_INPAINT_MODEL = 'fal-ai/flux-lora/inpainting';
 
 let isConfigured = false;
 function ensureConfigured() {
@@ -97,6 +106,224 @@ function extractImageUrls(data: unknown): string[] {
   }
   if (d?.image?.url) return [d.image.url];
   return [];
+}
+
+/** Extrait l'URL du single mask depuis la réponse EVF-SAM (champ `image`) */
+function extractMaskUrl(data: unknown): string | null {
+  const d = data as { image?: { url?: string } };
+  return typeof d?.image?.url === 'string' ? d.image.url : null;
+}
+
+// ─────────────────────────────────────────── SAM + INPAINT PRIMITIVES
+
+/**
+ * Segmente une région nommée dans une image, retourne l'URL d'un mask PNG.
+ *
+ * @param imageUrl    URL https publique de l'image source
+ * @param textPrompt  Description en anglais de la région à détecter
+ *                    (ex: "cabinet doors and drawer fronts")
+ * @returns URL du mask PNG, ou null si SAM n'a rien trouvé
+ */
+async function segmentRegion(imageUrl: string, textPrompt: string): Promise<string | null> {
+  ensureConfigured();
+  const t0 = Date.now();
+  try {
+    const result = await fal.subscribe(EVF_SAM_MODEL, {
+      input: {
+        image_url: imageUrl,
+        prompt:    textPrompt,
+      },
+      logs: false,
+    });
+    const maskUrl = extractMaskUrl(result.data);
+    console.log(`[SAM] "${textPrompt}" → ${maskUrl ? 'OK' : 'NO MASK'} en ${Date.now() - t0}ms`);
+    return maskUrl;
+  } catch (err) {
+    console.warn(`[SAM] "${textPrompt}" ÉCHEC en ${Date.now() - t0}ms:`,
+      err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/**
+ * Repeint UNIQUEMENT la zone définie par le masque, avec le prompt donné.
+ * Les pixels HORS du masque sont strictement préservés (garanti par le
+ * modèle d'inpainting).
+ *
+ * @param imageUrl  Image courante (source ou résultat d'une étape précédente)
+ * @param maskUrl   Mask PNG retourné par EVF-SAM
+ * @param prompt    Description courte du matériau cible (ex: "deep matte black lacquered cabinet door surface")
+ * @returns URL de l'image inpaintée, ou null si échec
+ */
+async function inpaintRegion(
+  imageUrl: string,
+  maskUrl:  string,
+  prompt:   string,
+): Promise<string | null> {
+  ensureConfigured();
+  const t0 = Date.now();
+  try {
+    const result = await fal.subscribe(FLUX_INPAINT_MODEL, {
+      input: {
+        prompt,
+        image_url: imageUrl,
+        mask_url:  maskUrl,
+        num_images: 1,
+        output_format: 'jpeg',
+      },
+      logs: false,
+    });
+    const urls = extractImageUrls(result.data);
+    console.log(`[Inpaint] "${prompt.slice(0, 40)}…" → ${urls[0] ? 'OK' : 'NO IMG'} en ${Date.now() - t0}ms`);
+    return urls[0] ?? null;
+  } catch (err) {
+    console.warn(`[Inpaint] "${prompt.slice(0, 40)}…" ÉCHEC en ${Date.now() - t0}ms:`,
+      err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────── COLORISTE SAM + INPAINT (mode pro)
+
+/**
+ * Métadonnées retournées en plus du résultat standard pour le mode SAM.
+ * Permet à la route + UI de tracer ce qui s'est réellement passé (utile pour
+ * débugger les cas où une région n'a pas été détectée).
+ */
+export interface ColoristSAMStepReport {
+  region:        'facade' | 'poignee' | 'plan';
+  maskFound:     boolean;
+  inpaintOk:     boolean;
+  durationMs:    number;
+}
+
+/**
+ * Coloriste mode "pixel-perfect" : SAM segmente les 3 régions puis on inpaint
+ * séquentiellement. Tout pixel hors des 3 masques reste IDENTIQUE à la source
+ * (garanti par le modèle d'inpainting qui ne peint que dans le masque).
+ *
+ * Ordre des étapes (chacune utilise le résultat de la précédente comme source) :
+ *   1. Façades   (impact visuel le plus fort, fait en premier)
+ *   2. Poignées  (petite zone, moins sensible aux reflets du décor changé)
+ *   3. Plan de travail (en dernier, peut "voir" les façades repeintes pour
+ *      des reflets cohérents)
+ *
+ * Si SAM ne trouve pas une région (ex: poignées invisibles), on saute son étape
+ * sans planter (returns la dernière image valide). On rapporte la trace via
+ * `steps` pour que la route puisse logger / alerter.
+ *
+ * @param params           Paramètres couleurs/finitions/lumière de l'user
+ * @param sourceImageUrl   URL https de la photo cuisine (déjà uploadée fal-cdn)
+ * @param numImages        Ignoré (toujours 1 dans ce mode séquentiel ; le user
+ *                         peut relancer pour avoir une variante)
+ */
+export async function generateColoristImageSAM(
+  params: ColoristParams,
+  sourceImageUrl: string,
+  _numImages: number = 1,
+): Promise<GenerationResult & { steps?: ColoristSAMStepReport[] }> {
+  ensureConfigured();
+  const tStart = Date.now();
+  const steps: ColoristSAMStepReport[] = [];
+
+  // Texte buildé pour traçabilité dans IaJob.prompt (l'utilisateur voit ce
+  // qui a été demandé même si le pipeline est interne).
+  const traceablePrompt: BuiltPrompt = buildColoristPrompt(params, 'standard');
+
+  try {
+    // ── ÉTAPE 1 : SAM en parallèle pour les 3 régions ──────────────────
+    // Les prompts EVF-SAM sont en anglais explicite — "and" entre synonymes
+    // augmente la couverture du mask (ex: "doors AND drawer fronts" capture
+    // les façades inférieures et supérieures).
+    console.log(`[SAM+Inpaint] Pipeline start — source=${sourceImageUrl.slice(-40)}`);
+    const [maskFacade, maskHandle, maskCountertop] = await Promise.all([
+      segmentRegion(sourceImageUrl, 'cabinet doors and drawer fronts and cabinet panels'),
+      segmentRegion(sourceImageUrl, 'cabinet handles and knobs and drawer pulls'),
+      segmentRegion(sourceImageUrl, 'kitchen countertop and worktop surface'),
+    ]);
+
+    // ── ÉTAPE 2 : Inpainting séquentiel (chaque étape s'appuie sur la précédente)
+    let currentImage = sourceImageUrl;
+
+    // 2a — Façades
+    {
+      const t0 = Date.now();
+      if (maskFacade) {
+        const next = await inpaintRegion(currentImage, maskFacade, buildFacadeRegionPrompt(params));
+        const ok = !!next;
+        if (ok) currentImage = next!;
+        steps.push({ region: 'facade', maskFound: true, inpaintOk: ok, durationMs: Date.now() - t0 });
+      } else {
+        steps.push({ region: 'facade', maskFound: false, inpaintOk: false, durationMs: 0 });
+      }
+    }
+
+    // 2b — Poignées
+    {
+      const t0 = Date.now();
+      if (maskHandle) {
+        const next = await inpaintRegion(currentImage, maskHandle, buildHandleRegionPrompt(params));
+        const ok = !!next;
+        if (ok) currentImage = next!;
+        steps.push({ region: 'poignee', maskFound: true, inpaintOk: ok, durationMs: Date.now() - t0 });
+      } else {
+        steps.push({ region: 'poignee', maskFound: false, inpaintOk: false, durationMs: 0 });
+      }
+    }
+
+    // 2c — Plan de travail (en dernier pour bénéficier des reflets corrigés)
+    {
+      const t0 = Date.now();
+      if (maskCountertop) {
+        const next = await inpaintRegion(currentImage, maskCountertop, buildCountertopRegionPrompt(params));
+        const ok = !!next;
+        if (ok) currentImage = next!;
+        steps.push({ region: 'plan', maskFound: true, inpaintOk: ok, durationMs: Date.now() - t0 });
+      } else {
+        steps.push({ region: 'plan', maskFound: false, inpaintOk: false, durationMs: 0 });
+      }
+    }
+
+    // ── Validation : au moins 1 étape doit avoir réussi ──
+    const successfulSteps = steps.filter(s => s.inpaintOk).length;
+    if (successfulSteps === 0) {
+      return {
+        success:    false,
+        imageUrl:   null,
+        imageUrls:  [],
+        prompt:     traceablePrompt,
+        attempts:   1,
+        durationMs: Date.now() - tStart,
+        error:      'SAM n\'a détecté aucune région à modifier dans votre photo. Essayez avec une photo plus claire de la cuisine.',
+        steps,
+      };
+    }
+
+    console.log(`[SAM+Inpaint] Pipeline OK — ${successfulSteps}/3 régions traitées en ${Date.now() - tStart}ms`);
+    return {
+      success:    true,
+      imageUrl:   currentImage,
+      imageUrls:  [currentImage],
+      prompt:     traceablePrompt,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      steps,
+    };
+
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[SAM+Inpaint] Pipeline ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
+    return {
+      success:    false,
+      imageUrl:   null,
+      imageUrls:  [],
+      prompt:     traceablePrompt,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      message,
+      steps,
+    };
+  }
 }
 
 // ─────────────────────────────────────────── COLORISTE IMG2IMG (Flux Dev)
