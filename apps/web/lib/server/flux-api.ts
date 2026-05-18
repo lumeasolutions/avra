@@ -53,18 +53,26 @@ export interface FluxInput {
 
 const FLUX_MODEL_RENDU            = 'fal-ai/flux-pro/v1.1-ultra';
 const FLUX_MODEL_COLORISTE        = 'fal-ai/flux/dev'; // legacy, plus utilisé
-const FLUX_MODEL_KONTEXT_MULTI    = 'fal-ai/flux-pro/kontext/max/multi';
+
+// Variantes Kontext, du plus rapide au plus puissant. On choisit dynamiquement
+// selon le nombre d'images en entrée :
+//   - 1 image (photo source uniquement) → KONTEXT_SINGLE (le plus rapide)
+//   - 2-4 images (photo + textures) → KONTEXT_MULTI (multi-image standard)
+//   - jamais utilisé en routing auto, mais dispo si on veut forcer la qualité max
+const FLUX_MODEL_KONTEXT_SINGLE   = 'fal-ai/flux-pro/kontext';
+const FLUX_MODEL_KONTEXT_MULTI    = 'fal-ai/flux-pro/kontext/multi';
+const FLUX_MODEL_KONTEXT_MAX_MULTI = 'fal-ai/flux-pro/kontext/max/multi'; // legacy / fallback
 
 // Timeouts ajustés pour rester sous la limite Vercel Pro (300s par fonction
 // serverless). Budget cible :
-//   - 1ère tentative : 90s max (polling jusqu'à 80s + marge réseau)
-//   - 2ème tentative : 90s max
-//   - Total worst-case : ~180s, + upload + Supabase copy = ~220s
-// On garde 80s de marge avant que Vercel ne kill la fonction (504).
-const MAX_ATTEMPTS        = 2;       // 1 retry au lieu de 2 (le 3ème ne sauve quasi jamais)
-const TIMEOUT_MS          = 90_000;  // 90s max par tentative (avant: 120s)
+//   - 1ère tentative : 110s max (polling jusqu'à 100s + marge réseau)
+//   - 2ème tentative : 110s max
+//   - Total worst-case : ~225s, + upload + Supabase copy = ~245s
+// On garde 55s de marge avant que Vercel ne kill la fonction (504).
+const MAX_ATTEMPTS        = 2;       // strict : la boucle s'arrête après MAX_ATTEMPTS, pas après levels.length
+const TIMEOUT_MS          = 110_000; // 110s max par tentative
 const POLL_INTERVAL_MS    = 2_000;   // sonde le résultat toutes les 2s
-const POLL_MAX_ATTEMPTS   = 40;      // 40 × 2s = 80s max de polling (avant: 120s)
+const POLL_MAX_ATTEMPTS   = 50;      // 50 × 2s = 100s max de polling
 
 // ─────────────────────────────────────────── FAL API CLIENT
 
@@ -287,7 +295,12 @@ async function generateWithRetry(
   let attempts   = 0;
   let lastError  = '';
 
-  for (const level of levels) {
+  // Strict cap : on parcourt au plus MAX_ATTEMPTS niveaux (sinon on dépasse le
+  // budget Vercel 300s en pire cas). Le fallback absolu après la boucle reste
+  // une tentative séparée.
+  const maxLevelAttempts = Math.min(MAX_ATTEMPTS, levels.length);
+  for (let i = 0; i < maxLevelAttempts; i++) {
+    const level = levels[i];
     attempts++;
     const built = buildPrompt(level);
 
@@ -310,7 +323,7 @@ async function generateWithRetry(
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
       console.warn(`[FAL] Tentative ${attempts} (${level}) échouée:`, lastError);
-      if (attempts < MAX_ATTEMPTS) {
+      if (attempts < maxLevelAttempts) {
         await sleep(1000 * attempts);
       }
     }
@@ -354,11 +367,15 @@ async function callKontextMulti(
   numImages: number = 1,
 ): Promise<string[]> {
   if (imageUrls.length === 0) {
-    throw new Error('Kontext Multi: au moins une image (la photo source) est requise');
+    throw new Error('Kontext: au moins une image (la photo source) est requise');
   }
-  const input = {
+  // Routing dynamique : variant single (rapide) si 1 seule image, multi sinon.
+  // fal-ai/flux-pro/kontext (single) attend `image_url` (string).
+  // fal-ai/flux-pro/kontext/multi (multi)  attend `image_urls` (string[]).
+  const isSingle = imageUrls.length === 1;
+  const model    = isSingle ? FLUX_MODEL_KONTEXT_SINGLE : FLUX_MODEL_KONTEXT_MULTI;
+  const input: Record<string, unknown> = {
     prompt:           built.prompt,
-    image_urls:       imageUrls,
     num_images:       Math.min(Math.max(numImages, 1), 4),
     output_format:    'jpeg',
     seed:             built.seed,
@@ -366,10 +383,13 @@ async function callKontextMulti(
     aspect_ratio:     '16:9',
     guidance_scale:   3.5,
   };
-  console.log(`[Kontext] callFal model=${FLUX_MODEL_KONTEXT_MULTI} level=${built.level} promptLen=${built.prompt.length} images=${imageUrls.length}`);
+  if (isSingle) input.image_url  = imageUrls[0];
+  else          input.image_urls = imageUrls;
+
+  console.log(`[Kontext] callFal model=${model} level=${built.level} promptLen=${built.prompt.length} images=${imageUrls.length}`);
   const tStart = Date.now();
   try {
-    const urls = await callFalApi(FLUX_MODEL_KONTEXT_MULTI, input);
+    const urls = await callFalApi(model, input);
     console.log(`[Kontext] fal OK en ${Date.now() - tStart}ms, ${urls.length} URL(s) retournée(s)`);
     return urls;
   } catch (err) {
@@ -392,11 +412,16 @@ async function generateKontextWithRetry(
   numImages: number,
 ): Promise<GenerationResult> {
   const startTime = Date.now();
+  // 3 niveaux de fallback prompt ; on en consomme au plus MAX_ATTEMPTS.
+  // L'ancien code parcourait TOUS les niveaux quoi qu'il arrive, ce qui
+  // faisait sauter le plafond MAX_ATTEMPTS et dépasser le budget Vercel.
   const levels: Array<'standard' | 'simplified' | 'minimal'> = ['standard', 'simplified', 'minimal'];
+  const maxAttempts = Math.min(MAX_ATTEMPTS, levels.length);
   let attempts = 0;
   let lastError = '';
 
-  for (const level of levels) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const level = levels[i];
     attempts++;
     const built = buildKontextColoristPrompt(params, refs, level);
     try {
@@ -417,7 +442,7 @@ async function generateKontextWithRetry(
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
       console.warn(`[Kontext] Tentative ${attempts} (${level}) échouée:`, lastError);
-      if (attempts < MAX_ATTEMPTS) await sleep(1000 * attempts);
+      if (attempts < maxAttempts) await sleep(1000 * attempts);
     }
   }
 

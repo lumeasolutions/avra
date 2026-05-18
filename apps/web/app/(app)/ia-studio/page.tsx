@@ -160,10 +160,12 @@ async function compressImageToDataUrl(file: File, maxSide: number = 1280): Promi
 
 /* ─── Estimations affichées (données statiques, pas besoin du serveur) ─── */
 function estimateCost(module: 'coloriste' | 'rendu'): string {
-  return module === 'coloriste' ? '~0,10 €' : '~0,06 €';
+  // Coloriste utilise désormais flux-pro/kontext (single) ou /kontext/multi
+  // (multi-image) selon le nombre d'inputs — plus rapide que /max/multi et
+  // moins cher (~$0.04-0.06 / image vs $0.10).
+  return module === 'coloriste' ? '~0,05 €' : '~0,06 €';
 }
 function estimateDuration(module: 'coloriste' | 'rendu'): string {
-  // Kontext Max prend un peu plus de temps que Flux Dev (vs ~5s avant)
   return module === 'coloriste' ? '10–20 sec' : '10–20 sec';
 }
 
@@ -1069,9 +1071,9 @@ export default function IaStudioPage() {
                 <div className="flex items-center justify-between rounded-xl bg-[#304035]/4 px-3.5 py-2.5">
                   <div className="flex items-center gap-2">
                     <Star className="h-3.5 w-3.5 text-[#a67749]" />
-                    <span className="text-xs font-semibold text-[#304035]/70">Coût estimé · Flux Kontext Max</span>
+                    <span className="text-xs font-semibold text-[#304035]/70">Coût estimé · Flux Kontext</span>
                   </div>
-                  <span className="text-xs font-black text-[#304035]">~{(0.10 * colorNumVariants).toFixed(2).replace('.', ',')} € · {estimateDuration('coloriste')}</span>
+                  <span className="text-xs font-black text-[#304035]">~{(0.05 * colorNumVariants).toFixed(2).replace('.', ',')} € · {estimateDuration('coloriste')}</span>
                 </div>
                 {!canRunColor && !colorLoading && (
                   <p className="text-[11px] text-[#304035]/55 text-center">
@@ -1124,7 +1126,7 @@ export default function IaStudioPage() {
                     </div>
                     <div>
                       <p className="font-black text-[#304035]">Coloriste IA en action</p>
-                      <p className="text-xs text-[#304035]/50 mt-0.5">Flux Kontext Max · Édition multi-image…</p>
+                      <p className="text-xs text-[#304035]/50 mt-0.5">Flux Kontext · Édition image guidée…</p>
                     </div>
                   </div>
                   <ProgressBar steps={LOADING_STEPS_COLOR} color="#a67749" />

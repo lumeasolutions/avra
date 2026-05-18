@@ -101,6 +101,9 @@ export async function POST(req: NextRequest) {
   //       coûteuse pour avoir une trace même si fal.ai timeout/crash. Le
   //       champ `params` reçoit un snapshot non-sensible (les data URIs
   //       sont *exclues* — trop volumineuses et inutiles à long terme).
+  const willUseTextures = !!(
+    params.facadeTextureDataUrl || params.poigneeTextureDataUrl || params.planTextureDataUrl
+  );
   const job = await prisma.iaJob.create({
     data: {
       workspaceId,
@@ -108,7 +111,7 @@ export async function POST(req: NextRequest) {
       projectId,
       type:        'COLOR_VARIATION',
       status:      'QUEUED',
-      modelsUsed:  ['fal-ai/flux-pro/kontext/max/multi'],
+      modelsUsed:  [willUseTextures ? 'fal-ai/flux-pro/kontext/multi' : 'fal-ai/flux-pro/kontext'],
       params: {
         facadeHex:          params.facadeHex,
         poigneeHex:         params.poigneeHex,
@@ -209,7 +212,10 @@ export async function POST(req: NextRequest) {
     );
 
     // ── 8) UPDATE IaJob (DONE)
-    const costEUR = 0.10 * result.imageUrls.length; // ~$0.10 / image Kontext Max
+    //       Coût approximatif : Kontext single ~$0.04, multi ~$0.06.
+    //       On prend 0.05 de moyenne pour le tracking budget (à raffiner si
+    //       on veut un coût exact, fal.ai expose le prix dans la réponse).
+    const costEUR = 0.05 * result.imageUrls.length;
     await prisma.iaJob.update({
       where: { id: job.id },
       data:  {
