@@ -20,7 +20,7 @@
  * fallback "image indisponible".
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import {
   Loader2,
@@ -112,7 +112,13 @@ export default function HistoryPanel({ filterType, onSelect, refreshTrigger, acc
       const url = new URL('/api/ia/jobs', window.location.origin);
       url.searchParams.set('type',     filterType);
       url.searchParams.set('pageSize', '30');
-      const res = await fetch(url.toString(), { credentials: 'include' });
+      // Cache-bust : evite que le navigateur ressorte la reponse d'un fetch
+      // precedent (Next.js peut emettre des cache headers sur les /api routes).
+      url.searchParams.set('_t', String(Date.now()));
+      const res = await fetch(url.toString(), {
+        credentials: 'include',
+        cache:       'no-store',
+      });
       if (res.status === 401) {
         setError('Session expirée. Reconnectez-vous.');
         setJobs([]);
@@ -133,8 +139,24 @@ export default function HistoryPanel({ filterType, onSelect, refreshTrigger, acc
     }
   }, [filterType]);
 
-  // Re-fetch quand le filtre change OU quand la page parente bump refreshTrigger
-  useEffect(() => { void load(); }, [load, refreshTrigger]);
+  // Re-fetch quand le filtre change OU quand la page parente bump refreshTrigger.
+  // Apres une generation, on declenche un fetch immediat + un retry a 1.5s pour
+  // couvrir le cas ou la 1ere requete arrive avant que la transaction Prisma DONE
+  // soit visible sur le pooler Supabase (latence sub-seconde mais observable).
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    void load();
+    if (refreshTrigger && refreshTrigger > 0) {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = setTimeout(() => { void load(); }, 1500);
+    }
+    return () => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    };
+  }, [load, refreshTrigger]);
 
   return (
     <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md overflow-hidden flex flex-col h-full">
