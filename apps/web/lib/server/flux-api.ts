@@ -289,15 +289,16 @@ async function callFlux(
   };
 
   if (isFluxDev) {
-    // Schéma Flux Dev (text2img + img2img)
-    input.image_size           = 'landscape_16_9';
-    input.num_inference_steps  = 28;   // 40 par défaut, 28 = bon compromis qualité/vitesse
-    input.guidance_scale       = 3.5;
-    input.enable_safety_checker = true;
-    input.acceleration         = 'none';
+    // Schéma Flux Dev — params MINIMAUX (le playground marche en 1.71s avec
+    // juste image_url + prompt + strength). On ne touche pas à acceleration,
+    // num_inference_steps, etc. pour rester proche du playground qui marche.
     if (sourceImageUrl) {
+      // image-to-image : pas d'image_size (déduit de l'image source)
       input.image_url = sourceImageUrl;
       input.strength  = 0.85;
+    } else {
+      // text-to-image : image_size requis
+      input.image_size = 'landscape_16_9';
     }
   } else if (isFluxPro) {
     // Schéma Flux Pro Ultra (text-to-image only)
