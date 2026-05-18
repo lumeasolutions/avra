@@ -641,6 +641,11 @@ export default function IaStudioPage() {
   const dossiers       = useDossierStore(s => s.dossiers);
   const dossiersSignes = useDossierStore(s => s.dossiersSignes);
   const addLog         = useHistoryStore(s => s.addLog);
+  // 19/05/2026 : attache l'image générée au dossier sélectionné via le store
+  // Zustand (mémoire client + persist localStorage). Crée un sous-dossier
+  // "RENDUS IA" s'il n'existe pas, puis y ajoute le DocumentFile.
+  const addSubfolder           = useDossierStore(s => s.addSubfolder);
+  const addDocumentToSubfolder = useDossierStore(s => s.addDocumentToSubfolder);
   const allDossiers    = [...dossiers, ...dossiersSignes];
   const currentUser    = useAuthStore(s => s.user);
   const userName       = currentUser ? (currentUser.firstName ?? currentUser.email.split('@')[0]) : 'Utilisateur';
@@ -867,8 +872,34 @@ export default function IaStudioPage() {
     setColorLoading(false);
   };
 
+  /**
+   * Attache l'image IA générée au dossier sélectionné (sous-dossier "RENDUS IA").
+   * Crée le sous-dossier s'il n'existe pas. Le DocumentFile pointe vers l'URL
+   * signée Supabase (valable 30 jours — au-delà, on devra implémenter une copie
+   * vers le bucket dossier-documents pour la conservation long terme).
+   *
+   * 19/05/2026 : feature critique demandée user "ca ne fonctionne pas".
+   */
+  const IA_SUBFOLDER_LABEL = 'RENDUS IA';
+  const attachToDossier = (item: Item, moduleLabel: string) => {
+    if (!dossierId || !item.imageUrl) return;
+    const dossier = allDossiers.find(d => d.id === dossierId);
+    if (!dossier) return;
+    // Crée le sous-dossier "RENDUS IA" si absent
+    const hasIaFolder = (dossier.subfolders ?? []).some(sf => sf.label === IA_SUBFOLDER_LABEL);
+    if (!hasIaFolder) addSubfolder(dossierId, IA_SUBFOLDER_LABEL);
+    // Pousse le document dans le sous-dossier (URL signée Supabase ia-renders)
+    addDocumentToSubfolder(dossierId, IA_SUBFOLDER_LABEL, {
+      name:    `${moduleLabel} — ${item.prompt.slice(0, 60)} (${item.ts}).jpg`,
+      type:    'image/jpeg',
+      url:     item.imageUrl,
+      addedAt: new Date().toLocaleDateString('fr-FR'),
+    });
+  };
+
   const saveColor = () => {
     if (!colorResult) return;
+    attachToDossier(colorResult, 'Coloriste IA');
     setGallery(p => [colorResult, ...p]);
     addLog({ user:userName, action:'Coloriste IA', target:`${dossierName} — "${colorResult.prompt.slice(0,40)}"`, icon:'🎨' });
     setColorResult(null);
@@ -876,7 +907,10 @@ export default function IaStudioPage() {
 
   /* ── Rendu : lancer */
   const runRendu = async () => {
-    if (!rendFacades.trim()) return;
+    // Plus de pré-condition : tous les champs Matériaux sont optionnels.
+    // Les defaults serveur ('Façades modernes...' / 'quartz blanc mat')
+    // prennent le relais si vide. Le tab Rendu accepte une simple génération
+    // from-scratch sans aucune saisie texte.
     setRendLoading(true); setRendResult(null); setRendError(null);
 
     try {
@@ -929,6 +963,7 @@ export default function IaStudioPage() {
 
   const saveRendu = () => {
     if (!rendResult) return;
+    attachToDossier(rendResult, 'Rendu IA');
     setGallery(p => [rendResult, ...p]);
     addLog({ user:userName, action:'Rendu Réaliste', target:`${dossierName} — "${rendResult.prompt.slice(0,40)}"`, icon:'✨' });
     setRendResult(null);
@@ -1416,7 +1451,7 @@ export default function IaStudioPage() {
                 </div>
 
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Façades & couleurs</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Façades & couleurs <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
                   <input
                     value={rendFacades}
                     onChange={e => setRendFacades(e.target.value)}
@@ -1434,7 +1469,7 @@ export default function IaStudioPage() {
                 </div>
 
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Plan de travail</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Plan de travail <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
                   <input
                     value={rendPlan}
                     onChange={e => setRendPlan(e.target.value)}
@@ -1490,28 +1525,8 @@ export default function IaStudioPage() {
                 </div>
               </div>
 
-              {/* Options qualité — informatif (toujours actifs sur Flux Pro Ultra) */}
-              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5">
-                <div className="flex items-center gap-2 mb-1">
-                  <Layers className="h-4 w-4 text-[#5b9bd5]" />
-                  <p className="font-bold text-[#304035]">Qualité & format</p>
-                  <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-[#10b981]/80 bg-[#10b981]/8 px-2 py-0.5 rounded-full">Inclus automatiquement</span>
-                </div>
-                <p className="text-xs text-[#304035]/50 mb-3">Tous ces réglages sont activés par défaut sur Flux 1.1 Pro Ultra.</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { icon:Star,   label:'4K Ultra HD',    desc:'Print & présentation' },
-                    { icon:Eye,    label:'Lumière réelle', desc:'Simulation jour/nuit' },
-                    { icon:Award,  label:'Anti-aliasing',  desc:'Rendu professionnel'  },
-                  ].map(({icon:I,label,desc}) => (
-                    <div key={label} className="flex flex-col items-center text-center rounded-xl border border-[#5b9bd5]/15 bg-gradient-to-b from-[#5b9bd5]/5 to-white p-3.5">
-                      <I className="h-5 w-5 text-[#5b9bd5] mb-2" />
-                      <p className="text-xs font-bold text-[#304035] leading-tight">{label}</p>
-                      <p className="text-[10px] text-[#304035]/40 mt-1">{desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* Bloc 'Qualité & format' retiré 19/05/2026 — info inutile pour
+                  le client, ces réglages sont implicites côté serveur. */}
 
               {/* Dossier + CTA */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
@@ -1537,13 +1552,8 @@ export default function IaStudioPage() {
 
                 {/* Bloc 'Coût estimé' retiré 19/05/2026 — client n'a pas à voir
                     le moteur IA ni le coût. */}
-                {!rendLoading && !rendFacades.trim() && (
-                  <p className="text-[11px] text-[#304035]/55 text-center">
-                    Décrivez les façades pour activer le bouton.
-                  </p>
-                )}
                 <button onClick={runRendu}
-                  disabled={rendLoading || !rendFacades.trim()}
+                  disabled={rendLoading}
                   className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{background:'linear-gradient(135deg,#5b9bd5 0%,#3a78b5 100%)'}}>
                   <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
