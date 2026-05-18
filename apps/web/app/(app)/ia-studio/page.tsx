@@ -33,7 +33,7 @@ async function callColoristAPI(params: {
   poigneeTextureDataUrl?: string;
   planTextureDataUrl?: string;
   numImages?: number;
-}): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
+}): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string; steps?: PipelineStep[] | null }> {
   const res = await fetch('/api/ia/coloriste', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -42,7 +42,7 @@ async function callColoristAPI(params: {
   // Même protection que callRenduAPI : fallback gracieux sur réponses non-JSON
   // (timeout Vercel, plain text "An error occurred", HTML error page).
   const text = await res.text();
-  let parsed: { imageUrl?: string | null; imageUrls?: string[]; error?: unknown; message?: unknown; code?: unknown } | null = null;
+  let parsed: { imageUrl?: string | null; imageUrls?: string[]; error?: unknown; message?: unknown; code?: unknown; steps?: PipelineStep[] | null } | null = null;
   try { parsed = JSON.parse(text); } catch { parsed = null; }
 
   // Coercion défensive (BUG 18/05/2026 : Vercel renvoie parfois une enveloppe
@@ -70,6 +70,7 @@ async function callColoristAPI(params: {
       imageUrl:  typeof parsed.imageUrl === 'string' ? parsed.imageUrl : null,
       imageUrls: Array.isArray(parsed.imageUrls) ? parsed.imageUrls.filter(u => typeof u === 'string') as string[] : undefined,
       error:     errorMessage,
+      steps:     Array.isArray(parsed.steps) ? parsed.steps : null,
     };
   }
 
@@ -207,6 +208,14 @@ async function compressImageToDataUrl(file: File, maxSide: number = 1280): Promi
   }
 }
 
+/* ─── Reporting transparent du pipeline SAM (par région) ─── */
+interface PipelineStep {
+  region:     'facade' | 'poignee' | 'plan';
+  maskFound:  boolean;
+  inpaintOk:  boolean;
+  durationMs: number;
+}
+
 /* ─── Estimations affichées (données statiques, pas besoin du serveur) ─── */
 function estimateCost(module: 'coloriste' | 'rendu'): string {
   // Coloriste utilise désormais flux-pro/kontext (single) ou /kontext/multi
@@ -243,7 +252,7 @@ const CSS = `
 /* ─────────────────────────────────────────── TYPES */
 type Module = 'coloriste' | 'rendu';
 interface Preset { name:string; facade:string; poignee:string; plan:string; desc:string; mood:string; finish:FinishType; handleMaterial:string; countertopMaterial:string }
-interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:string; color:string; imageUrl?:string; imageUrls?:string[] }
+interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:string; color:string; imageUrl?:string; imageUrls?:string[]; steps?: PipelineStep[] | null }
 
 const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 8);
 
@@ -443,10 +452,91 @@ function ChipSelector<T extends string>({
 }
 
 /** Résultat avec image réelle ou mock + miniatures variantes si plusieurs images. */
-function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon }: {
+/**
+ * Slider de comparaison avant/après — drag horizontal pour révéler progressivement
+ * l'image AVANT en partant de la gauche. Indispensable pour vérifier d'un coup
+ * d'œil que SAM+Inpaint n'a modifié QUE les façades/poignées/plan (mode coloriste).
+ *
+ * Pure CSS via `clip-path` : aucune dépendance externe, fluide même sur mobile.
+ */
+function BeforeAfterSlider({ beforeUrl, afterUrl }: { beforeUrl: string; afterUrl: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState(50); // % 0-100
+  const [dragging, setDragging] = useState(false);
+
+  const updatePosition = useCallback((clientX: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const pct = ((clientX - rect.left) / rect.width) * 100;
+    setPosition(Math.max(0, Math.min(100, pct)));
+  }, []);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      const cx = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      updatePosition(cx);
+    };
+    const onUp = () => setDragging(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('touchmove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchend', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchend', onUp);
+    };
+  }, [dragging, updatePosition]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative w-full overflow-hidden rounded-2xl select-none cursor-ew-resize"
+      style={{ aspectRatio: '4/3' }}
+      onMouseDown={e => { setDragging(true); updatePosition(e.clientX); }}
+      onTouchStart={e => { setDragging(true); updatePosition(e.touches[0].clientX); }}
+    >
+      {/* Image APRÈS (en fond, pleine taille) */}
+      <Image src={afterUrl} alt="Après" fill className="object-cover pointer-events-none" sizes="600px" unoptimized />
+
+      {/* Image AVANT (clippée selon la position du curseur) */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
+      >
+        <Image src={beforeUrl} alt="Avant" fill className="object-cover" sizes="600px" unoptimized />
+      </div>
+
+      {/* Curseur vertical */}
+      <div
+        className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg pointer-events-none"
+        style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
+      >
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-lg border-2 border-[#304035]/15">
+          <ArrowRight className="h-3.5 w-3.5 text-[#304035]" style={{ transform: 'rotate(180deg)' }} />
+          <ArrowRight className="h-3.5 w-3.5 text-[#304035] -ml-1" />
+        </div>
+      </div>
+
+      {/* Labels */}
+      <div className="absolute top-2 left-2 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 pointer-events-none">
+        Avant
+      </div>
+      <div className="absolute top-2 right-2 rounded-full bg-[#a67749]/85 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 pointer-events-none">
+        Après
+      </div>
+    </div>
+  );
+}
+
+function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, beforeUrl }: {
   item: Item; accentColor: string;
   onSave: () => void; onRegenerate: () => void;
   icon: React.ElementType;
+  /** Si fourni (cas coloriste), affiche un slider avant/après au lieu de l'image seule */
+  beforeUrl?: string | null;
 }) {
   const allUrls = (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : []);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -461,10 +551,12 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon }: {
         </div>
       </div>
 
-      {/* Image générée ou mock */}
+      {/* Image générée ou mock — avec slider avant/après si beforeUrl dispo */}
       <div className="overflow-hidden rounded-2xl" style={{border:`1.5px solid ${accentColor}28`}}>
         {mainUrl && !mainUrl.includes('placehold') ? (
-          <Image src={mainUrl} alt="Rendu IA" width={600} height={400} loading="lazy" className="w-full object-cover rounded-2xl" unoptimized />
+          beforeUrl
+            ? <BeforeAfterSlider beforeUrl={beforeUrl} afterUrl={mainUrl} />
+            : <Image src={mainUrl} alt="Rendu IA" width={600} height={400} loading="lazy" className="w-full object-cover rounded-2xl" unoptimized />
         ) : (
           <div className="relative flex flex-col items-center justify-center py-12 px-6 text-center"
             style={{background:`linear-gradient(145deg, ${accentColor}12, ${accentColor}28, ${accentColor}10)`}}>
@@ -486,6 +578,32 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon }: {
           </div>
         )}
       </div>
+
+      {/* Badges régions — transparence sur ce qui a réellement été modifié.
+          Affiché uniquement si on a des steps (mode coloriste SAM+Inpaint). */}
+      {item.steps && item.steps.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {item.steps.map(s => {
+            const isOk    = s.maskFound && s.inpaintOk;
+            const label   = s.region === 'facade' ? 'Façades' : s.region === 'poignee' ? 'Poignées' : 'Plan de travail';
+            const tooltip = !s.maskFound ? 'Zone non détectée par l\'IA' : !s.inpaintOk ? 'Coloration échouée' : `Modifié en ${(s.durationMs/1000).toFixed(1)}s`;
+            return (
+              <span
+                key={s.region}
+                title={tooltip}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
+                  isOk
+                    ? 'border-[#10b981]/30 bg-[#10b981]/8 text-[#10b981]'
+                    : 'border-[#ef4444]/30 bg-[#ef4444]/8 text-[#ef4444]'
+                }`}
+              >
+                {isOk ? <CheckCircle2 className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                {label}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* Miniatures variantes */}
       {allUrls.length > 1 && (
@@ -718,6 +836,7 @@ export default function IaStudioPage() {
         color: preset?.facade ?? facadeCol,
         imageUrl: result.imageUrl ?? undefined,
         imageUrls: result.imageUrls ?? (result.imageUrl ? [result.imageUrl] : []),
+        steps: result.steps ?? null,
       });
     } catch (err) {
       // 05/05/2026 - message vrai en priorite pour distinguer timeout serverless (TimeoutError)
@@ -1195,7 +1314,7 @@ export default function IaStudioPage() {
                 </div>
               )}
 
-              {/* Résultat */}
+              {/* Résultat — coloriste : avec slider avant/après pour comparer */}
               {colorResult && !colorLoading && (
                 <ResultCard
                   item={colorResult}
@@ -1203,6 +1322,7 @@ export default function IaStudioPage() {
                   icon={Paintbrush}
                   onSave={saveColor}
                   onRegenerate={runColor}
+                  beforeUrl={photoURL}
                 />
               )}
 

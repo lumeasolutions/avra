@@ -288,6 +288,11 @@ export async function POST(req: NextRequest) {
       durationMs: Date.now() - tStart,
       level:      result.prompt.level,
       warnings:   result.prompt.warnings,
+      // Pipeline SAM transparency : permet à l'UI d'afficher quelles régions
+      // ont été effectivement modifiées (✓ façades, ✗ poignées, ✓ plan).
+      // Indispensable pour que l'user comprenne si un résultat décevant vient
+      // d'un mask raté plutôt que d'un défaut global.
+      steps:      samSteps ?? null,
       rateLimit:  { remaining: rateResult.remaining, resetAt: rateResult.resetAt },
     });
     })()]);

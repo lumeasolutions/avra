@@ -136,6 +136,43 @@ function hexToName(hex: string): string {
 }
 
 /**
+ * Descripteurs HSL additionnels pour préciser la teinte au-delà du nom.
+ * Flux comprend mieux un prompt "deep saturated vibrant red, warm undertone"
+ * qu'un simple "red". Ces descripteurs s'ajoutent au nom de base.
+ */
+function colorDescriptors(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const saturation = max === 0 ? 0 : (max - min) / max;
+  const lightness  = (r + g + b) / 3;
+
+  const parts: string[] = [];
+
+  // Intensité de saturation
+  if (saturation > 0.75) parts.push('highly saturated');
+  else if (saturation > 0.45) parts.push('moderately saturated');
+  else if (saturation > 0.15) parts.push('muted desaturated');
+  else parts.push('neutral achromatic');
+
+  // Clarté
+  if (lightness < 60) parts.push('deep dark tone');
+  else if (lightness < 110) parts.push('rich medium-dark tone');
+  else if (lightness < 170) parts.push('medium tone');
+  else if (lightness < 220) parts.push('soft light tone');
+  else parts.push('bright pale tone');
+
+  // Warm/cool axis (red+green vs blue)
+  const warmth = (r + g * 0.5) - b;
+  if (warmth > 40) parts.push('warm undertone');
+  else if (warmth < -40) parts.push('cool undertone');
+
+  return parts.join(', ');
+}
+
+/**
  * Fallback de nommage couleur quand HEX_TO_NAME ne match pas.
  * Refonte 18/05/2026 : avant on retournait "warm red-brown" pour TOUT rouge
  * vibrant (#FF0000), ce qui faisait que Flux peignait du marron au lieu de
@@ -468,35 +505,39 @@ export function isPromptValid(built: BuiltPrompt): boolean {
 
 /**
  * Prompt pour repeindre UNIQUEMENT les façades de meubles.
- * Renforcé 18/05/2026 : "solid" + "uniform color" pour éviter que Flux
- * interprète la couleur comme un motif/dégradé.
+ * Renforcé 18/05/2026 (v3) : descripteurs HSL pour précision couleur.
  */
 export function buildFacadeRegionPrompt(params: ColoristParams): string {
   const color  = hexToName(params.facadeHex);
+  const descs  = colorDescriptors(params.facadeHex);
   const finish = FINISH_BLOCKS[params.facadeFinish];
-  return `kitchen cabinet door panel painted in solid ${color}, uniform consistent color across entire surface, ${finish}, flat smooth panel surface, photorealistic high-end kitchen material, sharp clean edges`;
+  return `kitchen cabinet door panel painted in solid ${color} (${descs}), uniform consistent color across entire surface, ${finish}, flat smooth panel surface, photorealistic high-end kitchen material, sharp clean edges`;
 }
 
 /**
  * Prompt pour repeindre UNIQUEMENT les poignées / boutons / tirants.
  */
 export function buildHandleRegionPrompt(params: ColoristParams): string {
-  const material = params.handleMaterial ?? `${hexToName(params.poigneeHex)} metal cabinet handle`;
+  const color = hexToName(params.poigneeHex);
+  const descs = colorDescriptors(params.poigneeHex);
+  const material = params.handleMaterial ?? `${color} metal cabinet handle`;
   const finishSuffix = params.poigneeFinish
     ? `, ${FINISH_BLOCKS[params.poigneeFinish]}`
     : '';
-  return `single ${material}${finishSuffix}, sleek modern hardware, photorealistic metal texture, sharp clean edges, integrated into cabinet`;
+  return `single ${material} (${descs})${finishSuffix}, sleek modern hardware, photorealistic metal texture, sharp clean edges, integrated into cabinet`;
 }
 
 /**
  * Prompt pour repeindre UNIQUEMENT le plan de travail.
  */
 export function buildCountertopRegionPrompt(params: ColoristParams): string {
-  const material = params.countertopMaterial ?? `${hexToName(params.planHex)} countertop surface`;
+  const color = hexToName(params.planHex);
+  const descs = colorDescriptors(params.planHex);
+  const material = params.countertopMaterial ?? `${color} countertop surface`;
   const finishSuffix = params.planFinish
     ? `, ${FINISH_BLOCKS[params.planFinish]}`
     : '';
-  return `kitchen countertop in ${material}${finishSuffix}, seamless uniform surface, photorealistic high-end material texture, sharp clean edges, subtle natural reflections, premium quality finish`;
+  return `kitchen countertop in ${material} (${descs})${finishSuffix}, seamless uniform surface, photorealistic high-end material texture, sharp clean edges, subtle natural reflections, premium quality finish`;
 }
 
 // ─────────────────────────────────────────── BUILDER COLORISTE — KONTEXT MULTI

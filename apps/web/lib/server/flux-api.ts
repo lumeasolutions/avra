@@ -124,34 +124,68 @@ function extractMaskUrl(data: unknown): string | null {
  *                    (ex: "cabinet doors and drawer fronts")
  * @returns URL du mask PNG, ou null si SAM n'a rien trouvé
  */
-async function segmentRegion(imageUrl: string, textPrompt: string): Promise<string | null> {
+interface SegmentOptions {
+  /** Combien de pixels élargir le mask aux bords. Plus c'est gros, plus on
+   * couvre les contours mais on risque de mordre sur les zones voisines.
+   * Recommandations :
+   *  - facades  : 3-4 (zones bien définies, contours fiables)
+   *  - handles  : 2   (petits objets, ne pas mordre sur le meuble)
+   *  - countertop : 1-2 (CRITIQUE : 5 mordait sur le backsplash/credence) */
+  expandMask?: number;
+  /** Flou des bords du mask (0 = bords nets, 5-10 = transition douce).
+   * Indispensable pour éviter les coutures visibles sur l'inpainting. */
+  blurMask?: number;
+  /** Negative prompt : ce qu'on ne veut PAS dans le mask (ex: pour countertop,
+   * négativer "backsplash, wall, tile" pour éviter d'inclure la crédence). */
+  negativePrompt?: string;
+}
+
+async function segmentRegion(
+  imageUrl: string,
+  textPrompt: string,
+  opts: SegmentOptions = {},
+): Promise<string | null> {
   ensureConfigured();
   const t0 = Date.now();
   try {
-    // FIX 18/05/2026 (v2) : ajout `use_grounding_dino: true` pour MULTI-instance
-    // detection. Sans ça, EVF-SAM trouve souvent UNE seule occurrence (ex: le
-    // meuble du bas) et rate les meubles du haut, surtout si visuellement
-    // différents (peint vs bois). Avec grounding DINO en pré-step, on capture
-    // TOUTES les instances du concept dans l'image.
     const result = await fal.subscribe(EVF_SAM_MODEL, {
       input: {
         image_url:          imageUrl,
         prompt:             textPrompt,
         mask_only:          true,
-        expand_mask:        5,
+        expand_mask:        opts.expandMask  ?? 3,
+        blur_mask:          opts.blurMask    ?? 4,
         fill_holes:         true,
         use_grounding_dino: true,
+        ...(opts.negativePrompt ? { negative_prompt: opts.negativePrompt } : {}),
       },
       logs: false,
     });
     const maskUrl = extractMaskUrl(result.data);
-    console.log(`[SAM] "${textPrompt}" → ${maskUrl ?? 'NO MASK'} en ${Date.now() - t0}ms`);
+    console.log(`[SAM] "${textPrompt.slice(0, 60)}" expand=${opts.expandMask ?? 3} blur=${opts.blurMask ?? 4} → ${maskUrl ? 'OK' : 'NO MASK'} en ${Date.now() - t0}ms`);
     return maskUrl;
   } catch (err) {
-    console.warn(`[SAM] "${textPrompt}" ÉCHEC en ${Date.now() - t0}ms:`,
+    console.warn(`[SAM] "${textPrompt.slice(0, 60)}" ÉCHEC en ${Date.now() - t0}ms:`,
       err instanceof Error ? err.message : err);
     return null;
   }
+}
+
+/**
+ * Tente une segmentation avec un prompt principal, et si ça rate, retry avec
+ * un prompt alternatif plus simple. Augmente significativement la robustesse
+ * quand le concept est mal nommé ou que SAM est confus par le prompt long.
+ */
+async function segmentRegionWithRetry(
+  imageUrl: string,
+  primaryPrompt: string,
+  fallbackPrompt: string,
+  opts: SegmentOptions = {},
+): Promise<string | null> {
+  const mask = await segmentRegion(imageUrl, primaryPrompt, opts);
+  if (mask) return mask;
+  console.log(`[SAM] Retry avec fallback: "${fallbackPrompt.slice(0, 60)}"`);
+  return segmentRegion(imageUrl, fallbackPrompt, opts);
 }
 
 /**
@@ -251,21 +285,37 @@ export async function generateColoristImageSAM(
 
   try {
     // ── ÉTAPE 1 : SAM en parallèle pour les 3 régions ──────────────────
-    // FIX 18/05/2026 (v2) : prompts plus INCLUSIFS pour capturer TOUTES les
-    // instances visibles (le user a constaté que les façades en bois en haut
-    // n'étaient pas détectées comme "cabinet doors", probablement classifiées
-    // comme "wooden furniture"). En ajoutant des synonymes/familles et en
-    // utilisant `use_grounding_dino: true` (cf segmentRegion), on couvre
-    // mieux les façades hétérogènes (peintes + bois + verre).
-    //
-    // Countertop : "countertop only, not backsplash" pour éviter que SAM
-    // inclue la crédence dans le masque (le user a vu des modifs sur les
-    // zones autour du plan de travail).
+    // Perfection 18/05/2026 (v3) :
+    //  - Per-region expand_mask (3 façades / 2 handles / 1 countertop CRITIQUE)
+    //  - blur_mask 4-6 pour transitions douces, évite coutures visibles
+    //  - negative_prompt sur countertop pour exclure le backsplash
+    //  - Retry avec prompt alternatif si le primaire rate (ex: bois +
+    //    peint sont classifiés différemment par SAM)
     console.log(`[SAM+Inpaint] Pipeline start — source=${sourceImageUrl.slice(-40)}`);
     const [maskFacade, maskHandle, maskCountertop] = await Promise.all([
-      segmentRegion(sourceImageUrl, 'all kitchen cabinet doors and drawer fronts, upper and lower cabinets'),
-      segmentRegion(sourceImageUrl, 'cabinet handles and knobs and drawer pulls'),
-      segmentRegion(sourceImageUrl, 'kitchen countertop horizontal surface only, not walls'),
+      segmentRegionWithRetry(
+        sourceImageUrl,
+        'all kitchen cabinet doors and drawer fronts, upper and lower cabinets',
+        'kitchen cabinets',
+        { expandMask: 3, blurMask: 5 },
+      ),
+      segmentRegionWithRetry(
+        sourceImageUrl,
+        'cabinet handles and knobs and drawer pulls',
+        'cabinet handles',
+        { expandMask: 2, blurMask: 3 },
+      ),
+      segmentRegionWithRetry(
+        sourceImageUrl,
+        'kitchen countertop horizontal worktop surface',
+        'kitchen countertop',
+        {
+          expandMask: 1,
+          blurMask:   4,
+          // CRITIQUE : exclure explicitement la crédence/backsplash/mur
+          negativePrompt: 'backsplash, wall, tile, splashback, vertical surface, kitchen appliances, oven, microwave, sink',
+        },
+      ),
     ]);
 
     // ── ÉTAPE 2 : Inpainting séquentiel (chaque étape s'appuie sur la précédente)

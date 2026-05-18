@@ -33,12 +33,39 @@ const VALID_TYPES: IaJobType[] = [
 ];
 const VALID_STATUSES: IaJobStatus[] = ['QUEUED', 'PROCESSING', 'DONE', 'FAILED'];
 
+// Seuil de "stuck" : un job en QUEUED ou PROCESSING depuis plus de 10 min
+// est considéré comme mort (la fonction Vercel a probablement été killée).
+const STUCK_JOB_THRESHOLD_MS = 10 * 60 * 1000;
+
 export async function GET(req: NextRequest) {
   const userCtx = getUserContextFromRequest(req);
   if (!userCtx) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const { workspaceId } = userCtx;
+
+  // Auto-cleanup opportuniste : on profite de chaque appel à /jobs pour
+  // marquer FAILED les jobs coincés depuis > 10 min dans CE workspace.
+  // Pas de cron nécessaire en bêta privée — l'historique est consulté
+  // suffisamment souvent. Best-effort : si Prisma rate, on continue.
+  try {
+    const threshold = new Date(Date.now() - STUCK_JOB_THRESHOLD_MS);
+    await prisma.iaJob.updateMany({
+      where: {
+        workspaceId,
+        status:    { in: ['QUEUED', 'PROCESSING'] },
+        updatedAt: { lt: threshold },
+      },
+      data: {
+        status:       'FAILED',
+        errorMessage: 'Timeout serveur — fonction Vercel killée (auto-cleanup au fetch historique).',
+        completedAt:  new Date(),
+      },
+    });
+  } catch (cleanupErr) {
+    console.warn('[GET /api/ia/jobs] auto-cleanup soft-fail:',
+      cleanupErr instanceof Error ? cleanupErr.message : cleanupErr);
+  }
 
   const { searchParams } = new URL(req.url);
 
