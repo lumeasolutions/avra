@@ -733,7 +733,9 @@ export default function IaStudioPage() {
   /* ── Nombre de variantes : verrouillé à 1 image (sélecteur retiré 19/05/2026).
      On garde le state pour le coût estimate et le call API, valeur fixe. */
   const [colorNumVariants] = useState<1|2|4>(1);
-  const [rendNumVariants,  setRendNumVariants]  = useState<1|2|4>(1);
+  // Rendu réaliste verrouillé à 1 image (cf. coloriste). On garde une constante
+  // pour rester compatible avec l'API qui accepte un numImages.
+  const rendNumVariants = 1 as const;
 
   /* Preview photo */
   useEffect(() => {
@@ -1532,23 +1534,8 @@ export default function IaStudioPage() {
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
                 <DossierPicker />
 
-                {/* Sélecteur variantes */}
-                <div>
-                  <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-2">Nombre de variantes</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {([1,2,4] as const).map(n => (
-                      <button key={n} onClick={() => setRendNumVariants(n)}
-                        className={`flex flex-col items-center justify-center rounded-xl border-2 py-2 transition-all ${
-                          rendNumVariants === n
-                            ? 'border-[#5b9bd5] bg-[#5b9bd5]/8 shadow-sm'
-                            : 'border-[#304035]/12 bg-white hover:border-[#5b9bd5]/40'
-                        }`}>
-                        <span className={`text-base font-black ${rendNumVariants === n ? 'text-[#5b9bd5]' : 'text-[#304035]/60'}`}>{n}</span>
-                        <span className="text-[9px] uppercase tracking-wider text-[#304035]/45">{n === 1 ? 'image' : 'images'}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {/* Sélecteur 'Nombre de variantes' retiré 19/05/2026 — verrouillé
+                    à 1 image (cf. même choix sur coloriste). */}
 
                 {/* Bloc 'Coût estimé' retiré 19/05/2026 — client n'a pas à voir
                     le moteur IA ni le coût. */}
