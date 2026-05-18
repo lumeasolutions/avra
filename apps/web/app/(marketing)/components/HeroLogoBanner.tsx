@@ -9,7 +9,37 @@ import Image from 'next/image';
  * - 3 éléments : logo A circulaire (gauche), mot AVRA (centre), chouette (droite)
  * - Aucun "wow effect" : pas de particules, comètes, auroras, anneaux, prismes…
  * - Animations conservées : entrée en fondu + léger flottement vertical
+ *
+ * Le CSS responsive est passe via dangerouslySetInnerHTML pour eviter une
+ * reconciliation React du contenu du <style> (sinon un bundle JS stale cote
+ * client peut declencher une erreur d'hydration sur le texte CSS).
  */
+const HERO_BANNER_CSS = `
+@keyframes heroLogoFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@media (max-width: 1200px) {
+  .hero-logo-banner { gap: 24px !important; padding: 20px 3% !important; height: 200px !important; }
+  .hero-logo-center { width: 520px !important; height: 180px !important; }
+  .hero-logo-left, .hero-logo-right { width: 160px !important; height: 160px !important; margin-left: -100px !important; margin-right: -100px !important; }
+  .hero-logo-left { margin-right: -100px !important; margin-left: 0 !important; }
+  .hero-logo-right { margin-left: -100px !important; margin-right: 0 !important; }
+}
+@media (max-width: 768px) {
+  .hero-logo-banner { gap: 0 !important; padding: 24px 4% !important; height: 140px !important; margin-top: 0 !important; flex-wrap: nowrap; }
+  .hero-logo-center { width: 260px !important; height: 90px !important; }
+  .hero-logo-left { width: 80px !important; height: 80px !important; margin-right: -30px !important; margin-left: 0 !important; }
+  .hero-logo-right { width: 80px !important; height: 80px !important; margin-left: -30px !important; margin-right: 0 !important; }
+}
+@media (max-width: 480px) {
+  .hero-logo-banner { padding: 20px 4% !important; height: 120px !important; }
+  .hero-logo-center { width: 200px !important; height: 72px !important; }
+  .hero-logo-left { width: 64px !important; height: 64px !important; margin-right: -20px !important; }
+  .hero-logo-right { width: 64px !important; height: 64px !important; margin-left: -20px !important; }
+}
+`;
+
 export default function HeroLogoBanner() {
   // Logos toujours visibles — pas de flash invisible au chargement
   const mounted = true;
@@ -33,7 +63,7 @@ export default function HeroLogoBanner() {
         padding: '0 2%',
         flexShrink: 0,
         overflow: 'hidden',
-        height: '420px',
+        height: '130px',
       }}
     >
       {/* Logo A circulaire (gauche) */}
@@ -117,31 +147,7 @@ export default function HeroLogoBanner() {
         </div>
       </div>
 
-      <style>{`
-        @keyframes heroLogoFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
-        @media (max-width: 1200px) {
-          .hero-logo-banner { gap: 24px !important; padding: 20px 3% !important; height: 340px !important; }
-          .hero-logo-center { width: 520px !important; height: 180px !important; }
-          .hero-logo-left, .hero-logo-right { width: 160px !important; height: 160px !important; margin-left: -100px !important; margin-right: -100px !important; }
-          .hero-logo-left { margin-right: -100px !important; margin-left: 0 !important; }
-          .hero-logo-right { margin-left: -100px !important; margin-right: 0 !important; }
-        }
-        @media (max-width: 768px) {
-          .hero-logo-banner { gap: 0 !important; padding: 24px 4% !important; height: 220px !important; margin-top: 0 !important; flex-wrap: nowrap; }
-          .hero-logo-center { width: 260px !important; height: 90px !important; }
-          .hero-logo-left { width: 80px !important; height: 80px !important; margin-right: -30px !important; margin-left: 0 !important; }
-          .hero-logo-right { width: 80px !important; height: 80px !important; margin-left: -30px !important; margin-right: 0 !important; }
-        }
-        @media (max-width: 480px) {
-          .hero-logo-banner { padding: 20px 4% !important; height: 180px !important; }
-          .hero-logo-center { width: 200px !important; height: 72px !important; }
-          .hero-logo-left { width: 64px !important; height: 64px !important; margin-right: -20px !important; }
-          .hero-logo-right { width: 64px !important; height: 64px !important; margin-left: -20px !important; }
-        }
-      `}</style>
+      <style dangerouslySetInnerHTML={{ __html: HERO_BANNER_CSS }} />
     </div>
   );
 }
