@@ -82,38 +82,54 @@ export async function POST(req: NextRequest) {
   const numImages = Math.min(Math.max(parseInt(String(body.numImages), 10) || 1, 1), 4);
   const projectId = typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 
-  // ── 4) INSERT IaJob (QUEUED)
-  const job = await prisma.iaJob.create({
-    data: {
-      workspaceId,
-      createdById: userId,
-      projectId,
-      type:        'PHOTOREALISM_ENHANCE',
-      status:      'QUEUED',
-      modelsUsed:  ['fal-ai/flux-pro/v1.1-ultra'],
-      params: {
-        facades:       params.facades,
-        planTravail:   params.planTravail,
-        sol:           params.sol ?? null,
-        murs:          params.murs ?? null,
-        style:         params.style,
-        lightingStyle: params.lightingStyle,
-        roomSize:      params.roomSize,
-        numImages,
-      },
-    },
-  });
-
-  const fail = async (status: number, message: string, durationMs: number) => {
-    await prisma.iaJob.update({
-      where: { id: job.id },
-      data:  {
-        status:       'FAILED',
-        errorMessage: message,
-        durationMs,
-        completedAt:  new Date(),
+  // ── 4) INSERT IaJob (QUEUED) — protégé pour ne jamais laisser une erreur
+  //       Prisma escape en uncaught (cf. coloriste pour le même pattern).
+  let job;
+  try {
+    job = await prisma.iaJob.create({
+      data: {
+        workspaceId,
+        createdById: userId,
+        projectId,
+        type:        'PHOTOREALISM_ENHANCE',
+        status:      'QUEUED',
+        modelsUsed:  ['fal-ai/flux-pro/v1.1-ultra'],
+        params: {
+          facades:       params.facades,
+          planTravail:   params.planTravail,
+          sol:           params.sol ?? null,
+          murs:          params.murs ?? null,
+          style:         params.style,
+          lightingStyle: params.lightingStyle,
+          roomSize:      params.roomSize,
+          numImages,
+        },
       },
     });
+  } catch (dbErr) {
+    console.error('[API /ia/rendu] prisma.iaJob.create échec:',
+      dbErr instanceof Error ? dbErr.message : String(dbErr));
+    return NextResponse.json(
+      { error: 'Impossible d\'enregistrer la demande en base. Réessayez dans un instant.' },
+      { status: 500 },
+    );
+  }
+
+  const fail = async (status: number, message: string, durationMs: number) => {
+    try {
+      await prisma.iaJob.update({
+        where: { id: job.id },
+        data:  {
+          status:       'FAILED',
+          errorMessage: message,
+          durationMs,
+          completedAt:  new Date(),
+        },
+      });
+    } catch (dbErr) {
+      console.warn(`[API /ia/rendu] fail() couldn't update IaJob ${job.id}:`,
+        dbErr instanceof Error ? dbErr.message : String(dbErr));
+    }
     return NextResponse.json({ error: message, jobId: job.id }, { status });
   };
 

@@ -119,44 +119,67 @@ export async function POST(req: NextRequest) {
     ? 'fal-ai/flux-pro/kontext/multi'
     : 'fal-ai/flux/dev';
   const costPerImage = willUseTextures ? 0.06 : 0.025;
-  const job = await prisma.iaJob.create({
-    data: {
-      workspaceId,
-      createdById: userId,
-      projectId,
-      type:        'COLOR_VARIATION',
-      status:      'QUEUED',
-      modelsUsed:  [modelUsed],
-      params: {
-        facadeHex:          params.facadeHex,
-        poigneeHex:         params.poigneeHex,
-        planHex:            params.planHex,
-        facadeFinish:       params.facadeFinish,
-        poigneeFinish:      params.poigneeFinish ?? null,
-        planFinish:         params.planFinish ?? null,
-        handleMaterial:     params.handleMaterial ?? null,
-        countertopMaterial: params.countertopMaterial ?? null,
-        lightingStyle:      params.lightingStyle,
-        numImages,
-        hasSourceImage:     true,
-        hasFacadeTexture:   !!params.facadeTextureDataUrl,
-        hasPoigneeTexture:  !!params.poigneeTextureDataUrl,
-        hasPlanTexture:     !!params.planTextureDataUrl,
-      },
-    },
-  });
 
-  // Helper local pour marquer le job FAILED avec un message
-  const fail = async (status: number, message: string, durationMs: number) => {
-    await prisma.iaJob.update({
-      where: { id: job.id },
-      data:  {
-        status:       'FAILED',
-        errorMessage: message,
-        durationMs,
-        completedAt:  new Date(),
+  // Création initiale du job (statut QUEUED) — isolée pour ne jamais laisser
+  // une erreur Prisma escape en uncaught (auquel cas Vercel renvoie son
+  // enveloppe `{code, id, message}` et le front crashe en React #31).
+  let job;
+  try {
+    job = await prisma.iaJob.create({
+      data: {
+        workspaceId,
+        createdById: userId,
+        projectId,
+        type:        'COLOR_VARIATION',
+        status:      'QUEUED',
+        modelsUsed:  [modelUsed],
+        params: {
+          facadeHex:          params.facadeHex,
+          poigneeHex:         params.poigneeHex,
+          planHex:            params.planHex,
+          facadeFinish:       params.facadeFinish,
+          poigneeFinish:      params.poigneeFinish ?? null,
+          planFinish:         params.planFinish ?? null,
+          handleMaterial:     params.handleMaterial ?? null,
+          countertopMaterial: params.countertopMaterial ?? null,
+          lightingStyle:      params.lightingStyle,
+          numImages,
+          hasSourceImage:     true,
+          hasFacadeTexture:   !!params.facadeTextureDataUrl,
+          hasPoigneeTexture:  !!params.poigneeTextureDataUrl,
+          hasPlanTexture:     !!params.planTextureDataUrl,
+        },
       },
     });
+  } catch (dbErr) {
+    console.error('[API /ia/coloriste] prisma.iaJob.create échec:',
+      dbErr instanceof Error ? dbErr.message : String(dbErr));
+    return NextResponse.json(
+      { error: 'Impossible d\'enregistrer la demande en base. Réessayez dans un instant.' },
+      { status: 500 },
+    );
+  }
+
+  // Helper local pour marquer le job FAILED avec un message.
+  // Le prisma.iaJob.update peut throw (DB déconnectée, contrainte violée,
+  // job déjà cleanup), donc on l'isole pour ne JAMAIS laisser une exception
+  // remonter jusqu'au caller — sinon Vercel renvoie son enveloppe d'erreur
+  // par défaut `{code, id, message}` que le front ne sait pas gérer.
+  const fail = async (status: number, message: string, durationMs: number) => {
+    try {
+      await prisma.iaJob.update({
+        where: { id: job.id },
+        data:  {
+          status:       'FAILED',
+          errorMessage: message,
+          durationMs,
+          completedAt:  new Date(),
+        },
+      });
+    } catch (dbErr) {
+      console.warn(`[API /ia/coloriste] fail() couldn't update IaJob ${job.id}:`,
+        dbErr instanceof Error ? dbErr.message : String(dbErr));
+    }
     return NextResponse.json({ error: message, jobId: job.id }, { status });
   };
 

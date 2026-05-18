@@ -42,27 +42,55 @@ async function callColoristAPI(params: {
   // Même protection que callRenduAPI : fallback gracieux sur réponses non-JSON
   // (timeout Vercel, plain text "An error occurred", HTML error page).
   const text = await res.text();
-  try {
-    return JSON.parse(text) as { imageUrl: string | null; imageUrls?: string[]; error?: string };
-  } catch {
-    let message = 'Le serveur n\'a pas pu générer la colorisation.';
-    if (res.status === 504) {
-      message = 'La colorisation a pris trop de temps (timeout). Réessayez ou simplifiez la demande.';
-    } else if (res.status === 502) {
-      message = 'Service IA momentanément indisponible (upload images). Réessayez dans une minute.';
-    } else if (res.status === 413) {
-      message = 'Image fournie trop volumineuse pour le serveur.';
-    } else if (res.status === 429) {
-      message = 'Trop de générations dans la dernière heure. Patientez un peu.';
-    } else if (res.status === 401) {
-      message = 'Session expirée — reconnectez-vous.';
-    } else if (res.status === 400) {
-      message = 'Photo ou paramètres invalides. Vérifiez le format de l\'image.';
-    } else if (text.toLowerCase().includes('an error occurred')) {
-      message = 'Erreur serveur (probablement timeout fal.ai). Réessayez dans 30s.';
+  let parsed: { imageUrl?: string | null; imageUrls?: string[]; error?: unknown; message?: unknown; code?: unknown } | null = null;
+  try { parsed = JSON.parse(text); } catch { parsed = null; }
+
+  // Coercion défensive (BUG 18/05/2026 : Vercel renvoie parfois une enveloppe
+  // {code, id, message} qu'on stockait tel quel dans colorError, ce qui faisait
+  // crasher React au render — "Objects are not valid as a React child" #31).
+  const coerceError = (e: unknown): string | undefined => {
+    if (e == null) return undefined;
+    if (typeof e === 'string') return e;
+    if (typeof e === 'object' && e !== null) {
+      const obj = e as Record<string, unknown>;
+      const fromMessage = typeof obj.message === 'string' ? obj.message : undefined;
+      const fromCode    = typeof obj.code    === 'string' ? obj.code    : undefined;
+      return fromMessage ?? fromCode ?? 'Erreur serveur';
     }
-    return { imageUrl: null, error: message };
+    return String(e);
+  };
+
+  if (parsed) {
+    // Cas standard : notre route renvoie { imageUrl, imageUrls, error: string }
+    // Cas Vercel envelope (500 uncaught) : { code, id, message } sans `error`
+    const errorMessage = coerceError(parsed.error) ?? (
+      !res.ok ? coerceError(parsed.message) : undefined
+    );
+    return {
+      imageUrl:  typeof parsed.imageUrl === 'string' ? parsed.imageUrl : null,
+      imageUrls: Array.isArray(parsed.imageUrls) ? parsed.imageUrls.filter(u => typeof u === 'string') as string[] : undefined,
+      error:     errorMessage,
+    };
   }
+
+  // Fallback : réponse non-JSON, on déduit du statut HTTP
+  let message = 'Le serveur n\'a pas pu générer la colorisation.';
+  if (res.status === 504) {
+    message = 'La colorisation a pris trop de temps (timeout). Réessayez ou simplifiez la demande.';
+  } else if (res.status === 502) {
+    message = 'Service IA momentanément indisponible (upload images). Réessayez dans une minute.';
+  } else if (res.status === 413) {
+    message = 'Image fournie trop volumineuse pour le serveur.';
+  } else if (res.status === 429) {
+    message = 'Trop de générations dans la dernière heure. Patientez un peu.';
+  } else if (res.status === 401) {
+    message = 'Session expirée — reconnectez-vous.';
+  } else if (res.status === 400) {
+    message = 'Photo ou paramètres invalides. Vérifiez le format de l\'image.';
+  } else if (text.toLowerCase().includes('an error occurred')) {
+    message = 'Erreur serveur (probablement timeout fal.ai). Réessayez dans 30s.';
+  }
+  return { imageUrl: null, error: message };
 }
 
 async function callRenduAPI(params: {
@@ -79,29 +107,50 @@ async function callRenduAPI(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  // FIX 05/05/2026 : Vercel peut renvoyer du texte natif (non-JSON) en cas
-  // de timeout / memory limit / erreur infrastructure → on parse avec
-  // fallback gracieux pour éviter "Unexpected token A is not valid JSON"
-  // qui ne dit rien à l'utilisateur.
+  // FIX 05/05/2026 + 18/05/2026 : on parse défensivement et on coerce tout
+  // `error` qui ne serait pas une string (Vercel envelope {code, id, message}
+  // sur uncaught throws) → évite React #31 au render.
   const text = await res.text();
-  try {
-    return JSON.parse(text) as { imageUrl: string | null; imageUrls?: string[]; error?: string };
-  } catch {
-    // Réponse non-JSON (timeout Vercel, plain text "An error occurred", HTML error page, etc.)
-    let message = 'Le serveur n\'a pas pu générer le rendu.';
-    if (res.status === 504 || res.status === 502) {
-      message = 'Le rendu a pris trop de temps (timeout serveur). Réessayez ou simplifiez votre demande.';
-    } else if (res.status === 413) {
-      message = 'Image fournie trop volumineuse pour le serveur.';
-    } else if (res.status === 429) {
-      message = 'Trop de générations dans la dernière heure. Patientez un peu.';
-    } else if (res.status === 401) {
-      message = 'Session expirée — reconnectez-vous.';
-    } else if (text.toLowerCase().includes('an error occurred')) {
-      message = 'Erreur serveur (probablement timeout fal.ai). Réessayez dans 30s.';
+  let parsed: { imageUrl?: string | null; imageUrls?: string[]; error?: unknown; message?: unknown } | null = null;
+  try { parsed = JSON.parse(text); } catch { parsed = null; }
+
+  const coerceError = (e: unknown): string | undefined => {
+    if (e == null) return undefined;
+    if (typeof e === 'string') return e;
+    if (typeof e === 'object' && e !== null) {
+      const obj = e as Record<string, unknown>;
+      return (typeof obj.message === 'string' ? obj.message
+        : typeof obj.code === 'string'    ? obj.code
+        : 'Erreur serveur');
     }
-    return { imageUrl: null, error: message };
+    return String(e);
+  };
+
+  if (parsed) {
+    const errorMessage = coerceError(parsed.error) ?? (
+      !res.ok ? coerceError(parsed.message) : undefined
+    );
+    return {
+      imageUrl:  typeof parsed.imageUrl === 'string' ? parsed.imageUrl : null,
+      imageUrls: Array.isArray(parsed.imageUrls) ? parsed.imageUrls.filter(u => typeof u === 'string') as string[] : undefined,
+      error:     errorMessage,
+    };
   }
+
+  // Fallback : pas du tout JSON
+  let message = 'Le serveur n\'a pas pu générer le rendu.';
+  if (res.status === 504 || res.status === 502) {
+    message = 'Le rendu a pris trop de temps (timeout serveur). Réessayez ou simplifiez votre demande.';
+  } else if (res.status === 413) {
+    message = 'Image fournie trop volumineuse pour le serveur.';
+  } else if (res.status === 429) {
+    message = 'Trop de générations dans la dernière heure. Patientez un peu.';
+  } else if (res.status === 401) {
+    message = 'Session expirée — reconnectez-vous.';
+  } else if (text.toLowerCase().includes('an error occurred')) {
+    message = 'Erreur serveur (probablement timeout fal.ai). Réessayez dans 30s.';
+  }
+  return { imageUrl: null, error: message };
 }
 
 /* ─── Helper : convertit un File en data URL pour transmission JSON ─── */
