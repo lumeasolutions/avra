@@ -25,6 +25,7 @@ import {
   buildColoristPrompt,
   buildKontextColoristPrompt,
   buildRenduPrompt,
+  buildRenduFromImageKontextPrompt,
   buildFacadeRegionPrompt,
   buildHandleRegionPrompt,
   buildCountertopRegionPrompt,
@@ -533,6 +534,68 @@ export async function generateColoristImageKontext(
  * Rendu réaliste text-to-image (sans photo source).
  * Flux Pro Ultra : qualité maximale, ~10-20s, $0.06 / image.
  */
+/**
+ * Rendu Réaliste img2img via Kontext — pour transformation FIDÈLE d'un
+ * plan WinnerFlex / render 3D / sketch en photo réaliste.
+ *
+ * Différent de generateRenduImage (Ultra + image_prompt léger) :
+ *  - Kontext fait une vraie image-to-image (transformation pixel-aware)
+ *  - Le layout, l'angle, la pose des meubles sont préservés
+ *  - Seul le rendering style change (3D synthétique → photo réelle)
+ *
+ * Use case typique : l'user a un export 3D depuis WinnerFlex et veut le
+ * voir comme une photo professionnelle de sa cuisine finie.
+ */
+export async function generateRenduFromReferenceKontext(
+  params: RenduParams,
+  referenceImageUrl: string,
+  numImages: number = 1,
+): Promise<GenerationResult> {
+  ensureConfigured();
+  const tStart = Date.now();
+  const built = buildRenduFromImageKontextPrompt(params);
+
+  try {
+    console.log(`[fal.subscribe] ${FLUX_MODEL_KONTEXT_SINGLE} (rendu img2img) promptLen=${built.prompt.length}`);
+    const result = await fal.subscribe(FLUX_MODEL_KONTEXT_SINGLE, {
+      input: {
+        prompt:           built.prompt,
+        image_url:        referenceImageUrl,
+        num_images:       Math.min(Math.max(numImages, 1), 4),
+        seed:             built.seed,
+        output_format:    'jpeg',
+        aspect_ratio:     '16:9',
+        safety_tolerance: '2',
+        guidance_scale:   4,
+      },
+      logs: false,
+    });
+    const urls = extractImageUrls(result.data);
+    console.log(`[fal.subscribe] ${FLUX_MODEL_KONTEXT_SINGLE} (rendu) OK en ${Date.now() - tStart}ms (${urls.length} URL)`);
+    return {
+      success:    urls.length > 0,
+      imageUrl:   urls[0] ?? null,
+      imageUrls:  urls,
+      prompt:     built,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[fal.subscribe] ${FLUX_MODEL_KONTEXT_SINGLE} (rendu) ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
+    return {
+      success:    false,
+      imageUrl:   null,
+      imageUrls:  [],
+      prompt:     built,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      message,
+    };
+  }
+}
+
 export async function generateRenduImage(
   params: RenduParams,
   numImages: number = 1,

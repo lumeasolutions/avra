@@ -9,7 +9,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { RenduParams } from '@/lib/server/prompt-builder';
-import { generateRenduImage, ensureHttpsUrl } from '@/lib/server/flux-api';
+import {
+  generateRenduImage,
+  generateRenduFromReferenceKontext,
+  ensureHttpsUrl,
+} from '@/lib/server/flux-api';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
 import { prisma } from '@/lib/server/prisma';
@@ -90,6 +94,10 @@ export async function POST(req: NextRequest) {
 
   // ── 4) INSERT IaJob (QUEUED) — protégé pour ne jamais laisser une erreur
   //       Prisma escape en uncaught (cf. coloriste pour le même pattern).
+  // Routing du moteur (19/05/2026) :
+  //   - Avec image de référence → Kontext (img2img fidèle, préserve layout)
+  //   - Sans image → Flux Pro Ultra (text-to-image premium, génération from-scratch)
+  const willUseKontext = !!referenceImageDataUrl;
   let job;
   try {
     job = await prisma.iaJob.create({
@@ -99,7 +107,7 @@ export async function POST(req: NextRequest) {
         projectId,
         type:        'PHOTOREALISM_ENHANCE',
         status:      'QUEUED',
-        modelsUsed:  ['fal-ai/flux-pro/v1.1-ultra'],
+        modelsUsed:  [willUseKontext ? 'fal-ai/flux-pro/kontext' : 'fal-ai/flux-pro/v1.1-ultra'],
         params: {
           facades:       params.facades,
           planTravail:   params.planTravail,
@@ -177,8 +185,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 7) Génération Flux Pro Ultra (text2img, avec ou sans image_prompt)
-    const result = await generateRenduImage(params, numImages, referenceHttpsUrl);
+    // ── 7) Génération : routing selon présence d'image de référence
+    //       - Avec image → Kontext img2img (transformation fidèle 3D→photo)
+    //       - Sans image → Flux Pro Ultra (text-to-image premium from scratch)
+    const result = referenceHttpsUrl
+      ? await generateRenduFromReferenceKontext(params, referenceHttpsUrl, numImages)
+      : await generateRenduImage(params, numImages, null);
 
     if (!result.success) {
       const err = (result.error ?? '').toLowerCase();

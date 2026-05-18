@@ -541,6 +541,73 @@ export function buildRenduPrompt(
   return { prompt, negative: NEGATIVE_PROMPT_RENDU, seed, level, warnings };
 }
 
+// ─────────────────────────────────────────── BUILDER RENDU KONTEXT (img2img)
+// Quand l'user uploade une image (plan WinnerFlex, render 3D, sketch), on bascule
+// sur Kontext pour faire une vraie transformation fidèle au layout, plutôt
+// qu'une "inspiration" approximative via Ultra image_prompt.
+
+/**
+ * Prompt pour Flux Kontext quand l'user uploade une image source à
+ * transformer en rendu photoréaliste. L'instruction est impérative et
+ * insiste lourdement sur la préservation du layout, angle, et composition,
+ * en ne changeant QUE le style de rendu (3D synthétique → photo réelle).
+ */
+export function buildRenduFromImageKontextPrompt(params: RenduParams): BuiltPrompt {
+  const styleBlock = STYLE_BLOCKS_RENDU[params.style];
+  const lightBlock = LIGHTING_BLOCKS_RENDU[params.lightingStyle];
+
+  const solLine  = params.sol  ? `- Floor: ${params.sol}.`  : '';
+  const mursLine = params.murs ? `- Walls: ${params.murs}.` : '';
+
+  const prompt = [
+    `Transform this kitchen 3D render, CAD plan, sketch, or design preview (image 1)`,
+    `into a hyperrealistic photorealistic interior photograph.`,
+    ``,
+    `CRITICAL — PRESERVE EXACTLY from the source image:`,
+    `- Camera angle, framing, perspective, focal length`,
+    `- Position and shape of every cabinet, drawer, shelf and panel`,
+    `- Layout of appliances (oven, stovetop, fridge, microwave, hood, dishwasher)`,
+    `- Position of sink, faucet, plumbing`,
+    `- Wall positions, windows, doors, ceiling height`,
+    `- Tiles, backsplash pattern and material if visible`,
+    `- All decorative elements in the same place (coffee machine, toaster, plants, etc.)`,
+    ``,
+    `ONLY CHANGE the rendering style from 3D/synthetic/CAD-look to photorealistic photography.`,
+    `Apply these material refinements where applicable:`,
+    `- Cabinet facades: ${params.facades}`,
+    `- Countertop: ${params.planTravail}`,
+    solLine,
+    mursLine,
+    ``,
+    `Overall aesthetic: ${styleBlock}.`,
+    `Lighting: ${lightBlock}.`,
+    ``,
+    `Output: ultra-realistic professional interior photography, magazine-quality,`,
+    `Architectural Digest editorial style, Hasselblad medium format aesthetic,`,
+    `8K resolution, hyperrealistic materials and textures, true-to-life colors,`,
+    `balanced lighting with realistic shadows, professional staging,`,
+    `no CGI plastic look, no 3D render look, pure photography style.`,
+  ].filter(Boolean).join('\n');
+
+  if (params.extraContext) {
+    return {
+      prompt: prompt + `\n\nAdditional details: ${params.extraContext}.`,
+      negative: NEGATIVE_PROMPT_RENDU,
+      seed: hashToSeed(buildSeedKey(params)),
+      level: 'standard',
+      warnings: [],
+    };
+  }
+
+  return {
+    prompt,
+    negative: NEGATIVE_PROMPT_RENDU,
+    seed: hashToSeed(buildSeedKey(params)),
+    level: 'standard',
+    warnings: [],
+  };
+}
+
 // ─────────────────────────────────────────── SAFE FALLBACK PROMPTS
 
 // Prompts de secours absolus — validés manuellement — ne ratent jamais
