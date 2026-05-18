@@ -536,37 +536,44 @@ export async function generateColoristImageKontext(
 export async function generateRenduImage(
   params: RenduParams,
   numImages: number = 1,
+  /** Image de référence optionnelle (plan WinnerFlex, photo inspiration, sketch).
+   * Flux Pro Ultra accepte `image_prompt` qui guide la génération sans
+   * imposer la transformation stricte (contrairement à Kontext). Bon pour :
+   * - donner une intention d'agencement / proportions
+   * - inspirer un style visuel (ambiance d'une photo Pinterest)
+   * Si null, mode pur text-to-image. */
+  referenceImageUrl?: string | null,
 ): Promise<GenerationResult> {
   ensureConfigured();
   const tStart = Date.now();
   const built = buildRenduPrompt(params, 'standard');
 
   try {
-    console.log(`[fal.subscribe] ${FLUX_MODEL_RENDU} text2img premium promptLen=${built.prompt.length}`);
+    const hasRef = !!referenceImageUrl;
+    console.log(`[fal.subscribe] ${FLUX_MODEL_RENDU} ${hasRef ? 'text2img+ref' : 'text2img'} premium promptLen=${built.prompt.length}`);
     // Flux Pro Ultra : params perfection 19/05/2026.
-    //
-    // Notes sur les params :
-    //  - raw: false (default) — on VEUT le rendu poli "Architectural Digest",
-    //    pas un look documentaire/raw. raw=true serait pour photos news/street.
-    //  - safety_tolerance: '2' — niveau permissif pour matériaux et décor
-    //    sans bloquer (1=très strict, 6=quasi-no-filter).
-    //  - enable_safety_checker: explicite à true (default mais on l'affirme).
-    //  - aspect_ratio: '16:9' — format paysage standard cuisine showroom.
-    //    On pourrait exposer '3:2' (Hasselblad natif) ou '4:3' plus tard.
-    //  - Le seed déterministe vient de hashToSeed(params) : même config
-    //    user → même image (utile pour A/B test).
-    //  - num_inference_steps n'est PAS exposé par Ultra (locked interne).
-    //  - Flux Pro Ultra n'accepte PAS negative_prompt côté SDK type.
+    //  - raw: false → rendu poli AD-style.
+    //  - safety_tolerance '2' → permissif.
+    //  - aspect_ratio 16:9.
+    //  - image_prompt si fourni : guide la génération (style/intention).
+    //  - image_prompt_strength 0.1-0.5 : à 0.1 c'est subtil (default fal),
+    //    on monte à 0.3 pour avoir un guidage notable sans étrangler la
+    //    créativité du prompt texte (qui contient déjà tous les détails).
+    const input: Record<string, unknown> = {
+      prompt:           built.prompt,
+      num_images:       Math.min(Math.max(numImages, 1), 4),
+      seed:             built.seed,
+      output_format:    'jpeg',
+      aspect_ratio:     '16:9',
+      safety_tolerance: '2',
+      raw:              false,
+    };
+    if (hasRef) {
+      input.image_prompt          = referenceImageUrl;
+      input.image_prompt_strength = 0.3;
+    }
     const result = await fal.subscribe(FLUX_MODEL_RENDU, {
-      input: {
-        prompt:                built.prompt,
-        num_images:            Math.min(Math.max(numImages, 1), 4),
-        seed:                  built.seed,
-        output_format:         'jpeg',
-        aspect_ratio:          '16:9',
-        safety_tolerance:      '2',
-        raw:                   false,
-      },
+      input: input as never,
       logs: false,
     });
     const urls = extractImageUrls(result.data);

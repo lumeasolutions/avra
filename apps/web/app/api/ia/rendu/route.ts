@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { RenduParams } from '@/lib/server/prompt-builder';
-import { generateRenduImage } from '@/lib/server/flux-api';
+import { generateRenduImage, ensureHttpsUrl } from '@/lib/server/flux-api';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
 import { prisma } from '@/lib/server/prisma';
@@ -76,9 +76,15 @@ export async function POST(req: NextRequest) {
     style:         style as RenduParams['style'],
     lightingStyle: lightingStyle as RenduParams['lightingStyle'],
     roomSize:      roomSize as RenduParams['roomSize'],
-    hasPlanFile:   false,
+    hasPlanFile:   !!body.referenceImageDataUrl,
     extraContext:  (body.extraContext as string | undefined) ?? undefined,
   };
+  // Image de référence optionnelle (plan WinnerFlex, inspiration, sketch).
+  // data URI ou https — sera uploadée vers fal-cdn si data URI.
+  const referenceImageDataUrl =
+    typeof body.referenceImageDataUrl === 'string' && body.referenceImageDataUrl.length > 0
+      ? body.referenceImageDataUrl
+      : null;
   const numImages = Math.min(Math.max(parseInt(String(body.numImages), 10) || 1, 1), 4);
   const projectId = typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 
@@ -153,8 +159,26 @@ export async function POST(req: NextRequest) {
       data:  { status: 'PROCESSING' },
     });
 
-    // ── 6) Génération (text-to-image pur, pas d'inputImageUrls)
-    const result = await generateRenduImage(params, numImages);
+    // ── 6) Si image de référence fournie, on l'upload vers fal-cdn d'abord
+    //       puis on passe l'URL https à generateRenduImage pour image_prompt.
+    let referenceHttpsUrl: string | null = null;
+    if (referenceImageDataUrl) {
+      try {
+        referenceHttpsUrl = await ensureHttpsUrl(referenceImageDataUrl);
+        await prisma.iaJob.update({
+          where: { id: job.id },
+          data: { inputImageUrls: { reference: referenceHttpsUrl } },
+        });
+      } catch (uploadErr) {
+        console.warn('[API /ia/rendu] upload reference image échec:',
+          uploadErr instanceof Error ? uploadErr.message : uploadErr);
+        // On continue sans référence — pure text2img.
+        referenceHttpsUrl = null;
+      }
+    }
+
+    // ── 7) Génération Flux Pro Ultra (text2img, avec ou sans image_prompt)
+    const result = await generateRenduImage(params, numImages, referenceHttpsUrl);
 
     if (!result.success) {
       const err = (result.error ?? '').toLowerCase();

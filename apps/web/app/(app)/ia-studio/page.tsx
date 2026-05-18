@@ -101,6 +101,9 @@ async function callRenduAPI(params: {
   sol?: string;
   /** Optionnel : description des murs (peinture, papier peint, lambris...) */
   murs?: string;
+  /** Optionnel : image de référence (plan WinnerFlex, inspiration, sketch).
+   * Guide Flux Pro Ultra via image_prompt (strength 0.3 côté serveur). */
+  referenceImageDataUrl?: string;
   numImages?: number;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/rendu', {
@@ -694,8 +697,13 @@ export default function IaStudioPage() {
   const [colorError,   setColorError]   = useState<string|null>(null);
 
   /* ── RENDU — état */
-  // planFile : retiré — Flux Pro Ultra ignore toute image source (text-to-image pur).
-  // L'ancien drop "Plan WinnerFlex" promettait une lecture qui n'arrivait jamais.
+  // Image de référence (plan WinnerFlex, photo d'inspiration, sketch).
+  // Flux Pro Ultra accepte `image_prompt` : la référence guide le style/
+  // l'intention sans imposer la transformation stricte (≠ Kontext).
+  // Strength fixée à 0.3 côté serveur (default Ultra = 0.1, trop subtil ;
+  // > 0.5 étrangle la créativité du prompt texte).
+  const [rendRefFile,  setRendRefFile]  = useState<File | null>(null);
+  const [rendRefURL,   setRendRefURL]   = useState<string | null>(null);
   const [rendStyle,    setRendStyle]    = useState<StyleType>('contemporain');
   const [rendLight,    setRendLight]    = useState<LightingType>('naturelle');
   // rendSize : valeur fixe en interne (le ChipSelector "Taille de la cuisine" a
@@ -726,6 +734,14 @@ export default function IaStudioPage() {
     setPhotoURL(u);
     return () => URL.revokeObjectURL(u);
   }, [photoFile]);
+
+  /* Preview image de référence rendu */
+  useEffect(() => {
+    if (!rendRefFile) { setRendRefURL(null); return; }
+    const u = URL.createObjectURL(rendRefFile);
+    setRendRefURL(u);
+    return () => URL.revokeObjectURL(u);
+  }, [rendRefFile]);
 
   /* ── Appliquer un preset */
   const applyPreset = (p: Preset) => {
@@ -861,15 +877,27 @@ export default function IaStudioPage() {
     setRendLoading(true); setRendResult(null); setRendError(null);
 
     try {
+      // Image de référence optionnelle compressée côté navigateur (max 1280px,
+      // JPEG q=0.85) pour rester sous la limite Vercel et accélérer l'upload.
+      let referenceImageDataUrl: string | undefined;
+      if (rendRefFile) {
+        try {
+          referenceImageDataUrl = await compressImageToDataUrl(rendRefFile, 1280);
+        } catch {
+          // Soft-fail : on continue sans référence
+          referenceImageDataUrl = undefined;
+        }
+      }
       const result = await callRenduAPI({
-        facades:      rendFacades || 'Façades modernes, finitions haut de gamme',
-        planTravail:  rendPlan    || 'quartz blanc mat',
-        sol:          rendSol.trim() || undefined,
-        murs:         rendMurs.trim() || undefined,
-        style:        rendStyle,
-        lightingStyle:rendLight,
-        roomSize:     rendSize,
-        numImages:    rendNumVariants,
+        facades:               rendFacades || 'Façades modernes, finitions haut de gamme',
+        planTravail:           rendPlan    || 'quartz blanc mat',
+        sol:                   rendSol.trim() || undefined,
+        murs:                  rendMurs.trim() || undefined,
+        style:                 rendStyle,
+        lightingStyle:         rendLight,
+        roomSize:              rendSize,
+        referenceImageDataUrl,
+        numImages:             rendNumVariants,
       });
 
       if (result.error) { setRendError(result.error); setRendLoading(false); return; }
@@ -1370,11 +1398,34 @@ export default function IaStudioPage() {
             {/* ── Panneau gauche */}
             <div className="space-y-4">
 
-              {/* Bloc "Import Plan WinnerFlex" retiré : Flux Pro Ultra est un
-                  modèle text-to-image pur qui ignore toute image source. L'ancien
-                  drop promettait une lecture du plan qui n'arrivait jamais.
-                  Pour réintroduire une dépendance au plan, il faudra basculer
-                  sur un modèle Kontext ou ControlNet (cf flux-api.ts). */}
+              {/* Import image de référence (plan WinnerFlex, photo inspiration).
+                  Flux Pro Ultra l'utilise via `image_prompt` (guide style/intention,
+                  ne transforme pas strictement comme Kontext). Strength 0.3 côté
+                  serveur — assez pour orienter, pas assez pour étrangler le prompt. */}
+              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <FileImage className="h-4 w-4 text-[#5b9bd5]" />
+                  <p className="font-bold text-[#304035]">Image de référence</p>
+                  <span className="ml-auto rounded-full bg-[#5b9bd5]/10 text-[#5b9bd5] text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5">Optionnel</span>
+                </div>
+                <p className="text-xs text-[#304035]/50 mb-4">Plan WinnerFlex, photo Pinterest, sketch — guide le style sans imposer la transformation</p>
+                <Drop label="" sub="Déposez un plan, perspective 3D, ou photo d'inspiration"
+                  onFile={setRendRefFile} file={rendRefFile} accent="#5b9bd5"
+                  tips={['Plan WinnerFlex export image', 'Photo Pinterest qui inspire', 'Sketch / croquis main', 'Photo cuisine ressemblante']} />
+                {rendRefFile && rendRefURL && (
+                  <div className="mt-3 relative rounded-xl overflow-hidden">
+                    <Image src={rendRefURL} alt="Référence" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    <button onClick={() => setRendRefFile(null)}
+                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="absolute bottom-2 left-3">
+                      <span className="rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5">Référence active</span>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* SÉLECTEURS STRUCTURÉS — zéro textarea libre */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-5">
