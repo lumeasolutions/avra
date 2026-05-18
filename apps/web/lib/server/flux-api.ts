@@ -52,7 +52,8 @@ export interface FluxInput {
 // ─────────────────────────────────────────── CONFIG
 
 const FLUX_MODEL_RENDU            = 'fal-ai/flux-pro/v1.1-ultra';
-const FLUX_MODEL_COLORISTE        = 'fal-ai/flux/dev'; // legacy, plus utilisé
+const FLUX_MODEL_COLORISTE        = 'fal-ai/flux/dev';                  // text-to-image
+const FLUX_MODEL_COLORISTE_I2I    = 'fal-ai/flux/dev/image-to-image';   // img2img dédié
 
 // Variantes Kontext, du plus rapide au plus puissant. On choisit dynamiquement
 // selon le nombre d'images en entrée :
@@ -264,21 +265,60 @@ async function callFlux(
   sourceImageUrl?: string,
   numImages: number = 1,
 ): Promise<string[]> {
-  const input: FluxInput = {
-    prompt:           built.prompt,
-    negative_prompt:  built.negative,
-    num_images:       Math.min(Math.max(numImages, 1), 4),
-    image_size:       'landscape_16_9',
-    output_format:    'jpeg',
-    seed:             built.seed,
-    safety_tolerance: 2,
+  const tStart = Date.now();
+  // BUG FIX 18/05/2026 : si on a une source image ET que le model est le
+  // générique flux/dev, on bascule sur l'endpoint dédié image-to-image qui
+  // est BEAUCOUP plus rapide (l'endpoint générique avec image_url était lent
+  // à >100s en queue, le dédié répond en ~10-15s).
+  const actualModel = (sourceImageUrl && model === FLUX_MODEL_COLORISTE)
+    ? FLUX_MODEL_COLORISTE_I2I
+    : model;
+
+  // Construction du body adaptée au modèle. Flux Dev (text-to-image et
+  // image-to-image) n'accepte PAS `negative_prompt` ni `safety_tolerance`
+  // (qui sont spécifiques à Flux Pro). On envoyait ces paramètres avant
+  // ce qui faisait peut-être traîner fal.ai en validation interne.
+  const isFluxDev = actualModel.startsWith('fal-ai/flux/dev');
+  const isFluxPro = actualModel.startsWith('fal-ai/flux-pro');
+
+  const input: Record<string, unknown> = {
+    prompt:        built.prompt,
+    num_images:    Math.min(Math.max(numImages, 1), 4),
+    output_format: 'jpeg',
+    seed:          built.seed,
   };
-  if (sourceImageUrl) {
-    input.image_url = sourceImageUrl;
-    input.strength = 0.85;
+
+  if (isFluxDev) {
+    // Schéma Flux Dev (text2img + img2img)
+    input.image_size           = 'landscape_16_9';
+    input.num_inference_steps  = 28;   // 40 par défaut, 28 = bon compromis qualité/vitesse
+    input.guidance_scale       = 3.5;
+    input.enable_safety_checker = true;
+    input.acceleration         = 'none';
+    if (sourceImageUrl) {
+      input.image_url = sourceImageUrl;
+      input.strength  = 0.85;
+    }
+  } else if (isFluxPro) {
+    // Schéma Flux Pro Ultra (text-to-image only)
+    input.image_size       = 'landscape_16_9';
+    input.negative_prompt  = built.negative;
+    input.safety_tolerance = 2;
+  } else {
+    // Modèle inconnu : on prend une approche conservatrice
+    input.image_size = 'landscape_16_9';
+    if (sourceImageUrl) input.image_url = sourceImageUrl;
   }
 
-  return callFalApi(model, input as unknown as Record<string, unknown>);
+  console.log(`[FAL] callFlux model=${actualModel} hasSource=${!!sourceImageUrl} promptLen=${built.prompt.length}`);
+  try {
+    const urls = await callFalApi(actualModel, input);
+    console.log(`[FAL] callFlux OK en ${Date.now() - tStart}ms (${urls.length} URL)`);
+    return urls;
+  } catch (err) {
+    console.warn(`[FAL] callFlux ÉCHEC en ${Date.now() - tStart}ms:`, err instanceof Error ? err.message : err);
+    throw err;
+  }
 }
 
 // ─────────────────────────────────────────── RETRY ENGINE
