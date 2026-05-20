@@ -66,6 +66,13 @@ export interface Dossier {
   createdAt: string;
   subfolders: SubFolder[];
   notes?: string;
+  /**
+   * Vendeur attribué au dossier (snapshot du nom). Utilisé par le TABLEAU 3
+   * "Par vendeur" des statistiques (compte les dossiers en cours / signés /
+   * perdus par vendeur). Optionnel — null/undefined = "Sans vendeur attribué".
+   * Demande asso 19/05/2026.
+   */
+  vendeurName?: string;
 }
 
 /**
@@ -93,6 +100,23 @@ export interface ConfirmationFournisseur {
   notes?: string;
 }
 
+/**
+ * Une ligne de prix achat/vente saisie via le gate Statistiques.
+ * Un dossier peut avoir plusieurs lignes (multi-fournisseurs : cuisine LEICHT,
+ * granite LAPALMA, électroménager MIELE, etc.). Chaque ligne contribue à la
+ * marge totale du dossier (somme des ventes − somme des achats).
+ */
+export interface DossierPrixLigne {
+  /** Identifiant local (uniquement client, pas en DB). */
+  id: string;
+  /** Marque/fournisseur (LEICHT, LAPALMA, MARBRIER, BORA…). Saisie libre. */
+  fournisseur: string;
+  /** Prix d'achat HT en euros (coût pour le pro). */
+  prixAchatHT: number;
+  /** Prix de vente HT en euros (facturé au client). */
+  prixVenteHT: number;
+}
+
 export interface DossierSigne extends Dossier {
   signedDate: string;
   dateSignature?: string;
@@ -100,6 +124,18 @@ export interface DossierSigne extends Dossier {
   montant?: number;
   montantEstime?: number;
   confirmations?: ConfirmationFournisseur[];
+  /**
+   * Lignes prix achat/vente HT pour les stats (19/05/2026, demande asso).
+   * Le gate /statistiques force la saisie de ≥1 ligne par dossier signé avant
+   * de débloquer l'accès aux tableaux statistiques.
+   */
+  prixLignes?: DossierPrixLigne[];
+  /**
+   * Vendeur attribué au dossier (snapshot du nom, pas FK). Utilisé par le
+   * TABLEAU 3 "Par vendeur" des statistiques. Optionnel — si absent, le
+   * dossier apparaît dans une catégorie "Sans vendeur attribué".
+   */
+  vendeurName?: string;
   /**
    * Marque le chantier comme entièrement terminé (au-delà de la signature) :
    * pose finie, livraison effectuée, SAV à jour. C'est l'acte final côté pro
@@ -125,6 +161,8 @@ export interface DossierPerdu {
   reason: string;
   lostDate: string;
   montantEstime?: number;
+  /** Vendeur snapshot pour le TABLEAU 3 stats (19/05/2026). */
+  vendeurName?: string;
 }
 
 // Données initiales — sous-dossiers par défaut selon la profession.
@@ -276,14 +314,36 @@ export const ARCHITECTE_SIGNED_SUBFOLDERS: SubFolder[] = [
 ];
 
 /**
+ * Une option/projet/version sélectionnée par l'utilisateur au moment de la
+ * validation. `sourceLabel` est le label exact du sous-dossier source
+ * (ex "OPTION 1", "PROJET 2", "PROJET VERSION 3 – APD"). `customName`,
+ * optionnel, est ajouté au label final du sous-dossier signé pour
+ * différencier visuellement les options multiples
+ * (ex "CUISINE" → "OPTION 1 CUISINE VALIDÉE").
+ */
+export interface ValidatedOptionSelection {
+  sourceLabel: string;
+  customName?: string;
+}
+
+/**
  * Construit les sous-dossiers d'un DossierSigne selon la profession.
- * Pour MENUISIER : "AVANT VENTE" reçoit en archive les documents du dossier
- * en cours, et "PROJET VALIDÉ" est renommé "PROJET <N> VALIDÉ" si on trouve
- * un sous-dossier "PROJET N" dans le dossier source.
+ *
+ * Pour MENUISIER / CUISINISTE / ARCHITECTE : "AVANT VENTE" reçoit en archive
+ * les documents du dossier en cours, et la (les) option(s) sélectionnée(s)
+ * deviennent chacune un sous-dossier validé dédié contenant les documents
+ * originaux de l'option source.
+ *
+ * 19/05/2026 — Support multi-options : si `selectedOptions` est fourni avec
+ * plusieurs entrées, on génère un sous-dossier "X VALIDÉE" par entrée à la
+ * place du placeholder unique ("OPTION VALIDÉE", "PROJET VALIDÉ",
+ * "APD VERSION VALIDÉE"). Si non fourni, fallback historique (dernière option
+ * trouvée par regex).
  */
 export function buildSignedSubfoldersForProfession(
   source: Dossier,
   profession?: string | null,
+  selectedOptions?: ValidatedOptionSelection[],
 ): SubFolder[] {
   if (
     profession !== 'menuisier' &&
@@ -309,66 +369,145 @@ export function buildSignedSubfoldersForProfession(
     }
   }
 
+  // ─── Helper interne : construit un sous-dossier valide a partir d'une
+  // option source. Copie les documents du sous-dossier source (sans prefixe,
+  // pour rester utilisable comme dossier actif) et applique le custom name.
+  const buildValidatedSubfolder = (
+    sourceLabel: string,
+    customName: string | undefined,
+    suffix: 'VALIDÉE' | 'VALIDÉ',
+  ): SubFolder => {
+    const srcSubfolder = (source.subfolders ?? []).find((sf) => sf.label === sourceLabel);
+    const docs: DocumentFile[] = (srcSubfolder?.documents ?? []).map((d) =>
+      typeof d === 'string' ? { name: d } : { ...d },
+    );
+    const base = sourceLabel.trim();
+    const cleanCustom = customName?.trim();
+    const finalLabel = cleanCustom
+      ? `${base} ${cleanCustom.toUpperCase()} ${suffix}`
+      : `${base} ${suffix}`;
+    return { label: finalLabel, documents: docs };
+  };
+
   // ─── Étape 2 : aiguillage par profession ───────────────────────────────
   if (profession === 'menuisier') {
-    // Dernier "PROJET N" trouvé dans le dossier source → "PROJET <N> VALIDÉ".
-    let bestVersion = 0;
-    for (const sf of source.subfolders ?? []) {
-      const m = sf.label.match(MENUISIER_PROJET_REGEX);
-      if (m) {
-        const n = parseInt(m[1], 10);
-        if (Number.isFinite(n) && n > bestVersion) bestVersion = n;
+    // Determination des options a valider :
+    //  - selectedOptions fourni : on l'utilise tel quel
+    //  - sinon (fallback retro-compat) : dernier "PROJET N" trouve
+    let optionsToValidate: ValidatedOptionSelection[];
+    if (selectedOptions && selectedOptions.length > 0) {
+      optionsToValidate = selectedOptions;
+    } else {
+      let bestVersion = 0;
+      let bestLabel: string | null = null;
+      for (const sf of source.subfolders ?? []) {
+        const m = sf.label.match(MENUISIER_PROJET_REGEX);
+        if (m) {
+          const n = parseInt(m[1], 10);
+          if (Number.isFinite(n) && n > bestVersion) {
+            bestVersion = n;
+            bestLabel = sf.label;
+          }
+        }
       }
+      optionsToValidate = bestLabel ? [{ sourceLabel: bestLabel }] : [];
     }
-    const projetValideLabel =
-      bestVersion > 0 ? `PROJET ${bestVersion} VALIDÉ` : 'PROJET VALIDÉ';
 
-    return MENUISIER_SIGNED_SUBFOLDERS.map((sf) => {
-      if (sf.label === 'AVANT VENTE') return { ...sf, documents: archivedDocs };
-      if (sf.label === 'PROJET VALIDÉ') return { ...sf, label: projetValideLabel };
-      return { ...sf };
+    const validatedSubfolders = optionsToValidate.map((opt) =>
+      buildValidatedSubfolder(opt.sourceLabel, opt.customName, 'VALIDÉ'),
+    );
+    if (validatedSubfolders.length === 0) {
+      // Aucune option detectee : on conserve le placeholder MENUISIER d'origine
+      validatedSubfolders.push({ label: 'PROJET VALIDÉ' });
+    }
+
+    return MENUISIER_SIGNED_SUBFOLDERS.flatMap((sf) => {
+      if (sf.label === 'AVANT VENTE') return [{ ...sf, documents: archivedDocs }];
+      if (sf.label === 'PROJET VALIDÉ') return validatedSubfolders;
+      return [{ ...sf }];
     });
   }
 
   if (profession === 'cuisiniste') {
-    // Dernière "OPTION N" trouvée → "OPTION <N> VALIDÉE".
-    let bestOption = 0;
-    for (const sf of source.subfolders ?? []) {
-      const m = sf.label.match(CUISINISTE_OPTION_REGEX);
-      if (m) {
-        const n = parseInt(m[1], 10);
-        if (Number.isFinite(n) && n > bestOption) bestOption = n;
+    let optionsToValidate: ValidatedOptionSelection[];
+    if (selectedOptions && selectedOptions.length > 0) {
+      optionsToValidate = selectedOptions;
+    } else {
+      let bestOption = 0;
+      let bestLabel: string | null = null;
+      for (const sf of source.subfolders ?? []) {
+        const m = sf.label.match(CUISINISTE_OPTION_REGEX);
+        if (m) {
+          const n = parseInt(m[1], 10);
+          if (Number.isFinite(n) && n > bestOption) {
+            bestOption = n;
+            bestLabel = sf.label;
+          }
+        }
       }
+      optionsToValidate = bestLabel ? [{ sourceLabel: bestLabel }] : [];
     }
-    const optionValideeLabel =
-      bestOption > 0 ? `OPTION ${bestOption} VALIDÉE` : 'OPTION VALIDÉE';
 
-    return CUISINISTE_SIGNED_SUBFOLDERS.map((sf) => {
-      if (sf.label === 'AVANT VENTE') return { ...sf, documents: archivedDocs };
-      if (sf.label === 'OPTION VALIDÉE') return { ...sf, label: optionValideeLabel };
-      return { ...sf };
+    const validatedSubfolders = optionsToValidate.map((opt) =>
+      buildValidatedSubfolder(opt.sourceLabel, opt.customName, 'VALIDÉE'),
+    );
+    if (validatedSubfolders.length === 0) {
+      validatedSubfolders.push({ label: 'OPTION VALIDÉE' });
+    }
+
+    return CUISINISTE_SIGNED_SUBFOLDERS.flatMap((sf) => {
+      if (sf.label === 'AVANT VENTE') return [{ ...sf, documents: archivedDocs }];
+      if (sf.label === 'OPTION VALIDÉE') return validatedSubfolders;
+      return [{ ...sf }];
     });
   }
 
   // profession === 'architecte'
-  // Dernière "PROJET VERSION N – APD" trouvée → "APD VERSION <N> (DOSSIER SIGNÉ)".
-  let bestApd = 0;
-  for (const sf of source.subfolders ?? []) {
-    const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
-    if (m && m[2].toUpperCase() === 'APD') {
-      const n = parseInt(m[1], 10);
-      if (Number.isFinite(n) && n > bestApd) bestApd = n;
+  let optionsToValidate: ValidatedOptionSelection[];
+  if (selectedOptions && selectedOptions.length > 0) {
+    optionsToValidate = selectedOptions;
+  } else {
+    let bestApd = 0;
+    let bestLabel: string | null = null;
+    for (const sf of source.subfolders ?? []) {
+      const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
+      if (m && m[2].toUpperCase() === 'APD') {
+        const n = parseInt(m[1], 10);
+        if (Number.isFinite(n) && n > bestApd) {
+          bestApd = n;
+          bestLabel = sf.label;
+        }
+      }
     }
+    optionsToValidate = bestLabel ? [{ sourceLabel: bestLabel }] : [];
   }
-  const apdLabel =
-    bestApd > 0
-      ? `APD VERSION ${bestApd} (DOSSIER SIGNÉ)`
-      : 'APD VERSION VALIDÉE (DOSSIER SIGNÉ)';
 
-  return ARCHITECTE_SIGNED_SUBFOLDERS.map((sf) => {
-    if (sf.label === 'AVANT VENTE') return { ...sf, documents: archivedDocs };
-    if (sf.label === 'APD VERSION VALIDÉE') return { ...sf, label: apdLabel };
-    return { ...sf };
+  // Pour l'architecte, on conserve le formatage historique
+  // "APD VERSION N (DOSSIER SIGNÉ)" en remplacant le suffixe via une
+  // construction custom (le helper generique ne convient pas).
+  const buildArchitecteValidated = (opt: ValidatedOptionSelection): SubFolder => {
+    const srcSubfolder = (source.subfolders ?? []).find((sf) => sf.label === opt.sourceLabel);
+    const docs: DocumentFile[] = (srcSubfolder?.documents ?? []).map((d) =>
+      typeof d === 'string' ? { name: d } : { ...d },
+    );
+    const m = opt.sourceLabel.match(ARCHITECTE_PROJET_VERSION_REGEX);
+    const baseLabel = m
+      ? `APD VERSION ${m[1]} (DOSSIER SIGNÉ)`
+      : `${opt.sourceLabel} VALIDÉ (DOSSIER SIGNÉ)`;
+    const cleanCustom = opt.customName?.trim();
+    const finalLabel = cleanCustom ? `${baseLabel} — ${cleanCustom.toUpperCase()}` : baseLabel;
+    return { label: finalLabel, documents: docs };
+  };
+
+  const architecteValidatedSubfolders =
+    optionsToValidate.length > 0
+      ? optionsToValidate.map(buildArchitecteValidated)
+      : [{ label: 'APD VERSION VALIDÉE (DOSSIER SIGNÉ)' } as SubFolder];
+
+  return ARCHITECTE_SIGNED_SUBFOLDERS.flatMap((sf) => {
+    if (sf.label === 'AVANT VENTE') return [{ ...sf, documents: archivedDocs }];
+    if (sf.label === 'APD VERSION VALIDÉE') return architecteValidatedSubfolders;
+    return [{ ...sf }];
   });
 }
 
@@ -414,12 +553,21 @@ interface DossierState {
    * @param profession sert à choisir le bon set de sous-dossiers signés
    *   (MENUISIER_SIGNED_SUBFOLDERS si 'menuisier', sinon SIGNED_SUBFOLDERS).
    */
-  signerDossier: (id: string, profession?: string | null) => void;
+  signerDossier: (id: string, profession?: string | null, selectedOptions?: ValidatedOptionSelection[]) => void;
   /**
    * Marque un dossier signé comme entièrement terminé (chantier fini,
    * livraison faite, SAV à jour). L'inverse rebascule en "actif".
    */
   toggleDossierTermine: (id: string) => void;
+  // ─── Stats : prix achat / vente par dossier signé (19/05/2026, demande asso)
+  /** Ajoute une ligne (fournisseur + achat HT + vente HT) sur un DossierSigne. */
+  addDossierPrixLigne: (dossierId: string, ligne: Omit<DossierPrixLigne, 'id'>) => void;
+  /** Met à jour une ligne existante (édition inline). */
+  updateDossierPrixLigne: (dossierId: string, ligneId: string, patch: Partial<Omit<DossierPrixLigne, 'id'>>) => void;
+  /** Retire une ligne par id. */
+  removeDossierPrixLigne: (dossierId: string, ligneId: string) => void;
+  /** Set le vendeur attribué (sur Dossier, DossierSigne ou DossierPerdu). */
+  setDossierVendeur: (dossierId: string, vendeurName: string | null) => void;
   // ─── Commandes ACCESS (panneau ACCEDER de la modale validation) ─────────
   addCommandeAccess: (dossierId: string, label: string, entry: Omit<CommandeAccessEntry, 'id'>) => void;
   updateCommandeAccess: (dossierId: string, label: string, entryId: string, patch: Partial<Omit<CommandeAccessEntry, 'id'>>) => void;
@@ -641,12 +789,14 @@ export const useDossierStore = create<DossierState>()(
         }
       },
 
-      signerDossier: (id, profession) => {
+      signerDossier: (id, profession, selectedOptions) => {
         const dossier = get().dossiers.find(d => d.id === id);
         if (!dossier) return;
         // Liste profession-aware (architecte/menuisier/cuisiniste) avec
         // archive AVANT VENTE des documents du dossier en cours.
-        const built = buildSignedSubfoldersForProfession(dossier, profession);
+        // selectedOptions (19/05/2026) : liste des options validees par
+        // l'utilisateur — chacune devient un sous-dossier dedie.
+        const built = buildSignedSubfoldersForProfession(dossier, profession, selectedOptions);
         const signed: DossierSigne = {
           ...dossier,
           // FIX 30/04/2026 : on REMPLACE aussi `subfolders` par la nouvelle
@@ -677,6 +827,51 @@ export const useDossierStore = create<DossierState>()(
                 }
               : d,
           ),
+        }));
+      },
+
+      // ── Stats : prix achat/vente par dossier signé (19/05/2026, demande asso)
+      addDossierPrixLigne: (dossierId, ligne) => {
+        const id = 'prix_' + uid();
+        set(s => ({
+          dossiersSignes: s.dossiersSignes.map(d =>
+            d.id === dossierId
+              ? { ...d, prixLignes: [...(d.prixLignes ?? []), { ...ligne, id }] }
+              : d,
+          ),
+        }));
+      },
+
+      updateDossierPrixLigne: (dossierId, ligneId, patch) => {
+        set(s => ({
+          dossiersSignes: s.dossiersSignes.map(d =>
+            d.id === dossierId
+              ? {
+                  ...d,
+                  prixLignes: (d.prixLignes ?? []).map(l => l.id === ligneId ? { ...l, ...patch } : l),
+                }
+              : d,
+          ),
+        }));
+      },
+
+      removeDossierPrixLigne: (dossierId, ligneId) => {
+        set(s => ({
+          dossiersSignes: s.dossiersSignes.map(d =>
+            d.id === dossierId
+              ? { ...d, prixLignes: (d.prixLignes ?? []).filter(l => l.id !== ligneId) }
+              : d,
+          ),
+        }));
+      },
+
+      setDossierVendeur: (dossierId, vendeurName) => {
+        // Met à jour le vendeur sur le dossier où qu'il soit (en cours, signé, perdu)
+        const v = vendeurName?.trim() || undefined;
+        set(s => ({
+          dossiers: s.dossiers.map(d => d.id === dossierId ? { ...d, vendeurName: v } : d),
+          dossiersSignes: s.dossiersSignes.map(d => d.id === dossierId ? { ...d, vendeurName: v } : d),
+          dossiersPerdus: s.dossiersPerdus.map(d => d.id === dossierId ? { ...d, vendeurName: v } : d),
         }));
       },
 

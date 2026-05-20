@@ -36,6 +36,18 @@ export interface ColoristParams {
   facadeTextureDataUrl?:  string;
   poigneeTextureDataUrl?: string;
   planTextureDataUrl?:    string;
+  /**
+   * Mode de combinaison couleur/texture par élément (19/05/2026, demande asso).
+   *   - 'color'   : couleur uniquement (la texture, si fournie, sert seulement
+   *                  d'indice subtil de matière dans le prompt)
+   *   - 'texture' : texture seule (la couleur n'est pas appliquée — le modèle
+   *                  reproduit la matière importée)
+   *   - 'mix'     : couleur + texture (la couleur teinte la texture pour un
+   *                  rendu hybride)
+   */
+  facadeColorMode?:  'color' | 'texture' | 'mix';
+  poigneeColorMode?: 'color' | 'texture' | 'mix';
+  planColorMode?:    'color' | 'texture' | 'mix';
 }
 
 export interface RenduParams {
@@ -423,15 +435,29 @@ export function buildColoristPrompt(
   // Best-effort : fal.ai ne consomme pas réellement l'image de texture (un
   // seul image-input possible, déjà occupé par la photo source img2img),
   // mais le mentionner en texte aide souvent le modèle à orienter la matière.
-  const facadeTextureHint  = params.facadeTextureDataUrl
-    ? ' (matching the imported custom texture pattern and material reference)'
-    : '';
-  const poigneeTextureHint = params.poigneeTextureDataUrl
-    ? ' (matching the imported custom texture pattern and material reference)'
-    : '';
-  const planTextureHint    = params.planTextureDataUrl
-    ? ' (matching the imported custom texture pattern and material reference)'
-    : '';
+  // 19/05/2026 : le mode de combinaison module la phrase :
+  //   - 'texture' → ignore la couleur, suit la matière importée
+  //   - 'mix'     → applique la couleur EN TEINTE par-dessus la matière
+  //   - 'color' / undefined → couleur seule, texture juste hint subtil
+  const textureHintFor = (
+    dataUrl: string | undefined,
+    mode: 'color' | 'texture' | 'mix' | undefined,
+    colorName: string,
+  ): string => {
+    if (!dataUrl) return '';
+    if (mode === 'texture') {
+      // Couleur ignorée — on demande explicitement de reproduire la matière
+      return ' (replace material with the imported custom texture pattern, ignore color)';
+    }
+    if (mode === 'mix') {
+      return ` (combine the imported custom texture pattern with a ${colorName} tint, hybrid material rendering)`;
+    }
+    // mode 'color' (ou undefined) — texture juste comme hint léger
+    return ' (matching the imported custom texture pattern and material reference)';
+  };
+  const facadeTextureHint  = textureHintFor(params.facadeTextureDataUrl,  params.facadeColorMode,  facadeName);
+  const poigneeTextureHint = textureHintFor(params.poigneeTextureDataUrl, params.poigneeColorMode, poigneeName);
+  const planTextureHint    = textureHintFor(params.planTextureDataUrl,    params.planColorMode,    planName);
 
   let prompt = '';
 

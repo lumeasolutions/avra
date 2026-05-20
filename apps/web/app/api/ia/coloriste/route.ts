@@ -96,6 +96,10 @@ export async function POST(req: NextRequest) {
     facadeTextureDataUrl:  (body.facadeTextureDataUrl  as string | undefined) ?? undefined,
     poigneeTextureDataUrl: (body.poigneeTextureDataUrl as string | undefined) ?? undefined,
     planTextureDataUrl:    (body.planTextureDataUrl    as string | undefined) ?? undefined,
+    // Mode de combinaison couleur/texture par élément (19/05/2026, demande asso).
+    facadeColorMode:       (body.facadeColorMode  as ColoristParams['facadeColorMode'])  ?? undefined,
+    poigneeColorMode:      (body.poigneeColorMode as ColoristParams['poigneeColorMode']) ?? undefined,
+    planColorMode:         (body.planColorMode    as ColoristParams['planColorMode'])    ?? undefined,
   };
   const numImages = Math.min(Math.max(parseInt(String(body.numImages), 10) || 1, 1), 4);
   const projectId = typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;

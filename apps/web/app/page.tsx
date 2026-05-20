@@ -27,6 +27,38 @@ import BetaBanner from './(marketing)/components/BetaBanner';
 import dynamic from 'next/dynamic';
 const PWAInstallHero = dynamic(() => import('./(marketing)/components/PWAInstallHero').then(m => m.PWAInstallHero), { ssr: false });
 
+// CSS global de la page (anim logos + zoom hover photo hero) — passe via
+// dangerouslySetInnerHTML pour eviter les hydration mismatch dev-server.
+const PAGE_GLOBAL_CSS = `
+@keyframes logoPulse {
+  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+}
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0px) rotate(-1deg); }
+  50% { transform: translateY(-10px) rotate(1deg); }
+}
+@keyframes heroRing1 {
+  from { transform: translate(-50%, -50%) rotate(0deg); opacity: 0.6; }
+  to { transform: translate(-50%, -50%) rotate(360deg); opacity: 0.6; }
+}
+@keyframes heroRing2 {
+  from { transform: translate(-50%, -50%) rotate(0deg); opacity: 0.3; }
+  to { transform: translate(-50%, -50%) rotate(-360deg); opacity: 0.3; }
+}
+@keyframes heroPhotoFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+.hero-photo-float { cursor: zoom-in; }
+.hero-photo-float img {
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  transform-origin: center center;
+}
+.hero-photo-float:hover { animation-play-state: paused !important; }
+.hero-photo-float:hover img { transform: scale(1.6) !important; }
+`;
+
 export default function HomePage() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
@@ -101,7 +133,7 @@ export default function HomePage() {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'flex-start', // 19/05/2026 : flex-start pour coller la banniere a la nav (au lieu de center qui creait un gap)
           paddingTop: '112px', // 36px BetaBanner + 76px Nav
           overflow: 'hidden',
           background: '#1e2b22',
@@ -131,16 +163,17 @@ export default function HomePage() {
         <div
           className="hero-grid"
           style={{
-            maxWidth: 1200,
+            maxWidth: 1500,
             margin: '0 auto',
-            padding: '12px 5% 16px',
+            padding: '12px 3% 16px',
             width: '100%',
             position: 'relative',
             zIndex: 1,
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '70px',
-            alignItems: 'center',
+            gridTemplateColumns: '0.85fr 1.35fr', // texte plus etroit a gauche, image plus large a droite
+            gap: '50px',
+            alignItems: 'flex-start',
+            paddingTop: '40px',
           }}
         >
           {/* Colonne gauche : texte */}
@@ -180,7 +213,7 @@ export default function HomePage() {
               </span>
             </div>
 
-            {/* Titre principal */}
+            {/* Titre principal — text-wrap: balance + nbsp pour eviter veuve "de l'agencement" */}
             <h1
               style={{
                 color: '#ffffff',
@@ -190,6 +223,7 @@ export default function HomePage() {
                 lineHeight: 1.15,
                 letterSpacing: '-0.02em',
                 marginBottom: '0.9rem',
+                textWrap: 'balance',
               }}
             >
               AVRA, le logiciel complet avec un{' '}
@@ -203,7 +237,7 @@ export default function HomePage() {
               >
                 assistant spécialisé
               </span>
-              {' '}dédié aux professionnels de l&apos;agencement
+              {' '}dédié aux professionnels de{' '}l&apos;agencement
             </h1>
 
             <p
@@ -215,9 +249,9 @@ export default function HomePage() {
                 maxWidth: 520,
               }}
             >
-              Un assistant IA qui suit vos dossiers et votre planning pour éviter les oublis à chaque étape.
-              Tous les outils essentiels : rendus IA, facturation électronique, signature et paiement en ligne.
-              Une seule plateforme pour piloter vos projets, du premier échange au SAV.
+              Suivez vos chantiers du devis à la pose sans rien oublier. AVRA pilote vos dossiers,
+              votre planning et vos rendus IA depuis une seule plateforme — et vous fait gagner
+              en moyenne une journée par semaine.
             </p>
 
             {/* CTA buttons */}
@@ -231,7 +265,7 @@ export default function HomePage() {
                 marginBottom: '1.6rem',
               }}
             >
-              <Link href="/comment-ca-marche">
+              <Link href="/demo">
                 <button
                   style={{
                     display: 'inline-flex',
@@ -272,221 +306,52 @@ export default function HomePage() {
                     fontFamily: 'inherit',
                   }}
                 >
-                  Voir la démo
+                  Voir comment ça marche →
                 </button>
               </Link>
             </div>
 
-            {/* Stats */}
-            <div className="hero-stats" style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
-              {[
-                { value: '2 400+', label: 'Professionnels' },
-                { value: '98%', label: 'Satisfaction' },
-                { value: '+40%', label: 'Taux de conversion' },
-              ].map(({ value, label }) => (
-                <div key={label}>
-                  <div
-                    style={{
-                      fontSize: '1.9rem',
-                      fontWeight: 800,
-                      color: '#c9a96e',
-                      fontFamily: 'var(--font-display)',
-                      lineHeight: 1,
-                      marginBottom: '4px',
-                    }}
-                  >
-                    {value}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '.8rem',
-                      color: 'rgba(255,255,255,.5)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '.1em',
-                      fontWeight: 500,
-                    }}
-                  >
-                    {label}
-                  </div>
-                </div>
-              ))}
-            </div>
+            {/* Bloc stats (2 400+ / 98% / +40%) retire 19/05/2026 — chiffres
+                non sourcables en beta privee, risque DGCCRF si jamais audites. */}
           </div>
 
           {/* Colonne droite : mockup dashboard */}
           <div className="hero-right-col" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '28px' }}>
 
-          {/* Mockup dashboard */}
+          {/* Mockup dashboard remplace par photohero.png (capture reelle app) — 19/05/2026
+              + ombre profonde, bordure doree subtile, float vertical anime pour decoller visuellement. */}
           <div
+            className="hero-photo-float"
             style={{
-              background: 'rgba(255,255,255,.07)',
               borderRadius: '20px',
-              padding: '1.75rem',
-              border: '1px solid rgba(201,169,110,.18)',
-              backdropFilter: 'blur(24px)',
-              boxShadow: '0 32px 80px rgba(0,0,0,.35)',
+              overflow: 'hidden',
+              border: '1px solid rgba(201,169,110,.35)',
+              boxShadow: '0 40px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(201,169,110,.08), 0 8px 24px rgba(201,169,110,.18)',
+              width: '100%',
+              maxWidth: 820,
+              aspectRatio: '1917 / 1079',
+              position: 'relative',
+              background: 'rgba(255,255,255,.04)',
+              animation: 'heroPhotoFloat 6s ease-in-out infinite',
             }}
           >
-            {/* Barre navigateur */}
-            <div
-              style={{
-                display: 'flex',
-                gap: '8px',
-                alignItems: 'center',
-                marginBottom: '1.5rem',
-                paddingBottom: '1.5rem',
-                borderBottom: '1px solid rgba(255,255,255,.08)',
-              }}
-            >
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ff5f57' }} />
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#febc2e' }} />
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#28c840' }} />
-              <div
-                style={{
-                  flex: 1,
-                  height: 28,
-                  background: 'rgba(255,255,255,.07)',
-                  borderRadius: 6,
-                  marginLeft: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  paddingLeft: 10,
-                  gap: 6,
-                }}
-              >
-                <Shield size={11} style={{ color: '#28c840' }} />
-                <span style={{ fontSize: '.75rem', color: 'rgba(255,255,255,.35)' }}>
-                  app.avra.fr
-                </span>
-              </div>
-            </div>
-
-            {/* KPI Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-              {[
-                { label: 'Dossiers actifs', val: '47', delta: '↑ +12%', positive: true },
-                { label: 'CA du mois', val: '84 200 €', delta: '↑ +18%', positive: true },
-                { label: 'Devis en attente', val: '12', delta: '3 à relancer', positive: false },
-                { label: 'Rendus IA générés', val: '234', delta: 'cette semaine', positive: true },
-              ].map((card) => (
-                <div
-                  key={card.label}
-                  style={{
-                    background: 'rgba(255,255,255,.06)',
-                    borderRadius: 12,
-                    padding: '14px',
-                    border: '1px solid rgba(201,169,110,.1)',
-                  }}
-                >
-                  <div style={{ fontSize: '.72rem', color: 'rgba(255,255,255,.45)', marginBottom: 6, fontWeight: 500 }}>
-                    {card.label}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '1.35rem',
-                      fontWeight: 700,
-                      color: '#ffffff',
-                      fontFamily: 'var(--font-display)',
-                      marginBottom: 4,
-                    }}
-                  >
-                    {card.val}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '.72rem',
-                      color: card.positive ? '#c9a96e' : 'rgba(255,255,255,.4)',
-                    }}
-                  >
-                    {card.delta}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Pipeline */}
-            <div
-              style={{
-                background: 'rgba(255,255,255,.04)',
-                borderRadius: 12,
-                padding: '14px',
-                border: '1px solid rgba(201,169,110,.08)',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '.72rem',
-                  color: 'rgba(255,255,255,.35)',
-                  marginBottom: 10,
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '.08em',
-                }}
-              >
-                Pipeline clients
-              </div>
-              {[
-                { name: 'Cuisine Dubois', stage: 'Devis envoyé', pct: 60 },
-                { name: 'Dressing Martin', stage: 'En fabrication', pct: 80 },
-                { name: 'Salon Perret', stage: 'Pose planifiée', pct: 95 },
-              ].map((p) => (
-                <div key={p.name} style={{ marginBottom: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{ fontSize: '.78rem', color: 'rgba(255,255,255,.7)', fontWeight: 500 }}>
-                      {p.name}
-                    </span>
-                    <span style={{ fontSize: '.72rem', color: '#c9a96e' }}>{p.stage}</span>
-                  </div>
-                  <div
-                    style={{
-                      height: 5,
-                      background: 'rgba(255,255,255,.08)',
-                      borderRadius: 3,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${p.pct}%`,
-                        background: 'linear-gradient(90deg, #a67749, #c9a96e)',
-                        borderRadius: 3,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Image
+              src="/photohero.png"
+              alt="Apercu de l'application AVRA"
+              fill
+              priority
+              quality={95}
+              // sizes dimensionne pour la version zoomee (1.6x sur 820 = ~1300px)
+              // afin que Next.js serve une variante haute resolution et que le
+              // zoom hover ne pixellise pas l'image.
+              sizes="(max-width: 768px) 90vw, 1500px"
+              style={{ objectFit: 'cover' }}
+            />
           </div>
           </div>{/* fin colonne droite flex wrapper */}
         </div>
 
-        {/* Scroll indicator */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 36,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 10,
-            zIndex: 2,
-          }}
-        >
-          <span
-            style={{
-              fontSize: '.78rem',
-              color: 'rgba(255,255,255,.4)',
-              textTransform: 'uppercase',
-              letterSpacing: '.1em',
-            }}
-          >
-            Découvrez
-          </span>
-          <ChevronDown size={18} style={{ color: '#c9a96e' }} />
-        </div>
+        {/* Scroll indicator "DECOUVREZ" retire 19/05/2026 — paternaliste et inutile. */}
       </section>
 
       {/* ════════════════════════════════════════════════════════════════
@@ -2059,25 +1924,11 @@ export default function HomePage() {
 
       <Footer />
 
-      {/* Animations CSS globales pour le logo et la chouette */}
-      <style>{`
-        @keyframes logoPulse {
-          0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-        }
-        @keyframes logoFloat {
-          0%, 100% { transform: translateY(0px) rotate(-1deg); }
-          50% { transform: translateY(-10px) rotate(1deg); }
-        }
-        @keyframes heroRing1 {
-          from { transform: translate(-50%, -50%) rotate(0deg); opacity: 0.6; }
-          to { transform: translate(-50%, -50%) rotate(360deg); opacity: 0.6; }
-        }
-        @keyframes heroRing2 {
-          from { transform: translate(-50%, -50%) rotate(0deg); opacity: 0.3; }
-          to { transform: translate(-50%, -50%) rotate(-360deg); opacity: 0.3; }
-        }
-      `}</style>
+      {/* Animations CSS globales pour le logo et la chouette.
+          Passe via dangerouslySetInnerHTML pour eviter une hydration mismatch
+          quand un bundle JS stale cote client tente de reconcilier le contenu
+          du <style> (meme pattern que HeroLogoBanner). */}
+      <style dangerouslySetInnerHTML={{ __html: PAGE_GLOBAL_CSS }} />
     </>
   );
 }

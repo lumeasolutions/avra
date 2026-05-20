@@ -95,13 +95,41 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
 
   // 05/05/2026 — listes profession-aware partagées avec DateButoireValidationModal.
   // La clé d'indexation est le `label` du DateButoireItem (pas un id slug).
+  // 19/05/2026 — On affiche maintenant TOUS les items (date + access + static)
+  // dans le tableau de bord, pas seulement les dates. Les items 'access'
+  // (Commande, Confirmations, Livraison) sont cables sur signedSubfolders :
+  // completed quand le sous-dossier contient au moins 1 document ou est validé.
   const items = getDateButoireItemsForProfession(profession);
-  const dateItems = items.filter(i => i.kind === 'date');
   const today = new Date();
 
-  // Pour chaque date butoire, calculer l'état (à venir, passée, non définie)
-  const completedCount = dateItems.filter(i => saved[i.label]).length;
-  const totalCount = dateItems.length;
+  // Helper : retrouve un sous-dossier signé par label (match case-insensitive, trim)
+  const findSubfolder = (label: string) => {
+    const norm = label.trim().toLowerCase();
+    return dossier?.signedSubfolders.find(sf => sf.label.trim().toLowerCase() === norm);
+  };
+
+  // Helper : un item 'access' est completed si son sous-dossier a des documents
+  // ou est marque validated.
+  const isAccessCompleted = (label: string): boolean => {
+    const sf = findSubfolder(label);
+    if (!sf) return false;
+    if (sf.validated) return true;
+    return (sf.documents?.length ?? 0) > 0;
+  };
+
+  // Helper : un item est completed selon son kind
+  const isItemCompleted = (item: DateButoireItem): boolean => {
+    if (item.kind === 'date') return !!saved[item.label];
+    if (item.kind === 'access') return isAccessCompleted(item.label);
+    // 'static' (SAV) — informationnel, on compte comme non-bloquant
+    // mais on l'inclut dans le total pour transparence.
+    return false;
+  };
+
+  // Items qui comptent dans la progression : date + access (pas static)
+  const progressItems = items.filter(i => i.kind !== 'static');
+  const completedCount = progressItems.filter(isItemCompleted).length;
+  const totalCount = progressItems.length;
 
   const getDateStatus = (id: string) => {
     const val = saved[id];
@@ -212,9 +240,78 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
             </div>
           )}
 
-          {/* Status Items */}
+          {/* Status Items — tous les kinds (date / access / static) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {dateItems.map((item) => {
+            {items.map((item) => {
+
+              // ── Items 'access' (Commande, Confirmations, Livraison) ─────
+              //    Etat dérivé du sous-dossier signedSubfolders correspondant.
+              if (item.kind === 'access') {
+                const sf = findSubfolder(item.label);
+                const docCount = sf?.documents?.length ?? 0;
+                const completed = isAccessCompleted(item.label);
+                const dotColor = completed ? '#10b981' : '#e5e7eb';
+                const bgColor = completed ? 'rgba(16,185,129,0.06)' : 'transparent';
+                const borderColor = completed ? 'rgba(16,185,129,0.2)' : 'rgba(48,64,53,0.08)';
+                return (
+                  <div
+                    key={item.label}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      border: `1px solid ${borderColor}`,
+                      borderRadius: '0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      backgroundColor: bgColor,
+                    }}
+                  >
+                    <div style={{ width: '0.625rem', height: '0.625rem', borderRadius: '50%', backgroundColor: dotColor, flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: '0.8rem', fontWeight: '700', color: '#304035' }}>
+                      {item.label}
+                    </span>
+                    {completed ? (
+                      <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Check style={{ width: 12, height: 12 }} />
+                        {docCount > 0 ? `${docCount} doc${docCount > 1 ? 's' : ''}` : 'Validé'}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: 'rgba(48,64,53,0.3)', fontStyle: 'italic' }}>
+                        Vide à compléter
+                      </span>
+                    )}
+                  </div>
+                );
+              }
+
+              // ── Items 'static' (SAV) ────────────────────────────────────
+              //    Informationnel, dot neutre, pas de status.
+              if (item.kind === 'static') {
+                return (
+                  <div
+                    key={item.label}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      border: '1px solid rgba(120,80,180,0.18)',
+                      borderRadius: '0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      backgroundColor: 'rgba(120,80,180,0.03)',
+                    }}
+                  >
+                    <div style={{ width: '0.625rem', height: '0.625rem', borderRadius: '50%', backgroundColor: '#7850b4', flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: '0.8rem', fontWeight: '700', color: '#304035' }}>
+                      {item.label}
+                    </span>
+                    <span style={{ fontSize: '0.7rem', fontWeight: '600', color: 'rgba(120,80,180,0.7)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Suivi continu
+                    </span>
+                  </div>
+                );
+              }
+
+              // ── Items 'date' (cas par défaut) ───────────────────────────
               const status = getDateStatus(item.label);
               const val = saved[item.label];
               const dotColor = status === 'ok' ? '#10b981' : status === 'urgent' ? '#f97316' : status === 'past' ? '#6b7280' : '#e5e7eb';
@@ -233,13 +330,7 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
                     backgroundColor: bgColor,
                   }}
                 >
-                  <div style={{
-                    width: '0.625rem',
-                    height: '0.625rem',
-                    borderRadius: '50%',
-                    backgroundColor: dotColor,
-                    flexShrink: 0,
-                  }} />
+                  <div style={{ width: '0.625rem', height: '0.625rem', borderRadius: '50%', backgroundColor: dotColor, flexShrink: 0 }} />
                   <span style={{ flex: 1, fontSize: '0.8rem', fontWeight: '700', color: '#304035' }}>
                     {item.label}
                   </span>
@@ -637,7 +728,7 @@ export default function DossiersSignesPage() {
           onClick={() => setActiveTab('commande-fournisseur')}
           className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all', activeTab === 'commande-fournisseur' ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/50 hover:text-[#304035]')}
         >
-          <ShoppingCart className="h-4 w-4" /> Commande fournisseur
+          <ShoppingCart className="h-4 w-4" /> Commandes fournisseurs
         </button>
         <button
           onClick={() => setActiveTab('confirmations')}

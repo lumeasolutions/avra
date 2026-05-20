@@ -7,8 +7,10 @@ import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, 
 import { useDossierStore } from '@/store';
 import { ValidationDashboard } from '@/components/dossiers/ValidationDashboard';
 import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
+import { OngoingDossierDashboardModal } from '@/components/dossiers/OngoingDossierDashboardModal';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { DashboardTriggerButton } from '@/components/layout/DashboardTriggerButton';
+import type { Dossier } from '@/store/useDossierStore';
 
 const STATUS_CONFIG: Record<string, {
   label: string;
@@ -107,6 +109,15 @@ export default function DossiersPage() {
   // ── Suppression ─────────────────────────────────────────────────────────
   const { deleteProject } = useProjectActions();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; firstName?: string; itemsCount: number } | null>(null);
+
+  // ── Tableau de bord par dossier (modal) ─────────────────────────────────
+  // Demande asso (19/05/2026) : "Manque onglet tableau de bord par dossier"
+  const [dashboardDossier, setDashboardDossier] = useState<Dossier | null>(null);
+  const openDashboard = (e: React.MouseEvent, d: Dossier) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDashboardDossier(d);
+  };
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -592,11 +603,18 @@ export default function DossiersPage() {
                       </div>
                     </div>
 
-                    {/* Footer */}
-                    <div className="flex items-center justify-between pt-3 border-t border-[#304035]/5">
-                      <span className="text-xs text-[#304035]/40">
-                        {d.subfolders.length} élément{d.subfolders.length > 1 ? 's' : ''}
-                      </span>
+                    {/* Footer — 2 actions : Tableau de bord (modal) + Voir le dossier (link entier) */}
+                    <div className="flex items-center justify-between pt-3 border-t border-[#304035]/5 gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => openDashboard(e, d)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#304035]/5 hover:bg-[#304035]/10 text-[#304035]/70 hover:text-[#304035] text-xs font-semibold transition-all"
+                        title="Tableau de bord du dossier"
+                        aria-label={`Tableau de bord de ${d.name}`}
+                      >
+                        <LayoutDashboard className="h-3.5 w-3.5" />
+                        Tableau de bord
+                      </button>
                       <div className="flex items-center gap-1 text-xs font-semibold text-[#a67749]">
                         <span>Voir le dossier</span>
                         <ChevronRight className="card-arrow h-3.5 w-3.5 transition-transform duration-150" />
@@ -655,6 +673,17 @@ export default function DossiersPage() {
                     {cfg.label}
                   </div>
 
+                  {/* Bouton tableau de bord */}
+                  <button
+                    type="button"
+                    onClick={(e) => openDashboard(e, d)}
+                    className="flex items-center justify-center h-8 w-8 rounded-lg bg-[#304035]/5 text-[#304035]/55 hover:bg-[#304035]/12 hover:text-[#304035] hover:scale-105 transition-all shrink-0"
+                    title="Tableau de bord du dossier"
+                    aria-label={`Tableau de bord de ${d.name}`}
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                  </button>
+
                   {/* Bouton corbeille (apparait au hover) */}
                   <button
                     type="button"
@@ -672,6 +701,14 @@ export default function DossiersPage() {
             })}
           </div>
         </div>
+      )}
+
+      {/* Modal tableau de bord par dossier (demande asso 19/05/2026) */}
+      {dashboardDossier && (
+        <OngoingDossierDashboardModal
+          dossier={dashboardDossier}
+          onClose={() => setDashboardDossier(null)}
+        />
       )}
 
       {/* Modal de confirmation de suppression — disponible pour les 3 portails */}

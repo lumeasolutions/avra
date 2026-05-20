@@ -10,6 +10,7 @@ import {
 import { useDossierStore, usePlanningStore } from '@/store';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { CustomInterventionTypeModal } from '@/components/planning/CustomInterventionTypeModal';
 
 /**
  * Genere une couleur stable a partir d'un nom (hash deterministe).
@@ -123,7 +124,8 @@ const OCCASIONAL_INTERVENTION_TYPES = [
   { key: 'TAPISSIER',             label: 'Tapissier',                   color: '#9d174d', icon: '🛋' },
 ];
 
-/** Tous les types possibles, fusionnés (pour la résolution de label/color). */
+/** Tous les types prédéfinis (sans les customs utilisateur, qui sont ajoutés
+ *  dynamiquement dans le composant via le store). */
 const ALL_INTERVENTION_TYPES = [...INTERVENTION_TYPES, ...OCCASIONAL_INTERVENTION_TYPES];
 
 /* ── INTERVENANTS ── */
@@ -167,13 +169,26 @@ export default function PlanningGestionPage() {
   const addGestEvent    = usePlanningStore(s => s.addGestEvent);
   const updateGestEvent = usePlanningStore(s => s.updateGestEvent);
   const deleteGestEvent = usePlanningStore(s => s.deleteGestEvent);
+  // Métiers custom (créés manuellement par l'user, persistés). 19/05/2026.
+  const customInterventionTypes = usePlanningStore(s => s.customInterventionTypes);
+  const addCustomInterventionType = usePlanningStore(s => s.addCustomInterventionType);
+  const deleteCustomInterventionType = usePlanningStore(s => s.deleteCustomInterventionType);
   // Liste des intervenants du workspace (la vraie liste creee dans /intervenants)
   const intervenantsList = useIntervenantStore(s => s.intervenants);
+
+  // Liste finale tous types = prédéfinis + customs utilisateur. Utilisée pour
+  // résoudre les labels/couleurs/icônes d'un GestEvent.type donné.
+  const ALL_TYPES = useMemo(
+    () => [...ALL_INTERVENTION_TYPES, ...customInterventionTypes],
+    [customInterventionTypes],
+  );
 
   const [weekOffset, setWeekOffset]   = useState(0);
   const [showAdd,    setShowAdd]      = useState(false);
   const [showOccasionalPicker, setShowOccasionalPicker] = useState(false);
   const [showOccasionalLegend, setShowOccasionalLegend] = useState(false);
+  // Modale création métier custom (19/05/2026, demande asso)
+  const [showCustomTypeModal, setShowCustomTypeModal] = useState(false);
   const [newEvent,   setNewEvent]     = useState<{ type: string; client: string; duration: number; intervenantId: string | null }>({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null });
   const [modalDate,  setModalDate]    = useState('');
   const [modalHour,  setModalHour]    = useState(9);
@@ -265,7 +280,7 @@ export default function PlanningGestionPage() {
     return map;
   }, [currentEvents]);
 
-  const typeInfo = ALL_INTERVENTION_TYPES.find(t => t.key === newEvent.type) || INTERVENTION_TYPES[0];
+  const typeInfo = ALL_TYPES.find(t => t.key === newEvent.type) || INTERVENTION_TYPES[0];
 
   const openAdd = (day: number, hour: number, minute: number = 0) => {
     const cellDate = getWeekDates(weekOffset)[day - 1];
@@ -653,7 +668,7 @@ export default function PlanningGestionPage() {
                           const draggedEv = gestEvents.find(e => e.id === draggingEventId);
                           const ghostDurMin = draggedEv ? getDurationMinutes(draggedEv) : 60;
                           const ghostColor = draggedEv
-                            ? (ALL_INTERVENTION_TYPES.find(t => t.key === draggedEv.type)?.color || '#a67749')
+                            ? (ALL_TYPES.find(t => t.key === draggedEv.type)?.color || '#a67749')
                             : '#a67749';
                           const yPx = (dragHover.minute / 60) * CELL_H;
                           const ghostHeight = (ghostDurMin / 60) * CELL_H;
@@ -699,8 +714,8 @@ export default function PlanningGestionPage() {
                     const durationMin = getDurationMinutes(ev);
                     const top    = (ev.startHour - START_HOUR) * CELL_H + (startMin / 60) * CELL_H;
                     const height = (durationMin / 60) * CELL_H - 4;
-                    const color  = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.color || '#a67749';
-                    const icon   = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.icon || '🔨';
+                    const color  = ALL_TYPES.find(t => t.key === ev.type)?.color || '#a67749';
+                    const icon   = ALL_TYPES.find(t => t.key === ev.type)?.icon || '🔨';
                     const isDragging = draggingEventId === ev.id;
                     // Layout quinconce : col/cols pour partager la largeur entre events en overlap
                     const layout   = eventLayout.get(ev.id) ?? { col: 0, cols: 1 };
@@ -825,6 +840,45 @@ export default function PlanningGestionPage() {
                 </button>
               </>
             )}
+
+            {/* Métiers custom (19/05/2026 — ajoutés manuellement par l'user) */}
+            {customInterventionTypes.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-[#304035]/8">
+                <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">Mes métiers</p>
+                <div className="space-y-1.5">
+                  {customInterventionTypes.map(({ key, label, color, icon }) => (
+                    <div key={key} className="group flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-[#f5eee8]/60 transition-colors">
+                      <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-xs font-semibold text-[#304035] flex-1">{icon} {label}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm(`Supprimer le métier "${label}" ?\nLes interventions déjà planifiées avec ce métier conserveront leur couleur de secours.`)) {
+                            deleteCustomInterventionType(key);
+                          }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-[#304035]/40 hover:text-red-500 hover:bg-red-50 transition-all"
+                        title={`Supprimer "${label}"`}
+                        aria-label={`Supprimer ${label}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Bouton + Créer un métier custom (toujours visible, 19/05/2026) */}
+            <button
+              type="button"
+              onClick={() => setShowCustomTypeModal(true)}
+              className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-[#a67749]/40 bg-[#a67749]/5 text-[11px] font-bold text-[#a67749] hover:bg-[#a67749]/12 hover:border-[#a67749]/60 transition-colors"
+              title="Créer un métier qui n'est pas dans la liste"
+            >
+              <Plus className="h-3 w-3" />
+              Créer un métier
+            </button>
           </div>
 
           {/* Intervenants — tableau Nom + Métier branche sur le store reel */}
@@ -933,8 +987,8 @@ export default function PlanningGestionPage() {
         if (left + popoverWidth > screenW - 16) left = popoverPosition.x - popoverWidth - 32;
         if (top + 140 > screenH - 16) top = screenH - 156;
         if (top < 16) top = 16;
-        const color = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.color || '#a67749';
-        const icon  = ALL_INTERVENTION_TYPES.find(t => t.key === ev.type)?.icon || '🔨';
+        const color = ALL_TYPES.find(t => t.key === ev.type)?.color || '#a67749';
+        const icon  = ALL_TYPES.find(t => t.key === ev.type)?.icon || '🔨';
         return (
           <div
             className="pg-popover fixed z-[60] rounded-xl bg-white shadow-2xl border border-[#304035]/10 overflow-hidden"
@@ -1080,6 +1134,53 @@ export default function PlanningGestionPage() {
                             <span className="truncate">{t.label}</span>
                           </button>
                         ))}
+                      </div>
+
+                      {/* Section Mes métiers (custom) — 19/05/2026 */}
+                      {customInterventionTypes.length > 0 && (
+                        <>
+                          <div className="sticky top-0 bg-gradient-to-r from-[#f9f6f2] to-white border-y border-[#a67749]/15 px-3 py-2 mt-1">
+                            <p className="text-[10px] font-bold text-[#a67749] uppercase tracking-wider">
+                              Mes métiers
+                            </p>
+                            <p className="text-[10px] text-[#304035]/50 mt-0.5">
+                              Créés manuellement par vous
+                            </p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-1.5 p-2">
+                            {customInterventionTypes.map(t => (
+                              <button
+                                key={t.key}
+                                type="button"
+                                onClick={() => {
+                                  setNewEvent(p => ({ ...p, type: t.key }));
+                                  setShowOccasionalPicker(false);
+                                }}
+                                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border transition-all text-left text-xs font-semibold hover:scale-[1.02]"
+                                style={{
+                                  borderColor: newEvent.type === t.key ? t.color : 'rgba(48,64,53,0.08)',
+                                  background: newEvent.type === t.key ? t.color + '18' : 'white',
+                                  color: newEvent.type === t.key ? t.color : '#304035',
+                                }}
+                              >
+                                <span className="text-sm">{t.icon}</span>
+                                <span className="truncate">{t.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Bouton + Créer dans le picker */}
+                      <div className="px-2 pb-2">
+                        <button
+                          type="button"
+                          onClick={() => { setShowOccasionalPicker(false); setShowCustomTypeModal(true); }}
+                          className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-[#a67749]/40 bg-[#a67749]/5 text-xs font-bold text-[#a67749] hover:bg-[#a67749]/12 transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Créer un métier
+                        </button>
                       </div>
                     </div>
                   </>
@@ -1262,6 +1363,23 @@ export default function PlanningGestionPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modale création métier custom (19/05/2026 — demande asso) */}
+      {showCustomTypeModal && (
+        <CustomInterventionTypeModal
+          existingLabels={ALL_TYPES.map(t => t.label)}
+          onConfirm={({ label, color, icon }) => {
+            const newType = addCustomInterventionType({ label, color, icon });
+            // Auto-sélectionne le nouveau métier dans la modale "Nouvelle
+            // intervention" si elle est ouverte au moment de la création.
+            if (showAdd) {
+              setNewEvent(p => ({ ...p, type: newType.key }));
+            }
+            setShowCustomTypeModal(false);
+          }}
+          onCancel={() => setShowCustomTypeModal(false)}
+        />
       )}
     </div>
   );

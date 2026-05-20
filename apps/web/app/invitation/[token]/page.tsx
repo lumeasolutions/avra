@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { CheckCircle2, XCircle, Mail, Building2, Calendar, AlertCircle, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn } from 'lucide-react';
+import { CheckCircle2, XCircle, Mail, Building2, Calendar, AlertCircle, ShieldCheck, ArrowRight, Eye, EyeOff, UserPlus, LogIn, Check, X as XIcon } from 'lucide-react';
 import { useDemandesStore } from '@/store/useDemandesStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { evaluatePassword, getMissingRulesMessage } from '@/lib/password-rules';
 
 /**
  * Page publique d'acceptation d'invitation intervenant.
@@ -305,10 +306,17 @@ function NotAuthenticatedActions({
 
   const router = useRouter();
 
+  // Helper partage — regles strictement alignees avec le back-end (cf.
+  // apps/web/lib/password-rules.ts et register.dto.ts).
+  const pwdEval = evaluatePassword(password);
+  const pwdValid = pwdEval.allValid;
+  const [pwdFocused, setPwdFocused] = useState(false);
+
   const handleRegister = async () => {
     setError(null);
-    if (password.length < 8) {
-      setError('Mot de passe : 8 caracteres minimum');
+    const missingMsg = getMissingRulesMessage(password);
+    if (missingMsg) {
+      setError(missingMsg);
       return;
     }
     setSubmitting(true);
@@ -377,8 +385,10 @@ function NotAuthenticatedActions({
           type={showPassword ? 'text' : 'password'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Mot de passe (8 caracteres min.)"
-          minLength={8}
+          onFocus={() => setPwdFocused(true)}
+          onBlur={() => setPwdFocused(false)}
+          placeholder="Mot de passe (12 caracteres min.)"
+          minLength={12}
           autoFocus
           style={{ ...inputStyle(), paddingRight: 40 }}
         />
@@ -396,6 +406,29 @@ function NotAuthenticatedActions({
         </button>
       </div>
 
+      {/* Checklist regles complexite — visible quand champ focus ou rempli */}
+      {(pwdFocused || password) && (
+        <ul style={{
+          listStyle: 'none', padding: '10px 12px', margin: 0,
+          background: '#fbf8f3', border: '1px solid #ede4d4', borderRadius: 8,
+          display: 'flex', flexDirection: 'column', gap: 4,
+        }}>
+          {pwdEval.rules.map((r) => (
+            <li key={r.id} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontSize: 12,
+              color: r.ok ? '#15803d' : '#7c6c58',
+              transition: 'color 0.2s',
+            }}>
+              {r.ok
+                ? <Check size={13} style={{ color: '#22c55e', flexShrink: 0 }} />
+                : <XIcon size={13} style={{ color: '#c0a886', flexShrink: 0 }} />}
+              <span style={{ textDecoration: r.ok ? 'line-through' : 'none' }}>{r.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {error && (
         <div style={{
           padding: '10px 14px',
@@ -409,8 +442,8 @@ function NotAuthenticatedActions({
 
       <button
         onClick={handleRegister}
-        disabled={submitting || password.length < 8}
-        style={{ ...btnPrimary(), opacity: submitting || password.length < 8 ? 0.6 : 1 }}
+        disabled={submitting || !pwdValid}
+        style={{ ...btnPrimary(), opacity: submitting || !pwdValid ? 0.6 : 1 }}
       >
         <CheckCircle2 size={16} />
         {submitting ? 'Creation…' : 'Creer mon compte et accepter'}

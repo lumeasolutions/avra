@@ -17,7 +17,9 @@ import { Trash2 } from 'lucide-react';
 import { uploadDossierDoc, uploadDossierDocDirect, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
 import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
 import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
+import { OptionSelectionModal } from '@/components/dossiers/OptionSelectionModal';
 import { useProjectActions } from '@/hooks/useProjectActions';
+import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
 
@@ -304,14 +306,43 @@ export default function DossierDetailPage() {
   const stepIdx = STATUS_ORDER.indexOf(dossier.status);
   const totalHT = invoices.reduce((s, i) => s + (i.montantHT > 0 ? i.montantHT : 0), 0);
 
-  // ── Validation projet : modal dates butoires obligatoire ──────────────
-  // L'utilisateur doit renseigner les dates butoires de chaque sous-dossier
-  // signé AVANT de pouvoir valider (sinon l'équipe perd les deadlines).
+  // ── Validation projet : flow en 2 étapes (19/05/2026) ─────────────────
+  // 1. OptionSelectionModal — l'utilisateur coche les options à valider
+  //    (1 ou plusieurs OPTION N / PROJET N / PROJET VERSION N – APD).
+  // 2. DateButoireValidationModal — l'utilisateur renseigne les dates butoires
+  //    de chaque sous-dossier signé AVANT de pouvoir valider.
+  const [showOptionSelectionModal, setShowOptionSelectionModal] = useState(false);
   const [showDateButoiresModal, setShowDateButoiresModal] = useState(false);
   const [signing, setSigning] = useState(false);
+  const [selectedOptions, setSelectedOptions] = useState<ValidatedOptionSelection[]>([]);
+
+  // Detection des candidats options/projet/version selon profession — utilise
+  // pour decider si on ouvre l'OptionSelectionModal ou si on saute direct
+  // aux dates butoires (cas "0 option" → pas de choix a faire).
+  const hasValidationCandidates = (dossier?.subfolders ?? []).some((sf) => {
+    if (profession === 'cuisiniste') return CUISINISTE_OPTION_REGEX.test(sf.label);
+    if (profession === 'menuisier') return MENUISIER_PROJET_REGEX.test(sf.label);
+    if (profession === 'architecte') {
+      const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
+      return m !== null && m[2]?.toUpperCase() === 'APD';
+    }
+    return false;
+  });
 
   const handleSigner = () => {
-    // Ouvre la modal — la signature réelle est faite après la saisie des dates
+    // Si le dossier contient des options, on ouvre la modale de sélection.
+    // Sinon, on saute directement aux dates butoires (rétrocompat).
+    if (hasValidationCandidates) {
+      setShowOptionSelectionModal(true);
+    } else {
+      setSelectedOptions([]);
+      setShowDateButoiresModal(true);
+    }
+  };
+
+  const handleConfirmOptions = (selected: ValidatedOptionSelection[]) => {
+    setSelectedOptions(selected);
+    setShowOptionSelectionModal(false);
     setShowDateButoiresModal(true);
   };
 
@@ -321,13 +352,16 @@ export default function DossierDetailPage() {
       // 1. Persister les dates butoires AVANT le sign (le sign déplace le
       //    dossier dans dossiersSignes et nettoie l'état local).
       setDatesButoiresSignes(id, dates);
-      // 2. Signer le projet (POST /projects/:id/sign + store update).
-      await signProject(id);
+      // 2. Signer le projet (POST /projects/:id/sign + store update),
+      //    en transmettant les options selectionnees pour qu'elles
+      //    deviennent des sous-dossiers dedies dans le dossier signe.
+      await signProject(id, selectedOptions.length > 0 ? selectedOptions : undefined);
     } catch (err) {
       console.warn('[sign] API call failed (state local conservé) :', err);
     } finally {
       setSigning(false);
       setShowDateButoiresModal(false);
+      setSelectedOptions([]);
       router.push('/dossiers-signes');
     }
   };
@@ -2509,6 +2543,19 @@ export default function DossierDetailPage() {
           </>
         );
       })()}
+
+      {/* ══════════════════════════════════════════════════════════════════
+       *  MODAL : choix des options à valider (étape 1)
+       *  Apparaît seulement si le dossier contient des OPTION/PROJET/VERSION.
+       *  ══════════════════════════════════════════════════════════════════ */}
+      {showOptionSelectionModal && (
+        <OptionSelectionModal
+          dossier={dossier}
+          profession={profession}
+          onConfirm={handleConfirmOptions}
+          onCancel={() => setShowOptionSelectionModal(false)}
+        />
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════
        *  MODAL : dates butoires obligatoires avant validation projet

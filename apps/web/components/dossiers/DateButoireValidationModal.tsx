@@ -943,10 +943,22 @@ export function DateButoireValidationModal({
         @media (max-width: 900px) {
           .dbv-body { grid-template-columns: 1fr; }
         }
-        .dbv-col-left { display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto; border-right: 1px solid rgba(48,64,53,0.08); }
+        /* 19/05/2026 : barre laterale visible entre les 2 colonnes (demande asso).
+           Ligne 2px + degrade vertical doux pour un separateur premium. */
+        .dbv-col-left {
+          display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto;
+          border-right: 2px solid transparent;
+          border-image: linear-gradient(180deg, rgba(166,119,73,0) 0%, rgba(166,119,73,0.35) 18%, rgba(166,119,73,0.35) 82%, rgba(166,119,73,0) 100%) 1;
+          box-shadow: inset -1px 0 0 rgba(48,64,53,0.04);
+        }
         .dbv-col-right { display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
         @media (max-width: 900px) {
-          .dbv-col-left { border-right: none; border-bottom: 1px solid rgba(48,64,53,0.08); }
+          .dbv-col-left {
+            border-right: none;
+            border-image: none;
+            border-bottom: 2px solid rgba(166,119,73,0.25);
+            box-shadow: none;
+          }
         }
 
         /* Sections cards */

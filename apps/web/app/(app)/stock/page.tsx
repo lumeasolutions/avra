@@ -339,6 +339,14 @@ export default function StockPage() {
           .stk-table-inner { min-width: 700px; }
           .stk-card-grid { grid-template-columns: 1fr !important; }
         }
+        /* Scrollbar visible custom sur le body de la modale "Nouvel article"
+           (19/05/2026) — pour que l'utilisateur sache qu'il peut scroller et
+           atteindre le bouton "Enregistrer l'article". */
+        .stock-modal-body { scrollbar-width: thin; scrollbar-color: rgba(48,64,53,0.35) rgba(48,64,53,0.06); }
+        .stock-modal-body::-webkit-scrollbar { width: 10px; }
+        .stock-modal-body::-webkit-scrollbar-track { background: rgba(48,64,53,0.04); border-radius: 8px; margin: 4px 0; }
+        .stock-modal-body::-webkit-scrollbar-thumb { background: rgba(48,64,53,0.3); border-radius: 8px; border: 2px solid #fff; }
+        .stock-modal-body::-webkit-scrollbar-thumb:hover { background: rgba(48,64,53,0.5); }
       `}</style>
       
 
@@ -915,18 +923,22 @@ export default function StockPage() {
         </div>
       )}
 
-      {/* ── MODAL AJOUTER ── */}
+      {/* ── MODAL AJOUTER ──
+          19/05/2026 : restructure en flex-col avec body scrollable + footer
+          sticky pour que le bouton "Enregistrer l'article" reste accessible
+          meme quand le formulaire deborde du viewport (demande asso). */}
       {showAdd && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
           onClick={() => setShowAdd(false)}
         >
           <div
-            className="w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10 fade-up"
+            className="stock-modal-card w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-[#304035]/10 fade-up flex flex-col"
+            style={{ maxHeight: '90vh' }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Header modal */}
-            <div className="flex items-center justify-between mb-6">
+            {/* Header modal — sticky top */}
+            <div className="flex items-center justify-between p-7 pb-4 border-b border-[#304035]/8 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-[#304035]/8 flex items-center justify-center">
                   <Plus className="h-5 w-5 text-[#304035]" />
@@ -941,7 +953,8 @@ export default function StockPage() {
               </button>
             </div>
 
-            <div className="space-y-4">
+            {/* Body scrollable — scrollbar visible (CSS custom plus bas) */}
+            <div className="stock-modal-body space-y-4 px-7 py-5 overflow-y-auto flex-1">
               {/* Ligne 1 : Fournisseur + Modèle */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1053,48 +1066,41 @@ export default function StockPage() {
                 </div>
               </div>
 
-              {/* Image — URL OU upload depuis l'ordinateur, avec preview live.
-                  L'upload local est encodé en data URL et stocké dans le même
-                  champ form.image (string) pour rester compatible avec le
-                  rendu existant <img src={item.image}>. */}
+              {/* Image — upload local UNIQUEMENT (19/05/2026, demande asso).
+                  Le champ URL distante a ete retire car cassait au runtime
+                  (CSP / cross-origin / images non disponibles). L'upload local
+                  est encode en data URL et stocke dans form.image (string)
+                  pour rester compatible avec le rendu existant <img src={item.image}>. */}
               <div>
                 <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">Image produit</label>
-                <div className="flex gap-2">
+                <label
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border-2 border-dashed border-[#a67749]/40 bg-[#a67749]/8 text-sm font-bold text-[#a67749] cursor-pointer hover:bg-[#a67749]/15 transition-colors"
+                  title="Importer une image depuis votre ordinateur"
+                >
+                  <Upload className="h-4 w-4" />
+                  Importer une image
                   <input
-                    value={form.image.startsWith('data:') ? '' : form.image}
-                    onChange={e => setForm(f => ({ ...f, image: e.target.value }))}
-                    placeholder="Coller une URL https://… ou cliquer sur Importer →"
-                    className="flex-1 rounded-xl border border-[#304035]/15 bg-[#f5eee8]/40 px-3 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/25 focus:outline-none focus:ring-2 focus:ring-[#304035]/15"
-                  />
-                  <label
-                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border-2 border-dashed border-[#a67749]/40 bg-[#a67749]/8 text-xs font-bold text-[#a67749] cursor-pointer hover:bg-[#a67749]/15 transition-colors shrink-0"
-                    title="Importer une image depuis votre ordinateur"
-                  >
-                    <Upload className="h-3.5 w-3.5" />
-                    Importer
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        if (file.size > 1 * 1024 * 1024) {
-                          alert("Image trop lourde (max 1 Mo). Compressez-la ou utilisez une URL.");
-                          e.currentTarget.value = '';
-                          return;
-                        }
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                          setForm(f => ({ ...f, image: reader.result as string }));
-                        };
-                        reader.onerror = () => alert("Impossible de lire le fichier.");
-                        reader.readAsDataURL(file);
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 1 * 1024 * 1024) {
+                        alert("Image trop lourde (max 1 Mo). Compressez-la et réessayez.");
                         e.currentTarget.value = '';
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        setForm(f => ({ ...f, image: reader.result as string }));
+                      };
+                      reader.onerror = () => alert("Impossible de lire le fichier.");
+                      reader.readAsDataURL(file);
+                      e.currentTarget.value = '';
+                    }}
+                    className="hidden"
+                  />
+                </label>
                 {form.image ? (
                   <div className="mt-2 flex items-center gap-3 rounded-xl border border-[#304035]/8 bg-white p-2">
                     <img
@@ -1105,9 +1111,7 @@ export default function StockPage() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] font-semibold text-[#304035]">
-                        {form.image.startsWith('data:')
-                          ? 'Fichier importé depuis votre ordinateur'
-                          : 'Image distante (URL)'}
+                        Image importée
                       </p>
                       <p className="text-[10px] text-[#304035]/40 truncate">
                         {form.image.startsWith('data:')
@@ -1125,7 +1129,7 @@ export default function StockPage() {
                     </button>
                   </div>
                 ) : (
-                  <p className="text-[9px] text-[#304035]/30 mt-1">Optionnel — affiché en miniature dans la liste des articles</p>
+                  <p className="text-[9px] text-[#304035]/30 mt-1">Optionnel — JPG / PNG / WEBP · 1 Mo max · affiché en miniature dans la liste des articles</p>
                 )}
               </div>
 
@@ -1152,8 +1156,8 @@ export default function StockPage() {
               </div>
             </div>
 
-            {/* Boutons */}
-            <div className="mt-6 flex gap-3">
+            {/* Footer sticky — toujours visible meme quand le body scrolle */}
+            <div className="flex gap-3 p-5 border-t border-[#304035]/8 bg-white shrink-0 rounded-b-2xl">
               <button
                 onClick={handleAdd}
                 disabled={!form.supplier || !form.model}

@@ -4,7 +4,8 @@ import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, Eye, EyeOff, ArrowRight, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, ArrowRight, CheckCircle, Check, X as XIcon } from 'lucide-react';
+import { evaluatePassword, getMissingRulesMessage } from '@/lib/password-rules';
 
 function ResetPasswordForm() {
   const params = useSearchParams();
@@ -24,25 +25,17 @@ function ResetPasswordForm() {
   // Validation token présent
   const tokenMissing = !token || !userId;
 
-  const strength = (() => {
-    if (!password) return 0;
-    let s = 0;
-    if (password.length >= 8) s++;
-    if (password.length >= 12) s++;
-    if (/[A-Z]/.test(password)) s++;
-    if (/[0-9]/.test(password)) s++;
-    if (/[^A-Za-z0-9]/.test(password)) s++;
-    return s;
-  })();
-
-  const strengthLabel = ['', 'Très faible', 'Faible', 'Moyen', 'Fort', 'Très fort'][strength];
-  const strengthColor = ['', '#ef4444', '#f97316', '#eab308', '#22c55e', '#16a34a'][strength];
+  // Helper partage — regles strictement alignees avec le back-end (12 chars,
+  // maj, min, chiffre, special). Cf. apps/web/lib/password-rules.ts
+  const evaluation = evaluatePassword(password);
+  const { rules: pwdRules, allValid: pwdValid, strength, strengthLabel, strengthColor } = evaluation;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (password !== confirm) { setError('Les mots de passe ne correspondent pas'); return; }
-    if (password.length < 8) { setError('Le mot de passe doit contenir au moins 8 caractères'); return; }
+    const missingMsg = getMissingRulesMessage(password);
+    if (missingMsg) { setError(missingMsg); return; }
     setLoading(true);
     try {
       const res = await fetch('/api/v1/auth/reset-password', {
@@ -241,6 +234,30 @@ function ResetPasswordForm() {
                       <span style={{ fontSize: '0.72rem', color: strengthColor, fontWeight: 600, marginTop: '4px', display: 'block' }}>{strengthLabel}</span>
                     </div>
                   )}
+                  {/* Checklist regles — visible des que le champ a du focus ou
+                      du contenu. Affichage temps reel ok/ko pour chaque regle. */}
+                  {(passFocused || password) && (
+                    <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {pwdRules.map((r) => (
+                        <li
+                          key={r.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '0.72rem',
+                            color: r.ok ? 'rgba(34,197,94,0.95)' : 'rgba(255,255,255,0.5)',
+                            transition: 'color 0.2s',
+                          }}
+                        >
+                          {r.ok
+                            ? <Check size={12} style={{ color: '#22c55e', flexShrink: 0 }} />
+                            : <XIcon size={12} style={{ color: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />}
+                          <span style={{ textDecoration: r.ok ? 'line-through' : 'none' }}>{r.label}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 {/* Confirm */}
@@ -273,7 +290,12 @@ function ResetPasswordForm() {
                   </div>
                 )}
 
-                <button type="submit" disabled={loading} className="btn-submit" style={{ marginTop: '4px' }}>
+                <button
+                  type="submit"
+                  disabled={loading || !pwdValid || !confirm || password !== confirm}
+                  className="btn-submit"
+                  style={{ marginTop: '4px' }}
+                >
                   {loading ? (
                     <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ animation: 'ringRotate 0.8s linear infinite' }}><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="30 70"/></svg>Mise à jour…</>
                   ) : (

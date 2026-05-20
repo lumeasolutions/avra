@@ -9,7 +9,7 @@
 
 import { useCallback } from 'react';
 import { api } from '@/lib/api';
-import { useDossierStore, getDefaultSubfoldersForProfession } from '@/store/useDossierStore';
+import { useDossierStore, getDefaultSubfoldersForProfession, type ValidatedOptionSelection } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 
 interface CreateProjectData {
@@ -129,13 +129,17 @@ export function useProjectActions() {
 
   /**
    * Signe un dossier : appelle l'API puis met à jour le store.
+   *
+   * @param selectedOptions Liste optionnelle des options sélectionnées par
+   *  l'utilisateur (modale "Choisir option à valider"). Si non fourni, le
+   *  store retombe sur le fallback historique (dernière option trouvée).
    */
   const signProject = useCallback(
-    async (id: string): Promise<void> => {
+    async (id: string, selectedOptions?: ValidatedOptionSelection[]): Promise<void> => {
       // Optimistic update local — on passe la profession pour que le store
       // construise les bons sous-dossiers signés (MENUISIER en a une liste
       // dédiée, voir buildSignedSubfoldersForProfession dans useDossierStore).
-      store.signerDossier(id, profession);
+      store.signerDossier(id, profession, selectedOptions);
 
       if (user?.id === 'demo' || !user?.workspaceId) return;
 
@@ -143,7 +147,14 @@ export function useProjectActions() {
       if (isLocalOnlyId(id)) return;
 
       try {
-        await api(`/projects/${id}/sign`, { method: 'POST' });
+        await api(`/projects/${id}/sign`, {
+          method: 'POST',
+          // Transmet la selection au back pour qu'il puisse en garder trace
+          // si besoin (le back peut ignorer si pas encore implémenté côté DB).
+          body: selectedOptions && selectedOptions.length > 0
+            ? JSON.stringify({ validatedOptions: selectedOptions })
+            : undefined,
+        });
       } catch (err) {
         console.warn('[ProjectActions] API sign failed:', err);
       }

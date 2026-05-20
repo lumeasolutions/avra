@@ -43,6 +43,27 @@ export interface GestEvent {
   intervenantType?: string;
 }
 
+/**
+ * Métier custom ajouté manuellement par l'utilisateur dans le planning gestion
+ * (demande asso 19/05/2026 : "+ pouvoir rajouter manuellement un métier si besoin").
+ *
+ * Persisté localStorage avec le reste du store. Le `key` est généré à la
+ * création (slug du label en majuscules + suffixe random pour unicité), il
+ * sert d'identifiant dans GestEvent.type et de cle de map dans le composant.
+ */
+export interface CustomInterventionType {
+  /** Identifiant stable, ex "CUSTOM_TAPISSIER_3F2A1B". */
+  key: string;
+  /** Libellé affiché à l'utilisateur, ex "Tapissier d'art". */
+  label: string;
+  /** Couleur hex utilisée pour le bullet de légende et le fond d'event. */
+  color: string;
+  /** Emoji icon (1-2 chars). */
+  icon: string;
+  /** Timestamp création (utile pour tri). */
+  createdAt: number;
+}
+
 // Données initiales — vides. Les vraies données viennent de l'API via useDataSync.
 const INITIAL_EVENTS: PlanningEvent[] = [];
 const INITIAL_GEST_EVENTS: GestEvent[] = [];
@@ -56,6 +77,8 @@ interface PlanningState {
   // Data
   planningEvents: PlanningEvent[];
   gestEvents: GestEvent[];
+  /** Métiers custom ajoutés manuellement par l'utilisateur (planning gestion). */
+  customInterventionTypes: CustomInterventionType[];
 
   // Planning actions
   addPlanningEvent: (event: Omit<PlanningEvent, 'id'>) => void;
@@ -69,6 +92,10 @@ interface PlanningState {
   updateGestEvent: (id: string, patch: Partial<Omit<GestEvent, 'id'>>) => void;
   deleteGestEvent: (id: string) => void;
 
+  // Métier custom actions
+  addCustomInterventionType: (data: Omit<CustomInterventionType, 'key' | 'createdAt'>) => CustomInterventionType;
+  deleteCustomInterventionType: (key: string) => void;
+
   // Reset
   reset: () => void;
 }
@@ -78,6 +105,7 @@ export const usePlanningStore = create<PlanningState>()(
     (set, get) => ({
       planningEvents: INITIAL_EVENTS,
       gestEvents: INITIAL_GEST_EVENTS,
+      customInterventionTypes: [],
 
       addPlanningEvent: (event) => {
         const newEvent = { ...event, id: 'ev' + uid() };
@@ -113,9 +141,36 @@ export const usePlanningStore = create<PlanningState>()(
         set(s => ({ gestEvents: s.gestEvents.filter(e => e.id !== id) }));
       },
 
+      // ── Métiers custom (planning gestion) ───────────────────────────────
+      addCustomInterventionType: (data) => {
+        // Slug pour la clé : labelmajuscules + 6 chars random (collision-safe)
+        const slug = data.label
+          .normalize('NFD')
+          .replace(/[̀-ͯ]/g, '')
+          .toUpperCase()
+          .replace(/[^A-Z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '')
+          .slice(0, 30);
+        const key = `CUSTOM_${slug || 'METIER'}_${uid()}`;
+        const newType: CustomInterventionType = {
+          key,
+          label: data.label,
+          color: data.color,
+          icon: data.icon,
+          createdAt: Date.now(),
+        };
+        set(s => ({ customInterventionTypes: [...s.customInterventionTypes, newType] }));
+        return newType;
+      },
+
+      deleteCustomInterventionType: (key) => {
+        set(s => ({ customInterventionTypes: s.customInterventionTypes.filter(t => t.key !== key) }));
+      },
+
       reset: () => set({
         planningEvents: INITIAL_EVENTS,
         gestEvents: INITIAL_GEST_EVENTS,
+        customInterventionTypes: [],
       }),
     }),
     { name: 'avra-planning-store' }

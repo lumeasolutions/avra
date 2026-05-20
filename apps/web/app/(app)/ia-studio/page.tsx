@@ -28,10 +28,18 @@ async function callColoristAPI(params: {
   poigneeFinish?: FinishType; planFinish?: FinishType;
   handleMaterial?: string; countertopMaterial?: string;
   sourceImageDataUrl?: string;
-  /** Texture data URL importée par l'utilisateur, par élément (mode manuel uniquement). */
+  /** Texture data URL ACTIVE (utilisée en hint matière côté serveur). */
   facadeTextureDataUrl?: string;
   poigneeTextureDataUrl?: string;
   planTextureDataUrl?: string;
+  /** Mode de rendu par élément (19/05/2026, demande asso) :
+   *   - 'color'   : couleur seule (texture ignorée)
+   *   - 'texture' : texture seule (couleur ignorée pour la matière)
+   *   - 'mix'     : combinaison couleur + texture (couleur teinte la texture)
+   *   Si absent : mode déduit (texture présente → 'mix' par défaut). */
+  facadeColorMode?:  'color' | 'texture' | 'mix';
+  poigneeColorMode?: 'color' | 'texture' | 'mix';
+  planColorMode?:    'color' | 'texture' | 'mix';
   numImages?: number;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string; steps?: PipelineStep[] | null }> {
   const res = await fetch('/api/ia/coloriste', {
@@ -691,11 +699,29 @@ export default function IaStudioPage() {
   const [poigneeFinish, setPoigneeFinish] = useState<FinishType | null>(null);
   const [planFinish,    setPlanFinish]    = useState<FinishType | null>(null);
   // Textures importées par l'utilisateur (mode manuel uniquement) — data URL.
-  // Limite 1 Mo par fichier. Si défini, remplace visuellement le fond plat de
-  // la pastille par l'image, et est cité dans le prompt fal.ai côté serveur.
-  const [facadeTexture,  setFacadeTexture]  = useState<string | null>(null);
-  const [poigneeTexture, setPoigneeTexture] = useState<string | null>(null);
-  const [planTexture,    setPlanTexture]    = useState<string | null>(null);
+  // 19/05/2026 (demande asso) : possibilité d'importer JUSQU'A 3 textures par
+  // élément + choix du mode "Couleur / Texture / Mix" pour combiner.
+  //   - mode 'color'   → utilise uniquement la couleur picker (texture ignorée)
+  //   - mode 'texture' → utilise uniquement la texture active (couleur ignorée pour le rendu)
+  //   - mode 'mix'     → texture active + couleur appliquée (teinte la texture)
+  // Backend reçoit (colorMode, activeTextureDataUrl, colorHex) et adapte le prompt.
+  const MAX_TEXTURES_PER_ELEMENT = 3;
+  type ColorMode = 'color' | 'texture' | 'mix';
+
+  const [facadeTextures,  setFacadeTextures]  = useState<string[]>([]);
+  const [poigneeTextures, setPoigneeTextures] = useState<string[]>([]);
+  const [planTextures,    setPlanTextures]    = useState<string[]>([]);
+  const [facadeActiveTextureIdx,  setFacadeActiveTextureIdx]  = useState(0);
+  const [poigneeActiveTextureIdx, setPoigneeActiveTextureIdx] = useState(0);
+  const [planActiveTextureIdx,    setPlanActiveTextureIdx]    = useState(0);
+  const [facadeMode,  setFacadeMode]  = useState<ColorMode>('color');
+  const [poigneeMode, setPoigneeMode] = useState<ColorMode>('color');
+  const [planMode,    setPlanMode]    = useState<ColorMode>('color');
+
+  // Helpers : texture active (data URL) ou null si aucune importée
+  const facadeTexture  = facadeTextures[facadeActiveTextureIdx]  ?? null;
+  const poigneeTexture = poigneeTextures[poigneeActiveTextureIdx] ?? null;
+  const planTexture    = planTextures[planActiveTextureIdx]      ?? null;
   const [colorLight,   setColorLight]   = useState<LightingType>('naturelle');
   const [colorLoading, setColorLoading] = useState(false);
   const [colorResult,  setColorResult]  = useState<Item|null>(null);
@@ -779,7 +805,7 @@ export default function IaStudioPage() {
    */
   const handleTextureUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    setter: (v: string | null) => void,
+    addToArray: (dataUrl: string) => void,
   ) => {
     const file = e.target.files?.[0];
     // Reset le champ pour permettre de re-sélectionner le même fichier après retrait.
@@ -797,11 +823,52 @@ export default function IaStudioPage() {
     try {
       // Resize à 768px max pour les textures (swatch suffit largement) + JPEG 0.85.
       const dataUrl = await compressImageToDataUrl(file, 768);
-      setter(dataUrl);
+      addToArray(dataUrl);
       setPreset(null);
       setColorsModified(true);
     } catch {
       alert('Impossible de lire le fichier. Réessayez.');
+    }
+  };
+
+  // Helper générique pour ajouter une texture à un slot (avec limite MAX_TEXTURES)
+  const makeTextureAdder = (
+    textures: string[],
+    setTextures: (v: string[]) => void,
+    setActiveIdx: (i: number) => void,
+    setMode: (m: ColorMode) => void,
+    currentMode: ColorMode,
+  ) => (dataUrl: string) => {
+    if (textures.length >= MAX_TEXTURES_PER_ELEMENT) {
+      alert(`Maximum ${MAX_TEXTURES_PER_ELEMENT} textures par élément. Retirez-en une avant d'en ajouter.`);
+      return;
+    }
+    const next = [...textures, dataUrl];
+    setTextures(next);
+    setActiveIdx(next.length - 1); // active = la dernière importée
+    // Si on était en mode couleur, on bascule auto en texture pour montrer
+    // immédiatement le résultat de l'import.
+    if (currentMode === 'color') setMode('texture');
+  };
+
+  // Helper pour retirer une texture (par index)
+  const makeTextureRemover = (
+    textures: string[],
+    setTextures: (v: string[]) => void,
+    activeIdx: number,
+    setActiveIdx: (i: number) => void,
+    setMode: (m: ColorMode) => void,
+  ) => (idx: number) => {
+    const next = textures.filter((_, i) => i !== idx);
+    setTextures(next);
+    // Ajuste l'index actif : décale si besoin, et bascule en mode couleur si vide
+    if (next.length === 0) {
+      setActiveIdx(0);
+      setMode('color');
+    } else if (idx === activeIdx) {
+      setActiveIdx(Math.max(0, idx - 1));
+    } else if (idx < activeIdx) {
+      setActiveIdx(activeIdx - 1);
     }
   };
 
@@ -840,9 +907,15 @@ export default function IaStudioPage() {
         lightingStyle:      colorLight,
         sourceImageDataUrl,
         // Textures importées (mode manuel uniquement — les presets gardent leurs couleurs).
-        facadeTextureDataUrl:  preset ? undefined : (facadeTexture  ?? undefined),
-        poigneeTextureDataUrl: preset ? undefined : (poigneeTexture ?? undefined),
-        planTextureDataUrl:    preset ? undefined : (planTexture    ?? undefined),
+        // On envoie la texture ACTIVE (active idx) + le mode par élément, pour
+        // que le prompt builder côté serveur sache si on veut "couleur seule",
+        // "texture seule" ou "mix" (couleur + texture).
+        facadeTextureDataUrl:  preset || facadeMode === 'color'  ? undefined : (facadeTexture  ?? undefined),
+        poigneeTextureDataUrl: preset || poigneeMode === 'color' ? undefined : (poigneeTexture ?? undefined),
+        planTextureDataUrl:    preset || planMode === 'color'    ? undefined : (planTexture    ?? undefined),
+        facadeColorMode:       preset ? undefined : facadeMode,
+        poigneeColorMode:      preset ? undefined : poigneeMode,
+        planColorMode:         preset ? undefined : planMode,
         numImages:          colorNumVariants,
       });
 
@@ -1142,69 +1215,144 @@ export default function IaStudioPage() {
                       { key:'facade',  label:'Façades',     val:facadeCol,  set:setFacadeCol,
                         finishVal: facadeFinish, setFinish: (v: FinishType | null) => v && setFacadeFinish(v),
                         finishOptional: false /* la facade a tjrs une finition (chip global) */,
-                        texture: facadeTexture,  setTexture: setFacadeTexture },
+                        textures: facadeTextures, setTextures: setFacadeTextures,
+                        activeIdx: facadeActiveTextureIdx, setActiveIdx: setFacadeActiveTextureIdx,
+                        mode: facadeMode, setMode: setFacadeMode },
                       { key:'poignee', label:'Poignées',    val:poigneeCol, set:setPoigneeCol,
                         finishVal: poigneeFinish, setFinish: setPoigneeFinish,
                         finishOptional: true,
-                        texture: poigneeTexture, setTexture: setPoigneeTexture },
+                        textures: poigneeTextures, setTextures: setPoigneeTextures,
+                        activeIdx: poigneeActiveTextureIdx, setActiveIdx: setPoigneeActiveTextureIdx,
+                        mode: poigneeMode, setMode: setPoigneeMode },
                       { key:'plan',    label:'Plan travail',val:planCol,    set:setPlanCol,
                         finishVal: planFinish, setFinish: setPlanFinish,
                         finishOptional: true,
-                        texture: planTexture,    setTexture: setPlanTexture },
-                    ] as const).map(({key, label, val, set, finishVal, setFinish, finishOptional, texture, setTexture}) => (
+                        textures: planTextures, setTextures: setPlanTextures,
+                        activeIdx: planActiveTextureIdx, setActiveIdx: setPlanActiveTextureIdx,
+                        mode: planMode, setMode: setPlanMode },
+                    ] as const).map(({key, label, val, set, finishVal, setFinish, finishOptional, textures, setTextures, activeIdx, setActiveIdx, mode, setMode}) => {
+                      const activeTex = textures[activeIdx] ?? null;
+                      const addTexture = makeTextureAdder(
+                        textures as string[],
+                        setTextures as (v: string[]) => void,
+                        setActiveIdx as (i: number) => void,
+                        setMode as (m: ColorMode) => void,
+                        mode,
+                      );
+                      const removeTexture = makeTextureRemover(
+                        textures as string[],
+                        setTextures as (v: string[]) => void,
+                        activeIdx,
+                        setActiveIdx as (i: number) => void,
+                        setMode as (m: ColorMode) => void,
+                      );
+                      // Swatch background selon le mode :
+                      //  - color : couleur plate
+                      //  - texture : image en cover
+                      //  - mix : image + couleur en blend (multiply) pour teinter
+                      const swatchStyle: React.CSSProperties = (() => {
+                        if (mode === 'color' || !activeTex) return { background: val };
+                        if (mode === 'texture') return { background: `url(${activeTex}) center/cover` };
+                        // mix : couleur multipliée sur la texture
+                        return {
+                          backgroundImage: `url(${activeTex}), linear-gradient(${val}, ${val})`,
+                          backgroundSize: 'cover, cover',
+                          backgroundBlendMode: 'multiply',
+                        };
+                      })();
+                      const hasTextures = textures.length > 0;
+                      return (
                       <div key={key} className="flex-1 text-center">
                         <p className="text-[9px] font-bold uppercase tracking-widest text-[#304035]/45 mb-2">{label}</p>
+
+                        {/* Toggle MODE : couleur / texture / mix (19/05/2026) */}
+                        <div className="inline-flex rounded-lg bg-[#304035]/5 p-0.5 mb-2 text-[8px] font-bold uppercase tracking-wider">
+                          {(['color', 'texture', 'mix'] as const).map((m) => {
+                            const disabled = (m === 'texture' || m === 'mix') && !hasTextures;
+                            const labels: Record<ColorMode, string> = { color: 'Couleur', texture: 'Texture', mix: 'Mix' };
+                            return (
+                              <button
+                                key={m}
+                                type="button"
+                                disabled={disabled}
+                                onClick={() => { setMode(m); setPreset(null); setColorsModified(true); }}
+                                className={`px-1.5 py-0.5 rounded-md transition-all ${
+                                  mode === m
+                                    ? 'bg-white shadow text-[#a67749]'
+                                    : disabled
+                                      ? 'text-[#304035]/20 cursor-not-allowed'
+                                      : 'text-[#304035]/55 hover:text-[#304035]'
+                                }`}
+                                title={disabled ? 'Importez une texture pour activer ce mode' : `Mode ${labels[m]}`}
+                              >
+                                {labels[m]}
+                              </button>
+                            );
+                          })}
+                        </div>
+
                         <div className="relative mx-auto w-14 h-14">
-                          {/* Le color picker reste cliquable même quand une texture
-                              est définie : on permet à l'utilisateur de garder
-                              une couleur de fallback en mémoire. */}
+                          {/* Color picker invisible — cliquable sur le swatch même en mode texture
+                              pour mettre à jour la couleur de fallback / d'overlay mix. */}
                           <input type="color" value={val}
                             onChange={e => { (set as (v:string)=>void)(e.target.value); setPreset(null); setColorsModified(true); }}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                           <div className="w-14 h-14 rounded-2xl border-2 border-[#304035]/10 shadow-md cursor-pointer hover:scale-105 transition-transform duration-200"
-                            style={
-                              texture
-                                ? { background: `url(${texture}) center/cover` }
-                                : { background: val }
-                            } />
+                            style={swatchStyle} />
                           <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white border border-[#304035]/12 shadow">
                             <Paintbrush className="h-3 w-3 text-[#304035]/50" />
                           </div>
-                          {/* Bouton "X" pour retirer la texture, visible uniquement
-                              quand une texture est active. Au clic : retour à la
-                              couleur plate. */}
-                          {texture && (
-                            <button
-                              type="button"
-                              onClick={() => (setTexture as (v: string | null) => void)(null)}
-                              className="absolute -top-1 -right-1 z-20 flex h-5 w-5 items-center justify-center rounded-full bg-[#dc2626] text-white shadow hover:scale-110 transition-transform"
-                              aria-label={`Retirer la texture ${label}`}
-                              title="Retirer la texture"
+                        </div>
+
+                        {/* Miniatures des textures importées (jusqu'à 3) + bouton + */}
+                        <div className="mt-2 flex items-center justify-center gap-1 flex-wrap">
+                          {textures.map((tex, idx) => (
+                            <div key={idx} className="relative group">
+                              <button
+                                type="button"
+                                onClick={() => { setActiveIdx(idx); if (mode === 'color') setMode('texture'); }}
+                                className="block h-5 w-5 rounded-md border-2 overflow-hidden transition-all"
+                                style={{
+                                  borderColor: activeIdx === idx ? '#a67749' : 'rgba(48,64,53,0.15)',
+                                  background: `url(${tex}) center/cover`,
+                                  transform: activeIdx === idx ? 'scale(1.1)' : 'scale(1)',
+                                }}
+                                title={`Texture ${idx + 1}${activeIdx === idx ? ' (active)' : ''}`}
+                                aria-label={`Texture ${idx + 1}`}
+                              />
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); removeTexture(idx); }}
+                                className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-[#dc2626] text-white flex items-center justify-center opacity-0 group-hover:opacity-100 shadow"
+                                title="Retirer cette texture"
+                                aria-label="Retirer texture"
+                              >
+                                <X className="h-2 w-2" />
+                              </button>
+                            </div>
+                          ))}
+                          {textures.length < MAX_TEXTURES_PER_ELEMENT && (
+                            <label
+                              className="inline-flex items-center justify-center cursor-pointer rounded-md border border-dashed border-[#a67749]/40 bg-[#a67749]/8 hover:bg-[#a67749]/15 h-5 w-5 transition-colors"
+                              title={`Importer une texture (${textures.length}/${MAX_TEXTURES_PER_ELEMENT})`}
                             >
-                              <X className="h-3 w-3" />
-                            </button>
+                              <Upload className="h-2.5 w-2.5 text-[#a67749]" />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={e => handleTextureUpload(e, addTexture)}
+                              />
+                            </label>
                           )}
                         </div>
 
-                        {/* Bouton import texture : déclenche le file picker.
-                            Utilise un <label> pour garder l'input file natif
-                            mais invisible. Limite 1 Mo (cf handleTextureUpload). */}
-                        <label
-                          className="mt-2 inline-flex items-center justify-center gap-1 cursor-pointer rounded-full bg-[#a67749]/10 hover:bg-[#a67749]/20 px-2 py-0.5 text-[9px] font-bold text-[#a67749] transition-colors"
-                          title={texture ? 'Remplacer la texture importée' : 'Importer une image de texture (max 1 Mo)'}
-                        >
-                          <Upload className="h-2.5 w-2.5" />
-                          {texture ? 'Changer' : 'Texture'}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={e => handleTextureUpload(e, setTexture as (v: string | null) => void)}
-                          />
-                        </label>
-
                         <p className="text-[9px] font-mono text-[#304035]/35 mt-1">
-                          {texture ? 'Texture importée' : val.toUpperCase()}
+                          {mode === 'color' || !activeTex
+                            ? val.toUpperCase()
+                            : mode === 'mix'
+                              ? `${val.toUpperCase()} + tex.`
+                              : `Texture ${activeIdx + 1}`}
                         </p>
                         {/* Finition par élément — dropdown compact. Pour façades on
                             edit le chip global, pour poignées/plan c'est optionnel. */}
@@ -1230,7 +1378,8 @@ export default function IaStudioPage() {
                           <option value="verre-mat">Verre mat</option>
                         </select>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
