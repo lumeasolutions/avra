@@ -550,7 +550,7 @@ interface DossierState {
   commandesAccess: Record<string, Record<string, CommandeAccessEntry[]>>;
 
   // Actions
-  addDossier: (data: { lastName: string; firstName?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string; profession?: string | null }) => string;
+  addDossier: (data: { lastName: string; firstName?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string; profession?: string | null; vendeurName?: string }) => string;
   removeSubfolder: (dossierId: string, label: string) => void;
   updateDossierStatus: (id: string, status: DossierStatus) => void;
   updateDossierNotes: (id: string, notes: string) => void;
@@ -644,6 +644,11 @@ export const useDossierStore = create<DossierState>()(
           status: 'EN COURS',
           createdAt: new Date().toLocaleDateString('fr-FR'),
           subfolders: getDefaultSubfoldersForProfession(data.profession).map(sf => ({ ...sf })),
+          // Multi-vendeur (26/05/2026) : auto-assign à la création.
+          // Le caller passe le nom du user connecté (récupéré depuis useAuthStore).
+          // Si non fourni, le dossier reste "Sans vendeur attribué" jusqu'à
+          // réassignation manuelle via VendeurAssignDropdown.
+          vendeurName: data.vendeurName?.trim() || undefined,
         };
         set(s => ({ dossiers: [newDossier, ...s.dossiers] }));
         return id;

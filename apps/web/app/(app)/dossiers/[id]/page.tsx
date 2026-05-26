@@ -18,6 +18,7 @@ import { uploadDossierDoc, uploadDossierDocDirect, listDossierDocs, getDocSigned
 import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
 import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
 import { OptionSelectionModal } from '@/components/dossiers/OptionSelectionModal';
+import { VendeurAssignDropdown } from '@/components/vendeur/VendeurAssignDropdown';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
@@ -127,6 +128,7 @@ export default function DossierDetailPage() {
   const removeDocumentFromSubfolder = useDossierStore(s => s.removeDocumentFromSubfolder);
   const ensureDefaultSubfolders = useDossierStore(s => s.ensureDefaultSubfolders);
   const updateDossierNotes = useDossierStore(s => s.updateDossierNotes);
+  const setDossierVendeur = useDossierStore(s => s.setDossierVendeur);
   const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
   const toggleDossierTermine = useDossierStore(s => s.toggleDossierTermine);
   const profession = useAuthStore(s => s.profession);
@@ -1043,6 +1045,23 @@ export default function DossierDetailPage() {
             </div>
             <div className="p-4">
               <DemandesPanel projectId={dossier.id} limit={10} />
+            </div>
+          </div>
+
+          {/* Vendeur attribué — multi-vendeur 26/05/2026 */}
+          <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#304035]/5 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-bold text-[#304035]">Vendeur attribué</h2>
+              <VendeurAssignDropdown
+                currentVendeurName={dossier.vendeurName}
+                onChange={(name) => setDossierVendeur(id, name)}
+                size="md"
+              />
+            </div>
+            <div className="px-5 py-3 text-xs text-[#304035]/55 leading-relaxed">
+              {dossier.vendeurName
+                ? <>Ce dossier est suivi par <strong className="text-[#304035]">{dossier.vendeurName}</strong>. Les statistiques de l&apos;équipe en tiennent compte.</>
+                : <>Aucun vendeur attribué — un admin peut l&apos;assigner pour suivre les performances par vendeur.</>}
             </div>
           </div>
 

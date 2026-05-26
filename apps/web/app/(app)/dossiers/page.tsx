@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, Circle, Phone, Mail, MapPin, FolderOpen, LayoutGrid, List, Trash2, LayoutDashboard } from 'lucide-react';
+import { VendeurBadge } from '@/components/vendeur/VendeurBadge';
 import { useDossierStore } from '@/store';
 import { ValidationDashboard } from '@/components/dossiers/ValidationDashboard';
 import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
@@ -93,6 +94,9 @@ export default function DossiersPage() {
   const dossiers = useDossierStore(s => s.dossiers);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  // Multi-vendeur (26/05/2026) : filtre par vendeur dans la liste.
+  // 'ALL' = tous les vendeurs, 'UNASSIGNED' = dossiers sans vendeur, sinon nom exact.
+  const [filterVendeur, setFilterVendeur] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('status');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -159,6 +163,12 @@ export default function DossiersPage() {
       );
     }
     if (filterStatus) list = list.filter(d => d.status === filterStatus);
+    // Multi-vendeur : filtre par vendeur attribué
+    if (filterVendeur === 'UNASSIGNED') {
+      list = list.filter(d => !d.vendeurName?.trim());
+    } else if (filterVendeur !== 'ALL') {
+      list = list.filter(d => d.vendeurName?.trim() === filterVendeur);
+    }
     list.sort((a, b) => {
       if (sortBy === 'status') return STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status);
       if (sortBy === 'name') return a.name.localeCompare(b.name);
@@ -166,7 +176,7 @@ export default function DossiersPage() {
       return 0;
     });
     return list;
-  }, [dossiers, search, filterStatus, sortBy]);
+  }, [dossiers, search, filterStatus, filterVendeur, sortBy]);
 
   const counts = {
     URGENT: dossiers.filter(d => d.status === 'URGENT').length,
@@ -446,6 +456,32 @@ export default function DossiersPage() {
         >
           Tous ({dossiers.length})
         </button>
+
+        {/* Filtre vendeur — multi-vendeur 26/05/2026 */}
+        {(() => {
+          const uniqueVendeurs = Array.from(new Set(
+            dossiers.map(d => d.vendeurName?.trim()).filter((v): v is string => !!v)
+          )).sort((a,b) => a.localeCompare(b));
+          const unassignedCount = dossiers.filter(d => !d.vendeurName?.trim()).length;
+          if (uniqueVendeurs.length === 0 && unassignedCount === dossiers.length) return null;
+          return (
+            <select
+              value={filterVendeur}
+              onChange={(e) => setFilterVendeur(e.target.value)}
+              className="px-3 py-2.5 rounded-xl text-sm font-semibold transition-all border bg-white text-[#304035] border-[#304035]/12 hover:border-[#304035]/30 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#a67749]/30"
+              title="Filtrer par vendeur attribué"
+            >
+              <option value="ALL">👥 Tous les vendeurs</option>
+              {uniqueVendeurs.map((v) => {
+                const count = dossiers.filter(d => d.vendeurName?.trim() === v).length;
+                return <option key={v} value={v}>{v} ({count})</option>;
+              })}
+              {unassignedCount > 0 && (
+                <option value="UNASSIGNED">∅ Non attribués ({unassignedCount})</option>
+              )}
+            </select>
+          );
+        })()}
       </div>
 
       {/* ── Résultats info ── */}
@@ -559,12 +595,15 @@ export default function DossiersPage() {
                       </div>
                     </div>
 
-                    {/* Nom */}
+                    {/* Nom + vendeur (multi-vendeur 26/05/2026) */}
                     <div className="mb-1">
                       <h3 className="font-bold text-[#304035] text-base leading-tight group-hover:text-[#a67749] transition-colors">
                         {d.name}{d.firstName ? ` ${d.firstName}` : ''}
                       </h3>
-                      <p className="text-xs text-[#304035]/40 mt-0.5">Créé le {d.createdAt}</p>
+                      <div className="flex items-center justify-between gap-2 mt-1">
+                        <p className="text-xs text-[#304035]/40">Créé le {d.createdAt}</p>
+                        <VendeurBadge vendeurName={d.vendeurName} size="xs" />
+                      </div>
                     </div>
 
                     {/* Infos contact */}
@@ -662,6 +701,11 @@ export default function DossiersPage() {
                     <p className="text-xs text-[#304035]/40 mt-0.5">
                       {d.createdAt}{d.phone ? ` · ${d.phone}` : ''}
                     </p>
+                  </div>
+
+                  {/* Vendeur (multi-vendeur 26/05/2026) */}
+                  <div className="hidden md:flex shrink-0">
+                    <VendeurBadge vendeurName={d.vendeurName} size="xs" />
                   </div>
 
                   {/* Éléments */}

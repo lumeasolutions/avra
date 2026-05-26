@@ -9,6 +9,7 @@ import {
   ExternalLink, ShoppingCart,
 } from 'lucide-react';
 import Link from 'next/link';
+import { VendeurBadge } from '@/components/vendeur/VendeurBadge';
 import { useDossierStore, useFacturationStore, type ConfirmationFournisseur, type CommandeType } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
@@ -824,6 +825,10 @@ export default function DossiersSignesPage() {
                               <span className="text-[10px] text-[#304035]/40">{formatDate(d.signedDate)}</span>
                             </div>
                             <p className="text-xs text-[#304035]/45 truncate mt-0.5">{d.address || d.siteAddress || '—'}</p>
+                            {/* Vendeur attribué — multi-vendeur 26/05/2026 */}
+                            <div className="mt-1.5">
+                              <VendeurBadge vendeurName={d.vendeurName} size="xs" />
+                            </div>
                           </div>
                           <Link href={`/dossiers/${d.id}`}>
                             <ChevronRight className="card-arrow h-4 w-4 text-[#304035]/25 transition-transform shrink-0 hover:text-[#a67749]" />

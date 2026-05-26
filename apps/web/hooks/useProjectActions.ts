@@ -11,6 +11,7 @@ import { useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useDossierStore, getDefaultSubfoldersForProfession, type ValidatedOptionSelection } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useConfigStore } from '@/store/useConfigStore';
 
 interface CreateProjectData {
   lastName: string;
@@ -44,7 +45,29 @@ const isLocalOnlyId = (id: string): boolean => {
 export function useProjectActions() {
   const user = useAuthStore((s) => s.user);
   const profession = useAuthStore((s) => s.profession);
+  const members = useConfigStore((s) => s.members);
   const store = useDossierStore();
+
+  // ── Multi-vendeur (26/05/2026) — résout le nom du vendeur à attribuer
+  //    automatiquement à un nouveau dossier. Tente d'abord de matcher l'email
+  //    avec un membre configuré, sinon retombe sur firstName+lastName, puis
+  //    sur la partie locale de l'email.
+  const resolveCurrentVendeurName = useCallback((): string | undefined => {
+    if (!user) return undefined;
+    if (user.email) {
+      const m = members.find(
+        (mb) => mb.email.trim().toLowerCase() === user.email.trim().toLowerCase(),
+      );
+      if (m?.name?.trim()) return m.name.trim();
+    }
+    const full = `${(user as any).firstName ?? ''} ${(user as any).lastName ?? ''}`.trim();
+    if (full) return full;
+    if (user.email) {
+      const local = user.email.split('@')[0]?.trim();
+      if (local) return local;
+    }
+    return undefined;
+  }, [user, members]);
 
   /**
    * Crée un dossier de manière fiable :
@@ -61,7 +84,7 @@ export function useProjectActions() {
     async (data: CreateProjectData): Promise<string> => {
       // Mode démo ou pas de vraie auth → création locale uniquement
       if (user?.id === 'demo' || !user?.workspaceId) {
-        return store.addDossier({ ...data, profession });
+        return store.addDossier({ ...data, profession, vendeurName: resolveCurrentVendeurName() });
       }
 
       // 1. Appel API EN PREMIER pour obtenir un vrai cuid avant tout local
@@ -118,6 +141,8 @@ export function useProjectActions() {
               createdAt: new Date().toLocaleDateString('fr-FR'),
               subfolders: getDefaultSubfoldersForProfession(profession),
               notes: '',
+              // Multi-vendeur (26/05/2026) — auto-assign à la création
+              vendeurName: resolveCurrentVendeurName(),
             },
           ],
         };
