@@ -988,7 +988,38 @@ export function DateButoireValidationModal({
           grid-template-columns: 36px repeat(7, minmax(0, 1fr));
           background: #fafaf7;
           font-size: 10px;
-          height: 100%;
+          /* Hauteur bornée + scroll interne : l'utilisateur peut descendre
+             dans le planning sans que la section ne grandisse à l'infini. */
+          max-height: 260px;
+          overflow-y: auto;
+          /* Scrollbar visible et discrète, cohérente avec le thème */
+          scrollbar-width: thin;
+          scrollbar-color: rgba(166,119,73,0.45) rgba(48,64,53,0.04);
+        }
+        .dbv-plan-grid::-webkit-scrollbar { width: 8px; }
+        .dbv-plan-grid::-webkit-scrollbar-track {
+          background: rgba(48,64,53,0.04);
+          border-radius: 999px;
+        }
+        .dbv-plan-grid::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #d9b38a 0%, #a67749 100%);
+          border-radius: 999px;
+          border: 2px solid #fafaf7;
+        }
+        .dbv-plan-grid::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #c89665 0%, #7c4f1d 100%);
+        }
+        /* Les cellules d'en-tête (jours + colonne d'heure) restent visibles
+           pendant le scroll vertical pour garder le repère. */
+        .dbv-plan-grid .dbv-plan-headcell {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+        }
+        .dbv-plan-grid .dbv-plan-hour {
+          position: sticky;
+          left: 0;
+          z-index: 1;
         }
         .dbv-plan-headcell {
           padding: 6px 4px; text-align: center;
@@ -1027,8 +1058,27 @@ export function DateButoireValidationModal({
           color: rgba(48,64,53,0.4);
         }
 
-        /* Devis list */
-        .dbv-devis-list { display: flex; flex-direction: column; gap: 6px; padding: 10px; max-height: 280px; overflow-y: auto; }
+        /* Devis list — barre de défilement visible pour pouvoir descendre
+           dans la liste des documents du dossier sans étirer la section. */
+        .dbv-devis-list {
+          display: flex; flex-direction: column; gap: 6px; padding: 10px;
+          max-height: 280px; overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(166,119,73,0.45) rgba(48,64,53,0.04);
+        }
+        .dbv-devis-list::-webkit-scrollbar { width: 8px; }
+        .dbv-devis-list::-webkit-scrollbar-track {
+          background: rgba(48,64,53,0.04);
+          border-radius: 999px;
+        }
+        .dbv-devis-list::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #d9b38a 0%, #a67749 100%);
+          border-radius: 999px;
+          border: 2px solid #fff;
+        }
+        .dbv-devis-list::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #c89665 0%, #7c4f1d 100%);
+        }
 
         /* Groupes de documents par sous-dossier */
         .dbv-doc-group { display: flex; flex-direction: column; gap: 4px; }
