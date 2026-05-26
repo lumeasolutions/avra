@@ -539,7 +539,7 @@ export default function StockPage() {
           <div className="stk-table-inner">
           {/* En-tête colonnes */}
           <div className="grid items-center px-5 py-3 border-b border-[#304035]/8 bg-gradient-to-r from-[#304035]/3 to-transparent"
-            style={{ gridTemplateColumns: '2.5rem 3rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem' }}>
+            style={{ gridTemplateColumns: '2.5rem 5.5rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem' }}>
             <span />
             <span className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider text-center">Photo</span>
             <button onClick={() => handleSort('supplier')} className="text-left text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider hover:text-[#a67749] transition-colors">
@@ -574,7 +574,7 @@ export default function StockPage() {
                 <div
                   key={item.id}
                   className="row-in grid items-center px-5 py-3.5 hover:bg-[#f5eee8]/40 transition-all group"
-                  style={{ gridTemplateColumns: '2.5rem 3rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem', animationDelay: `${idx * 30}ms` }}
+                  style={{ gridTemplateColumns: '2.5rem 5.5rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem', animationDelay: `${idx * 30}ms` }}
                 >
                   {/* Statut dot */}
                   <button
@@ -759,7 +759,7 @@ export default function StockPage() {
 
           {/* Footer total */}
           <div className="grid px-5 py-3 border-t border-[#304035]/8 bg-gradient-to-r from-[#304035]/3 to-transparent text-xs font-bold text-[#304035]/60 uppercase tracking-wider"
-            style={{ gridTemplateColumns: '2.5rem 3rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem' }}>
+            style={{ gridTemplateColumns: '2.5rem 5.5rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem' }}>
             <span />
             <span />
             <span>{filtered.length} article{filtered.length > 1 ? 's' : ''}</span>
