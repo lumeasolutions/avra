@@ -69,11 +69,23 @@ function formatMontant(n: number) {
 // DateButoireItem (pas un id slug) pour matcher exactement ce que la modale
 // sauvegarde dans datesButoiresSignes[dossierId][label].
 
+/**
+ * Item SAV ajouté à la fin de chaque profession dans le tableau de bord
+ * signé (demande 26/05/2026). C'est un item 'static' purement informationnel
+ * — l'équipe doit voir qu'il y a un suivi SAV post-pose pour chaque dossier.
+ * Pas ajouté dans la modale de validation projet (DateButoireValidationModal)
+ * qui reste alignée sur les listes brutes MENUISIER_/CUISINISTE_/ARCHITECTE_.
+ */
+const SAV_DASHBOARD_ITEM: DateButoireItem = { label: 'SAV', kind: 'static' };
+
 function getDateButoireItemsForProfession(profession: string | null): DateButoireItem[] {
-  if (profession === 'menuisier') return MENUISIER_DATE_BUTOIRE_ITEMS;
-  if (profession === 'cuisiniste') return CUISINISTE_DATE_BUTOIRE_ITEMS;
-  if (profession === 'architecte') return ARCHITECTE_DATE_BUTOIRE_ITEMS;
-  return DEFAULT_DATE_BUTOIRE_ITEMS;
+  let base: DateButoireItem[];
+  if (profession === 'menuisier') base = MENUISIER_DATE_BUTOIRE_ITEMS;
+  else if (profession === 'cuisiniste') base = CUISINISTE_DATE_BUTOIRE_ITEMS;
+  else if (profession === 'architecte') base = ARCHITECTE_DATE_BUTOIRE_ITEMS;
+  else return DEFAULT_DATE_BUTOIRE_ITEMS; // contient déjà SAV
+  // Append SAV en fin de liste (toujours dernier item, kind 'static').
+  return [...base, SAV_DASHBOARD_ITEM];
 }
 
 // ─── Sous-composant : Modal dates butoires (legacy, conservé en _UNUSED_) ──
@@ -346,15 +358,8 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
             })}
           </div>
 
-          {/* SAV */}
-          {saved['sav-date'] && (
-            <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', border: '1px solid rgba(120,80,180,0.2)', borderRadius: '0.75rem', backgroundColor: 'rgba(120,80,180,0.03)' }}>
-              <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(120,80,180,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.375rem' }}>SAV</p>
-              <p style={{ fontSize: '0.8rem', fontWeight: '600', color: '#304035' }}>
-                {formatDate(saved['sav-date'])}
-              </p>
-            </div>
-          )}
+          {/* SAV legacy (26/05/2026) : retiré, SAV est désormais rendu via
+              l'item 'static' ajouté par getDateButoireItemsForProfession. */}
 
           {/* Confirmations summary */}
           {(dossier?.confirmations?.length ?? 0) > 0 && (
