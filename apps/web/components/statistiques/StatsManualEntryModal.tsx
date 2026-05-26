@@ -98,10 +98,16 @@ export function StatsManualEntryModal({
         className="sme-overlay"
         onClick={onClose}
         style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-          backdropFilter: 'blur(4px)',
+          // Fix viewport 26/05/2026 — voir StatsGateModal pour la justification.
+          position: 'fixed',
+          top: 0, left: 0,
+          width: '100vw', height: '100vh',
+          minWidth: '100vw', minHeight: '100vh',
+          background: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 65, padding: 16,
+          overflowY: 'auto',
         }}
       >
         <div

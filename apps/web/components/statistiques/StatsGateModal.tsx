@@ -305,9 +305,21 @@ export function StatsGateModal({
       <div
         className="sg-overlay"
         style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-          backdropFilter: 'blur(6px)', display: 'flex',
+          // Fix bug visuel 26/05/2026 — sur certains navigateurs/iframes,
+          // `inset: 0` laissait une bande de 24px en haut non couverte
+          // (overlay reportait top: 24 dans le boundingRect malgré top: 0
+          // en CSS computed). On force la taille viewport-relative pour
+          // éliminer ce gap.
+          position: 'fixed',
+          top: 0, left: 0,
+          width: '100vw', height: '100vh',
+          minWidth: '100vw', minHeight: '100vh',
+          background: 'rgba(0,0,0,0.55)',
+          backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+          display: 'flex',
           alignItems: 'center', justifyContent: 'center', zIndex: 70, padding: 16,
+          // Permet le scroll de la card si elle dépasse (très petits écrans)
+          overflowY: 'auto',
         }}
       >
         <div
@@ -346,6 +358,40 @@ export function StatsGateModal({
                 ajouter, <strong style={{ color: '#a67749' }}>Cmd/Ctrl + Entrée</strong> pour passer au suivant.
               </p>
             </div>
+            {/* Bouton X de fermeture (26/05/2026 — fix UX "je ne peux pas quitter").
+                Permet de quitter le gate temporairement et naviguer ailleurs.
+                L'accès aux statistiques reste verrouillé tant que des dossiers
+                manquent — le user verra le placeholder verrouillé au retour. */}
+            <button
+              onClick={() => {
+                if (window.confirm('Quitter sans compléter ?\n\nL\'accès aux statistiques restera verrouillé tant que tous les dossiers n\'ont pas leurs prix saisis ou ne sont pas reportés.')) {
+                  // Navigation vers le dashboard. Pas d'API à appeler — c'est
+                  // juste un escape hatch UI. La modale reste prête à se rouvrir
+                  // au prochain accès /statistiques tant qu'il manque des prix.
+                  if (typeof window !== 'undefined') window.location.assign('/dashboard');
+                }
+              }}
+              style={{
+                width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                border: '1px solid rgba(48,64,53,0.15)',
+                background: 'rgba(255,255,255,0.6)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'rgba(48,64,53,0.55)', transition: 'all 0.18s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#fff';
+                e.currentTarget.style.color = '#dc2626';
+                e.currentTarget.style.borderColor = '#dc2626';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.6)';
+                e.currentTarget.style.color = 'rgba(48,64,53,0.55)';
+                e.currentTarget.style.borderColor = 'rgba(48,64,53,0.15)';
+              }}
+              title="Quitter (l'accès aux stats reste verrouillé)"
+            >
+              <X size={16} />
+            </button>
           </div>
 
           {/* ─── Body split ────────────────────────────────────────────── */}
