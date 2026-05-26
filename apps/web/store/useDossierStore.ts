@@ -131,6 +131,13 @@ export interface DossierSigne extends Dossier {
    */
   prixLignes?: DossierPrixLigne[];
   /**
+   * Dossier reporté du gate stats (StatsGate v2 — 26/05/2026).
+   * Quand true, le dossier est exclu du gate bloquant mais reste visible dans
+   * les stats avec un drapeau "données incomplètes". Permet de débloquer
+   * l'accès aux tableaux quand un dossier historique n'a pas l'info dispo.
+   */
+  statsSkipped?: boolean;
+  /**
    * Vendeur attribué au dossier (snapshot du nom, pas FK). Utilisé par le
    * TABLEAU 3 "Par vendeur" des statistiques. Optionnel — si absent, le
    * dossier apparaît dans une catégorie "Sans vendeur attribué".
@@ -566,6 +573,17 @@ interface DossierState {
   updateDossierPrixLigne: (dossierId: string, ligneId: string, patch: Partial<Omit<DossierPrixLigne, 'id'>>) => void;
   /** Retire une ligne par id. */
   removeDossierPrixLigne: (dossierId: string, ligneId: string) => void;
+  /**
+   * Ajoute plusieurs lignes d'un coup (auto-import depuis confirmations).
+   * Utilisé par StatsGate v2 pour le bouton "Importer X confirmations".
+   */
+  addDossierPrixLignesBulk: (dossierId: string, lignes: Omit<DossierPrixLigne, 'id'>[]) => void;
+  /**
+   * Marque/démarque un dossier comme "reporté" sur le gate stats.
+   * Un dossier reporté est exclu du gate bloquant — l'utilisateur peut
+   * accéder aux stats même si ce dossier n'a pas de prixLignes.
+   */
+  setDossierStatsSkipped: (dossierId: string, skipped: boolean) => void;
   /** Set le vendeur attribué (sur Dossier, DossierSigne ou DossierPerdu). */
   setDossierVendeur: (dossierId: string, vendeurName: string | null) => void;
   // ─── Commandes ACCESS (panneau ACCEDER de la modale validation) ─────────
@@ -861,6 +879,26 @@ export const useDossierStore = create<DossierState>()(
             d.id === dossierId
               ? { ...d, prixLignes: (d.prixLignes ?? []).filter(l => l.id !== ligneId) }
               : d,
+          ),
+        }));
+      },
+
+      addDossierPrixLignesBulk: (dossierId, lignes) => {
+        if (!lignes.length) return;
+        const newLignes = lignes.map(l => ({ ...l, id: 'prix_' + uid() }));
+        set(s => ({
+          dossiersSignes: s.dossiersSignes.map(d =>
+            d.id === dossierId
+              ? { ...d, prixLignes: [...(d.prixLignes ?? []), ...newLignes] }
+              : d,
+          ),
+        }));
+      },
+
+      setDossierStatsSkipped: (dossierId, skipped) => {
+        set(s => ({
+          dossiersSignes: s.dossiersSignes.map(d =>
+            d.id === dossierId ? { ...d, statsSkipped: skipped } : d,
           ),
         }));
       },

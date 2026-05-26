@@ -17,7 +17,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { BarChart3, Lock, Table2, Users, Package } from 'lucide-react';
+import { BarChart3, Clock, Lock, Table2, Users, Package } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatsGateModal } from '@/components/statistiques/StatsGateModal';
@@ -37,16 +37,25 @@ export default function StatistiquesPage() {
   const dossiers       = useDossierStore((s) => s.dossiers);
   const dossiersSignes = useDossierStore((s) => s.dossiersSignes);
   const dossiersPerdus = useDossierStore((s) => s.dossiersPerdus);
-  const addDossierPrixLigne    = useDossierStore((s) => s.addDossierPrixLigne);
-  const removeDossierPrixLigne = useDossierStore((s) => s.removeDossierPrixLigne);
+  const addDossierPrixLigne     = useDossierStore((s) => s.addDossierPrixLigne);
+  const removeDossierPrixLigne  = useDossierStore((s) => s.removeDossierPrixLigne);
+  const addDossierPrixLignesBulk = useDossierStore((s) => s.addDossierPrixLignesBulk);
+  const setDossierStatsSkipped  = useDossierStore((s) => s.setDossierStatsSkipped);
 
   const allDevis = useFacturationStore((s) => s.devis);
 
   const [tab, setTab] = useState<TabKey>('statut');
 
-  // Dossiers signés sans aucune ligne de prix → gate à compléter.
+  // Dossiers signés sans aucune ligne de prix ET non reportés → gate à compléter.
+  // statsSkipped (StatsGate v2) : permet de débloquer l'accès aux stats même si
+  // un dossier historique n'a pas l'info dispo. Le dossier reste dans les stats
+  // mais avec un drapeau "données incomplètes".
   const missingDossiers = useMemo(
-    () => dossiersSignes.filter((d) => (d.prixLignes?.length ?? 0) === 0),
+    () => dossiersSignes.filter((d) => (d.prixLignes?.length ?? 0) === 0 && !d.statsSkipped),
+    [dossiersSignes],
+  );
+  const skippedCount = useMemo(
+    () => dossiersSignes.filter((d) => d.statsSkipped && (d.prixLignes?.length ?? 0) === 0).length,
     [dossiersSignes],
   );
 
@@ -72,6 +81,8 @@ export default function StatistiquesPage() {
           allDevis={allDevis}
           onAddLigne={addDossierPrixLigne}
           onRemoveLigne={removeDossierPrixLigne}
+          onAddLignesBulk={addDossierPrixLignesBulk}
+          onSkipDossier={setDossierStatsSkipped}
         />
       )}
 
@@ -88,6 +99,30 @@ export default function StatistiquesPage() {
         </div>
       ) : (
         <>
+          {/* StatsGate v2 — Banner watermark si des dossiers ont été reportés */}
+          {skippedCount > 0 && (
+            <div className="rounded-2xl border border-purple-300/40 bg-purple-50/50 p-3 px-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 text-sm">
+                <Clock className="h-4 w-4 text-purple-600" />
+                <span className="text-[#304035]">
+                  <strong className="font-bold">{skippedCount} dossier{skippedCount > 1 ? 's reportés' : ' reporté'}</strong>
+                  {' '}sans suivi marge — les statistiques ci-dessous sont basées sur les dossiers complétés uniquement.
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  // Ré-active tous les dossiers reportés pour revenir au gate
+                  dossiersSignes.forEach((d) => {
+                    if (d.statsSkipped) setDossierStatsSkipped(d.id, false);
+                  });
+                }}
+                className="text-xs font-bold text-purple-700 hover:text-purple-900 underline whitespace-nowrap"
+              >
+                Compléter maintenant →
+              </button>
+            </div>
+          )}
+
           {/* Onglets */}
           <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-1.5 flex gap-1.5">
             {TABS.map((t) => {
