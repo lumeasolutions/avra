@@ -19,6 +19,7 @@ import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
 import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
 import { OptionSelectionModal } from '@/components/dossiers/OptionSelectionModal';
 import { VendeurAssignDropdown } from '@/components/vendeur/VendeurAssignDropdown';
+import { StatsManualEntryModal } from '@/components/statistiques/StatsManualEntryModal';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
@@ -129,6 +130,10 @@ export default function DossierDetailPage() {
   const ensureDefaultSubfolders = useDossierStore(s => s.ensureDefaultSubfolders);
   const updateDossierNotes = useDossierStore(s => s.updateDossierNotes);
   const setDossierVendeur = useDossierStore(s => s.setDossierVendeur);
+  // Stats prix (26/05/2026) — saisie & édition retour
+  const addDossierPrixLigne    = useDossierStore(s => s.addDossierPrixLigne);
+  const removeDossierPrixLigne = useDossierStore(s => s.removeDossierPrixLigne);
+  const updateDossierPrixLigne = useDossierStore(s => s.updateDossierPrixLigne);
   const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
   const toggleDossierTermine = useDossierStore(s => s.toggleDossierTermine);
   const profession = useAuthStore(s => s.profession);
@@ -268,6 +273,8 @@ export default function DossierDetailPage() {
   // Valeur initiale = celle du dossier en store ; les changements sont propagés
   // via updateDossierNotes.
   const [notes,         setNotesLocal]    = useState(dossier?.notes ?? '');
+  // Modale d'édition des prix achat/vente (26/05/2026) — retour sur saisie.
+  const [showPrixModal, setShowPrixModal] = useState(false);
   const [editingNotes,  setEditingNotes]  = useState(false);
   const setNotes = (v: string) => {
     setNotesLocal(v);
@@ -1064,6 +1071,57 @@ export default function DossierDetailPage() {
                 : <>Aucun vendeur attribué — un admin peut l&apos;assigner pour suivre les performances par vendeur.</>}
             </div>
           </div>
+
+          {/* Prix achat / vente (26/05/2026) — retour sur saisie */}
+          {(() => {
+            const lignes = dossier.prixLignes ?? [];
+            const sumA = lignes.reduce((s, l) => s + l.prixAchatHT, 0);
+            const sumV = lignes.reduce((s, l) => s + l.prixVenteHT, 0);
+            const marge = sumV - sumA;
+            const margePct = sumV > 0 ? Math.round((marge / sumV) * 100) : 0;
+            return (
+              <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-[#304035]/5 flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-bold text-[#304035]">Prix achat / vente HT</h2>
+                  <button
+                    onClick={() => setShowPrixModal(true)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-white"
+                    style={{ background: lignes.length === 0 ? '#a67749' : '#304035' }}
+                    title={lignes.length === 0 ? 'Renseigner les prix' : 'Modifier les prix'}
+                  >
+                    {lignes.length === 0 ? '+ Renseigner' : 'Modifier'}
+                  </button>
+                </div>
+                {lignes.length === 0 ? (
+                  <div className="px-5 py-4 text-xs text-[#304035]/45 italic">
+                    Aucun prix renseigné. Cliquez sur « + Renseigner » pour saisir les prix achat &amp; vente HT par fournisseur — utile pour les statistiques de marge.
+                  </div>
+                ) : (
+                  <div className="px-5 py-3">
+                    <div className="grid grid-cols-3 gap-3 mb-2">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-[#304035]/45">Achat HT</p>
+                        <p className="text-sm font-black text-red-600">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(sumA)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-[#304035]/45">Vente HT</p>
+                        <p className="text-sm font-black text-emerald-600">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(sumV)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-[#304035]/45">Marge</p>
+                        <p className={`text-sm font-black ${marge >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(marge)} ({margePct}%)
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-[#304035]/40 italic">
+                      {lignes.length} ligne{lignes.length > 1 ? 's' : ''} saisie{lignes.length > 1 ? 's' : ''} — cliquez « Modifier » pour ajuster.
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Fiche client */}
           <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
@@ -2598,6 +2656,19 @@ export default function DossierDetailPage() {
         onConfirm={handleConfirmDatesButoires}
         onCancel={() => { if (!signing) setShowDateButoiresModal(false); }}
       />
+
+      {/* Modale d'édition des prix (26/05/2026) — retour sur saisie */}
+      {showPrixModal && (
+        <StatsManualEntryModal
+          title={`Prix achat / vente — ${dossier.name}${dossier.firstName ? ' ' + dossier.firstName : ''}`}
+          accentColor="#a67749"
+          dossiers={[dossier as any]}
+          onAddLigne={addDossierPrixLigne}
+          onRemoveLigne={removeDossierPrixLigne}
+          onUpdateLigne={updateDossierPrixLigne}
+          onClose={() => setShowPrixModal(false)}
+        />
+      )}
     </div>
   );
 }

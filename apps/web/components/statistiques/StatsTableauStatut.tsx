@@ -32,9 +32,10 @@ const sumLignes = (lignes: DossierPrixLigne[] | undefined, field: 'prixAchatHT' 
 
 export function StatsTableauStatut({ dossiers, dossiersSignes, dossiersPerdus }: Props) {
   // [26/05/2026] Modale de saisie manuelle (en cours / perdus).
-  const [editingCategory, setEditingCategory] = useState<'EN_COURS' | 'PERDU' | null>(null);
+  const [editingCategory, setEditingCategory] = useState<'VENDU' | 'EN_COURS' | 'PERDU' | null>(null);
   const addDossierPrixLigne = useDossierStore((s) => s.addDossierPrixLigne);
   const removeDossierPrixLigne = useDossierStore((s) => s.removeDossierPrixLigne);
+  const updateDossierPrixLigne = useDossierStore((s) => s.updateDossierPrixLigne);
 
   const rows = useMemo(() => {
     // VENDU = totaux des prixLignes signés
@@ -66,7 +67,10 @@ export function StatsTableauStatut({ dossiers, dossiersSignes, dossiersPerdus }:
         marge: venduVente - venduAchat,
         margePct: venduVente > 0 ? Math.round(((venduVente - venduAchat) / venduVente) * 100) : 0,
         hasInputs: venduAchat > 0 || venduVente > 0,
-        editable: false,
+        // 26/05/2026 — VENDU est désormais éditable : permet de revenir sur
+        // les prix d'un dossier déjà complété sans avoir à supprimer toutes
+        // ses lignes pour ré-ouvrir le gate. Tout le monde peut éditer.
+        editable: dossiersSignes.length > 0,
         approx: false,
       },
       {
@@ -113,7 +117,8 @@ export function StatsTableauStatut({ dossiers, dossiersSignes, dossiersPerdus }:
 
   // Dossiers édités selon la catégorie ouverte
   const editingDossiers =
-    editingCategory === 'EN_COURS' ? dossiers
+    editingCategory === 'VENDU' ? dossiersSignes
+    : editingCategory === 'EN_COURS' ? dossiers
     : editingCategory === 'PERDU' ? dossiersPerdus
     : [];
 
@@ -161,7 +166,7 @@ export function StatsTableauStatut({ dossiers, dossiersSignes, dossiersPerdus }:
                 <td style={{ ...tdStyle, textAlign: 'right', padding: '10px 14px' }}>
                   {r.editable && (
                     <button
-                      onClick={() => setEditingCategory(r.key as 'EN_COURS' | 'PERDU')}
+                      onClick={() => setEditingCategory(r.key as 'VENDU' | 'EN_COURS' | 'PERDU')}
                       style={{
                         padding: '5px 10px', borderRadius: 7,
                         border: `1px solid ${r.color}40`,
@@ -202,14 +207,21 @@ export function StatsTableauStatut({ dossiers, dossiersSignes, dossiersPerdus }:
       {editingCategory && (
         <StatsManualEntryModal
           title={
-            editingCategory === 'EN_COURS'
+            editingCategory === 'VENDU'
+              ? 'Modifier les prix des dossiers VENDUS'
+              : editingCategory === 'EN_COURS'
               ? 'Renseigner les dossiers EN COURS'
               : 'Renseigner les dossiers PERDUS'
           }
-          accentColor={editingCategory === 'EN_COURS' ? '#2563eb' : '#dc2626'}
+          accentColor={
+            editingCategory === 'VENDU' ? '#16a34a'
+            : editingCategory === 'EN_COURS' ? '#2563eb'
+            : '#dc2626'
+          }
           dossiers={editingDossiers}
           onAddLigne={addDossierPrixLigne}
           onRemoveLigne={removeDossierPrixLigne}
+          onUpdateLigne={updateDossierPrixLigne}
           onClose={() => setEditingCategory(null)}
         />
       )}

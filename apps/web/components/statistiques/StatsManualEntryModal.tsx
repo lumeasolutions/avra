@@ -25,10 +25,17 @@ interface Props {
   title: string;
   /** Couleur de l'accent (vert pour signé, bleu pour en cours, rouge pour perdu). */
   accentColor: string;
-  /** Dossiers à éditer (Dossier en cours ou DossierPerdu). */
+  /** Dossiers à éditer (Dossier en cours, DossierPerdu ou DossierSigne). */
   dossiers: Array<Dossier | DossierPerdu>;
   onAddLigne: (dossierId: string, ligne: Omit<DossierPrixLigne, 'id'>) => void;
   onRemoveLigne: (dossierId: string, ligneId: string) => void;
+  /**
+   * Édition inline d'une ligne existante (26/05/2026). Si non fourni, les
+   * lignes existantes restent affichées en lecture seule (seul l'ajout est
+   * possible). Si fourni, chaque cellule devient un input editable qui
+   * sauvegarde au blur.
+   */
+  onUpdateLigne?: (dossierId: string, ligneId: string, patch: Partial<Omit<DossierPrixLigne, 'id'>>) => void;
   onClose: () => void;
 }
 
@@ -39,7 +46,7 @@ interface Draft { fournisseur: string; achat: string; vente: string; }
 const EMPTY_DRAFT: Draft = { fournisseur: '', achat: '', vente: '' };
 
 export function StatsManualEntryModal({
-  title, accentColor, dossiers, onAddLigne, onRemoveLigne, onClose,
+  title, accentColor, dossiers, onAddLigne, onRemoveLigne, onUpdateLigne, onClose,
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(dossiers[0]?.id ?? null);
   const [draftByDossier, setDraftByDossier] = useState<Record<string, Draft>>({});
@@ -218,6 +225,23 @@ export function StatsManualEntryModal({
                             }}>
                               {lignes.map((l) => {
                                 const m = l.prixVenteHT - l.prixAchatHT;
+                                const canEdit = !!onUpdateLigne;
+                                // Style commun input vs span (édition inline 26/05/2026)
+                                const inputStyle: React.CSSProperties = {
+                                  padding: '4px 6px', borderRadius: 6,
+                                  border: '1px solid transparent',
+                                  background: 'transparent', fontSize: 12,
+                                  color: '#304035', outline: 'none',
+                                  width: '100%', minWidth: 0, fontFamily: 'inherit',
+                                };
+                                const inputFocusStyle = (e: React.FocusEvent<HTMLInputElement>) => {
+                                  e.currentTarget.style.background = '#fff';
+                                  e.currentTarget.style.borderColor = 'rgba(166,119,73,0.4)';
+                                };
+                                const inputBlurStyle = (e: React.FocusEvent<HTMLInputElement>) => {
+                                  e.currentTarget.style.background = 'transparent';
+                                  e.currentTarget.style.borderColor = 'transparent';
+                                };
                                 return (
                                   <div
                                     key={l.id}
@@ -229,9 +253,79 @@ export function StatsManualEntryModal({
                                       background: '#fafaf8', borderRadius: 8, fontSize: 12,
                                     }}
                                   >
-                                    <span style={{ fontWeight: 700, color: '#304035' }}>{l.fournisseur}</span>
-                                    <span style={{ color: '#dc2626' }}>Achat {fmt(l.prixAchatHT)}</span>
-                                    <span style={{ color: '#16a34a' }}>Vente {fmt(l.prixVenteHT)}</span>
+                                    {/* Fournisseur — éditable inline si onUpdateLigne fourni */}
+                                    {canEdit ? (
+                                      <input
+                                        type="text"
+                                        defaultValue={l.fournisseur}
+                                        maxLength={50}
+                                        style={{ ...inputStyle, fontWeight: 700 }}
+                                        onFocus={inputFocusStyle}
+                                        onBlur={(e) => {
+                                          inputBlurStyle(e);
+                                          const v = e.currentTarget.value.trim();
+                                          if (v && v !== l.fournisseur) {
+                                            onUpdateLigne!(d.id, l.id, { fournisseur: v });
+                                          } else if (!v) {
+                                            // si vidé, on restore l'ancienne valeur visuellement
+                                            e.currentTarget.value = l.fournisseur;
+                                          }
+                                        }}
+                                        title="Modifier le fournisseur — sauvegarde au blur"
+                                      />
+                                    ) : (
+                                      <span style={{ fontWeight: 700, color: '#304035' }}>{l.fournisseur}</span>
+                                    )}
+
+                                    {/* Achat HT — éditable inline */}
+                                    {canEdit ? (
+                                      <input
+                                        type="number"
+                                        defaultValue={l.prixAchatHT}
+                                        min={0}
+                                        step="0.01"
+                                        style={{ ...inputStyle, color: '#dc2626', fontWeight: 600 }}
+                                        onFocus={inputFocusStyle}
+                                        onBlur={(e) => {
+                                          inputBlurStyle(e);
+                                          const v = parseFloat(e.currentTarget.value.replace(',', '.'));
+                                          if (Number.isFinite(v) && v >= 0 && v !== l.prixAchatHT) {
+                                            onUpdateLigne!(d.id, l.id, { prixAchatHT: v });
+                                          } else if (!Number.isFinite(v)) {
+                                            e.currentTarget.value = String(l.prixAchatHT);
+                                          }
+                                        }}
+                                        title="Modifier le prix achat HT — sauvegarde au blur"
+                                      />
+                                    ) : (
+                                      <span style={{ color: '#dc2626' }}>Achat {fmt(l.prixAchatHT)}</span>
+                                    )}
+
+                                    {/* Vente HT — éditable inline */}
+                                    {canEdit ? (
+                                      <input
+                                        type="number"
+                                        defaultValue={l.prixVenteHT}
+                                        min={0}
+                                        step="0.01"
+                                        style={{ ...inputStyle, color: '#16a34a', fontWeight: 600 }}
+                                        onFocus={inputFocusStyle}
+                                        onBlur={(e) => {
+                                          inputBlurStyle(e);
+                                          const v = parseFloat(e.currentTarget.value.replace(',', '.'));
+                                          if (Number.isFinite(v) && v >= 0 && v !== l.prixVenteHT) {
+                                            onUpdateLigne!(d.id, l.id, { prixVenteHT: v });
+                                          } else if (!Number.isFinite(v)) {
+                                            e.currentTarget.value = String(l.prixVenteHT);
+                                          }
+                                        }}
+                                        title="Modifier le prix vente HT — sauvegarde au blur"
+                                      />
+                                    ) : (
+                                      <span style={{ color: '#16a34a' }}>Vente {fmt(l.prixVenteHT)}</span>
+                                    )}
+
+                                    {/* Marge calculée — lecture seule, recalculée à chaque update */}
                                     <span style={{ fontWeight: 700, color: m >= 0 ? '#16a34a' : '#dc2626' }}>
                                       Marge {fmt(m)}
                                     </span>
