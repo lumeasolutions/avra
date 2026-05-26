@@ -3,15 +3,20 @@
 /**
  * useTokenRefresh — refresh proactif du JWT access token.
  *
- * Le token a une TTL de 60 min côté serveur. Pour éviter que l'utilisateur
- * voie une erreur "Unauthorized" en plein milieu d'une action, on déclenche
- * un refresh silencieux toutes les ~50 min.
+ * Le JWT access token a une TTL de **15 minutes** côté serveur
+ * (voir `apps/api/src/modules/auth/auth.module.ts: expiresIn: '15m'`).
+ * Pour éviter que l'utilisateur voie une erreur "Unauthorized" — ou pire,
+ * soit éjecté vers /login par le middleware Edge qui décode le `exp` du JWT —
+ * on déclenche un refresh silencieux **toutes les 12 minutes** (marge de 3 min
+ * avant l'expiration).
  *
  * On refresh aussi à plusieurs moments stratégiques :
  *  - Au montage du layout authentifié (rattrape un token qui aurait expiré
  *    pendant que l'onglet était dormant).
  *  - Quand l'onglet redevient visible (visibilitychange).
  *  - Quand le réseau redevient en ligne.
+ *  - Sur chaque changement de pathname (filet supplémentaire pour les
+ *    navigations Next.js — voir AUDIT_AUTH_REFRESH du 26/05/2026).
  *
  * Pas de body : le backend lit refresh_token + user_id depuis les cookies
  * HttpOnly. Si le refresh échoue (cookies expirés / révoqués), on déconnecte
@@ -19,19 +24,22 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 
-const REFRESH_INTERVAL_MS = 50 * 60 * 1000; // 50 min (le token vit 60 min)
-const RETRY_BACKOFF_MS = 30 * 1000; // 30s si un refresh échoue ponctuellement
+const REFRESH_INTERVAL_MS = 12 * 60 * 1000; // 12 min (JWT vit 15 min)
+const RETRY_BACKOFF_MS = 30 * 1000;
+const PATHNAME_REFRESH_THROTTLE_MS = 5 * 60 * 1000;
 
 export function useTokenRefresh() {
   const router = useRouter();
+  const pathname = usePathname();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const logout = useAuthStore((s) => s.logout);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const lastAttemptRef = useRef<number>(0);
   const inFlightRef = useRef<boolean>(false);
+  const lastPathnameRefreshRef = useRef<number>(0);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -43,7 +51,6 @@ export function useTokenRefresh() {
     async function attemptRefresh(reason: string): Promise<boolean> {
       if (cancelled) return false;
       if (inFlightRef.current) return false;
-      // Throttle : pas plus d'un essai toutes les 30s
       if (Date.now() - lastAttemptRef.current < RETRY_BACKOFF_MS) return false;
       inFlightRef.current = true;
       lastAttemptRef.current = Date.now();
@@ -56,17 +63,14 @@ export function useTokenRefresh() {
         });
         if (cancelled) return false;
         if (!res.ok) {
-          // 401 → refresh token expiré ou cookies absents → forcer logout
           if (res.status === 401) {
             console.warn(`[useTokenRefresh] refresh failed (401, ${reason}) — logging out`);
             logout();
-            // Léger délai pour laisser le store se mettre à jour avant la redirection
             setTimeout(() => {
               if (typeof window !== 'undefined') router.replace('/login?reason=session-expired');
             }, 50);
             return false;
           }
-          // Autres erreurs (500, réseau) → on retentera plus tard, pas de logout
           console.warn(`[useTokenRefresh] refresh transient error (${res.status}, ${reason})`);
           return false;
         }
@@ -80,16 +84,12 @@ export function useTokenRefresh() {
       }
     }
 
-    // 1. Refresh au montage (sécurité après onglet dormant ou nav)
     void attemptRefresh('mount');
 
-    // 2. Refresh périodique (toutes les 50 min)
     intervalId = setInterval(() => {
       void attemptRefresh('interval');
     }, REFRESH_INTERVAL_MS);
 
-    // 3. Refresh quand l'onglet redevient visible (l'utilisateur revient
-    //    après une longue pause — risque que le token ait expiré).
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
         void attemptRefresh('visibility');
@@ -97,7 +97,6 @@ export function useTokenRefresh() {
     };
     document.addEventListener('visibilitychange', onVisibility);
 
-    // 4. Refresh à la reprise du réseau.
     const onOnline = () => { void attemptRefresh('online'); };
     window.addEventListener('online', onOnline);
 
@@ -109,4 +108,38 @@ export function useTokenRefresh() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (!isAuthenticated()) return;
+    if (!pathname) return;
+    const now = Date.now();
+    if (now - lastPathnameRefreshRef.current < PATHNAME_REFRESH_THROTTLE_MS) return;
+    if (inFlightRef.current) return;
+    lastPathnameRefreshRef.current = now;
+    lastAttemptRef.current = now;
+    inFlightRef.current = true;
+    void (async () => {
+      try {
+        const res = await fetch('/api/v1/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        if (!res.ok && res.status === 401) {
+          console.warn('[useTokenRefresh] refresh failed (401, pathname) — logging out');
+          logout();
+          setTimeout(() => {
+            if (typeof window !== 'undefined') router.replace('/login?reason=session-expired');
+          }, 50);
+        }
+      } catch {
+        // Le mécanisme réactif d'api.ts prendra le relais.
+      } finally {
+        inFlightRef.current = false;
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, hasHydrated]);
 }

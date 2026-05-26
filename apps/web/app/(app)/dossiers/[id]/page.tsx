@@ -2567,6 +2567,10 @@ export default function DossierDetailPage() {
         dossierId={id}
         clientName={`${dossier.firstName ? dossier.firstName + ' ' : ''}${dossier.name}`.trim()}
         subfolders={dossier.subfolders}
+        // AUDIT 26/05/2026 : on transmet les sous-dossiers cochés dans
+        //   OptionSelectionModal pour filtrer la section Documents du dossier
+        //   et n'afficher que les docs des options validées.
+        validatedSubfolderLabels={selectedOptions.map((o) => o.sourceLabel)}
         profession={profession}
         loading={signing}
         // Pas de onAccessItem fourni → la modale ouvre son drawer interne

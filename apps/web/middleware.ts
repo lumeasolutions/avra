@@ -162,21 +162,30 @@ export function middleware(request: NextRequest) {
 
   // ── Vérification du JWT ──────────────────────────────────────────────────
   const accessToken = request.cookies.get('access_token')?.value;
+  const refreshToken = request.cookies.get('refresh_token')?.value;
 
   if (accessToken) {
-    // JWT présent → vérifier structure + expiration
     if (isJwtStructurallyValid(accessToken)) {
       return applyCspToResponse(request, nextWithNonce(request, nonce), nonce);
     }
-    // JWT invalide ou expiré → rediriger vers login
+    // AUDIT 26/05/2026 — JWT expiré : si refresh_token présent, on laisse
+    // passer. Le client refresh sur la 1ère requête API. Le backend valide
+    // de toute façon chaque requête API via JwtAuthGuard, donc aucun accès
+    // donné aux ressources protégées par cette tolérance UI.
+    if (refreshToken) {
+      return applyCspToResponse(request, nextWithNonce(request, nonce), nonce);
+    }
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
+  // Cookie access_token absent (60min expiré) mais refresh_token (30j) OK
+  if (refreshToken) {
+    return applyCspToResponse(request, nextWithNonce(request, nonce), nonce);
+  }
+
   // ── Fallback cookie `logged_in` ────────────────────────────────────────
-  // SÉCURITÉ : Ce cookie est non-HttpOnly et trivialement forgeable. On
-  // l'accepte UNIQUEMENT en dev local sans déploiement Vercel.
   if (IS_LOCAL_DEV) {
     const loggedIn = request.cookies.get('logged_in')?.value;
     if (loggedIn === 'true') {
@@ -184,7 +193,6 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Pas authentifié → redirection vers login
   const loginUrl = new URL('/login', request.url);
   loginUrl.searchParams.set('redirect', pathname);
   return NextResponse.redirect(loginUrl);

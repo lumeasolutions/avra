@@ -74,6 +74,29 @@ function getIsoWeekNumber(weekOffset: number = 0): number {
   return weekNum;
 }
 
+/**
+ * Pour la semaine "lundi en cours + weekOffset", retourne les 7 dates dans
+ * l'ordre LUN→DIM avec numéro du jour et drapeau `isToday`. Utilisé pour
+ * afficher la date sous chaque nom de jour dans l'en-tête du planning.
+ */
+function getWeekDates(weekOffset: number = 0): Array<{ dayNum: number; isToday: boolean }> {
+  const today = new Date();
+  const todayY = today.getFullYear();
+  const todayM = today.getMonth();
+  const todayD = today.getDate();
+  const day = today.getDay() || 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - day + 1 + weekOffset * 7);
+  monday.setHours(0, 0, 0, 0);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const isToday =
+      d.getFullYear() === todayY && d.getMonth() === todayM && d.getDate() === todayD;
+    return { dayNum: d.getDate(), isToday };
+  });
+}
+
 const COMMANDES_SUGGESTIONS: string[] = [
   // Cuisines
   'LEICHT', 'SCHMIDT', 'MOBALPA', 'CUISINELLA', 'HYGENA', 'BOFFI', 'BULTHAUP',
@@ -231,6 +254,15 @@ export interface DateButoireValidationProps {
   clientName?: string;
   /** Sous-dossiers actifs du dossier (avec leurs documents). */
   subfolders?: SubFolder[];
+  /**
+   * Labels des sous-dossiers cochés dans OptionSelectionModal à l'étape
+   * précédente. Si non-vide, la section "Documents du dossier" filtre pour
+   * n'afficher QUE les docs de ces sous-dossiers (les autres options non
+   * validées sont masquées). Les sous-dossiers transverses (DOSSIER
+   * RENSEIGNEMENT, ETAT DES LIEUX, RELEVE DE MESURES) restent toujours
+   * visibles car ils sont communs à toutes les options.
+   */
+  validatedSubfolderLabels?: string[];
   /** Métier de l'utilisateur — détermine quel sous-dossier est "le dernier projet". */
   profession?: Profession;
   loading?: boolean;
@@ -288,7 +320,7 @@ function dayDelta(iso: string): number {
 }
 
 export function DateButoireValidationModal({
-  open, items, signedSubfolders, dossierId, clientName, subfolders, profession, loading,
+  open, items, signedSubfolders, dossierId, clientName, subfolders, validatedSubfolderLabels, profession, loading,
   mode = 'sign', initialDates,
   onAccessItem, onConfirm, onCancel,
 }: DateButoireValidationProps) {
@@ -455,12 +487,27 @@ export function DateButoireValidationModal({
     }
 
     // 2) Construction des groupes : tous les sous-dossiers (avec ou sans docs)
-    const groups: Array<{ label: string; docs: DocumentFile[] }> = subfolders.map((sf) => ({
+    let groups: Array<{ label: string; docs: DocumentFile[] }> = subfolders.map((sf) => ({
       label: sf.label,
       docs: (sf.documents ?? []).map((d) =>
         typeof d === 'string' ? ({ name: d } as DocumentFile) : d,
       ),
     }));
+
+    // 2bis) AUDIT 26/05/2026 — filtrage par options validées.
+    //   Si l'utilisateur a coché des options dans OptionSelectionModal, on ne
+    //   montre QUE les docs de ces sous-dossiers. Les "sous-dossiers
+    //   transverses" (DOSSIER RENSEIGNEMENT, ETAT DES LIEUX, RELEVE DE
+    //   MESURES) restent toujours visibles car ils sont communs à toutes les
+    //   options — pas des "options" à choisir.
+    const validatedSet = new Set(validatedSubfolderLabels ?? []);
+    if (validatedSet.size > 0) {
+      const isOptionLabel = (label: string): boolean =>
+        ARCHITECTE_PROJET_VERSION_REGEX.test(label) ||
+        CUISINISTE_OPTION_REGEX.test(label) ||
+        MENUISIER_PROJET_REGEX.test(label);
+      groups = groups.filter((g) => !isOptionLabel(g.label) || validatedSet.has(g.label));
+    }
 
     // 3) Tri : sous-dossier prioritaire en tête, puis le reste en ordre d'origine
     if (priorityLabel) {
@@ -473,7 +520,7 @@ export function DateButoireValidationModal({
 
     // 4) On retire les groupes vides pour ne pas saturer l'UI
     return groups.filter((g) => g.docs.length > 0);
-  }, [subfolders, profession]);
+  }, [subfolders, profession, validatedSubfolderLabels]);
 
   const totalDocsCount = useMemo(
     () => allDocGroups.reduce((acc, g) => acc + g.docs.length, 0),
@@ -1000,7 +1047,40 @@ export function DateButoireValidationModal({
           grid-template-columns: 36px repeat(7, minmax(0, 1fr));
           background: #fafaf7;
           font-size: 10px;
-          height: 100%;
+          /* Hauteur bornée + scroll interne pour ne pas étirer la section. */
+          max-height: 260px;
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(166,119,73,0.45) rgba(48,64,53,0.04);
+        }
+        .dbv-plan-grid::-webkit-scrollbar { width: 8px; }
+        .dbv-plan-grid::-webkit-scrollbar-track {
+          background: rgba(48,64,53,0.04);
+          border-radius: 999px;
+        }
+        .dbv-plan-grid::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #d9b38a 0%, #a67749 100%);
+          border-radius: 999px;
+          border: 2px solid #fafaf7;
+        }
+        .dbv-plan-grid::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #c89665 0%, #7c4f1d 100%);
+        }
+        .dbv-plan-grid .dbv-plan-headcell { position: sticky; top: 0; z-index: 2; }
+        .dbv-plan-grid .dbv-plan-hour { position: sticky; left: 0; z-index: 1; }
+        .dbv-plan-headcell-day { font-size: 10px; line-height: 1.1; }
+        .dbv-plan-headcell-date {
+          font-size: 11px; font-weight: 800;
+          color: rgba(48,64,53,0.85);
+          line-height: 1.2; margin-top: 1px;
+        }
+        .dbv-plan-headcell-date.today {
+          color: #fff;
+          background: linear-gradient(135deg, #2a3a30 0%, #3d5244 100%);
+          border-radius: 999px;
+          width: 18px; height: 18px;
+          display: inline-flex; align-items: center; justify-content: center;
+          margin: 1px auto 0;
         }
         .dbv-plan-headcell {
           padding: 6px 4px; text-align: center;
@@ -1040,7 +1120,25 @@ export function DateButoireValidationModal({
         }
 
         /* Devis list */
-        .dbv-devis-list { display: flex; flex-direction: column; gap: 6px; padding: 10px; max-height: 280px; overflow-y: auto; }
+        .dbv-devis-list {
+          display: flex; flex-direction: column; gap: 6px; padding: 10px;
+          max-height: 280px; overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(166,119,73,0.45) rgba(48,64,53,0.04);
+        }
+        .dbv-devis-list::-webkit-scrollbar { width: 8px; }
+        .dbv-devis-list::-webkit-scrollbar-track {
+          background: rgba(48,64,53,0.04);
+          border-radius: 999px;
+        }
+        .dbv-devis-list::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #d9b38a 0%, #a67749 100%);
+          border-radius: 999px;
+          border: 2px solid #fff;
+        }
+        .dbv-devis-list::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #c89665 0%, #7c4f1d 100%);
+        }
 
         /* Groupes de documents par sous-dossier */
         .dbv-doc-group { display: flex; flex-direction: column; gap: 4px; }
@@ -1600,7 +1698,15 @@ export function DateButoireValidationModal({
                     voit immediatement quels creneaux sont libres pour planifier. */}
                 <div className="dbv-plan-grid">
                   <div className="dbv-plan-headcell">·</div>
-                  {DAYS.map((d) => <div key={d} className="dbv-plan-headcell">{d}</div>)}
+                  {DAYS.map((d, i) => {
+                    const wd = getWeekDates(weekOffset)[i] ?? { dayNum: 0, isToday: false };
+                    return (
+                      <div key={d} className="dbv-plan-headcell">
+                        <div className="dbv-plan-headcell-day">{d}</div>
+                        <div className={`dbv-plan-headcell-date${wd.isToday ? ' today' : ''}`}>{wd.dayNum}</div>
+                      </div>
+                    );
+                  })}
                   {hours.map((h) => (
                     <div key={`row-${h}`} style={{ display: 'contents' }}>
                       <div className="dbv-plan-hour">{h}h</div>
