@@ -73,6 +73,13 @@ export interface Dossier {
    * Demande asso 19/05/2026.
    */
   vendeurName?: string;
+  /**
+   * Lignes prix achat/vente HT pour les stats (19/05/2026, demande asso).
+   * Le gate /statistiques force la saisie sur les dossiers SIGNÉS. Depuis le
+   * 26/05/2026, la saisie est aussi POSSIBLE (mais facultative) sur les
+   * dossiers en cours et perdus via le bouton "+ Renseigner" du Tableau 1.
+   */
+  prixLignes?: DossierPrixLigne[];
 }
 
 /**
@@ -124,12 +131,7 @@ export interface DossierSigne extends Dossier {
   montant?: number;
   montantEstime?: number;
   confirmations?: ConfirmationFournisseur[];
-  /**
-   * Lignes prix achat/vente HT pour les stats (19/05/2026, demande asso).
-   * Le gate /statistiques force la saisie de ≥1 ligne par dossier signé avant
-   * de débloquer l'accès aux tableaux statistiques.
-   */
-  prixLignes?: DossierPrixLigne[];
+  // prixLignes hérité de Dossier (étendu au type de base le 26/05/2026)
   /**
    * Dossier reporté du gate stats (StatsGate v2 — 26/05/2026).
    * Quand true, le dossier est exclu du gate bloquant mais reste visible dans
@@ -170,6 +172,12 @@ export interface DossierPerdu {
   montantEstime?: number;
   /** Vendeur snapshot pour le TABLEAU 3 stats (19/05/2026). */
   vendeurName?: string;
+  /**
+   * Lignes prix achat/vente HT facultatives (26/05/2026).
+   * Pour les dossiers perdus, la saisie est purement informative — utile pour
+   * un post-mortem ("combien j'ai loupé ?").
+   */
+  prixLignes?: DossierPrixLigne[];
 }
 
 // Données initiales — sous-dossiers par défaut selon la profession.
@@ -848,50 +856,57 @@ export const useDossierStore = create<DossierState>()(
         }));
       },
 
-      // ── Stats : prix achat/vente par dossier signé (19/05/2026, demande asso)
+      // ── Stats : prix achat/vente, poly-collection (19/05/2026 + 26/05/2026)
+      //   Initialement les actions ne traitaient que dossiersSignes. Depuis
+      //   le 26/05/2026 elles parcourent aussi dossiers (en cours) et
+      //   dossiersPerdus, pour permettre la saisie facultative sur ces
+      //   catégories via le bouton "+ Renseigner" du Tableau 1 Statut.
+      //   Le matching se fait par id, donc transparent — on patche dans la
+      //   collection où le dossier est trouvé.
       addDossierPrixLigne: (dossierId, ligne) => {
         const id = 'prix_' + uid();
         set(s => ({
-          dossiersSignes: s.dossiersSignes.map(d =>
-            d.id === dossierId
-              ? { ...d, prixLignes: [...(d.prixLignes ?? []), { ...ligne, id }] }
-              : d,
-          ),
+          dossiers:       s.dossiers.map(d =>       d.id === dossierId ? { ...d, prixLignes: [...(d.prixLignes ?? []), { ...ligne, id }] } : d),
+          dossiersSignes: s.dossiersSignes.map(d => d.id === dossierId ? { ...d, prixLignes: [...(d.prixLignes ?? []), { ...ligne, id }] } : d),
+          dossiersPerdus: s.dossiersPerdus.map(d => d.id === dossierId ? { ...d, prixLignes: [...(d.prixLignes ?? []), { ...ligne, id }] } : d),
         }));
       },
 
       updateDossierPrixLigne: (dossierId, ligneId, patch) => {
+        const apply = <T extends { id: string; prixLignes?: DossierPrixLigne[] }>(arr: T[]): T[] =>
+          arr.map(d => d.id === dossierId
+            ? { ...d, prixLignes: (d.prixLignes ?? []).map(l => l.id === ligneId ? { ...l, ...patch } : l) }
+            : d);
         set(s => ({
-          dossiersSignes: s.dossiersSignes.map(d =>
-            d.id === dossierId
-              ? {
-                  ...d,
-                  prixLignes: (d.prixLignes ?? []).map(l => l.id === ligneId ? { ...l, ...patch } : l),
-                }
-              : d,
-          ),
+          dossiers:       apply(s.dossiers),
+          dossiersSignes: apply(s.dossiersSignes),
+          dossiersPerdus: apply(s.dossiersPerdus),
         }));
       },
 
       removeDossierPrixLigne: (dossierId, ligneId) => {
+        const apply = <T extends { id: string; prixLignes?: DossierPrixLigne[] }>(arr: T[]): T[] =>
+          arr.map(d => d.id === dossierId
+            ? { ...d, prixLignes: (d.prixLignes ?? []).filter(l => l.id !== ligneId) }
+            : d);
         set(s => ({
-          dossiersSignes: s.dossiersSignes.map(d =>
-            d.id === dossierId
-              ? { ...d, prixLignes: (d.prixLignes ?? []).filter(l => l.id !== ligneId) }
-              : d,
-          ),
+          dossiers:       apply(s.dossiers),
+          dossiersSignes: apply(s.dossiersSignes),
+          dossiersPerdus: apply(s.dossiersPerdus),
         }));
       },
 
       addDossierPrixLignesBulk: (dossierId, lignes) => {
         if (!lignes.length) return;
         const newLignes = lignes.map(l => ({ ...l, id: 'prix_' + uid() }));
+        const apply = <T extends { id: string; prixLignes?: DossierPrixLigne[] }>(arr: T[]): T[] =>
+          arr.map(d => d.id === dossierId
+            ? { ...d, prixLignes: [...(d.prixLignes ?? []), ...newLignes] }
+            : d);
         set(s => ({
-          dossiersSignes: s.dossiersSignes.map(d =>
-            d.id === dossierId
-              ? { ...d, prixLignes: [...(d.prixLignes ?? []), ...newLignes] }
-              : d,
-          ),
+          dossiers:       apply(s.dossiers),
+          dossiersSignes: apply(s.dossiersSignes),
+          dossiersPerdus: apply(s.dossiersPerdus),
         }));
       },
 
