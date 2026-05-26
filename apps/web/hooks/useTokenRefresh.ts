@@ -3,15 +3,20 @@
 /**
  * useTokenRefresh — refresh proactif du JWT access token.
  *
- * Le token a une TTL de 60 min côté serveur. Pour éviter que l'utilisateur
- * voie une erreur "Unauthorized" en plein milieu d'une action, on déclenche
- * un refresh silencieux toutes les ~50 min.
+ * Le JWT access token a une TTL de **15 minutes** côté serveur
+ * (voir `apps/api/src/modules/auth/auth.module.ts: expiresIn: '15m'`).
+ * Pour éviter que l'utilisateur voie une erreur "Unauthorized" — ou pire,
+ * soit éjecté vers /login par le middleware Edge qui décode le `exp` du JWT —
+ * on déclenche un refresh silencieux **toutes les 12 minutes** (marge de 3 min
+ * avant l'expiration).
  *
  * On refresh aussi à plusieurs moments stratégiques :
  *  - Au montage du layout authentifié (rattrape un token qui aurait expiré
  *    pendant que l'onglet était dormant).
  *  - Quand l'onglet redevient visible (visibilitychange).
  *  - Quand le réseau redevient en ligne.
+ *  - Sur chaque changement de pathname (filet supplémentaire pour les
+ *    navigations Next.js — voir AUDIT_AUTH_REFRESH du 26/05/2026).
  *
  * Pas de body : le backend lit refresh_token + user_id depuis les cookies
  * HttpOnly. Si le refresh échoue (cookies expirés / révoqués), on déconnecte
@@ -19,19 +24,35 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 
-const REFRESH_INTERVAL_MS = 50 * 60 * 1000; // 50 min (le token vit 60 min)
+/**
+ * Intervalle de refresh proactif. Doit rester STRICTEMENT inférieur à la TTL
+ * du JWT (15 min côté backend, voir auth.module.ts). On prend 12 min pour
+ * laisser une marge de 3 min — si le réseau est lent ou le serveur en cold
+ * start, le refresh a le temps d'aboutir avant que le JWT n'expire.
+ *
+ * ⚠️ Si vous modifiez `expiresIn` dans auth.module.ts, mettez à jour cette
+ *    constante en conséquence (REFRESH_INTERVAL_MS < JWT TTL - 2 min).
+ */
+const REFRESH_INTERVAL_MS = 12 * 60 * 1000; // 12 min (JWT vit 15 min)
 const RETRY_BACKOFF_MS = 30 * 1000; // 30s si un refresh échoue ponctuellement
 
 export function useTokenRefresh() {
   const router = useRouter();
+  const pathname = usePathname();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const logout = useAuthStore((s) => s.logout);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const lastAttemptRef = useRef<number>(0);
   const inFlightRef = useRef<boolean>(false);
+  // Throttle dédié pour les triggers "pathname change" : il faut être plus
+  // tolérant que le throttle global (30s) car une navigation rapide entre 2
+  // pages ne doit pas re-refresh. 5 min suffit : c'est largement en-deça des
+  // 15 min du JWT, et ça absorbe les sequences de navigations rapprochées.
+  const lastPathnameRefreshRef = useRef<number>(0);
+  const PATHNAME_REFRESH_THROTTLE_MS = 5 * 60 * 1000;
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -72,41 +93,4 @@ export function useTokenRefresh() {
         }
         return true;
       } catch (err) {
-        if (cancelled) return false;
-        console.warn(`[useTokenRefresh] refresh network error (${reason}):`, err);
-        return false;
-      } finally {
-        inFlightRef.current = false;
-      }
-    }
-
-    // 1. Refresh au montage (sécurité après onglet dormant ou nav)
-    void attemptRefresh('mount');
-
-    // 2. Refresh périodique (toutes les 50 min)
-    intervalId = setInterval(() => {
-      void attemptRefresh('interval');
-    }, REFRESH_INTERVAL_MS);
-
-    // 3. Refresh quand l'onglet redevient visible (l'utilisateur revient
-    //    après une longue pause — risque que le token ait expiré).
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        void attemptRefresh('visibility');
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-
-    // 4. Refresh à la reprise du réseau.
-    const onOnline = () => { void attemptRefresh('online'); };
-    window.addEventListener('online', onOnline);
-
-    return () => {
-      cancelled = true;
-      if (intervalId) clearInterval(intervalId);
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('online', onOnline);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasHydrated]);
-}
+        if (c

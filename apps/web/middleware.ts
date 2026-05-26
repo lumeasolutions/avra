@@ -162,36 +162,26 @@ export function middleware(request: NextRequest) {
 
   // ── Vérification du JWT ──────────────────────────────────────────────────
   const accessToken = request.cookies.get('access_token')?.value;
+  const refreshToken = request.cookies.get('refresh_token')?.value;
 
   if (accessToken) {
     // JWT présent → vérifier structure + expiration
     if (isJwtStructurallyValid(accessToken)) {
       return applyCspToResponse(request, nextWithNonce(request, nonce), nonce);
     }
-    // JWT invalide ou expiré → rediriger vers login
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // ── Fallback cookie `logged_in` ────────────────────────────────────────
-  // SÉCURITÉ : Ce cookie est non-HttpOnly et trivialement forgeable. On
-  // l'accepte UNIQUEMENT en dev local sans déploiement Vercel.
-  if (IS_LOCAL_DEV) {
-    const loggedIn = request.cookies.get('logged_in')?.value;
-    if (loggedIn === 'true') {
-      return applyCspToResponse(request, nextWithNonce(request, nonce), nonce);
-    }
-  }
-
-  // Pas authentifié → redirection vers login
-  const loginUrl = new URL('/login', request.url);
-  loginUrl.searchParams.set('redirect', pathname);
-  return NextResponse.redirect(loginUrl);
-}
-
-export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|images/).*)',
-  ],
-};
+    // JWT structurellement invalide OU expiré (exp dépassé).
+    //
+    // AUDIT 26/05/2026 — refresh tolerant flow :
+    // Auparavant, on redirigeait vers /login dès qu'on voyait un JWT expiré.
+    // Conséquence : à 15 min pile (TTL du JWT), la 1ère navigation Next.js
+    // post-expiration éjectait l'utilisateur, sans laisser au mécanisme de
+    // refresh côté client la moindre chance d'intervenir.
+    //
+    // Nouveau comportement : si le `refresh_token` (HttpOnly, 30j) est
+    // toujours présent, on laisse passer la requête. Le client (`api.ts` ou
+    // `useTokenRefresh.ts`) déclenchera alors un /auth/refresh sur la 1ère
+    // requête API ou au montage du layout, posant un nouveau `access_token`.
+    //
+    // SÉCURITÉ : laisser passer un JWT expiré côté middleware ne donne PAS
+    // accès aux ressources protégées. Le backend NestJS valide le JWT à
+    // CHAQUE requête API via `JwtAuthGuard` (signature + exp). Un JWT e
