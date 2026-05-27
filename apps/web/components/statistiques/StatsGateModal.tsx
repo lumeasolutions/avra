@@ -75,6 +75,7 @@ import {
   MENUISIER_PROJET_REGEX,
 } from '@/store/useDossierStore';
 import { getDocSignedUrl } from '@/lib/dossier-docs-api';
+import { extractDossier } from '@/lib/ai-extract-api';
 import type { Devis } from '@/store/useFacturationStore';
 
 interface Props {
@@ -134,6 +135,69 @@ export function StatsGateModal({
   const [toast, setToast] = useState<{ message: string; tone: 'ok' | 'info' } | null>(null);
   const fournisseurInputRef = useRef<HTMLInputElement>(null);
   const venteInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Extraction IA (27/05/2026) — reutilise l'endpoint /ia/extract-dossier ──
+  // L'IA analyse les PDF du dossier (devis fournisseurs, factures d'achats)
+  // et retourne des { fournisseur, montantHT } qu'on transforme en lignes prix.
+  const [aiExtracting, setAiExtracting] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleExtractAI = useCallback(async () => {
+    if (!selected || aiExtracting) return;
+    setAiExtracting(true);
+    setAiError(null);
+    try {
+      const result = await extractDossier(selected.id);
+      // Dedup : ne pas creer une ligne si une existe deja avec meme
+      // (fournisseur, prixAchatHT). Evite les doublons sur clics multiples.
+      const existing = new Set(
+        selectedLignes.map((l) => `${l.fournisseur}::${l.prixAchatHT}`),
+      );
+      const toImport = (result.commandes ?? [])
+        .filter((c) => c.fournisseur && typeof c.montantHT === 'number' && c.montantHT > 0)
+        .map((c) => ({
+          fournisseur: c.fournisseur,
+          prixAchatHT: c.montantHT as number,
+          // L'IA ne distingue pas encore prix achat/vente — l'utilisateur
+          // completera le prix de vente apres extraction.
+          prixVenteHT: 0,
+        }))
+        .filter((l) => !existing.has(`${l.fournisseur}::${l.prixAchatHT}`));
+      if (toImport.length === 0) {
+        setToast({ message: 'IA : aucune nouvelle ligne à extraire (déjà importé ou pas de montants détectés)', tone: 'info' });
+      } else {
+        onAddLignesBulk(selected.id, toImport);
+        const conf = Math.round((result.confiance ?? 0) * 100);
+        setToast({
+          message: `🪄 IA : ${toImport.length} ligne${toImport.length > 1 ? 's' : ''} créée${toImport.length > 1 ? 's' : ''} (confiance ${conf}%) — complétez les prix vente`,
+          tone: 'ok',
+        });
+      }
+    } catch (err: any) {
+      const msg = (err?.message ?? '').toString();
+      let userMsg = "Échec extraction IA — vérifiez OPENAI_API_KEY ou saisissez manuellement";
+      if (msg.toLowerCase().includes('openai')) {
+        userMsg = "Service IA non configuré (OPENAI_API_KEY manquant). Saisissez manuellement.";
+      } else if (msg.toLowerCase().includes('aucun document')) {
+        userMsg = "Aucun document analysable dans ce dossier (PDF requis).";
+      } else if (msg.toLowerCase().includes('throttl') || msg.toLowerCase().includes('limit')) {
+        userMsg = "Trop d'appels IA — patientez 1 minute avant de réessayer.";
+      } else if (msg) {
+        userMsg = `Échec extraction IA : ${msg}`;
+      }
+      setAiError(userMsg);
+    } finally {
+      setAiExtracting(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, aiExtracting, selectedLignes, onAddLignesBulk]);
+
+  // Auto-clear erreur IA apres 8s
+  useEffect(() => {
+    if (!aiError) return;
+    const t = setTimeout(() => setAiError(null), 8000);
+    return () => clearTimeout(t);
+  }, [aiError]);
 
   const selected = useMemo(
     () => missingDossiers.find((d) => d.id === selectedId) ?? missingDossiers[0] ?? null,
@@ -351,6 +415,7 @@ export function StatsGateModal({
         @keyframes sgFadeIn { from { opacity: 0; backdrop-filter: blur(0); } to { opacity: 1; backdrop-filter: blur(6px); } }
         @keyframes sgScaleIn { from { transform: scale(0.94) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
         @keyframes sgGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(217,179,138,0.5); } 50% { box-shadow: 0 0 0 8px rgba(217,179,138,0); } }
+        @keyframes sg-spin { to { transform: rotate(360deg); } }
         @keyframes sgToastIn { from { transform: translateY(20px) scale(0.92); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
         @keyframes sgSparkle { 0%,100% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(8deg) scale(1.08); } }
         .sg-overlay { animation: sgFadeIn 0.32s ease-out; }
@@ -730,6 +795,60 @@ export function StatsGateModal({
               }}>
                 Saisie des prix
               </p>
+
+              {/* [IA] Bouton d'extraction IA (27/05/2026) — analyse les PDF
+                  du dossier (devis + factures) et cree les lignes prix d'achat
+                  automatiquement. Reutilise l'endpoint /ia/extract-dossier
+                  deja utilise par DateButoireValidationModal. */}
+              <button
+                onClick={handleExtractAI}
+                disabled={aiExtracting}
+                className="sg-import-btn"
+                style={{
+                  width: '100%', marginBottom: 10, padding: '11px 14px',
+                  borderRadius: 12, border: '1.5px solid #6366f1',
+                  background: aiExtracting
+                    ? 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)'
+                    : 'linear-gradient(135deg, #eef2ff 0%, #c7d2fe 100%)',
+                  color: '#4338ca', fontWeight: 700, fontSize: 12,
+                  cursor: aiExtracting ? 'wait' : 'pointer',
+                  display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: 6, textAlign: 'center',
+                  opacity: aiExtracting ? 0.7 : 1,
+                  transition: 'opacity 0.2s',
+                }}
+                title="L'IA analyse les PDF du dossier (devis, factures) et crée automatiquement les lignes de prix d'achat."
+              >
+                {aiExtracting ? (
+                  <>
+                    <span className="sg-spinner" style={{
+                      width: 14, height: 14, borderRadius: '50%',
+                      border: '2px solid rgba(99,102,241,0.3)',
+                      borderTopColor: '#4338ca',
+                      animation: 'sg-spin 0.7s linear infinite',
+                    }} />
+                    Analyse IA des documents…
+                  </>
+                ) : (
+                  <>
+                    <Wand2 size={14} />
+                    🪄 Extraire avec IA (devis + factures)
+                    <Sparkles size={11} />
+                  </>
+                )}
+              </button>
+              {aiError && (
+                <div style={{
+                  marginBottom: 10, padding: '8px 12px', borderRadius: 8,
+                  background: 'rgba(220,38,38,0.08)',
+                  border: '1px solid rgba(220,38,38,0.25)',
+                  color: '#991b1b', fontSize: 11, lineHeight: 1.4,
+                  display: 'flex', alignItems: 'flex-start', gap: 6,
+                }}>
+                  <AlertTriangle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span>{aiError}</span>
+                </div>
+              )}
 
               {/* [A] Bouton d'auto-import (deplace dans col saisie) */}
               {importable.length > 0 && (
