@@ -125,23 +125,74 @@ async function refreshAccessToken(): Promise<boolean> {
   if (Date.now() - lastRefreshFailedAt < REFRESH_BACKOFF_MS) return false;
 
   refreshInFlight = (async () => {
+    // ── CROSS-TAB DEDUPLICATION (27/05/2026) ──────────────────────────
+    // Cf lib/refreshLock.ts. Si un autre onglet vient de rafraichir,
+    // notre cookie est deja a jour, on saute. Si un autre onglet est en
+    // train de rafraichir, on attend son resultat.
     try {
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) {
+      const lock = await import('./refreshLock');
+      if (lock.wasRecentlyRefreshed()) return true;
+      if (lock.isAnotherTabRefreshing()) {
+        const ok = await lock.waitForOtherTabRefresh();
+        return ok;
+      }
+      if (!lock.tryAcquireLock()) {
+        const ok = await lock.waitForOtherTabRefresh();
+        return ok;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({}),
+        });
+        if (res.ok) {
+          lock.markRefreshSuccess();
+          return true;
+        }
+        // 401 : retry 1 fois apres 2s avant d'abandonner
+        if (res.status === 401) {
+          lock.releaseLock();
+          await new Promise((r) => setTimeout(r, 2000));
+          if (lock.wasRecentlyRefreshed()) return true;
+          const retry = await fetch(`${API_BASE}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({}),
+          });
+          if (retry.ok) {
+            lock.markRefreshSuccess();
+            return true;
+          }
+        } else {
+          lock.releaseLock();
+        }
+        lastRefreshFailedAt = Date.now();
+        return false;
+      } catch {
+        lock.releaseLock();
         lastRefreshFailedAt = Date.now();
         return false;
       }
-      return true;
     } catch {
-      lastRefreshFailedAt = Date.now();
-      return false;
+      // Fallback sans lock (si l'import dynamique echoue, tres rare)
+      try {
+        const res = await fetch(`${API_BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({}),
+        });
+        if (!res.ok) { lastRefreshFailedAt = Date.now(); return false; }
+        return true;
+      } catch {
+        lastRefreshFailedAt = Date.now();
+        return false;
+      }
     } finally {
-      // Libère le verrou après un court moment pour permettre un nouveau refresh en cas de besoin
+      // Libere le verrou apres un court moment pour permettre un nouveau refresh en cas de besoin
       setTimeout(() => { refreshInFlight = null; }, 100);
     }
   })();
