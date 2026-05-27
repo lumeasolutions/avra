@@ -394,10 +394,10 @@ export function StatsGateModal({
             </button>
           </div>
 
-          {/* ─── Body split ────────────────────────────────────────────── */}
+          {/* ─── Body 3-col (27/05/2026) : sidebar + consultation + saisie ── */}
           <div style={{
             flex: 1, display: 'grid',
-            gridTemplateColumns: 'minmax(260px, 300px) 1fr',
+            gridTemplateColumns: 'minmax(220px, 250px) 1fr 1fr',
             minHeight: 0,
           }}>
             {/* ─── COLONNE GAUCHE : liste avec [F] progression ──────── */}
@@ -467,68 +467,46 @@ export function StatsGateModal({
               </div>
             </div>
 
-            {/* ─── COLONNE DROITE : détail du dossier sélectionné ───── */}
-            <div style={{ overflowY: 'auto', padding: '18px 22px' }}>
+            {/* ─── COLONNE MILIEU : CONSULTATION (options + confirmations) ── */}
+            <div style={{ overflowY: 'auto', padding: '18px 22px', borderRight: '1px solid rgba(48,64,53,0.08)' }}>
               {/* Titre dossier + actions [P2] [B] */}
               <div style={{
                 display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-                gap: 12, marginBottom: 14, flexWrap: 'wrap',
+                gap: 8, marginBottom: 14, flexWrap: 'wrap',
               }}>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#304035' }}>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#304035' }}>
                   {selected.name}{selected.firstName ? ` ${selected.firstName}` : ''}
                 </h3>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
                   <button
                     onClick={() => window.open(`/dossiers/${selected.id}`, '_blank', 'noopener,noreferrer')}
                     style={{
-                      padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                      padding: '5px 10px', borderRadius: 8, fontSize: 10, fontWeight: 700,
                       border: '1px solid rgba(48,64,53,0.18)', background: '#fff', color: '#304035',
-                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5,
+                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4,
                     }}
                     title="Ouvre la fiche dossier signé dans un nouvel onglet"
                   >
-                    <ExternalLink size={11} /> Ouvrir dossier
+                    <ExternalLink size={10} /> Ouvrir
                   </button>
                   <button
                     onClick={handleSkip}
                     style={{
-                      padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                      padding: '5px 10px', borderRadius: 8, fontSize: 10, fontWeight: 700,
                       border: '1px solid rgba(120,80,180,0.3)', background: 'rgba(120,80,180,0.06)',
                       color: '#7850b4', cursor: 'pointer',
-                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
                     }}
                     title="Reporte ce dossier — vous pourrez le compléter plus tard"
                   >
-                    <Clock size={11} /> Reporter
+                    <Clock size={10} /> Reporter
                   </button>
                 </div>
               </div>
 
-              {/* [A] Bouton d'auto-import (seulement si confirmations importables) */}
-              {importable.length > 0 && (
-                <button
-                  onClick={handleAutoImport}
-                  className="sg-import-btn"
-                  style={{
-                    width: '100%', marginBottom: 14, padding: '11px 14px',
-                    borderRadius: 12, border: '1.5px solid #a67749',
-                    background: 'linear-gradient(135deg, #fff8ef 0%, #ffe7c2 100%)',
-                    color: '#7c4f1d', fontWeight: 700, fontSize: 13,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', gap: 8,
-                  }}
-                >
-                  <Wand2 className="sg-import-icon" size={15} />
-                  Importer {importable.length} confirmation{importable.length > 1 ? 's' : ''} validée{importable.length > 1 ? 's' : ''} d'un coup
-                  <Sparkles size={12} />
-                </button>
-              )}
-
-              {/* Récap aide-mémoire — devis validés [P3] + confirmations [P0] */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18,
-              }}>
-                {/* DEVIS VALIDÉS [P3] */}
+              {/* Sections empilées : OPTIONS VALIDÉES puis CONFIRMATIONS */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* OPTIONS VALIDÉES (ex 'Devis validés') [P3] */}
                 <div style={{
                   padding: '12px 14px', background: 'rgba(166,119,73,0.06)',
                   border: '1px solid rgba(166,119,73,0.2)', borderRadius: 12,
@@ -538,7 +516,7 @@ export function StatsGateModal({
                     textTransform: 'uppercase', letterSpacing: '0.08em',
                     display: 'flex', alignItems: 'center', gap: 5,
                   }}>
-                    <FileText size={11} /> Devis validés <span style={{ fontWeight: 600, opacity: 0.7 }}>(prix vente)</span>
+                    <FileText size={11} /> Options validées <span style={{ fontWeight: 600, opacity: 0.7 }}>(devis · prix vente)</span>
                   </p>
                   {devisValides.length === 0 ? (
                     <p style={{
@@ -626,6 +604,37 @@ export function StatsGateModal({
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* ─── COLONNE DROITE : SAISIE PRIX ──────────────────────────── */}
+            <div style={{ overflowY: 'auto', padding: '18px 22px' }}>
+              <p style={{
+                margin: '0 0 12px', fontSize: 10, fontWeight: 800,
+                color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+              }}>
+                Saisie des prix
+              </p>
+
+              {/* [A] Bouton d'auto-import (deplace dans col saisie) */}
+              {importable.length > 0 && (
+                <button
+                  onClick={handleAutoImport}
+                  className="sg-import-btn"
+                  style={{
+                    width: '100%', marginBottom: 14, padding: '11px 14px',
+                    borderRadius: 12, border: '1.5px solid #a67749',
+                    background: 'linear-gradient(135deg, #fff8ef 0%, #ffe7c2 100%)',
+                    color: '#7c4f1d', fontWeight: 700, fontSize: 12,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', gap: 6, textAlign: 'center',
+                  }}
+                >
+                  <Wand2 className="sg-import-icon" size={14} />
+                  Importer {importable.length} confirmation{importable.length > 1 ? 's' : ''}
+                  <Sparkles size={11} />
+                </button>
+              )}
 
               {/* Lignes déjà saisies + récap marge */}
               {selectedLignes.length > 0 && (
