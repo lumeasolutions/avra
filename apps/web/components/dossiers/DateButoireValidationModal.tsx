@@ -993,10 +993,33 @@ export function DateButoireValidationModal({
         /* 19/05/2026 : barre laterale visible entre les 2 colonnes (demande asso).
            Ligne 2px + degrade vertical doux pour un separateur premium. */
         .dbv-col-left {
-          display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto;
+          display: flex; flex-direction: column; gap: 12px;
+          /* padding-bottom genereux (32px au lieu de 16) — garantit que le
+             dernier document n'est jamais maske par le footer du modal. */
+          padding: 16px 16px 32px;
+          overflow-y: auto;
           border-right: 2px solid transparent;
           border-image: linear-gradient(180deg, rgba(166,119,73,0) 0%, rgba(166,119,73,0.35) 18%, rgba(166,119,73,0.35) 82%, rgba(166,119,73,0) 100%) 1;
           box-shadow: inset -1px 0 0 rgba(48,64,53,0.04);
+          /* Scrollbar visible et stylee pour rappeler qu'on peut scroller */
+          scrollbar-width: thin;
+          scrollbar-color: rgba(166,119,73,0.45) rgba(48,64,53,0.04);
+        }
+        .dbv-col-left::-webkit-scrollbar { width: 8px; }
+        .dbv-col-left::-webkit-scrollbar-track {
+          background: rgba(48,64,53,0.04);
+          border-radius: 999px;
+        }
+        .dbv-col-left::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #d9b38a 0%, #a67749 100%);
+          border-radius: 999px;
+          border: 2px solid transparent;
+          background-clip: padding-box;
+        }
+        .dbv-col-left::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #c89665 0%, #7c4f1d 100%);
+          background-clip: padding-box;
+          border-color: transparent;
         }
         .dbv-col-right { display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
         @media (max-width: 900px) {
@@ -1119,25 +1142,13 @@ export function DateButoireValidationModal({
           color: rgba(48,64,53,0.4);
         }
 
-        /* Devis list */
+        /* Devis list — 26/05/2026 : fix UX accessibilité dernier document.
+           Avant : max-height 280px + overflow-y: auto créait un double scroll
+           avec la col-left, l'utilisateur n'arrivait pas à atteindre le dernier
+           doc. Maintenant la liste grandit naturellement et c'est UNIQUEMENT
+           la col-left qui scroll pour toute la sidebar. */
         .dbv-devis-list {
           display: flex; flex-direction: column; gap: 6px; padding: 10px;
-          max-height: 280px; overflow-y: auto;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(166,119,73,0.45) rgba(48,64,53,0.04);
-        }
-        .dbv-devis-list::-webkit-scrollbar { width: 8px; }
-        .dbv-devis-list::-webkit-scrollbar-track {
-          background: rgba(48,64,53,0.04);
-          border-radius: 999px;
-        }
-        .dbv-devis-list::-webkit-scrollbar-thumb {
-          background: linear-gradient(180deg, #d9b38a 0%, #a67749 100%);
-          border-radius: 999px;
-          border: 2px solid #fff;
-        }
-        .dbv-devis-list::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(180deg, #c89665 0%, #7c4f1d 100%);
         }
 
         /* Groupes de documents par sous-dossier */
