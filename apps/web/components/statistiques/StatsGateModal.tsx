@@ -65,7 +65,16 @@ import type {
   DossierSigne,
   DossierPrixLigne,
   ConfirmationFournisseur,
+  SubFolder,
+  DocumentFile,
+  SubFolderDocument,
 } from '@/store/useDossierStore';
+import {
+  ARCHITECTE_PROJET_VERSION_REGEX,
+  CUISINISTE_OPTION_REGEX,
+  MENUISIER_PROJET_REGEX,
+} from '@/store/useDossierStore';
+import { getDocSignedUrl } from '@/lib/dossier-docs-api';
 import type { Devis } from '@/store/useFacturationStore';
 
 interface Props {
@@ -162,6 +171,61 @@ export function StatsGateModal({
     () => (selected?.confirmations ?? []).filter((c) => c.validee),
     [selected],
   );
+
+  // ── NOUVEAU 27/05/2026 : sous-dossiers OPTIONS VALIDÉES (avec leurs docs) ──
+  // L'utilisateur a explique que les "Options validees" doivent permettre de
+  // consulter les devis PDF presents dans les sous-dossiers OPTION/PROJET/APD
+  // du dossier signe, pas seulement les devis du store Facturation. On liste
+  // les sous-dossiers qui matchent les regex ET qui contiennent ≥1 doc.
+  const optionsValideesSubfolders = useMemo<Array<{ label: string; docs: DocumentFile[] }>>(() => {
+    const subfolders = selected?.signedSubfolders ?? [];
+    return subfolders
+      .filter((sf) =>
+        ARCHITECTE_PROJET_VERSION_REGEX.test(sf.label) ||
+        CUISINISTE_OPTION_REGEX.test(sf.label) ||
+        MENUISIER_PROJET_REGEX.test(sf.label),
+      )
+      .map((sf) => ({
+        label: sf.label,
+        docs: (sf.documents ?? []).map((d: SubFolderDocument) =>
+          typeof d === 'string' ? ({ name: d } as DocumentFile) : d,
+        ),
+      }))
+      .filter((g) => g.docs.length > 0);
+  }, [selected]);
+
+  // ── NOUVEAU 27/05/2026 : sous-dossiers CONFIRMATIONS / FACTURES ACHATS ──
+  const confirmationsSubfolders = useMemo<Array<{ label: string; docs: DocumentFile[] }>>(() => {
+    const subfolders = selected?.signedSubfolders ?? [];
+    return subfolders
+      .filter((sf) =>
+        /CONFIRMATION/i.test(sf.label) ||
+        /FACTURE.*ACHAT/i.test(sf.label) ||
+        /FACTURES.*ACHATS/i.test(sf.label),
+      )
+      .map((sf) => ({
+        label: sf.label,
+        docs: (sf.documents ?? []).map((d: SubFolderDocument) =>
+          typeof d === 'string' ? ({ name: d } as DocumentFile) : d,
+        ),
+      }))
+      .filter((g) => g.docs.length > 0);
+  }, [selected]);
+
+  // Helper : ouvrir un doc dans un nouvel onglet (URL signee fraiche)
+  const handleOpenDoc = async (doc: DocumentFile) => {
+    if (doc.dataUrl) {
+      window.open(doc.dataUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (!doc.docId || !selected) return;
+    try {
+      const { signedUrl } = await getDocSignedUrl(selected.id, doc.docId);
+      window.open(signedUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      console.error('[StatsGate] preview failed:', err);
+    }
+  };
 
   const selectedLignes = selected?.prixLignes ?? [];
   const totalAchat = selectedLignes.reduce((s, l) => s + l.prixAchatHT, 0);
@@ -325,7 +389,7 @@ export function StatsGateModal({
         <div
           className="sg-card"
           style={{
-            background: '#fff', borderRadius: 20, width: '100%', maxWidth: 1180,
+            background: '#fff', borderRadius: 20, width: '100%', maxWidth: 1400,
             maxHeight: '94vh', display: 'flex', flexDirection: 'column',
             overflow: 'hidden', boxShadow: '0 40px 100px rgba(0,0,0,0.4), 0 12px 30px rgba(48,64,53,0.22)',
           }}
@@ -518,13 +582,10 @@ export function StatsGateModal({
                   }}>
                     <FileText size={11} /> Options validées <span style={{ fontWeight: 600, opacity: 0.7 }}>(devis · prix vente)</span>
                   </p>
-                  {devisValides.length === 0 ? (
-                    <p style={{
-                      margin: 0, fontSize: 11, color: 'rgba(48,64,53,0.5)', fontStyle: 'italic',
-                    }}>Aucun devis accepté.</p>
-                  ) : (
+                  {/* 1) Devis du store Facturation (statut ACCEPTÉ) */}
+                  {devisValides.length > 0 && (
                     <ul style={{
-                      listStyle: 'none', padding: 0, margin: 0,
+                      listStyle: 'none', padding: 0, margin: '0 0 8px',
                       display: 'flex', flexDirection: 'column', gap: 4,
                     }}>
                       {devisValides.map((dv) => (
@@ -550,6 +611,60 @@ export function StatsGateModal({
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {/* 2) NOUVEAU 27/05/2026 : documents des sous-dossiers OPTION/PROJET/APD */}
+                  {optionsValideesSubfolders.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {optionsValideesSubfolders.map((g) => (
+                        <div key={g.label}>
+                          <p style={{
+                            margin: '0 0 4px', fontSize: 9, fontWeight: 800,
+                            color: '#7c4f1d', textTransform: 'uppercase',
+                            letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 4,
+                          }}>
+                            <FolderOpen size={9} /> {g.label} <span style={{ opacity: 0.6, fontWeight: 600 }}>({g.docs.length})</span>
+                          </p>
+                          <ul style={{
+                            listStyle: 'none', padding: 0, margin: 0,
+                            display: 'flex', flexDirection: 'column', gap: 2,
+                          }}>
+                            {g.docs.map((doc, di) => (
+                              <li key={doc.docId ?? `${g.label}-${doc.name}-${di}`}>
+                                <button
+                                  onClick={() => handleOpenDoc(doc)}
+                                  style={{
+                                    width: '100%', padding: '3px 6px', borderRadius: 5,
+                                    border: 'none', background: 'transparent', cursor: 'pointer',
+                                    fontSize: 11, color: '#304035', textAlign: 'left',
+                                    display: 'flex', alignItems: 'center', gap: 6,
+                                    transition: 'background 0.15s',
+                                  }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(166,119,73,0.1)')}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                  title={`Ouvrir ${doc.name} dans un nouvel onglet`}
+                                >
+                                  <FileText size={10} color="#a67749" style={{ flexShrink: 0 }} />
+                                  <span style={{
+                                    overflow: 'hidden', textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap', flex: 1,
+                                    textDecoration: 'underline', textDecorationStyle: 'dotted',
+                                  }}>{doc.name}</span>
+                                  <ExternalLink size={9} color="rgba(48,64,53,0.4)" style={{ flexShrink: 0 }} />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Empty state combiné */}
+                  {devisValides.length === 0 && optionsValideesSubfolders.length === 0 && (
+                    <p style={{
+                      margin: 0, fontSize: 11, color: 'rgba(48,64,53,0.5)', fontStyle: 'italic',
+                    }}>
+                      Aucune option validée — ajoutez des documents dans les sous-dossiers OPTION/PROJET/APD du dossier signé pour les retrouver ici.
+                    </p>
                   )}
                 </div>
 
@@ -737,10 +852,9 @@ export function StatsGateModal({
                   </p>
                 </div>
 
-                <div style={{
-                  display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr auto',
-                  gap: 8, alignItems: 'flex-end',
-                }}>
+                {/* Formulaire VERTICAL (27/05/2026) : inputs empilés pour éviter
+                    le tassement dans une colonne étroite. */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div>
                     <label style={{
                       display: 'block', fontSize: 9, fontWeight: 700,
@@ -757,83 +871,95 @@ export function StatsGateModal({
                       placeholder="ex: LEICHT, MARBRIER…"
                       maxLength={50}
                       style={{
-                        width: '100%', padding: '8px 10px',
+                        width: '100%', padding: '9px 12px',
                         border: '1px solid rgba(48,64,53,0.15)', borderRadius: 8,
                         fontSize: 13, color: '#304035', background: '#fff', outline: 'none',
                       }}
                     />
                   </div>
-                  <div>
-                    <label style={{
-                      display: 'block', fontSize: 9, fontWeight: 700,
-                      color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase',
-                      letterSpacing: '0.06em', marginBottom: 4,
-                    }}>
-                      Prix achat HT
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="number"
-                        value={draft.achat}
-                        onChange={(e) => setDraft((d) => ({ ...d, achat: e.target.value }))}
-                        placeholder="0"
-                        min={0}
-                        step="0.01"
-                        style={{
-                          width: '100%', padding: '8px 24px 8px 10px',
-                          border: '1px solid rgba(48,64,53,0.15)', borderRadius: 8,
-                          fontSize: 13, color: '#304035', background: '#fff', outline: 'none',
-                        }}
-                      />
-                      <Euro size={11} style={{
-                        position: 'absolute', right: 8, top: '50%',
-                        transform: 'translateY(-50%)', color: 'rgba(48,64,53,0.35)',
-                      }} />
+                  {/* Achat + Vente côte à côte (2 col) pour gain de place vertical */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div>
+                      <label style={{
+                        display: 'block', fontSize: 9, fontWeight: 700,
+                        color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase',
+                        letterSpacing: '0.06em', marginBottom: 4,
+                      }}>
+                        Prix achat HT
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type="number"
+                          value={draft.achat}
+                          onChange={(e) => setDraft((d) => ({ ...d, achat: e.target.value }))}
+                          placeholder="0"
+                          min={0}
+                          step="0.01"
+                          style={{
+                            width: '100%', padding: '9px 28px 9px 12px',
+                            border: '1px solid rgba(48,64,53,0.15)', borderRadius: 8,
+                            fontSize: 13, color: '#304035', background: '#fff', outline: 'none',
+                          }}
+                        />
+                        <Euro size={12} style={{
+                          position: 'absolute', right: 10, top: '50%',
+                          transform: 'translateY(-50%)', color: 'rgba(48,64,53,0.35)',
+                        }} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{
+                        display: 'block', fontSize: 9, fontWeight: 700,
+                        color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase',
+                        letterSpacing: '0.06em', marginBottom: 4,
+                      }}>
+                        Prix vente HT
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          ref={venteInputRef}
+                          type="number"
+                          value={draft.vente}
+                          onChange={(e) => setDraft((d) => ({ ...d, vente: e.target.value }))}
+                          placeholder="0"
+                          min={0}
+                          step="0.01"
+                          style={{
+                            width: '100%', padding: '9px 28px 9px 12px',
+                            border: '1px solid rgba(48,64,53,0.15)', borderRadius: 8,
+                            fontSize: 13, color: '#304035', background: '#fff', outline: 'none',
+                          }}
+                        />
+                        <Euro size={12} style={{
+                          position: 'absolute', right: 10, top: '50%',
+                          transform: 'translateY(-50%)', color: 'rgba(48,64,53,0.35)',
+                        }} />
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label style={{
-                      display: 'block', fontSize: 9, fontWeight: 700,
-                      color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase',
-                      letterSpacing: '0.06em', marginBottom: 4,
-                    }}>
-                      Prix vente HT
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        ref={venteInputRef}
-                        type="number"
-                        value={draft.vente}
-                        onChange={(e) => setDraft((d) => ({ ...d, vente: e.target.value }))}
-                        placeholder="0"
-                        min={0}
-                        step="0.01"
-                        style={{
-                          width: '100%', padding: '8px 24px 8px 10px',
-                          border: '1px solid rgba(48,64,53,0.15)', borderRadius: 8,
-                          fontSize: 13, color: '#304035', background: '#fff', outline: 'none',
-                        }}
-                      />
-                      <Euro size={11} style={{
-                        position: 'absolute', right: 8, top: '50%',
-                        transform: 'translateY(-50%)', color: 'rgba(48,64,53,0.35)',
-                      }} />
-                    </div>
-                  </div>
+                  {/* Bouton AJOUTER pleine largeur en bas */}
                   <button
                     onClick={() => handleAddLigne()}
                     disabled={!draftIsValid}
                     style={{
-                      padding: '8px 14px', borderRadius: 8, border: 'none',
+                      width: '100%', padding: '10px 14px', borderRadius: 8, border: 'none',
                       background: !draftIsValid
                         ? 'rgba(166,119,73,0.3)'
                         : 'linear-gradient(135deg, #a67749, #d4b882)',
-                      fontSize: 12, fontWeight: 700, color: '#fff',
+                      fontSize: 13, fontWeight: 800, color: '#fff',
                       cursor: !draftIsValid ? 'not-allowed' : 'pointer',
-                      display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      letterSpacing: '0.02em',
+                      transition: 'transform 0.12s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (draftIsValid) e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
                     }}
                   >
-                    <Plus size={13} /> Ajouter
+                    <Plus size={14} /> Ajouter la ligne
                   </button>
                 </div>
 
