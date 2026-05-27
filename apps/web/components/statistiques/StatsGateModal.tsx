@@ -142,63 +142,6 @@ export function StatsGateModal({
   const [aiExtracting, setAiExtracting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  const handleExtractAI = useCallback(async () => {
-    if (!selected || aiExtracting) return;
-    setAiExtracting(true);
-    setAiError(null);
-    try {
-      const result = await extractDossier(selected.id);
-      // Dedup : ne pas creer une ligne si une existe deja avec meme
-      // (fournisseur, prixAchatHT). Evite les doublons sur clics multiples.
-      const existing = new Set(
-        selectedLignes.map((l) => `${l.fournisseur}::${l.prixAchatHT}`),
-      );
-      const toImport = (result.commandes ?? [])
-        .filter((c) => c.fournisseur && typeof c.montantHT === 'number' && c.montantHT > 0)
-        .map((c) => ({
-          fournisseur: c.fournisseur,
-          prixAchatHT: c.montantHT as number,
-          // L'IA ne distingue pas encore prix achat/vente — l'utilisateur
-          // completera le prix de vente apres extraction.
-          prixVenteHT: 0,
-        }))
-        .filter((l) => !existing.has(`${l.fournisseur}::${l.prixAchatHT}`));
-      if (toImport.length === 0) {
-        setToast({ message: 'IA : aucune nouvelle ligne à extraire (déjà importé ou pas de montants détectés)', tone: 'info' });
-      } else {
-        onAddLignesBulk(selected.id, toImport);
-        const conf = Math.round((result.confiance ?? 0) * 100);
-        setToast({
-          message: `🪄 IA : ${toImport.length} ligne${toImport.length > 1 ? 's' : ''} créée${toImport.length > 1 ? 's' : ''} (confiance ${conf}%) — complétez les prix vente`,
-          tone: 'ok',
-        });
-      }
-    } catch (err: any) {
-      const msg = (err?.message ?? '').toString();
-      let userMsg = "Échec extraction IA — vérifiez OPENAI_API_KEY ou saisissez manuellement";
-      if (msg.toLowerCase().includes('openai')) {
-        userMsg = "Service IA non configuré (OPENAI_API_KEY manquant). Saisissez manuellement.";
-      } else if (msg.toLowerCase().includes('aucun document')) {
-        userMsg = "Aucun document analysable dans ce dossier (PDF requis).";
-      } else if (msg.toLowerCase().includes('throttl') || msg.toLowerCase().includes('limit')) {
-        userMsg = "Trop d'appels IA — patientez 1 minute avant de réessayer.";
-      } else if (msg) {
-        userMsg = `Échec extraction IA : ${msg}`;
-      }
-      setAiError(userMsg);
-    } finally {
-      setAiExtracting(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, aiExtracting, selectedLignes, onAddLignesBulk]);
-
-  // Auto-clear erreur IA apres 8s
-  useEffect(() => {
-    if (!aiError) return;
-    const t = setTimeout(() => setAiError(null), 8000);
-    return () => clearTimeout(t);
-  }, [aiError]);
-
   const selected = useMemo(
     () => missingDossiers.find((d) => d.id === selectedId) ?? missingDossiers[0] ?? null,
     [missingDossiers, selectedId],
@@ -296,6 +239,63 @@ export function StatsGateModal({
   const totalVente = selectedLignes.reduce((s, l) => s + l.prixVenteHT, 0);
   const marge = totalVente - totalAchat;
   const margePct = totalVente > 0 ? Math.round((marge / totalVente) * 100) : 0;
+
+  const handleExtractAI = useCallback(async () => {
+    if (!selected || aiExtracting) return;
+    setAiExtracting(true);
+    setAiError(null);
+    try {
+      const result = await extractDossier(selected.id);
+      // Dedup : ne pas creer une ligne si une existe deja avec meme
+      // (fournisseur, prixAchatHT). Evite les doublons sur clics multiples.
+      const existing = new Set(
+        selectedLignes.map((l) => `${l.fournisseur}::${l.prixAchatHT}`),
+      );
+      const toImport = (result.commandes ?? [])
+        .filter((c) => c.fournisseur && typeof c.montantHT === 'number' && c.montantHT > 0)
+        .map((c) => ({
+          fournisseur: c.fournisseur,
+          prixAchatHT: c.montantHT as number,
+          // L'IA ne distingue pas encore prix achat/vente — l'utilisateur
+          // completera le prix de vente apres extraction.
+          prixVenteHT: 0,
+        }))
+        .filter((l) => !existing.has(`${l.fournisseur}::${l.prixAchatHT}`));
+      if (toImport.length === 0) {
+        setToast({ message: 'IA : aucune nouvelle ligne à extraire (déjà importé ou pas de montants détectés)', tone: 'info' });
+      } else {
+        onAddLignesBulk(selected.id, toImport);
+        const conf = Math.round((result.confiance ?? 0) * 100);
+        setToast({
+          message: `🪄 IA : ${toImport.length} ligne${toImport.length > 1 ? 's' : ''} créée${toImport.length > 1 ? 's' : ''} (confiance ${conf}%) — complétez les prix vente`,
+          tone: 'ok',
+        });
+      }
+    } catch (err: any) {
+      const msg = (err?.message ?? '').toString();
+      let userMsg = "Échec extraction IA — vérifiez OPENAI_API_KEY ou saisissez manuellement";
+      if (msg.toLowerCase().includes('openai')) {
+        userMsg = "Service IA non configuré (OPENAI_API_KEY manquant). Saisissez manuellement.";
+      } else if (msg.toLowerCase().includes('aucun document')) {
+        userMsg = "Aucun document analysable dans ce dossier (PDF requis).";
+      } else if (msg.toLowerCase().includes('throttl') || msg.toLowerCase().includes('limit')) {
+        userMsg = "Trop d'appels IA — patientez 1 minute avant de réessayer.";
+      } else if (msg) {
+        userMsg = `Échec extraction IA : ${msg}`;
+      }
+      setAiError(userMsg);
+    } finally {
+      setAiExtracting(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, aiExtracting, selectedLignes, onAddLignesBulk]);
+
+  // Auto-clear erreur IA apres 8s
+  useEffect(() => {
+    if (!aiError) return;
+    const t = setTimeout(() => setAiError(null), 8000);
+    return () => clearTimeout(t);
+  }, [aiError]);
 
   // ── [D] Marge live calculée sur le brouillon en cours ───────────────────
   const liveAchat = parseFloat(draft.achat.replace(',', '.'));
