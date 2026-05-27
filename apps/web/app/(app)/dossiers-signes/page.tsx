@@ -111,6 +111,7 @@ type DateButoiresData = {
 
 function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: string; onClose: () => void; profession: string | null }) {
   const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
+  const updateDateButoireSignee = useDossierStore(s => s.updateDateButoireSignee);
   const dossier = useDossierStore(s => s.dossiersSignes.find(d => d.id === dossierId));
   const saved = datesButoiresSignes[dossierId] ?? {};
 
@@ -136,6 +137,24 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
     if (!sf) return false;
     if (sf.validated) return true;
     return (sf.documents?.length ?? 0) > 0;
+  };
+
+  /**
+   * Toggle validation d'un item kind 'date' depuis le tableau de bord.
+   * - Si pas encore validé → enregistre la date du jour (format YYYY-MM-DD)
+   * - Si déjà validé → vide la date (revient en À VALIDER)
+   *
+   * Utilise updateDateButoireSignee qui patch le store datesButoiresSignes.
+   */
+  const toggleDateValidation = (label: string) => {
+    const current = saved[label];
+    if (current) {
+      updateDateButoireSignee(dossierId, label, '');
+    } else {
+      const today = new Date();
+      const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      updateDateButoireSignee(dossierId, label, iso);
+    }
   };
 
   // Helper : un item est completed selon son kind
@@ -418,8 +437,9 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
               }
 
               // ── Items 'date' (cas par défaut) ───────────────────────────
-              //    Style aligne sur le dashboard client : coche verte + date
-              //    si rempli, badge orange "À valider" si vide.
+              //    27/05/2026 : badges cliquables pour valider/invalider.
+              //    Si non rempli → bouton "À VALIDER" qui set la date du jour.
+              //    Si rempli → badge avec date + petit ✕ pour annuler la validation.
               const status = getDateStatus(item.label);
               const val = saved[item.label];
               const isFilled = !!val;
@@ -450,24 +470,69 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
                     {item.label}
                   </span>
                   {isFilled ? (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      fontSize: '0.75rem', fontWeight: '700',
-                      color: status === 'urgent' ? '#f97316' : status === 'past' ? '#6b7280' : '#16a34a',
-                    }}>
-                      <CheckCircle2 style={{ width: 12, height: 12 }} />
-                      {status === 'past' ? `Passée · ${formatDate(val)}` : status === 'urgent' ? `Urgent · ${formatDate(val)}` : formatDate(val)}
-                    </span>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: '0.75rem', fontWeight: '700',
+                        color: status === 'urgent' ? '#f97316' : status === 'past' ? '#6b7280' : '#16a34a',
+                      }}>
+                        <CheckCircle2 style={{ width: 12, height: 12 }} />
+                        {status === 'past' ? `Passée · ${formatDate(val)}` : status === 'urgent' ? `Urgent · ${formatDate(val)}` : formatDate(val)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleDateValidation(item.label)}
+                        title="Annuler la validation (repasse en 'À valider')"
+                        style={{
+                          padding: 3, borderRadius: 6, border: 'none',
+                          background: 'rgba(48,64,53,0.06)', cursor: 'pointer',
+                          color: 'rgba(48,64,53,0.5)',
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(220,38,38,0.12)';
+                          e.currentTarget.style.color = '#dc2626';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(48,64,53,0.06)';
+                          e.currentTarget.style.color = 'rgba(48,64,53,0.5)';
+                        }}
+                      >
+                        <X style={{ width: 11, height: 11 }} />
+                      </button>
+                    </div>
                   ) : (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      fontSize: '0.7rem', fontWeight: '700',
-                      color: '#ea580c',
-                      textTransform: 'uppercase', letterSpacing: '0.06em',
-                    }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleDateValidation(item.label)}
+                      title="Cliquer pour valider cette étape aujourd'hui"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        padding: '4px 10px', borderRadius: 8,
+                        border: '1px solid rgba(249,115,22,0.3)',
+                        background: 'rgba(249,115,22,0.08)',
+                        color: '#ea580c',
+                        fontSize: '0.7rem', fontWeight: '800',
+                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                        fontFamily: 'inherit',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(16,185,129,0.12)';
+                        e.currentTarget.style.borderColor = 'rgba(16,185,129,0.4)';
+                        e.currentTarget.style.color = '#16a34a';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(249,115,22,0.08)';
+                        e.currentTarget.style.borderColor = 'rgba(249,115,22,0.3)';
+                        e.currentTarget.style.color = '#ea580c';
+                      }}
+                    >
                       <Hourglass style={{ width: 11, height: 11 }} />
                       À valider
-                    </span>
+                    </button>
                   )}
                 </div>
               );
