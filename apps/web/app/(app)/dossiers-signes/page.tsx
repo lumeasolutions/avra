@@ -72,12 +72,19 @@ function formatMontant(n: number) {
 
 /**
  * Item SAV ajouté à la fin de chaque profession dans le tableau de bord
- * signé (demande 26/05/2026). C'est un item 'static' purement informationnel
- * — l'équipe doit voir qu'il y a un suivi SAV post-pose pour chaque dossier.
+ * signé (demande 26/05/2026, ajusté 27/05/2026).
+ *
+ * Changement 27/05/2026 : kind 'date' au lieu de 'static'. Raison — le SAV
+ * est traité comme les autres items "fait / pas fait" (relevé définitif,
+ * fiche de pose...). Le but du tableau de bord est de savoir où on en est :
+ * "est-ce que j'ai passé au SAV ? oui / non". L'utilisateur saisit la date
+ * d'intervention SAV (case verte si rempli, "Non définie" sinon).
+ * "Suivi continu" était trompeur — le SAV est ponctuel, pas continu.
+ *
  * Pas ajouté dans la modale de validation projet (DateButoireValidationModal)
  * qui reste alignée sur les listes brutes MENUISIER_/CUISINISTE_/ARCHITECTE_.
  */
-const SAV_DASHBOARD_ITEM: DateButoireItem = { label: 'SAV', kind: 'static' };
+const SAV_DASHBOARD_ITEM: DateButoireItem = { label: 'SAV', kind: 'date' };
 
 function getDateButoireItemsForProfession(profession: string | null): DateButoireItem[] {
   let base: DateButoireItem[];
