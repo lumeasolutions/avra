@@ -7,6 +7,7 @@ import {
   Calendar, LayoutGrid, List, ArrowUpRight, Package, CheckCircle2,
   Clock, AlertTriangle, Plus, Trash2, Check, BarChart3, Target,
   ExternalLink, ShoppingCart,
+  Phone, Mail, MapPin, FileText, Hourglass,
 } from 'lucide-react';
 import Link from 'next/link';
 import { VendeurBadge } from '@/components/vendeur/VendeurBadge';
@@ -221,44 +222,129 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
 
         {/* Content */}
         <div style={{ padding: '1.5rem' }}>
-          {/* Progress Bar */}
-          <div style={{ marginBottom: '1.5rem' }}>
+          {/* Dossier card (style aligne sur OngoingDossierDashboardModal) */}
+          {dossier && (
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '0.5rem',
+              padding: '14px 16px', background: 'rgba(48,64,53,0.04)',
+              borderRadius: 14, border: '1px solid rgba(48,64,53,0.06)',
+              marginBottom: 18,
             }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: '700', color: '#304035' }}>Progression</span>
-              <span style={{ fontSize: '1rem', fontWeight: '700', color: '#2d9d78' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#304035' }}>
+                    {dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''}
+                  </h3>
+                  <p style={{ margin: '3px 0 0', fontSize: 11, color: 'rgba(48,64,53,0.5)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Calendar size={11} /> Signé le {formatDate(dossier.signedDate)}
+                  </p>
+                </div>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '4px 10px', borderRadius: 999,
+                  background: 'rgba(16,185,129,0.12)', color: '#059669',
+                  fontSize: 10, fontWeight: 800, letterSpacing: '0.06em',
+                }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+                  SIGNÉ
+                </span>
+              </div>
+              {/* Coordonnees rapides */}
+              {(dossier.phone || dossier.email || dossier.address) && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', fontSize: 11, color: 'rgba(48,64,53,0.6)' }}>
+                  {dossier.phone && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Phone size={11} color="rgba(48,64,53,0.4)" />
+                      {dossier.phone}
+                    </span>
+                  )}
+                  {dossier.email && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Mail size={11} color="rgba(48,64,53,0.4)" />
+                      {dossier.email}
+                    </span>
+                  )}
+                  {dossier.address && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <MapPin size={11} color="rgba(48,64,53,0.4)" />
+                      {dossier.address}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* KPIs (3 cards : Validés / En attente / Avancement) */}
+          {(() => {
+            const validatedCount = items.filter(isItemCompleted).length;
+            const pendingCount = progressItems.filter(i => !isItemCompleted(i)).length;
+            const pctRound = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 18 }}>
+                <div style={{
+                  padding: '12px 14px', borderRadius: 12,
+                  background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.18)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <CheckCircle2 size={14} color="#16a34a" />
+                    <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Validés
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: '#16a34a', lineHeight: 1 }}>{validatedCount}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(48,64,53,0.5)' }}>sur {totalCount} étapes</p>
+                </div>
+                <div style={{
+                  padding: '12px 14px', borderRadius: 12,
+                  background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.18)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <Hourglass size={14} color="#ea580c" />
+                    <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      À valider
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: '#ea580c', lineHeight: 1 }}>{pendingCount}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(48,64,53,0.5)' }}>en attente</p>
+                </div>
+                <div style={{
+                  padding: '12px 14px', borderRadius: 12,
+                  background: 'rgba(166,119,73,0.06)', border: '1px solid rgba(166,119,73,0.2)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <TrendingUp size={14} color="#a67749" />
+                    <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Avancement
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 20, fontWeight: 900, color: '#a67749', lineHeight: 1 }}>{pctRound}%</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(48,64,53,0.5)' }}>étapes complétées</p>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Progression globale */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Progression globale
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#304035' }}>
                 {completedCount}/{totalCount}
               </span>
             </div>
-            <div style={{
-              height: '0.5rem',
-              backgroundColor: 'rgba(48, 64, 53, 0.1)',
-              borderRadius: '0.25rem',
-              overflow: 'hidden',
-            }}>
+            <div style={{ height: 6, background: 'rgba(48,64,53,0.08)', borderRadius: 999, overflow: 'hidden' }}>
               <div style={{
                 height: '100%',
-                backgroundColor: '#2d9d78',
-                width: `${(completedCount / totalCount) * 100}%`,
-                transition: 'width 0.3s',
+                width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
+                background: completedCount === totalCount
+                  ? 'linear-gradient(90deg, #16a34a, #22c55e)'
+                  : 'linear-gradient(90deg, #a67749, #c9a96e)',
+                transition: 'width 0.4s ease',
               }} />
             </div>
           </div>
-
-          {/* Dossier info */}
-          {dossier && (
-            <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', backgroundColor: 'rgba(48,64,53,0.04)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <BadgeCheck style={{ width: '1.25rem', height: '1.25rem', color: '#10b981', flexShrink: 0 }} />
-              <div>
-                <p style={{ fontSize: '0.9rem', fontWeight: '700', color: '#304035' }}>{dossier.name} {dossier.firstName ?? ''}</p>
-                <p style={{ fontSize: '0.75rem', color: 'rgba(48,64,53,0.5)' }}>Signé le {formatDate(dossier.signedDate)}</p>
-              </div>
-            </div>
-          )}
 
           {/* Status Items — tous les kinds (date / access / static) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -332,11 +418,20 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
               }
 
               // ── Items 'date' (cas par défaut) ───────────────────────────
+              //    Style aligne sur le dashboard client : coche verte + date
+              //    si rempli, badge orange "À valider" si vide.
               const status = getDateStatus(item.label);
               const val = saved[item.label];
-              const dotColor = status === 'ok' ? '#10b981' : status === 'urgent' ? '#f97316' : status === 'past' ? '#6b7280' : '#e5e7eb';
-              const bgColor = status === 'ok' ? 'rgba(16,185,129,0.06)' : status === 'urgent' ? 'rgba(249,115,22,0.06)' : 'transparent';
-              const borderColor = status === 'ok' ? 'rgba(16,185,129,0.2)' : status === 'urgent' ? 'rgba(249,115,22,0.2)' : 'rgba(48,64,53,0.08)';
+              const isFilled = !!val;
+              const dotColor = isFilled
+                ? (status === 'past' ? '#6b7280' : status === 'urgent' ? '#f97316' : '#10b981')
+                : '#e5e7eb';
+              const bgColor = isFilled
+                ? (status === 'urgent' ? 'rgba(249,115,22,0.06)' : 'rgba(16,185,129,0.05)')
+                : 'transparent';
+              const borderColor = isFilled
+                ? (status === 'urgent' ? 'rgba(249,115,22,0.2)' : 'rgba(16,185,129,0.2)')
+                : 'rgba(48,64,53,0.08)';
               return (
                 <div
                   key={item.label}
@@ -354,12 +449,25 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
                   <span style={{ flex: 1, fontSize: '0.8rem', fontWeight: '700', color: '#304035' }}>
                     {item.label}
                   </span>
-                  {val ? (
-                    <span style={{ fontSize: '0.75rem', fontWeight: '600', color: status === 'urgent' ? '#f97316' : status === 'past' ? '#6b7280' : '#10b981' }}>
-                      {status === 'past' ? 'Passée · ' : status === 'urgent' ? 'Urgent · ' : ''}{formatDate(val)}
+                  {isFilled ? (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      fontSize: '0.75rem', fontWeight: '700',
+                      color: status === 'urgent' ? '#f97316' : status === 'past' ? '#6b7280' : '#16a34a',
+                    }}>
+                      <CheckCircle2 style={{ width: 12, height: 12 }} />
+                      {status === 'past' ? `Passée · ${formatDate(val)}` : status === 'urgent' ? `Urgent · ${formatDate(val)}` : formatDate(val)}
                     </span>
                   ) : (
-                    <span style={{ fontSize: '0.75rem', color: 'rgba(48,64,53,0.3)', fontStyle: 'italic' }}>Non définie</span>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      fontSize: '0.7rem', fontWeight: '700',
+                      color: '#ea580c',
+                      textTransform: 'uppercase', letterSpacing: '0.06em',
+                    }}>
+                      <Hourglass style={{ width: 11, height: 11 }} />
+                      À valider
+                    </span>
                   )}
                 </div>
               );
