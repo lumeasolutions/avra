@@ -230,6 +230,16 @@ export function useDataSync() {
             ? local.subfolders
             : DEFAULT_SUBFOLDERS.map((sf) => ({ ...sf })),
           notes: local?.notes ?? '',
+          // FIX CRITIQUE (28/05/2026) : préserver les champs client-only que
+          // l'API NestJS ne connaît pas encore. Sans cette préservation, le
+          // sync écrase prixLignes / vendeurName / statsSkipped / dateButoires
+          // à chaque page reload (Cassandra perdait toutes ses stats). Quand
+          // un backend dossier sera fait (VAGUE 2), ces champs viendront du
+          // serveur — d'ici là on les garde côté navigateur.
+          prixLignes: (local as any)?.prixLignes ?? [],
+          vendeurName: (local as any)?.vendeurName,
+          statsSkipped: (local as any)?.statsSkipped,
+          dateButoires: (local as any)?.dateButoires,
         };
       });
 
@@ -268,6 +278,21 @@ export function useDataSync() {
             : new Date(p.updatedAt).toLocaleDateString('fr-FR'),
           signedSubfolders: computedSigned,
           confirmations: (local as any)?.confirmations ?? [],
+          // FIX CRITIQUE (28/05/2026) : préservation des champs client-only.
+          // Idem fix sur dossiers actifs — sans ça, marquer "terminé" /
+          // archiver / saisir des stats est perdu au prochain reload.
+          prixLignes: (local as any)?.prixLignes ?? [],
+          vendeurName: (local as any)?.vendeurName,
+          statsSkipped: (local as any)?.statsSkipped,
+          terminated: (local as any)?.terminated,
+          terminatedDate: (local as any)?.terminatedDate,
+          archivedAt: (local as any)?.archivedAt,
+          dateButoires: (local as any)?.dateButoires,
+          // L'API renvoie saleAmount → c'est notre `montant`, mais si l'API
+          // ne le connaît pas (vieux dossier signé avant ajout du champ), on
+          // garde la valeur locale.
+          montant: typeof p.saleAmount === 'number' ? p.saleAmount : (local as any)?.montant,
+          montantEstime: (local as any)?.montantEstime,
         };
       });
 
