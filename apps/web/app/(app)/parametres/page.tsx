@@ -6,7 +6,7 @@ import {
   ChevronRight, Save, Plus, Trash2, X, Crown, Eye, EyeOff, Check,
   Hash, Banknote, SlidersHorizontal, RefreshCw, Download, Upload,
   AlertTriangle, Shield, Percent, UserCheck, Users, TrendingUp, Sparkles,
-  Bot, Brain, Mic, MessageSquare, Database, Zap, Repeat,
+  Bot, Brain, Mic, MessageSquare, Database, Zap, Repeat, Archive, ArchiveRestore,
 } from 'lucide-react';
 import type { Apporteur } from '@/store';
 import { useConfigStore, useDossierStore, useFacturationStore, useHistoryStore, useStockStore } from '@/store';
@@ -44,6 +44,7 @@ const SECTIONS = [
   { id: 'trames',         icon: FileText,           label: 'Trames & Documents',       desc: 'Modèles de documents personnalisés' },
   { id: 'produits',       icon: Package,            label: 'Catalogue Produits',       desc: 'Aperçu du catalogue (gérer dans Stock)' },
   { id: 'perdus',         icon: FolderX,            label: 'Dossiers perdus',          desc: 'Archive des dossiers non signés' },
+  { id: 'archives',       icon: Archive,            label: 'Dossiers archivés',        desc: 'Dossiers signés terminés (chantier clos)' },
   { id: 'export',         icon: Download,           label: 'Import / Export',          desc: 'Exporter vos données en CSV/JSON' },
   { id: 'ia',            icon: Sparkles,           label: 'Intelligence Artificielle', desc: 'Configurer l\'assistant et les modules IA' },
 ];
@@ -162,11 +163,24 @@ export default function ParametresPage() {
   const toggleApporteurActif = useFacturationStore(s => s.toggleApporteurActif);
   const dossiers            = useDossierStore(s => s.dossiers);
   const dossiersSignes      = useDossierStore(s => s.dossiersSignes);
+  const restoreDossierSigne = useDossierStore(s => s.restoreDossierSigne);
   const invoices            = useFacturationStore(s => s.invoices);
   const devis               = useFacturationStore(s => s.devis);
 
   // UI state
   const [active, setActive] = useState<string | null>(null);
+
+  // Permet de cibler un panel via ?section=archives (lien depuis /dossiers-signes).
+  // On lit window.location au montage pour eviter le surcout d'un useSearchParams
+  // qui forcerait un suspense boundary parent.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const section = params.get('section');
+    if (section && SECTIONS.some(s => s.id === section)) {
+      setActive(section);
+    }
+  }, []);
   const [societeForm, setSocieteForm] = useState(societe);
   const [relanceForm, setRelanceForm] = useState(relanceConfig);
   const [prefForm, setPrefForm] = useState(preferences);
@@ -1110,6 +1124,95 @@ export default function ParametresPage() {
           )}
         </div>
       )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          PANEL : DOSSIERS ARCHIVES (28/05/2026)
+          Dossiers signes termines (chantier clos) — masques de /dossiers-signes
+          mais consultables ici. Bouton Restaurer pour les remettre actifs.
+      ══════════════════════════════════════════════════════════════════════ */}
+      {active === 'archives' && (() => {
+        const archives = dossiersSignes
+          .filter(d => d.archivedAt)
+          .slice()
+          .sort((a, b) => (b.archivedAt ?? '').localeCompare(a.archivedAt ?? ''));
+        const totalArchive = archives.reduce((s, d) => s + (d.montant ?? d.montantEstime ?? 0), 0);
+        const fmtArchiveDate = (iso?: string | null) => {
+          if (!iso) return '—';
+          try {
+            return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+          } catch {
+            return iso;
+          }
+        };
+        return (
+          <div className="rounded-2xl bg-white shadow-md border border-[#304035]/8 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-bold text-[#304035] text-base flex items-center gap-2">
+                <Archive className="h-5 w-5" /> Dossiers archivés
+              </h3>
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                {archives.length} dossier{archives.length > 1 ? 's' : ''}
+              </span>
+            </div>
+            <p className="text-xs text-[#304035]/55 mb-4">
+              Ces dossiers ont été marqués comme <strong>terminés</strong> sur la page Dossiers signés.
+              Ils ne polluent plus la vue active, mais restent consultables ici. Vous pouvez les
+              <strong> restaurer</strong> à tout moment pour les remettre dans la liste active.
+            </p>
+            {archives.length === 0 ? (
+              <div className="py-10 text-center">
+                <Archive className="h-12 w-12 text-[#304035]/10 mx-auto mb-3" />
+                <p className="text-[#304035]/40 text-sm">Aucun dossier archivé pour le moment.</p>
+                <p className="text-[#304035]/30 text-xs mt-2">
+                  Marquez un dossier comme &laquo;&nbsp;terminé&nbsp;&raquo; depuis la page Dossiers signés pour l&apos;archiver ici.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {archives.map(d => (
+                  <div
+                    key={d.id}
+                    className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50/60 border border-emerald-100 px-5 py-4 hover:bg-emerald-50 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-[#304035] truncate">{d.name}</p>
+                      <p className="text-xs text-[#304035]/60 mt-0.5">
+                        Signé le {d.signedDate}
+                        {d.terminatedDate && <> · Terminé le {d.terminatedDate}</>}
+                        <> · Archivé le {fmtArchiveDate(d.archivedAt)}</>
+                      </p>
+                    </div>
+                    {(d.montant ?? d.montantEstime) ? (
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] text-[#304035]/50 uppercase tracking-wider">Montant</p>
+                        <p className="font-bold text-emerald-700">{fmt(d.montant ?? d.montantEstime ?? 0)}</p>
+                      </div>
+                    ) : null}
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Restaurer le dossier "${d.name}" ?\n\nIl reapparaitra dans la liste des Dossiers signes actifs.`)) {
+                          restoreDossierSigne(d.id);
+                        }
+                      }}
+                      className="flex items-center gap-1.5 shrink-0 px-3 py-2 rounded-lg bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold transition-colors"
+                      title="Restaurer ce dossier (le remettre dans Dossiers signes actifs)"
+                    >
+                      <ArchiveRestore className="h-3.5 w-3.5" />
+                      Restaurer
+                    </button>
+                  </div>
+                ))}
+                {totalArchive > 0 && (
+                  <div className="rounded-xl bg-[#304035] px-5 py-4 flex items-center justify-between mt-3">
+                    <p className="font-bold text-white text-sm">Total CA archivé</p>
+                    <p className="text-xl font-bold text-emerald-300">{fmt(totalArchive)}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ══════════════════════════════════════════════════════════════════════
           PANEL : IMPORT / EXPORT

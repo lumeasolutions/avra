@@ -154,6 +154,14 @@ export interface DossierSigne extends Dossier {
    */
   terminated?: boolean;
   terminatedDate?: string;
+  /**
+   * Date d'archivage ISO (28/05/2026 - feature Archives).
+   * Quand non-null, le dossier disparait de la liste /dossiers-signes
+   * et n'apparait plus que dans Parametres -> Dossiers archives.
+   * Sette automatiquement quand `terminated` passe a true,
+   * efface quand on restaure depuis l'ecran Archives.
+   */
+  archivedAt?: string | null;
   dateButoires?: {
     suiviChantier?: string;
     releveMesures?: string;
@@ -574,6 +582,12 @@ interface DossierState {
    * livraison faite, SAV à jour). L'inverse rebascule en "actif".
    */
   toggleDossierTermine: (id: string) => void;
+  /**
+   * Restaure un dossier archive : efface archivedAt + terminated.
+   * Utilise par le bouton "Restaurer" de Parametres -> Dossiers archives
+   * (28/05/2026).
+   */
+  restoreDossierSigne: (id: string) => void;
   // ─── Stats : prix achat / vente par dossier signé (19/05/2026, demande asso)
   /** Ajoute une ligne (fournisseur + achat HT + vente HT) sur un DossierSigne. */
   addDossierPrixLigne: (dossierId: string, ligne: Omit<DossierPrixLigne, 'id'>) => void;
@@ -848,6 +862,7 @@ export const useDossierStore = create<DossierState>()(
 
       toggleDossierTermine: (id) => {
         const today = new Date().toLocaleDateString('fr-FR');
+        const nowIso = new Date().toISOString();
         set(s => ({
           dossiersSignes: s.dossiersSignes.map(d =>
             d.id === id
@@ -855,7 +870,27 @@ export const useDossierStore = create<DossierState>()(
                   ...d,
                   terminated: !d.terminated,
                   terminatedDate: !d.terminated ? today : undefined,
+                  // Archivage auto (28/05/2026) : terminer un dossier
+                  // l'archive - il disparait de /dossiers-signes et n'est
+                  // plus visible que dans Parametres -> Dossiers archives.
+                  archivedAt: !d.terminated ? nowIso : null,
                 }
+              : d,
+          ),
+        }));
+      },
+
+      /**
+       * Restaure un dossier archive : efface `archivedAt` ET `terminated` ->
+       * le dossier reapparait dans /dossiers-signes comme actif.
+       * Action explicite declenchee depuis le bouton "Restaurer" de la
+       * section Archives.
+       */
+      restoreDossierSigne: (id) => {
+        set(s => ({
+          dossiersSignes: s.dossiersSignes.map(d =>
+            d.id === id
+              ? { ...d, archivedAt: null, terminated: false, terminatedDate: undefined }
               : d,
           ),
         }));

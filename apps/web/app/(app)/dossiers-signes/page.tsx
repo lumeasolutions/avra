@@ -773,14 +773,25 @@ export default function DossiersSignesPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [showDashboard]);
 
-  // Associer les montants des factures aux dossiers signés
+  // Associer les montants des factures aux dossiers signés.
+  // Les dossiers ARCHIVÉS (archivedAt non-null) sont exclus de cette liste
+  // — ils sont visibles uniquement dans Paramètres → Dossiers archivés
+  // (feature Archives du 28/05/2026).
   const enriched = useMemo(() => {
-    return dossiersSignes.map(d => {
-      const inv = invoices.filter(i => i.dossierId === d.id);
-      const montantHT = inv.reduce((sum, i) => sum + (i.montantHT > 0 ? i.montantHT : 0), 0);
-      return { ...d, montantHT, invoiceCount: inv.length };
-    });
+    return dossiersSignes
+      .filter(d => !d.archivedAt)
+      .map(d => {
+        const inv = invoices.filter(i => i.dossierId === d.id);
+        const montantHT = inv.reduce((sum, i) => sum + (i.montantHT > 0 ? i.montantHT : 0), 0);
+        return { ...d, montantHT, invoiceCount: inv.length };
+      });
   }, [dossiersSignes, invoices]);
+
+  // Compteur d'archives (affiche en haut comme un lien discret).
+  const archivedCount = useMemo(
+    () => dossiersSignes.filter(d => d.archivedAt).length,
+    [dossiersSignes],
+  );
 
   const filtered = useMemo(() => {
     let list = [...enriched];
@@ -829,9 +840,20 @@ export default function DossiersSignesPage() {
       <PageHeader
         icon={<FolderCheck className="h-7 w-7" />}
         title="Dossiers signés"
-        subtitle={`${dossiersSignes.length} dossier${dossiersSignes.length > 1 ? 's' : ''} validé${dossiersSignes.length > 1 ? 's' : ''}`}
+        subtitle={`${enriched.length} dossier${enriched.length > 1 ? 's' : ''} validé${enriched.length > 1 ? 's' : ''}`}
         actions={
           <div className="flex items-center gap-3">
+            {/* Lien discret vers les archives - visible seulement s'il y en a.
+                Pointe vers Parametres -> Dossiers archives (28/05/2026). */}
+            {archivedCount > 0 && (
+              <button
+                onClick={() => router.push('/parametres?section=archives')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/20 bg-white/10 text-white/80 hover:bg-white/20 hover:text-white text-xs font-semibold transition-all shadow-sm"
+                title="Voir les dossiers archives (termines)"
+              >
+                📦 {archivedCount} archivé{archivedCount > 1 ? 's' : ''}
+              </button>
+            )}
             <div className="flex items-center bg-white/15 rounded-xl border border-white/20 p-1 shadow-sm">
               <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white/25 text-white shadow-sm' : 'text-white/60 hover:text-white'}`}>
                 <LayoutGrid className="h-4 w-4" />
