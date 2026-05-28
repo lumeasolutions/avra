@@ -33,9 +33,20 @@ export interface ExtractionResult {
   notes: string;
 }
 
-/** Document brut tel que passé à OpenAI. */
+/** Document textuel (PDF / DOCX / XLSX / TXT) envoyé à OpenAI. */
 export interface ExtractionDocumentPayload {
   subfolder: string;
   docName: string;
+  /** Type de source pour aider l'IA à contextualiser. */
+  type: 'pdf' | 'docx' | 'xlsx' | 'text';
   text: string;
+}
+
+/** Image envoyée à OpenAI Vision (PNG / JPG / WEBP / GIF). */
+export interface ExtractionImagePayload {
+  subfolder: string;
+  docName: string;
+  mime: string;
+  /** data:image/...;base64,... — encodé inline pour le message Vision. */
+  dataUrl: string;
 }
