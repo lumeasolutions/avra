@@ -293,11 +293,16 @@ export function useProjectActions() {
           body: JSON.stringify({ terminated }),
         });
       } catch (err) {
-        // En cas d'échec API, on rollback l'optimistic update pour eviter
-        // une desync UI/DB.
-        store.toggleDossierTermine(id);
-        console.warn('[ProjectActions] API terminate failed:', err);
-        throw err;
+        // RESILIENCE (28/05/2026) : l'archivage (terminated/archivedAt) est
+        // aujourd'hui une feature CLIENT-SIDE — l'etat vit dans le store local
+        // (persiste via Zustand + preserve au reload par useDataSync). Le
+        // backend ne possede pas encore les colonnes terminated/terminatedAt
+        // (l'endpoint /terminate renvoie 500 — cf. VAGUE 2 backend stats).
+        // On NE rollback PLUS l'optimistic update : sinon marquer "termine"
+        // echouerait silencieusement (le dossier reapparaitrait aussitot).
+        // Quand le backend aura les colonnes, l'appel reussira et tout sera
+        // synchronise. En attendant on garde l'etat local et on log.
+        console.warn('[ProjectActions] API terminate failed (archivage conserve en local):', err);
       }
     },
     [user, store],
