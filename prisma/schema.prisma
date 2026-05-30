@@ -449,6 +449,19 @@ model Project {
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
 
+  // ── Données dossier (VAGUE 2 — 28/05/2026) ──────────────────────────────
+  // Champs métier auparavant uniquement dans le store Zustand (localStorage),
+  // désormais persistés en base pour être multi-device et inperdables.
+  terminated      Boolean                @default(false)
+  terminatedAt    DateTime?
+  archivedAt      DateTime?
+  vendeurName     String?
+  statsSkipped    Boolean                @default(false)
+  // Listes/objets JSON (cf. types frontend DossierPrixLigne, ConfirmationFournisseur, dateButoires)
+  prixLignes      Json?
+  confirmations   Json?
+  dateButoires    Json?
+
   workspace            Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   client               Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
   owner                User?                  @relation("ProjectOwner", fields: [ownerId], references: [id])

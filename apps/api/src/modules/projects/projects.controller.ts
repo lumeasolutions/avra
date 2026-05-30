@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Param, Post, Put, Delete, Query, UseGuards, UseInterceptors, Inject } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Patch, Delete, Query, UseGuards, UseInterceptors, Inject } from '@nestjs/common';
 import { CacheInterceptor, CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { CreateProjectWithClientDto } from './dto/create-project-with-client.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { SaveDossierDataDto } from './dto/save-dossier-data.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -103,6 +104,24 @@ export class ProjectsController {
     @Body() body: { terminated: boolean },
   ) {
     const result = await this.projects.setTerminated(user.workspaceId, id, !!body?.terminated);
+    await this.cacheManager.del(`projects:${user.workspaceId}`);
+    await this.cacheManager.del(`projects:${id}`);
+    return result;
+  }
+
+  /**
+   * PATCH :id/dossier-data — persiste les donnees metier du dossier
+   * (prixLignes, confirmations, dateButoires, vendeurName, statsSkipped,
+   * terminated/terminatedAt/archivedAt). Mise a jour partielle (VAGUE 2).
+   * Appele en optimistic depuis le store Zustand a chaque mutation.
+   */
+  @Patch(':id/dossier-data')
+  async saveDossierData(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: SaveDossierDataDto,
+  ) {
+    const result = await this.projects.saveDossierData(user.workspaceId, id, dto);
     await this.cacheManager.del(`projects:${user.workspaceId}`);
     await this.cacheManager.del(`projects:${id}`);
     return result;

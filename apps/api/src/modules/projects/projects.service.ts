@@ -98,6 +98,15 @@ export class ProjectsService {
         endDate: true,
         createdAt: true,
         updatedAt: true,
+        // Donnees dossier (VAGUE 2)
+        terminated: true,
+        terminatedAt: true,
+        archivedAt: true,
+        vendeurName: true,
+        statsSkipped: true,
+        prixLignes: true,
+        confirmations: true,
+        dateButoires: true,
         // Relations optimisées avec select ciblé
         client: {
           select: {
@@ -206,17 +215,69 @@ export class ProjectsService {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.project.findFirst({ where: { id, workspaceId } });
       if (!existing) return null;
+      const now = new Date();
       return tx.project.update({
         where: { id },
         data: {
           terminated,
-          terminatedAt: terminated ? new Date() : null,
+          terminatedAt: terminated ? now : null,
+          // Terminer un dossier l'archive (VAGUE 2). Le rouvrir le desarchive.
+          archivedAt: terminated ? now : null,
         },
         select: {
           id: true,
           terminated: true,
           terminatedAt: true,
+          archivedAt: true,
         },
+      });
+    });
+  }
+
+  /**
+   * Persiste les donnees metier du dossier (VAGUE 2 — 28/05/2026).
+   * Mise a jour partielle : seuls les champs presents (!== undefined) sont
+   * ecrits. Les JSON (prixLignes/confirmations/dateButoires) sont stockes tels
+   * quels. Sert au sync optimiste depuis le store Zustand cote frontend.
+   */
+  async saveDossierData(
+    workspaceId: string,
+    id: string,
+    data: {
+      prixLignes?: unknown;
+      confirmations?: unknown;
+      dateButoires?: unknown;
+      vendeurName?: string | null;
+      statsSkipped?: boolean;
+      terminated?: boolean;
+      terminatedAt?: string | null;
+      archivedAt?: string | null;
+    },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.project.findFirst({ where: { id, workspaceId } });
+      if (!existing) return null;
+
+      const patch: Record<string, unknown> = {};
+      if (data.prixLignes !== undefined) patch.prixLignes = data.prixLignes as any;
+      if (data.confirmations !== undefined) patch.confirmations = data.confirmations as any;
+      if (data.dateButoires !== undefined) patch.dateButoires = data.dateButoires as any;
+      if (data.vendeurName !== undefined) patch.vendeurName = data.vendeurName;
+      if (data.statsSkipped !== undefined) patch.statsSkipped = !!data.statsSkipped;
+      if (data.terminated !== undefined) patch.terminated = !!data.terminated;
+      if (data.terminatedAt !== undefined) {
+        patch.terminatedAt = data.terminatedAt ? new Date(data.terminatedAt) : null;
+      }
+      if (data.archivedAt !== undefined) {
+        patch.archivedAt = data.archivedAt ? new Date(data.archivedAt) : null;
+      }
+
+      if (Object.keys(patch).length === 0) return { id: existing.id };
+
+      return tx.project.update({
+        where: { id },
+        data: patch as any,
+        select: { id: true },
       });
     });
   }

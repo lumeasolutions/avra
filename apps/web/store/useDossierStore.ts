@@ -630,6 +630,47 @@ interface DossierState {
   reset: () => void;
 }
 
+// ── VAGUE 2 (28/05/2026) — sync backend des données métier dossier ──────────
+// Push optimiste (fire-and-forget) vers PATCH /projects/:id/dossier-data.
+// Skip les ids local-only (pas encore en DB) et le SSR. En cas d'echec on
+// laisse tomber : le prochain reload re-sync via useDataSync.
+function isPersistableId(id: string): boolean {
+  return /^c[0-9a-z]{24}$/.test(id) ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
+function pushDossierData(get: () => DossierState, dossierId: string): void {
+  if (typeof window === 'undefined') return;
+  if (!isPersistableId(dossierId)) return;
+  const s = get();
+  const d =
+    s.dossiers.find((x) => x.id === dossierId) ??
+    s.dossiersSignes.find((x) => x.id === dossierId) ??
+    s.dossiersPerdus.find((x) => x.id === dossierId);
+  if (!d) return;
+  const dd = d as any;
+  const payload: Record<string, unknown> = {
+    prixLignes: dd.prixLignes ?? [],
+    vendeurName: dd.vendeurName ?? null,
+    statsSkipped: !!dd.statsSkipped,
+    terminated: !!dd.terminated,
+    archivedAt: dd.archivedAt ?? null,
+    // terminatedAt ISO = meme instant que archivedAt quand termine
+    terminatedAt: dd.archivedAt ?? null,
+    confirmations: dd.confirmations ?? [],
+    // dateButoires : soit sur le dossier, soit dans la map dediee
+    dateButoires: dd.dateButoires ?? s.datesButoiresSignes?.[dossierId] ?? null,
+  };
+  void import('@/lib/api')
+    .then(({ api }) =>
+      api(`/projects/${dossierId}/dossier-data`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }),
+    )
+    .catch(() => { /* fire-and-forget */ });
+}
+
 export const useDossierStore = create<DossierState>()(
   persist(
     (set, get) => ({
@@ -878,6 +919,7 @@ export const useDossierStore = create<DossierState>()(
               : d,
           ),
         }));
+        pushDossierData(get, id);
       },
 
       /**
@@ -894,6 +936,7 @@ export const useDossierStore = create<DossierState>()(
               : d,
           ),
         }));
+        pushDossierData(get, id);
       },
 
       // ── Stats : prix achat/vente, poly-collection (19/05/2026 + 26/05/2026)
@@ -910,6 +953,7 @@ export const useDossierStore = create<DossierState>()(
           dossiersSignes: s.dossiersSignes.map(d => d.id === dossierId ? { ...d, prixLignes: [...(d.prixLignes ?? []), { ...ligne, id }] } : d),
           dossiersPerdus: s.dossiersPerdus.map(d => d.id === dossierId ? { ...d, prixLignes: [...(d.prixLignes ?? []), { ...ligne, id }] } : d),
         }));
+        pushDossierData(get, dossierId);
       },
 
       updateDossierPrixLigne: (dossierId, ligneId, patch) => {
@@ -922,6 +966,7 @@ export const useDossierStore = create<DossierState>()(
           dossiersSignes: apply(s.dossiersSignes),
           dossiersPerdus: apply(s.dossiersPerdus),
         }));
+        pushDossierData(get, dossierId);
       },
 
       removeDossierPrixLigne: (dossierId, ligneId) => {
@@ -934,6 +979,7 @@ export const useDossierStore = create<DossierState>()(
           dossiersSignes: apply(s.dossiersSignes),
           dossiersPerdus: apply(s.dossiersPerdus),
         }));
+        pushDossierData(get, dossierId);
       },
 
       addDossierPrixLignesBulk: (dossierId, lignes) => {
@@ -948,6 +994,7 @@ export const useDossierStore = create<DossierState>()(
           dossiersSignes: apply(s.dossiersSignes),
           dossiersPerdus: apply(s.dossiersPerdus),
         }));
+        pushDossierData(get, dossierId);
       },
 
       setDossierStatsSkipped: (dossierId, skipped) => {
@@ -956,6 +1003,7 @@ export const useDossierStore = create<DossierState>()(
             d.id === dossierId ? { ...d, statsSkipped: skipped } : d,
           ),
         }));
+        pushDossierData(get, dossierId);
       },
 
       setDossierVendeur: (dossierId, vendeurName) => {
@@ -966,6 +1014,7 @@ export const useDossierStore = create<DossierState>()(
           dossiersSignes: s.dossiersSignes.map(d => d.id === dossierId ? { ...d, vendeurName: v } : d),
           dossiersPerdus: s.dossiersPerdus.map(d => d.id === dossierId ? { ...d, vendeurName: v } : d),
         }));
+        pushDossierData(get, dossierId);
       },
 
       addCommandeAccess: (dossierId, label, entry) => {
@@ -1052,6 +1101,7 @@ export const useDossierStore = create<DossierState>()(
             [dossierId]: dates,
           },
         }));
+        pushDossierData(get, dossierId);
       },
 
       addConfirmation: (dossierId, conf) => {
@@ -1063,6 +1113,7 @@ export const useDossierStore = create<DossierState>()(
               : d
           ),
         }));
+        pushDossierData(get, dossierId);
       },
 
       updateConfirmation: (dossierId, confId, data) => {
@@ -1073,6 +1124,7 @@ export const useDossierStore = create<DossierState>()(
               : d
           ),
         }));
+        pushDossierData(get, dossierId);
       },
 
       deleteConfirmation: (dossierId, confId) => {
@@ -1083,6 +1135,7 @@ export const useDossierStore = create<DossierState>()(
               : d
           ),
         }));
+        pushDossierData(get, dossierId);
       },
 
       toggleConfirmationValidee: (dossierId, confId) => {
@@ -1106,5 +1159,3 @@ export const useDossierStore = create<DossierState>()(
     { name: 'avra-dossier-store' }
   )
 );
-
-     

@@ -230,16 +230,14 @@ export function useDataSync() {
             ? local.subfolders
             : DEFAULT_SUBFOLDERS.map((sf) => ({ ...sf })),
           notes: local?.notes ?? '',
-          // FIX CRITIQUE (28/05/2026) : préserver les champs client-only que
-          // l'API NestJS ne connaît pas encore. Sans cette préservation, le
-          // sync écrase prixLignes / vendeurName / statsSkipped / dateButoires
-          // à chaque page reload (Cassandra perdait toutes ses stats). Quand
-          // un backend dossier sera fait (VAGUE 2), ces champs viendront du
-          // serveur — d'ici là on les garde côté navigateur.
-          prixLignes: (local as any)?.prixLignes ?? [],
-          vendeurName: (local as any)?.vendeurName,
-          statsSkipped: (local as any)?.statsSkipped,
-          dateButoires: (local as any)?.dateButoires,
+          // VAGUE 2 (28/05/2026) : ces champs sont maintenant PERSISTES en base.
+          // On prefere donc la valeur API (source de verite multi-device) et on
+          // retombe sur le local seulement si l'API ne l'a pas encore (dossier
+          // cree avant la migration). Fini la perte de donnees au reload.
+          prixLignes: (p.prixLignes ?? (local as any)?.prixLignes) ?? [],
+          vendeurName: p.vendeurName ?? (local as any)?.vendeurName,
+          statsSkipped: p.statsSkipped ?? (local as any)?.statsSkipped,
+          dateButoires: p.dateButoires ?? (local as any)?.dateButoires,
         };
       });
 
@@ -277,20 +275,18 @@ export function useDataSync() {
             ? new Date(p.saleSignedAt).toLocaleDateString('fr-FR')
             : new Date(p.updatedAt).toLocaleDateString('fr-FR'),
           signedSubfolders: computedSigned,
-          confirmations: (local as any)?.confirmations ?? [],
-          // FIX CRITIQUE (28/05/2026) : préservation des champs client-only.
-          // Idem fix sur dossiers actifs — sans ça, marquer "terminé" /
-          // archiver / saisir des stats est perdu au prochain reload.
-          prixLignes: (local as any)?.prixLignes ?? [],
-          vendeurName: (local as any)?.vendeurName,
-          statsSkipped: (local as any)?.statsSkipped,
-          terminated: (local as any)?.terminated,
-          terminatedDate: (local as any)?.terminatedDate,
-          archivedAt: (local as any)?.archivedAt,
-          dateButoires: (local as any)?.dateButoires,
-          // L'API renvoie saleAmount → c'est notre `montant`, mais si l'API
-          // ne le connaît pas (vieux dossier signé avant ajout du champ), on
-          // garde la valeur locale.
+          // VAGUE 2 (28/05/2026) : champs persistes en base — on prefere l'API,
+          // fallback local pour les dossiers anterieurs a la migration.
+          confirmations: (p.confirmations ?? (local as any)?.confirmations) ?? [],
+          prixLignes: (p.prixLignes ?? (local as any)?.prixLignes) ?? [],
+          vendeurName: p.vendeurName ?? (local as any)?.vendeurName,
+          statsSkipped: p.statsSkipped ?? (local as any)?.statsSkipped,
+          terminated: p.terminated ?? (local as any)?.terminated,
+          terminatedDate: p.terminatedAt
+            ? new Date(p.terminatedAt).toLocaleDateString('fr-FR')
+            : (local as any)?.terminatedDate,
+          archivedAt: p.archivedAt ?? (local as any)?.archivedAt ?? null,
+          dateButoires: p.dateButoires ?? (local as any)?.dateButoires,
           montant: typeof p.saleAmount === 'number' ? p.saleAmount : (local as any)?.montant,
           montantEstime: (local as any)?.montantEstime,
         };
