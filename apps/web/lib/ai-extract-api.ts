@@ -44,16 +44,56 @@ export async function extractDossier(dossierId: string): Promise<ExtractionResul
 }
 
 /**
- * Mapping label modale → champ ExtractionDatesButoires.
- * Labels exacts utilisés dans DateButoireValidationModal.
+ * Mapping "sûr" : champ sémantique (ExtractionDatesButoires) → libellé EXACT
+ * du jalon de date, PAR MÉTIER. On ne mappe QUE les correspondances non
+ * ambiguës ; les jalons sans source IA fiable (MODIFICATIONS, FABRICATION,
+ * LANCEMENT, MARCHÉ / SIGNATURES…) restent volontairement vides.
+ *
+ * ⚠️ Les libellés doivent matcher au caractère près (accents inclus) ceux des
+ * listes *_DATE_BUTOIRE_ITEMS de DateButoireValidationModal. Le résolveur côté
+ * modale ne remplit de toute façon que les libellés réellement présents.
+ *
+ * Historique (28/05/2026) : l'ancienne table unique `DATE_LABEL_TO_FIELD`
+ * n'utilisait que les libellés de DEFAULT_DATE_BUTOIRE_ITEMS → une seule date
+ * (FICHE DE POSE) se remplissait pour les dossiers menuisier/cuisiniste.
  */
-export const DATE_LABEL_TO_FIELD: Record<
+export const SEMANTIC_DATE_TARGET_BY_PROFESSION: Record<
   string,
-  keyof ExtractionDatesButoires
+  Partial<Record<keyof ExtractionDatesButoires, string>>
 > = {
-  'SUIVI DE CHANTIER': 'suiviChantier',
-  'RELEVE DE MESURES': 'releveMesures',
-  'PLAN TECHNIQUE': 'planTechnique',
-  'FICHE DE POSE': 'fichePose',
-  'PERMIS DE CONSTRUIRE': 'permisConstruire',
+  menuisier: {
+    releveMesures: 'RELEVÉ DE MESURE',
+    planTechnique: 'DÉBIT / LISTE MATÉRIAUX',
+    fichePose: 'FICHE DE POSE',
+  },
+  cuisiniste: {
+    releveMesures: 'RELEVÉ DÉFINITIF',
+    fichePose: 'FICHE DE POSE',
+  },
+  architecte: {
+    suiviChantier: 'SUIVI DE CHANTIER',
+    planTechnique: 'DCE',
+    permisConstruire: 'PERMIS DE CONSTRUIRE',
+  },
 };
+
+/** Fallback générique — libellés de DEFAULT_DATE_BUTOIRE_ITEMS. */
+export const SEMANTIC_DATE_TARGET_DEFAULT: Partial<
+  Record<keyof ExtractionDatesButoires, string>
+> = {
+  suiviChantier: 'SUIVI DE CHANTIER',
+  releveMesures: 'RELEVE DE MESURES',
+  planTechnique: 'PLAN TECHNIQUE',
+  fichePose: 'FICHE DE POSE',
+  permisConstruire: 'PERMIS DE CONSTRUIRE',
+};
+
+/** Retourne le mapping sémantique→libellé pour une profession donnée. */
+export function dateTargetsForProfession(
+  profession?: string | null,
+): Partial<Record<keyof ExtractionDatesButoires, string>> {
+  if (profession && SEMANTIC_DATE_TARGET_BY_PROFESSION[profession]) {
+    return SEMANTIC_DATE_TARGET_BY_PROFESSION[profession];
+  }
+  return SEMANTIC_DATE_TARGET_DEFAULT;
+}

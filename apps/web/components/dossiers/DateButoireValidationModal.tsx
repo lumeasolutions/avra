@@ -42,7 +42,7 @@ import {
   MENUISIER_PROJET_REGEX,
 } from '@/store/useDossierStore';
 import { getDocSignedUrl } from '@/lib/dossier-docs-api';
-import { extractDossier, DATE_LABEL_TO_FIELD } from '@/lib/ai-extract-api';
+import { extractDossier, dateTargetsForProfession, type ExtractionDatesButoires } from '@/lib/ai-extract-api';
 
 /**
  * Suggestions auto-complete pour le panneau ACCEDER → COMMANDES.
@@ -581,11 +581,39 @@ export function DateButoireValidationModal({
     try {
       const result = await extractDossier(dossierId);
 
-      // 1. Dates butoires (mapping label → field)
+      // Libellés réellement présents dans CETTE modale (selon profession/items).
+      // On ne remplit que ce qui existe → pas de clé fantôme.
+      const dateLabelsPresent = new Set(dateItems.map((it) => it.label));
+      const accessLabels = resolvedItems
+        .filter((it) => it.kind === 'access')
+        .map((it) => it.label);
+      // Tiroir "commandes" = item access COMMANDE(S) hors CONFIRMATION/FACTURE ;
+      // tiroir "livraison" = item access LIVRAISON. Résolu dynamiquement pour
+      // s'adapter à chaque métier (menuisier: COMMANDES FOURNISSEURS,
+      // cuisiniste: COMMANDE, architecte: COMMANDES FOURNISSEURS…).
+      const commandeLabel =
+        accessLabels.find((l) => /commande/i.test(l) && !/confirmation|facture/i.test(l)) ??
+        accessLabels.find((l) => /commande/i.test(l));
+      const livraisonLabel = accessLabels.find((l) => /livraison/i.test(l));
+
+      // Anti-doublons : true si une entrée identique (fournisseur + date) existe
+      // déjà dans le tiroir. Lecture fraîche du store (getState) pour rester
+      // correct même après plusieurs clics "Extraire avec IA".
+      const isDuplicate = (label: string, fournisseur: string, dateButoir: string) => {
+        const existing = useDossierStore.getState().commandesAccess[dossierId]?.[label] ?? [];
+        const f = fournisseur.trim().toLowerCase();
+        return existing.some(
+          (e) => e.fournisseur.trim().toLowerCase() === f && (e.dateButoir ?? '') === dateButoir,
+        );
+      };
+
+      // 1. Dates butoires — mapping sémantique → libellé du métier ("sûr only").
+      const targets = dateTargetsForProfession(profession);
       const nextDates: Record<string, string> = { ...dates };
       let datesFilled = 0;
-      for (const [label, field] of Object.entries(DATE_LABEL_TO_FIELD)) {
-        const value = result.datesButoires[field];
+      for (const [field, label] of Object.entries(targets)) {
+        if (!label || !dateLabelsPresent.has(label)) continue;
+        const value = result.datesButoires[field as keyof ExtractionDatesButoires];
         if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
           nextDates[label] = value;
           datesFilled++;
@@ -593,26 +621,34 @@ export function DateButoireValidationModal({
       }
       setDates(nextDates);
 
-      // 2. Commandes
+      // 2. Commandes → tiroir COMMANDE(S) du métier (skip si introuvable/doublon).
       let commandesAdded = 0;
-      for (const cmd of result.commandes ?? []) {
-        if (!cmd.fournisseur) continue;
-        addCommandeAccess(dossierId, 'COMMANDES', {
-          fournisseur: cmd.fournisseur,
-          dateButoir: cmd.dateButoir ?? '',
-        });
-        commandesAdded++;
+      if (commandeLabel) {
+        for (const cmd of result.commandes ?? []) {
+          if (!cmd.fournisseur) continue;
+          const dateButoir = cmd.dateButoir ?? '';
+          if (isDuplicate(commandeLabel, cmd.fournisseur, dateButoir)) continue;
+          addCommandeAccess(dossierId, commandeLabel, {
+            fournisseur: cmd.fournisseur,
+            dateButoir,
+          });
+          commandesAdded++;
+        }
       }
 
-      // 3. Livraisons
+      // 3. Livraisons → tiroir LIVRAISON (skip si introuvable/doublon).
       let livraisonsAdded = 0;
-      for (const liv of result.livraisons ?? []) {
-        if (!liv.categorie) continue;
-        addCommandeAccess(dossierId, 'LIVRAISON', {
-          fournisseur: liv.categorie,
-          dateButoir: liv.dateButoir ?? '',
-        });
-        livraisonsAdded++;
+      if (livraisonLabel) {
+        for (const liv of result.livraisons ?? []) {
+          if (!liv.categorie) continue;
+          const dateButoir = liv.dateButoir ?? '';
+          if (isDuplicate(livraisonLabel, liv.categorie, dateButoir)) continue;
+          addCommandeAccess(dossierId, livraisonLabel, {
+            fournisseur: liv.categorie,
+            dateButoir,
+          });
+          livraisonsAdded++;
+        }
       }
 
       setExtractInfo({
