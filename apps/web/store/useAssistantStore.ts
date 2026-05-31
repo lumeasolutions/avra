@@ -17,7 +17,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface AssistantPendingAction {
-  type: 'navigate' | 'create_dossier' | 'info';
+  // create_devis/create_facture ajoutes le 28/05/2026 (volet 4 assistant)
+  type: 'navigate' | 'create_dossier' | 'create_devis' | 'create_facture' | 'info';
   label: string;
   target?: string;
   data?: any;
