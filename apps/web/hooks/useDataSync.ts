@@ -23,6 +23,7 @@ import { useFacturationStore } from '@/store/useFacturationStore';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { useAuthStore, clearAllAppStoresHard } from '@/store/useAuthStore';
 import { createQuote, devisToPayload, quoteToDevis } from '@/lib/quotes-api';
+import { createInvoice, invoiceDetailToPayload, invoiceApiToDetail, invoiceApiToBase } from '@/lib/invoices-api';
 
 // IDs fictifs de démonstration (hardcodés dans les stores initiaux)
 const DEMO_DOSSIER_IDS = new Set(['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9']);
@@ -140,7 +141,7 @@ export function useDataSync() {
       try {
         await Promise.allSettled([syncProjects(), syncIntervenants()]);
         await Promise.allSettled([syncEvents(), syncPayments()]);
-        await Promise.allSettled([syncQuotes()]);
+        await Promise.allSettled([syncQuotes(), syncInvoices()]);
       } finally {
         setSynced(true);
         setSyncing(false);
@@ -465,6 +466,49 @@ export function useDataSync() {
       useFacturationStore.setState({ devis: [...stillLocal, ...backendDevis] });
     } catch (err) {
       console.warn('[DataSync] Quotes sync failed, keeping local data:', err);
+    }
+  }
+
+  async function syncInvoices() {
+    try {
+      const response = await api<any>('/invoices');
+      const data: any[] = Array.isArray(response) ? response : (response?.data ?? []);
+
+      const fact = useFacturationStore.getState();
+      // Factures purement locales (id "inv...") avec lignes -> migration unique.
+      const localDetails = Object.values(fact.invoiceDetails).filter(
+        (d: any) => typeof d.id === 'string' && d.id.startsWith('inv') && (d.lignes?.length ?? 0) > 0,
+      );
+      const migratedIds = new Set(localDetails.map((d: any) => d.id));
+      const migrated: any[] = [];
+      for (const d of localDetails) {
+        try {
+          migrated.push(await createInvoice(invoiceDetailToPayload(d as any)));
+        } catch {
+          migratedIds.delete((d as any).id);
+        }
+      }
+
+      // Factures backend = source de verite (+ migrees). Merge des locales non migrees.
+      const all = [...data, ...migrated];
+      const backendBase = all.map(invoiceApiToBase);
+      const backendDetails: Record<string, any> = {};
+      for (const a of all) backendDetails[a.id] = invoiceApiToDetail(a);
+
+      const stillLocalBase = fact.invoices.filter(
+        (i) => typeof i.id === 'string' && i.id.startsWith('inv') && !migratedIds.has(i.id),
+      );
+      const stillLocalDetails: Record<string, any> = {};
+      for (const [id, d] of Object.entries(fact.invoiceDetails)) {
+        if (id.startsWith('inv') && !migratedIds.has(id)) stillLocalDetails[id] = d;
+      }
+
+      useFacturationStore.setState({
+        invoices: [...stillLocalBase, ...backendBase],
+        invoiceDetails: { ...stillLocalDetails, ...backendDetails },
+      });
+    } catch (err) {
+      console.warn('[DataSync] Invoices sync failed, keeping local data:', err);
     }
   }
 

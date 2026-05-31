@@ -8,6 +8,10 @@ import {
   createQuote, updateQuoteApi, deleteQuoteApi, isBackendQuoteId,
   devisToPayload, quoteToDevis,
 } from '@/lib/quotes-api';
+import {
+  createInvoice, updateInvoiceApi, deleteInvoiceApi, isBackendInvoiceId,
+  invoiceDetailToPayload, invoiceApiToDetail,
+} from '@/lib/invoices-api';
 
 // Types
 export type InvoiceStatus = 'PAYÉE' | 'EN ATTENTE' | 'ACOMPTE' | 'AVOIR' | 'RETARD';
@@ -124,6 +128,8 @@ interface FacturationState {
   // Invoice actions
   addInvoice: (inv: Omit<Invoice, 'id' | 'ref'>) => string;
   addInvoiceDetail: (detail: Omit<InvoiceDetail, 'id' | 'ref' | 'montantHT'>) => string;
+  /** Pousse l'etat courant d'une facture (id backend) vers l'API. Interne. */
+  _syncInvoice: (id: string) => void;
   updateInvoiceStatus: (id: string, statut: InvoiceStatus) => void;
   updateInvoiceDetail: (id: string, data: Partial<InvoiceDetail>) => void;
   deleteInvoice: (id: string) => void;
@@ -197,12 +203,33 @@ export const useFacturationStore = create<FacturationState>()(
           invoices: [baseInv, ...s.invoices],
           invoiceDetails: { ...s.invoiceDetails, [id]: newInv },
         }));
+        // Write-through backend : persiste la facture, puis remplace l'id local par l'id backend.
+        createInvoice(invoiceDetailToPayload(newInv))
+          .then((a) => {
+            const mapped = invoiceApiToDetail(a);
+            set(s => {
+              const { [id]: _old, ...restDetails } = s.invoiceDetails;
+              const { lignes: _l, ...base } = mapped;
+              return {
+                invoices: s.invoices.map(i => i.id === id ? (base as Invoice) : i),
+                invoiceDetails: { ...restDetails, [mapped.id]: mapped },
+              };
+            });
+          })
+          .catch((e) => console.warn('[facturation] createInvoice échec, facture gardée en local:', e?.message || e));
         return id;
+      },
+
+      _syncInvoice: (id: string) => {
+        if (!isBackendInvoiceId(id)) return;
+        const d = get().invoiceDetails[id];
+        if (d) updateInvoiceApi(id, invoiceDetailToPayload(d)).catch((e) => console.warn('[facturation] updateInvoice échec:', e?.message || e));
       },
 
       updateInvoiceStatus: (id, statut) => {
         set(s => ({ invoices: s.invoices.map(i => i.id === id ? { ...i, statut } : i) }));
         set(s => s.invoiceDetails[id] ? { invoiceDetails: { ...s.invoiceDetails, [id]: { ...s.invoiceDetails[id], statut } } } : s);
+        if (isBackendInvoiceId(id)) updateInvoiceApi(id, { status: statut }).catch((e) => console.warn('[facturation] updateInvoice statut échec:', e?.message || e));
       },
 
       updateInvoiceDetail: (id, data) => {
@@ -210,6 +237,7 @@ export const useFacturationStore = create<FacturationState>()(
           invoiceDetails: { ...s.invoiceDetails, [id]: { ...s.invoiceDetails[id], ...data } },
           invoices: s.invoices.map(i => i.id === id ? { ...i, ...data } : i),
         }));
+        get()._syncInvoice(id);
       },
 
       deleteInvoice: (id) => {
@@ -217,6 +245,7 @@ export const useFacturationStore = create<FacturationState>()(
           const { [id]: _removed, ...rest } = s.invoiceDetails;
           return { invoices: s.invoices.filter(i => i.id !== id), invoiceDetails: rest };
         });
+        if (isBackendInvoiceId(id)) deleteInvoiceApi(id).catch((e) => console.warn('[facturation] deleteInvoice échec:', e?.message || e));
       },
 
       addDevis: (devis) => {
