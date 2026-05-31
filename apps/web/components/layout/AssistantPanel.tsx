@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { X, Send, AlertTriangle, XCircle, Clock, Info, ChevronDown, Mic, MicOff } from 'lucide-react';
-import { useDossierStore, useFacturationStore, useUIStore } from '@/store';
+import { useDossierStore, useFacturationStore, useUIStore, useConfigStore } from '@/store';
 import { useAssistantStore } from '@/store/useAssistantStore';
 import { MicPermissionHelpModal } from './MicPermissionHelpModal';
 import Link from 'next/link';
@@ -368,6 +368,8 @@ function ChatView({ owlB64 }: { owlB64: string }) {
   const dossiersSignes = useDossierStore(s => s.dossiersSignes);
   const invoices       = useFacturationStore(s => s.invoices);
   const alerts         = useUIStore(s => s.alerts);
+  // Volets 2-4 (28/05/2026) : reglages IA reels (personnalite, acces, actions).
+  const iaConfig       = useConfigStore(s => s.iaConfig);
   const addDossier     = useDossierStore(s => s.addDossier);
 
   const [message,  setMessage]  = useState('');
@@ -537,7 +539,7 @@ function ChatView({ owlB64 }: { owlB64: string }) {
 
   // ── Détection d'intention ─────────────────────────────────
   interface PendingAction {
-    type: 'navigate' | 'create_dossier' | 'info';
+    type: 'navigate' | 'create_dossier' | 'create_devis' | 'create_facture' | 'info';
     label: string;
     target?: string;
     data?: any;
@@ -545,24 +547,40 @@ function ChatView({ owlB64 }: { owlB64: string }) {
 
   const detectAction = (msg: string): PendingAction | null => {
     const lower = msg.toLowerCase();
-    // Navigation
-    if ((lower.includes('aller') || lower.includes('ouvrir') || lower.includes('emmène') || lower.includes('va')) && lower.includes('planning'))
-      return { type: 'navigate', label: 'Aller sur la page Planning', target: '/planning' };
-    if ((lower.includes('aller') || lower.includes('ouvrir') || lower.includes('emmène') || lower.includes('va')) && (lower.includes('dossier') || lower.includes('accueil')))
-      return { type: 'navigate', label: 'Aller sur la page Dossiers', target: '/dossiers' };
-    if ((lower.includes('aller') || lower.includes('ouvrir') || lower.includes('emmène') || lower.includes('va')) && lower.includes('stock'))
-      return { type: 'navigate', label: 'Aller sur la page Stock', target: '/stock' };
-    if ((lower.includes('aller') || lower.includes('ouvrir') || lower.includes('emmène') || lower.includes('va')) && lower.includes('factur'))
-      return { type: 'navigate', label: 'Aller sur la page Facturation', target: '/facturation' };
-    if ((lower.includes('aller') || lower.includes('ouvrir') || lower.includes('emmène') || lower.includes('va')) && (lower.includes('stat') || lower.includes('statistique')))
-      return { type: 'navigate', label: 'Aller sur les Statistiques', target: '/statistiques' };
-    if ((lower.includes('aller') || lower.includes('ouvrir') || lower.includes('emmène') || lower.includes('va')) && lower.includes('ia'))
-      return { type: 'navigate', label: 'Aller sur IA Photo Réalisme', target: '/ia-studio' };
-    if ((lower.includes('aller') || lower.includes('ouvrir') || lower.includes('emmène') || lower.includes('va')) && lower.includes('paramètre'))
-      return { type: 'navigate', label: 'Aller sur les Paramètres', target: '/parametres' };
-    // Création dossier
-    if ((lower.includes('créer') || lower.includes('crée') || lower.includes('nouveau') || lower.includes('ajouter')) && lower.includes('dossier'))
+    const wantsCreate = lower.includes('créer') || lower.includes('crée') || lower.includes('creer')
+      || lower.includes('nouveau') || lower.includes('nouvelle') || lower.includes('ajouter');
+    const wantsNav = lower.includes('aller') || lower.includes('ouvrir') || lower.includes('emmène')
+      || lower.includes('emmene') || lower.includes('va ');
+
+    // ── Actions de CRÉATION (gated par iaConfig) — testées AVANT la nav pour
+    //    que "créer une facture" ne tombe pas sur la nav Facturation. ──
+    // Devis (Sensible) — confirmation demandee avant execution.
+    if (iaConfig.actionCreerDevis && wantsCreate && lower.includes('devis'))
+      return { type: 'create_devis', label: 'Créer un nouveau devis', target: '/facturation?nouveau=devis' };
+    // Facture (Sensible)
+    if (iaConfig.actionCreerFacture && wantsCreate && lower.includes('factur'))
+      return { type: 'create_facture', label: 'Créer une nouvelle facture', target: '/facturation?nouveau=facture' };
+    // Dossier
+    if (iaConfig.actionCreerDossier && wantsCreate && lower.includes('dossier'))
       return { type: 'create_dossier', label: 'Créer un nouveau dossier', target: '/dossiers/nouveau' };
+
+    // ── Navigation (gated par iaConfig.actionNavigation) ──
+    if (iaConfig.actionNavigation && wantsNav) {
+      if (lower.includes('planning'))
+        return { type: 'navigate', label: 'Aller sur la page Planning', target: '/planning' };
+      if (lower.includes('dossier') || lower.includes('accueil'))
+        return { type: 'navigate', label: 'Aller sur la page Dossiers', target: '/dossiers' };
+      if (lower.includes('stock'))
+        return { type: 'navigate', label: 'Aller sur la page Stock', target: '/stock' };
+      if (lower.includes('factur'))
+        return { type: 'navigate', label: 'Aller sur la page Facturation', target: '/facturation' };
+      if (lower.includes('stat') || lower.includes('statistique'))
+        return { type: 'navigate', label: 'Aller sur les Statistiques', target: '/statistiques' };
+      if (lower.includes('ia'))
+        return { type: 'navigate', label: 'Aller sur IA Photo Réalisme', target: '/ia-studio' };
+      if (lower.includes('paramètre') || lower.includes('parametre'))
+        return { type: 'navigate', label: 'Aller sur les Paramètres', target: '/parametres' };
+    }
     return null;
   };
 
@@ -590,8 +608,15 @@ function ChatView({ owlB64 }: { owlB64: string }) {
   };
 
   const executeAction = (action: PendingAction) => {
-    if (action.type === 'navigate' || action.type === 'create_dossier') {
-      window.location.href = action.target!;
+    // create_devis / create_facture → deep-link vers /facturation qui ouvre
+    // automatiquement la bonne modale de creation (cf. ?nouveau=devis|facture).
+    if (
+      action.type === 'navigate' ||
+      action.type === 'create_dossier' ||
+      action.type === 'create_devis' ||
+      action.type === 'create_facture'
+    ) {
+      if (action.target) window.location.href = action.target;
     }
   };
 
@@ -617,7 +642,20 @@ function ChatView({ owlB64 }: { owlB64: string }) {
       const response = await fetch('/api/ia/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: messagesPayload }),
+        body: JSON.stringify({
+          messages: messagesPayload,
+          // Volet 2 : personnalite injectee dans le system prompt cote backend.
+          personnalite: iaConfig.personnalite,
+          // Volet 3 : l'IA ne recoit que les categories de donnees autorisees.
+          acces: {
+            dossiers: iaConfig.accesDossiers,
+            facturation: iaConfig.accesFacturation,
+            planning: iaConfig.accesPlanning,
+            stock: iaConfig.accesStock,
+            stats: iaConfig.accesStats,
+            intervenants: iaConfig.accesIntervenants,
+          },
+        }),
       });
 
       if (!response.body) {

@@ -81,8 +81,16 @@ export class IaController {
    */
   @SkipCsrf()
   @Post('chat')
-  async chatStream(@CurrentUser() user: JwtPayload | undefined, @Body() body: { messages: Array<{ role: 'user' | 'assistant'; content: string }> }, @Res() res: Response) {
+  async chatStream(@CurrentUser() user: JwtPayload | undefined, @Body() body: { messages: Array<{ role: 'user' | 'assistant'; content: string }>; personnalite?: 'professionnel' | 'amical' | 'concis'; acces?: { dossiers?: boolean; facturation?: boolean; planning?: boolean; stock?: boolean; stats?: boolean; intervenants?: boolean } }, @Res() res: Response) {
     try {
+      // Volet 3 (28/05/2026) : l'assistant ne recoit que les categories de
+      // donnees autorisees (Parametres → IA). Defaut = autorise si non fourni
+      // (retro-compat avec les anciens clients qui n'envoient pas 'acces').
+      const acces = body?.acces ?? {};
+      const canDossiers = acces.dossiers !== false;
+      const canFacturation = acces.facturation !== false;
+      const canIntervenants = acces.intervenants !== false;
+
       // Charger le contexte workspace si user connecté
       let dossiers: any[] = [];
       let invoices: any[] = [];
@@ -91,39 +99,58 @@ export class IaController {
       let invitationsPending = 0;
 
       if (user?.workspaceId) {
+        const ws = user.workspaceId;
         [dossiers, invoices, intervenants, demandes, invitationsPending] = await Promise.all([
-          this.prisma.project.findMany({
-            where: { workspaceId: user.workspaceId },
-            select: { id: true, name: true, lifecycleStatus: true, priority: true },
-            orderBy: { createdAt: 'desc' },
-          }),
-          this.prisma.paymentRequest.findMany({
-            where: { workspaceId: user.workspaceId },
-            select: { id: true, status: true },
-          }),
-          this.prisma.intervenant.findMany({
-            where: { workspaceId: user.workspaceId },
-            select: { id: true, type: true, companyName: true, firstName: true, lastName: true, userId: true },
-            orderBy: { createdAt: 'desc' },
-            take: 20,
-          }),
-          (this.prisma as any).demande.findMany({
-            where: { workspaceId: user.workspaceId },
-            select: { id: true, status: true, type: true },
-            orderBy: { createdAt: 'desc' },
-            take: 200,
-          }),
-          (this.prisma as any).intervenantInvitation.count({
-            where: { workspaceId: user.workspaceId, status: 'PENDING' },
-          }),
+          canDossiers
+            ? this.prisma.project.findMany({
+                where: { workspaceId: ws },
+                select: { id: true, name: true, lifecycleStatus: true, priority: true },
+                orderBy: { createdAt: 'desc' },
+              })
+            : Promise.resolve([] as any[]),
+          canFacturation
+            ? this.prisma.paymentRequest.findMany({
+                where: { workspaceId: ws },
+                select: { id: true, status: true },
+              })
+            : Promise.resolve([] as any[]),
+          canIntervenants
+            ? this.prisma.intervenant.findMany({
+                where: { workspaceId: ws },
+                select: { id: true, type: true, companyName: true, firstName: true, lastName: true, userId: true },
+                orderBy: { createdAt: 'desc' },
+                take: 20,
+              })
+            : Promise.resolve([] as any[]),
+          canIntervenants
+            ? (this.prisma as any).demande.findMany({
+                where: { workspaceId: ws },
+                select: { id: true, status: true, type: true },
+                orderBy: { createdAt: 'desc' },
+                take: 200,
+              })
+            : Promise.resolve([] as any[]),
+          canIntervenants
+            ? (this.prisma as any).intervenantInvitation.count({
+                where: { workspaceId: ws, status: 'PENDING' },
+              })
+            : Promise.resolve(0),
         ]);
       }
 
-      // Dossiers actifs = ceux qui ne sont pas signés/archivés
+      // Statuts du cycle de vie (enum Prisma FR). Aligne sur useDataSync :
+      // signe = SIGNE/EN_CHANTIER/RECEPTION/SAV ; inactif = signe + CLOTURE/PERDU/ARCHIVE.
+      // FIX 28/05/2026 : avant on comparait a des valeurs ANGLAISES ('SIGNED'...)
+      // qui n'existent pas dans l'enum → signedDossiers toujours vide et
+      // activeDossiers gonfle. L'assistant annoncait donc des chiffres faux.
+      const SIGNED_STATUSES = ['SIGNE', 'EN_CHANTIER', 'RECEPTION', 'SAV'];
+      const INACTIVE_STATUSES = [...SIGNED_STATUSES, 'CLOTURE', 'PERDU', 'ARCHIVE'];
       const activeDossiers = dossiers.filter((d: any) =>
-        !['SIGNED', 'ARCHIVED', 'LOST'].includes(d.lifecycleStatus)
+        !INACTIVE_STATUSES.includes(d.lifecycleStatus)
       );
-      const signedDossiers = dossiers.filter((d: any) => d.lifecycleStatus === 'SIGNED');
+      const signedDossiers = dossiers.filter((d: any) =>
+        SIGNED_STATUSES.includes(d.lifecycleStatus)
+      );
       const urgentCount = dossiers.filter((d: any) => d.priority === 'URGENT').length;
       const pendingInvoiceCount = invoices.filter((i: any) => i.status === 'PENDING').length;
 
@@ -151,20 +178,23 @@ export class IaController {
         content: m.content,
       }));
 
-      // Obtenir le stream
+      // Obtenir le stream — Volet 3 : on ne transmet que les champs des
+      // categories autorisees (undefined => ligne omise dans le prompt).
+      // Volet 2 : personnalite transmise pour piloter le ton.
       const stream = await this.ai.chatStream(messages, {
-        dossierCount: activeDossiers.length,
-        urgentCount,
-        invoiceCount: invoices.length,
-        pendingInvoiceCount,
-        signedCount: signedDossiers.length,
-        activeDossierNames,
-        intervenantCount: intervenants.length,
-        activeIntervenantNames: intervenantNames || undefined,
-        demandeCount: demandes.length,
-        demandePendingCount,
-        demandeEnCoursCount,
-        invitationsPendingCount: invitationsPending,
+        dossierCount: canDossiers ? activeDossiers.length : undefined,
+        urgentCount: canDossiers ? urgentCount : undefined,
+        signedCount: canDossiers ? signedDossiers.length : undefined,
+        activeDossierNames: canDossiers ? activeDossierNames : undefined,
+        invoiceCount: canFacturation ? invoices.length : undefined,
+        pendingInvoiceCount: canFacturation ? pendingInvoiceCount : undefined,
+        intervenantCount: canIntervenants ? intervenants.length : undefined,
+        activeIntervenantNames: canIntervenants ? (intervenantNames || undefined) : undefined,
+        demandeCount: canIntervenants ? demandes.length : undefined,
+        demandePendingCount: canIntervenants ? demandePendingCount : undefined,
+        demandeEnCoursCount: canIntervenants ? demandeEnCoursCount : undefined,
+        invitationsPendingCount: canIntervenants ? invitationsPending : undefined,
+        personnalite: body?.personnalite,
       });
 
       // Configurer la réponse SSE

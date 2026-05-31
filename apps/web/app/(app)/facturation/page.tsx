@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   FileText, Plus, Trash2, Check, ChevronRight, ChevronDown,
   Download, Send, Eye, Copy, ExternalLink, AlertTriangle,
@@ -931,12 +931,12 @@ function ModalSignature({ devis, onClose }: { devis: Devis; onClose: () => void 
 
 // ─── Onglet DEVIS ────────────────────────────────────────────────────────────
 
-function OngletDevis() {
+function OngletDevis({ autoOpen = false }: { autoOpen?: boolean }) {
   const devis = useFacturationStore(s => s.devis);
   const societe = useConfigStore(s => s.societe);
   const updateDevisStatut = useFacturationStore(s => s.updateDevisStatut);
   const deleteDevis = useFacturationStore(s => s.deleteDevis);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(autoOpen);
   const [editDevis, setEditDevis] = useState<Devis | undefined>();
   const [convertDevis, setConvertDevis] = useState<Devis | undefined>();
   const [signatureDevis, setSignatureDevis] = useState<Devis | undefined>();
@@ -1089,13 +1089,13 @@ function OngletDevis() {
 
 // ─── Onglet FACTURES ──────────────────────────────────────────────────────────
 
-function OngletFactures() {
+function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
   const invoices = useFacturationStore(s => s.invoices);
   const invoiceDetails = useFacturationStore(s => s.invoiceDetails);
   const societe = useConfigStore(s => s.societe);
   const updateInvoiceStatus = useFacturationStore(s => s.updateInvoiceStatus);
   const deleteInvoice = useFacturationStore(s => s.deleteInvoice);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(autoOpen);
   const [filterStatut, setFilterStatut] = useState<InvoiceStatus | 'TOUTES'>('TOUTES');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -1372,8 +1372,18 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 
 export default function FacturationPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('factures');
+  // Volet 4 (28/05/2026) : deep-link assistant → ?nouveau=devis|facture ouvre
+  // directement la bonne modale de creation (apres confirmation cote chat).
+  const [autoCreate, setAutoCreate] = useState<'devis' | 'facture' | null>(null);
   const invoices = useFacturationStore(s => s.invoices);
   const devis = useFacturationStore(s => s.devis);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const n = new URLSearchParams(window.location.search).get('nouveau');
+    if (n === 'devis') { setActiveTab('devis'); setAutoCreate('devis'); }
+    else if (n === 'facture') { setActiveTab('factures'); setAutoCreate('facture'); }
+  }, []);
 
   const tabCounts: Record<TabKey, number | undefined> = {
     devis: devis.length,
@@ -1429,8 +1439,8 @@ export default function FacturationPage() {
       />
 
       {/* Contenu */}
-      {activeTab === 'devis'         && <OngletDevis />}
-      {activeTab === 'factures'      && <OngletFactures />}
+      {activeTab === 'devis'         && <OngletDevis autoOpen={autoCreate === 'devis'} />}
+      {activeTab === 'factures'      && <OngletFactures autoOpen={autoCreate === 'facture'} />}
       {activeTab === 'e-facturation' && <OngletEFacturation />}
       {activeTab === 'epaiement'     && <OngletEPaiement />}
     </div>

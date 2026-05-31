@@ -21,6 +21,8 @@ export interface ChatContext {
   demandePendingCount?: number;
   demandeEnCoursCount?: number;
   invitationsPendingCount?: number;
+  // Volet 2 (28/05/2026) : personnalite de l'assistant (Parametres → IA).
+  personnalite?: 'professionnel' | 'amical' | 'concis';
 }
 
 export interface DossierAnalysisInput {

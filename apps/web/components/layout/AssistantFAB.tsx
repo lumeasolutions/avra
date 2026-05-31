@@ -1,6 +1,7 @@
 'use client';
 
 import { useAssistantStore } from '@/store/useAssistantStore';
+import { useConfigStore } from '@/store/useConfigStore';
 import { AssistantPanel } from './AssistantPanel';
 
 const OWL_B64 = "/nouveaulogochouette.png";
@@ -9,6 +10,11 @@ export function AssistantFAB() {
   const open = useAssistantStore(s => s.open);
   const toggle = useAssistantStore(s => s.toggle);
   const setOpen = useAssistantStore(s => s.setOpen);
+  // Volet 1 (28/05/2026) : le reglage "Activer l'assistant AVRA" (Parametres → IA)
+  // controle reellement l'affichage. assistantActif=false → aucun FAB/panel.
+  const assistantActif = useConfigStore(s => s.iaConfig?.assistantActif ?? true);
+
+  if (!assistantActif) return null;
 
   return (
     <>

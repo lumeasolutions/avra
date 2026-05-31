@@ -22,22 +22,63 @@ export const SYSTEM_PROMPTS = {
     demandePendingCount?: number;
     demandeEnCoursCount?: number;
     invitationsPendingCount?: number;
+    // Volet 2 (28/05/2026) — personnalite choisie dans Parametres → IA
+    personnalite?: 'professionnel' | 'amical' | 'concis';
   }): string => {
-    const contextStr = context
-      ? `
-Contexte utilisateur actuel (données réelles du workspace):
-- Dossiers en cours: ${context.dossierCount || 0}${context.activeDossierNames && context.activeDossierNames !== 'aucun' ? ` (${context.activeDossierNames})` : ''}
-- Dossiers urgents: ${context.urgentCount || 0}
-- Dossiers signés: ${context.signedCount || 0}
-- Factures totales: ${context.invoiceCount || 0}
-- Factures en attente: ${context.pendingInvoiceCount || 0}
-- Intervenants enregistrés: ${context.intervenantCount || 0}${context.activeIntervenantNames ? ` (${context.activeIntervenantNames})` : ''}
-- Demandes envoyées (total): ${context.demandeCount || 0}
-- Demandes en attente de réponse intervenant: ${context.demandePendingCount || 0}
-- Demandes en cours d'exécution: ${context.demandeEnCoursCount || 0}
-- Invitations intervenants en attente: ${context.invitationsPendingCount || 0}
-      `.trim()
+    // Volet 3 (28/05/2026) : chaque ligne n'est incluse que si la donnee est
+    // fournie (!== undefined). Le controller passe undefined pour les categories
+    // dont l'acces est desactive dans Parametres → IA, donc l'IA ne voit que ce
+    // que l'utilisateur autorise.
+    const lines: string[] = [];
+    if (context?.dossierCount !== undefined)
+      lines.push(`- Dossiers en cours: ${context.dossierCount}${context.activeDossierNames && context.activeDossierNames !== 'aucun' ? ` (${context.activeDossierNames})` : ''}`);
+    if (context?.urgentCount !== undefined)
+      lines.push(`- Dossiers urgents: ${context.urgentCount}`);
+    if (context?.signedCount !== undefined)
+      lines.push(`- Dossiers signés: ${context.signedCount}`);
+    if (context?.invoiceCount !== undefined)
+      lines.push(`- Factures totales: ${context.invoiceCount}`);
+    if (context?.pendingInvoiceCount !== undefined)
+      lines.push(`- Factures en attente: ${context.pendingInvoiceCount}`);
+    if (context?.intervenantCount !== undefined)
+      lines.push(`- Intervenants enregistrés: ${context.intervenantCount}${context.activeIntervenantNames ? ` (${context.activeIntervenantNames})` : ''}`);
+    if (context?.demandeCount !== undefined)
+      lines.push(`- Demandes envoyées (total): ${context.demandeCount}`);
+    if (context?.demandePendingCount !== undefined)
+      lines.push(`- Demandes en attente de réponse intervenant: ${context.demandePendingCount}`);
+    if (context?.demandeEnCoursCount !== undefined)
+      lines.push(`- Demandes en cours d'exécution: ${context.demandeEnCoursCount}`);
+    if (context?.invitationsPendingCount !== undefined)
+      lines.push(`- Invitations intervenants en attente: ${context.invitationsPendingCount}`);
+    const contextStr = lines.length > 0
+      ? `\nContexte utilisateur actuel (données réelles du workspace):\n${lines.join('\n')}`.trim()
       : '';
+
+    // Volet 2 : bloc "Style de communication" pilote par la personnalite.
+    const toneBlock = (() => {
+      switch (context?.personnalite) {
+        case 'amical':
+          return `Style de communication:
+- Sois chaleureux, humain et encourageant
+- Tutoie-toi un ton convivial sans etre familier a l'exces
+- Reste precis et factuel, propose de l'aide proactive
+- En français naturel`;
+        case 'concis':
+          return `Style de communication:
+- Va droit au but, reponses courtes et efficaces
+- Pas de fioritures ni de formules de politesse longues
+- Donne l'essentiel en 1 a 3 phrases maximum quand c'est possible
+- En français`;
+        case 'professionnel':
+        default:
+          return `Style de communication:
+- Sois professionnel mais amical
+- Sois précis et factuel
+- Propose de l'aide proactive
+- Utilise un langage simple (évite le jargon technique)
+- En français (utilise l'accent français naturel)`;
+      }
+    })();
 
     return `Tu es AVRA, l'assistant IA intelligent d'une plateforme de gestion pour cuisinistes, menuisiers et architectes d'intérieur.
 
@@ -65,12 +106,7 @@ Tes responsabilités:
 7. Aider à composer une demande adaptée (suggestion de type, titre, planification) à envoyer à un intervenant
 8. Recommander d'inviter un intervenant si le workspace n'a pas le bon profil disponible
 
-Style de communication:
-- Sois professionnel mais amical
-- Sois précis et factuel
-- Propose de l'aide proactive
-- Utilise un langage simple (évite le jargon technique)
-- En français (utilise l'accent français naturel)
+${toneBlock}
 
 Ne fais JAMAIS:
 - Inventer de données
