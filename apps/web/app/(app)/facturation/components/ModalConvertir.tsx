@@ -11,16 +11,25 @@ interface ModalConvertirProps {
 }
 
 const fmt = (n: number) =>
-  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export const ModalConvertir = React.memo(function ModalConvertir({ devis, onClose }: ModalConvertirProps) {
   const convertDevisToFacture = useFacturationStore(s => s.convertDevisToFacture);
   const updateDevisStatut = useFacturationStore(s => s.updateDevisStatut);
+  const invoiceDetails = useFacturationStore(s => s.invoiceDetails);
   const [factureType, setFactureType] = useState<FactureDetailType>('ACOMPTE');
   const [pourcentage, setPourcentage] = useState(30);
 
-  const montant = Math.round(devis.totalHT * pourcentage / 100);
-  const ttc = Math.round(devis.totalTTC * pourcentage / 100);
+  const isSolde = factureType === 'SOLDE';
+  // Acomptes / intermediaires deja factures pour ce devis (en TTC).
+  const dejaVerse = round2(Object.values(invoiceDetails)
+    .filter(inv => inv.devisId === devis.id && (inv.factureType === 'ACOMPTE' || inv.factureType === 'INTERMEDIAIRE'))
+    .reduce((s, inv) => s + (inv.totalTTC ?? (inv.lignes ?? []).reduce((a, l) => a + l.quantite * l.prixUnitaireHT * (1 - l.remise / 100) * (1 + l.tva / 100), 0)), 0));
+  // Un solde facture 100% du devis ; le net a payer deduit les acomptes.
+  const montant = isSolde ? devis.totalHT : round2(devis.totalHT * pourcentage / 100);
+  const ttcFull = isSolde ? devis.totalTTC : round2(devis.totalTTC * pourcentage / 100);
+  const netAPayer = isSolde ? Math.max(0, round2(devis.totalTTC - dejaVerse)) : ttcFull;
 
   const handleConvert = () => {
     convertDevisToFacture(devis.id, factureType, pourcentage);
@@ -50,7 +59,7 @@ export const ModalConvertir = React.memo(function ModalConvertir({ devis, onClos
               ))}
             </div>
           </div>
-          {factureType !== 'STANDARD' && (
+          {factureType !== 'STANDARD' && !isSolde && (
             <div>
               <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Pourcentage à facturer : {pourcentage}%</label>
               <input type="range" min="5" max="100" step="5" value={pourcentage} onChange={e => setPourcentage(parseInt(e.target.value))} className="w-full" />
@@ -60,9 +69,13 @@ export const ModalConvertir = React.memo(function ModalConvertir({ devis, onClos
             </div>
           )}
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3">
-            <p className="text-xs text-emerald-700 font-semibold">Facture à créer</p>
-            <p className="text-lg font-bold text-emerald-800 mt-0.5">{fmt(ttc)} TTC</p>
-            <p className="text-xs text-emerald-600">{fmt(montant)} HT · {pourcentage}% du devis</p>
+            <p className="text-xs text-emerald-700 font-semibold">{isSolde ? 'Solde — net à payer' : 'Facture à créer'}</p>
+            <p className="text-lg font-bold text-emerald-800 mt-0.5">{fmt(isSolde ? netAPayer : ttcFull)} TTC</p>
+            {isSolde ? (
+              <p className="text-xs text-emerald-600">Total {fmt(devis.totalTTC)}{dejaVerse > 0 ? ` − acomptes ${fmt(dejaVerse)}` : ''}</p>
+            ) : (
+              <p className="text-xs text-emerald-600">{fmt(montant)} HT · {pourcentage}% du devis</p>
+            )}
           </div>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-[#304035]/8">

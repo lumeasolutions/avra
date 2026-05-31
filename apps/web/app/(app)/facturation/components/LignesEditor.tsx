@@ -41,6 +41,7 @@ export const LignesEditor = React.memo(function LignesEditor({ lignes, onChange 
               type="number" min="0.01" step="0.01"
               className="rounded-lg border border-[#304035]/10 px-2 py-1.5 text-xs text-[#304035] text-right bg-[#304035]/2 focus:outline-none focus:border-[#304035]/30 w-full"
               value={l.quantite}
+              onFocus={e => e.currentTarget.select()}
               onChange={e => updateLigne(l.id, 'quantite', parseFloat(e.target.value) || 0)}
             />
             <select
@@ -54,6 +55,7 @@ export const LignesEditor = React.memo(function LignesEditor({ lignes, onChange 
               type="number" min="0" step="0.01"
               className="rounded-lg border border-[#304035]/10 px-2 py-1.5 text-xs text-[#304035] text-right bg-[#304035]/2 focus:outline-none focus:border-[#304035]/30 w-full"
               value={l.prixUnitaireHT}
+              onFocus={e => e.currentTarget.select()}
               onChange={e => updateLigne(l.id, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
             />
             <select
@@ -68,6 +70,7 @@ export const LignesEditor = React.memo(function LignesEditor({ lignes, onChange 
                 type="number" min="0" max="100"
                 className="rounded-lg border border-[#304035]/10 px-2 py-1.5 text-xs text-[#304035] text-right bg-[#304035]/2 focus:outline-none focus:border-[#304035]/30 w-full pr-4"
                 value={l.remise}
+                onFocus={e => e.currentTarget.select()}
                 onChange={e => updateLigne(l.id, 'remise', parseFloat(e.target.value) || 0)}
               />
               <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-[#304035]/40">%</span>
