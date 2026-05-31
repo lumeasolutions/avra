@@ -22,6 +22,7 @@ import { usePlanningStore } from '@/store/usePlanningStore';
 import { useFacturationStore } from '@/store/useFacturationStore';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { useAuthStore, clearAllAppStoresHard } from '@/store/useAuthStore';
+import { createQuote, devisToPayload, quoteToDevis } from '@/lib/quotes-api';
 
 // IDs fictifs de démonstration (hardcodés dans les stores initiaux)
 const DEMO_DOSSIER_IDS = new Set(['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9']);
@@ -139,6 +140,7 @@ export function useDataSync() {
       try {
         await Promise.allSettled([syncProjects(), syncIntervenants()]);
         await Promise.allSettled([syncEvents(), syncPayments()]);
+        await Promise.allSettled([syncQuotes()]);
       } finally {
         setSynced(true);
         setSyncing(false);
@@ -430,6 +432,39 @@ export function useDataSync() {
       }
     } catch (err) {
       console.warn('[DataSync] Payments sync failed, keeping local data:', err);
+    }
+  }
+
+  async function syncQuotes() {
+    try {
+      const response = await api<any>('/quotes');
+      const data: any[] = Array.isArray(response) ? response : (response?.data ?? []);
+
+      // Devis purement locaux (jamais persistes : id "dev...") avec au moins une ligne.
+      // Migration unique vers la base ; on garde le local si l'appel echoue.
+      const localOnly = useFacturationStore.getState().devis.filter(
+        (d) => typeof d.id === 'string' && d.id.startsWith('dev') && (d.lignes?.length ?? 0) > 0,
+      );
+      const migratedIds = new Set(localOnly.map((d) => d.id));
+      const migrated: any[] = [];
+      for (const d of localOnly) {
+        try {
+          migrated.push(await createQuote(devisToPayload(d)));
+        } catch (e) {
+          // garde le devis en local — il sera repousse a la prochaine edition
+          migratedIds.delete(d.id);
+        }
+      }
+
+      // Devis backend = source de verite. On merge : devis backend (+ migres)
+      // PLUS les devis locaux non migres (drafts vides ou migration echouee).
+      const backendDevis = [...data, ...migrated].map(quoteToDevis);
+      const stillLocal = useFacturationStore
+        .getState()
+        .devis.filter((d) => d.id.startsWith('dev') && !migratedIds.has(d.id));
+      useFacturationStore.setState({ devis: [...stillLocal, ...backendDevis] });
+    } catch (err) {
+      console.warn('[DataSync] Quotes sync failed, keeping local data:', err);
     }
   }
 

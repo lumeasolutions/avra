@@ -3,6 +3,11 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+// VAGUE 1b — persistance backend des devis (write-through + hydratation via useDataSync).
+import {
+  createQuote, updateQuoteApi, deleteQuoteApi, isBackendQuoteId,
+  devisToPayload, quoteToDevis,
+} from '@/lib/quotes-api';
 
 // Types
 export type InvoiceStatus = 'PAYÉE' | 'EN ATTENTE' | 'ACOMPTE' | 'AVOIR' | 'RETARD';
@@ -125,6 +130,8 @@ interface FacturationState {
 
   // Devis actions
   addDevis: (devis: Omit<Devis, 'id' | 'ref' | 'token'>) => string;
+  /** Pousse l'etat courant d'un devis (id backend) vers l'API. Interne. */
+  _syncDevis: (id: string) => void;
   updateDevis: (id: string, data: Partial<Devis>) => void;
   updateDevisStatut: (id: string, statut: DevisStatus) => void;
   sendDevisForSignature: (id: string, email: string, piecesJointes?: string[]) => void;
@@ -226,15 +233,27 @@ export const useFacturationStore = create<FacturationState>()(
         }, 0);
         const newDevis: Devis = { ...devis, id, ref, token, totalHT: round2(totalHT), totalTTC: round2(totalTTC) };
         set(s => ({ devis: [newDevis, ...s.devis] }));
+        // Write-through backend : persiste le devis puis remplace l'id local par l'id backend.
+        createQuote(devisToPayload(newDevis))
+          .then((q) => set(s => ({ devis: s.devis.map(d => d.id === id ? quoteToDevis(q) : d) })))
+          .catch((e) => console.warn('[facturation] createQuote échec, devis gardé en local:', e?.message || e));
         return id;
+      },
+
+      _syncDevis: (id: string) => {
+        if (!isBackendQuoteId(id)) return;
+        const d = get().devis.find(x => x.id === id);
+        if (d) updateQuoteApi(id, devisToPayload(d)).catch((e) => console.warn('[facturation] updateQuote échec:', e?.message || e));
       },
 
       updateDevis: (id, data) => {
         set(s => ({ devis: s.devis.map(d => d.id === id ? { ...d, ...data } : d) }));
+        get()._syncDevis(id);
       },
 
       updateDevisStatut: (id, statut) => {
         set(s => ({ devis: s.devis.map(d => d.id === id ? { ...d, statut } : d) }));
+        get()._syncDevis(id);
       },
 
       sendDevisForSignature: (id, email, piecesJointes) => {
@@ -245,6 +264,7 @@ export const useFacturationStore = create<FacturationState>()(
           signatureEmail: email,
           signaturePiecesJointes: piecesJointes ?? [],
         } : d) }));
+        get()._syncDevis(id);
       },
 
       markDevisSigned: (id) => {
@@ -255,10 +275,12 @@ export const useFacturationStore = create<FacturationState>()(
           signatureStatus: 'SIGNÉ' as const,
           signatureDate: now,
         } : d) }));
+        get()._syncDevis(id);
       },
 
       deleteDevis: (id) => {
         set(s => ({ devis: s.devis.filter(d => d.id !== id) }));
+        if (isBackendQuoteId(id)) deleteQuoteApi(id).catch((e) => console.warn('[facturation] deleteQuote échec:', e?.message || e));
       },
 
       convertDevisToFacture: (devisId, factureType, pourcentage) => {
