@@ -524,6 +524,19 @@ function generateInvoiceHTML(inv: InvoiceDetail, societe: ReturnType<typeof useC
   const { totalHT, totalTVA, totalTTC } = calcLignes(lignes);
   const isAvoir = inv.type === 'Avoir';
 
+  // Ventilation TVA par taux — mention legale obligatoire (base HT + montant TVA par taux).
+  const vatGroups = new Map<number, { base: number; tva: number }>();
+  for (const l of lignes) {
+    const ht = l.quantite * l.prixUnitaireHT * (1 - (l.remise || 0) / 100);
+    const g = vatGroups.get(l.tva) ?? { base: 0, tva: 0 };
+    g.base += ht;
+    g.tva += ht * (l.tva / 100);
+    vatGroups.set(l.tva, g);
+  }
+  const vatRowsHTML = Array.from(vatGroups.entries()).sort((a, b) => a[0] - b[0]).map(([rate, g]) =>
+    `<tr><td style="padding:4px 10px;font-size:11px;color:#304035">${rate}%</td><td style="padding:4px 10px;font-size:11px;text-align:right;color:#304035">${fmtPrecise(g.base)}</td><td style="padding:4px 10px;font-size:11px;text-align:right;color:#304035">${fmtPrecise(g.tva)}</td></tr>`,
+  ).join('');
+
   const lignesHTML = lignes.map(l => {
     const ht = l.quantite * l.prixUnitaireHT * (1 - l.remise / 100);
     return `<tr>
@@ -547,8 +560,8 @@ function generateInvoiceHTML(inv: InvoiceDetail, societe: ReturnType<typeof useC
   <!-- HEADER -->
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;padding-bottom:24px;border-bottom:3px solid #304035">
     <div>
-      <div style="font-size:28px;font-weight:900;color:#304035;letter-spacing:-1px">AVRA</div>
-      <div style="font-size:11px;color:#304035;opacity:0.5;margin-top:2px">Design & Agencement</div>
+      <div style="font-size:28px;font-weight:900;color:#304035;letter-spacing:-1px">${societe.nom || 'AVRA'}</div>
+      ${societe.ville ? `<div style="font-size:11px;color:#304035;opacity:0.5;margin-top:2px">${societe.ville}</div>` : ''}
     </div>
     <div style="text-align:right">
       <div style="font-size:22px;font-weight:800;color:${isAvoir ? '#9b59b6' : '#304035'}">${inv.type.toUpperCase()}</div>
@@ -595,6 +608,18 @@ function generateInvoiceHTML(inv: InvoiceDetail, societe: ReturnType<typeof useC
     </thead>
     <tbody>${lignesHTML}</tbody>
   </table>
+
+  <!-- VENTILATION TVA (par taux) -->
+  <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+    <table style="border-collapse:collapse;min-width:300px;border:1px solid #e8e0d6;border-radius:6px">
+      <thead><tr style="border-bottom:1px solid #e8e0d6;background:#f8f5f0">
+        <th style="padding:5px 10px;text-align:left;font-size:9px;font-weight:700;color:#304035;opacity:0.6;text-transform:uppercase;letter-spacing:0.5px">Taux TVA</th>
+        <th style="padding:5px 10px;text-align:right;font-size:9px;font-weight:700;color:#304035;opacity:0.6;text-transform:uppercase;letter-spacing:0.5px">Base HT</th>
+        <th style="padding:5px 10px;text-align:right;font-size:9px;font-weight:700;color:#304035;opacity:0.6;text-transform:uppercase;letter-spacing:0.5px">Montant TVA</th>
+      </tr></thead>
+      <tbody>${vatRowsHTML}</tbody>
+    </table>
+  </div>
 
   <!-- TOTAUX -->
   <div style="display:flex;justify-content:flex-end;margin-bottom:32px">
