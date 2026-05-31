@@ -146,6 +146,8 @@ declare module '@prisma/client' {
     readonly supplierOrderLine: any;
     readonly quote: any;
     readonly quoteLine: any;
+    readonly invoice: any;
+    readonly invoiceLine: any;
     readonly paymentRequest: any;
     readonly signatureRequest: any;
     readonly iaJob: any;

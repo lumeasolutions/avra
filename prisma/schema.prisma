@@ -287,6 +287,7 @@ model Workspace {
   auditLogs          AuditLog[]
   automationRules    AutomationRule[]
   quotes             Quote[]
+  invoices           Invoice[]
   dossierDocuments   DossierDocument[]
   documentAuditLogs  DocumentAuditLog[]
   intervenantInvitations IntervenantInvitation[]
@@ -478,6 +479,7 @@ model Project {
   iaJobs               IaJob[]
   auditLogs            AuditLog[]
   quotes               Quote[]
+  invoices             Invoice[]
   reminders            Reminder[]
   dossierDocuments     DossierDocument[]
   demandes             Demande[]               @relation("DemandeProject")
@@ -1152,6 +1154,57 @@ model QuoteLine {
   position    Int     @default(0)
 
   quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+}
+
+// Facture — document de facturation (distinct du devis et du PaymentRequest).
+model Invoice {
+  id          String   @id @default(cuid())
+  workspaceId String
+  projectId   String?
+  quoteId     String?            // devis source (si issue d'une conversion)
+  reference   String?            // F-2026-0001 / FA-... / AV-...
+  // STANDARD / ACOMPTE / INTERMEDIAIRE / SOLDE / AVOIR
+  type        String   @default("STANDARD")
+  // EN_ATTENTE / PAYEE / ACOMPTE / RETARD / AVOIR
+  status      String   @default("EN_ATTENTE")
+  clientName    String?
+  clientEmail   String?
+  clientAddress String?
+  objet         String?
+  conditionsPaiement String?
+  date         DateTime @default(now())
+  dateEcheance DateTime?
+  notes        String?
+  token        String?
+  // Acomptes deja factures (pour une facture de solde).
+  montantDeja  Decimal? @db.Decimal(12, 2)
+  // Totaux snapshot (centimes exacts).
+  totalHT      Decimal? @db.Decimal(12, 2)
+  totalTVA     Decimal? @db.Decimal(12, 2)
+  totalTTC     Decimal? @db.Decimal(12, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lines     InvoiceLine[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, projectId])
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Decimal @db.Decimal(10, 3)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  vatRate     Decimal @default(20) @db.Decimal(5, 2)
+  discount    Decimal @default(0) @db.Decimal(5, 2)
+  unit        String?
+  position    Int     @default(0)
+
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

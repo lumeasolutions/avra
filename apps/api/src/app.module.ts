@@ -26,6 +26,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { DossierDocumentsModule } from './modules/dossier-documents/dossier-documents.module';
 import { QuotesModule } from './modules/quotes/quotes.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { QuotesModule } from './modules/quotes/quotes.module';
     AuditModule,
     DossierDocumentsModule,
     QuotesModule,
+    InvoicesModule,
   ],
   providers: [
     // ✅ Apply ThrottlerGuard globally
