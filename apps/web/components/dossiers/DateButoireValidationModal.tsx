@@ -742,13 +742,12 @@ export function DateButoireValidationModal({
   };
 
   const handleSubmit = async () => {
-    // En mode signature, toutes les dates doivent être remplies.
-    // En mode edit-signed, on autorise sauvegarde partielle (mise à jour
-    // ponctuelle d'une ou plusieurs dates parmi celles déjà saisies).
-    if (!isEditMode && !allFilled) {
-      setError('Toutes les dates butoires doivent être renseignées avant la validation.');
-      return;
-    }
+    // P1 (28/05/2026) : les dates butoires sont OPTIONNELLES a la signature.
+    // Avant, la validation etait bloquee tant que TOUT n'etait pas rempli, ce
+    // qui poussait l'utilisateur a "Pre-remplir avec delais standards" → des
+    // deadlines inventees apparaissaient comme deja planifiees sur un dossier
+    // tout neuf. Desormais on peut valider avec 0 ou quelques dates seulement,
+    // et completer/ajuster ensuite depuis le tableau de bord du dossier signe.
     setSubmitting(true); setError(null);
     try {
       await onConfirm(dates);
@@ -1853,8 +1852,8 @@ export function DateButoireValidationModal({
               <div className="dbv-warn">
                 <AlertTriangle className="dbv-warn-icon" style={{ width: 16, height: 16 }} />
                 <div>
-                  Sans dates butoires, l'équipe perd la traçabilité des deadlines projet.
-                  <strong> La validation est bloquée tant que toutes les dates ne sont pas saisies.</strong>
+                  Les dates butoires aident l'équipe à suivre les deadlines projet.
+                  <strong> Elles sont facultatives : vous pouvez valider maintenant et les compléter ou les ajuster plus tard depuis le tableau de bord du dossier.</strong>
                 </div>
               </div>
 
@@ -1981,12 +1980,10 @@ export function DateButoireValidationModal({
             </button>
             <button
               type="button"
-              className={`dbv-btn dbv-confirm${(isEditMode || allFilled) ? ' ready' : ''}${submitting ? ' submitting' : ''}`}
+              className={`dbv-btn dbv-confirm ready${submitting ? ' submitting' : ''}`}
               onClick={handleSubmit}
-              // En mode edit-signed, on autorise l'enregistrement même partiel :
-              // l'utilisateur peut sauvegarder une mise à jour sur seulement
-              // certaines dates sans devoir tout remplir.
-              disabled={(!isEditMode && !allFilled) || submitting || loading}
+              // P1 : dates optionnelles → bouton toujours actif (hors submit).
+              disabled={submitting || loading}
             >
               {submitting || loading ? (
                 <>
@@ -2000,7 +1997,9 @@ export function DateButoireValidationModal({
                     ? 'Enregistrer les dates'
                     : allFilled
                       ? 'Valider le projet'
-                      : `Encore ${total - filledCount} date${total - filledCount > 1 ? 's' : ''}`}
+                      : filledCount > 0
+                        ? `Valider le projet (${filledCount}/${total} dates)`
+                        : 'Valider le projet (dates à compléter plus tard)'}
                 </>
               )}
             </button>

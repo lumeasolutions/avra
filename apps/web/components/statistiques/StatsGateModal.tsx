@@ -187,11 +187,22 @@ export function StatsGateModal({
   const optionsValideesSubfolders = useMemo<Array<{ label: string; docs: DocumentFile[] }>>(() => {
     const subfolders = selected?.signedSubfolders ?? [];
     return subfolders
-      .filter((sf) =>
-        ARCHITECTE_PROJET_VERSION_REGEX.test(sf.label) ||
-        CUISINISTE_OPTION_REGEX.test(sf.label) ||
-        MENUISIER_PROJET_REGEX.test(sf.label),
-      )
+      // P2 (28/05/2026) : a la signature, les sous-dossiers recoivent un suffixe
+      // " VALIDEE"/" VALIDE" (+ eventuel nom custom), ex "OPTION 1 CUISINE VALIDEE",
+      // "PROJET 1 VALIDE", "PROJET VERSION 1 - APD VALIDE". Les regex ancrees en
+      // fin ($) ne matchaient alors plus → devis non affiches. On matche donc le
+      // DEBUT du label (non ancre en fin) pour tolerer suffixe + custom.
+      .filter((sf) => {
+        const L = sf.label;
+        return (
+          /^OPTION\s+\d+/i.test(L) ||
+          /^PROJET\s+VERSION\s+\d+\s*[–—-]\s*(APS|APD)/i.test(L) ||
+          /^PROJET\s+\d+/i.test(L) ||
+          ARCHITECTE_PROJET_VERSION_REGEX.test(L) ||
+          CUISINISTE_OPTION_REGEX.test(L) ||
+          MENUISIER_PROJET_REGEX.test(L)
+        );
+      })
       .map((sf) => ({
         label: sf.label,
         docs: (sf.documents ?? []).map((d: SubFolderDocument) =>
@@ -311,7 +322,10 @@ export function StatsGateModal({
   const draftIsValid = useMemo(() => {
     if (!draft.fournisseur.trim()) return false;
     if (!Number.isFinite(liveAchat) || liveAchat < 0) return false;
-    if (!Number.isFinite(liveVente) || liveVente < 0) return false;
+    // P3 (28/05/2026) : la vente est OPTIONNELLE — on peut saisir une ligne
+    // d'achat seule (devis fournisseur) et completer le prix de vente plus tard
+    // (badge "Vente a saisir"). On ne bloque que si une vente NEGATIVE est tapee.
+    if (draft.vente.trim() && (!Number.isFinite(liveVente) || liveVente < 0)) return false;
     return true;
   }, [draft, liveAchat, liveVente]);
 
@@ -332,7 +346,8 @@ export function StatsGateModal({
     onAddLigne(selected.id, {
       fournisseur: draft.fournisseur.trim(),
       prixAchatHT: liveAchat,
-      prixVenteHT: liveVente,
+      // Vente vide → 0 (a completer plus tard). Cf. P3.
+      prixVenteHT: Number.isFinite(liveVente) ? liveVente : 0,
     });
     setDraft(EMPTY_DRAFT);
     writeDraft(selected.id, EMPTY_DRAFT);
