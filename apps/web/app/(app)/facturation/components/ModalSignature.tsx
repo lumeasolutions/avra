@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { X, Check, Clock, CheckCircle2, Pen, Send, Paperclip, AlertCircle } from 'lucide-react';
-import { useFacturationStore, type Devis } from '@/store';
+import { useFacturationStore, useConfigStore, type Devis } from '@/store';
 import { api } from '@/lib/api';
+import { generateDevisPdfForSignature } from '@/lib/devisPdf';
 
 interface ModalSignatureProps {
   devis: Devis;
@@ -12,6 +13,7 @@ interface ModalSignatureProps {
 
 export const ModalSignature = React.memo(function ModalSignature({ devis, onClose }: ModalSignatureProps) {
   const sendDevisForSignature = useFacturationStore(s => s.sendDevisForSignature);
+  const societe = useConfigStore(s => s.societe);
   const markDevisSigned = useFacturationStore(s => s.markDevisSigned);
   const [email, setEmail] = useState(devis.clientEmail ?? '');
   const [firstName, setFirstName] = useState('');
@@ -36,7 +38,11 @@ export const ModalSignature = React.memo(function ModalSignature({ devis, onClos
     setError(null);
 
     try {
-      // Call the backend API with YouSign details
+      // Génère le PDF du devis et sa zone de signature (cf. /lib/devisPdf).
+      // Sans document, Yousign envoie une invitation vide → ici on joint le PDF.
+      const { base64, field } = generateDevisPdfForSignature(devis, societe);
+
+      // Call the backend API with YouSign details + le document à signer
       await api('/signature', {
         method: 'POST',
         body: JSON.stringify({
@@ -46,6 +52,8 @@ export const ModalSignature = React.memo(function ModalSignature({ devis, onClos
           signerFirstName: firstName,
           signerLastName: lastName,
           message,
+          documentBase64: base64,
+          signatureField: field,
         }),
       });
 

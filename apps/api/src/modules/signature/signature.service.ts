@@ -121,7 +121,8 @@ export class SignatureService {
                 lastName: dto.signerLastName,
                 email: dto.signerEmail,
                 phone: dto.signerPhone,
-              }
+              },
+              dto.signatureField,
             );
             yousignSignerId = signerResponse.id;
             signingUrl = signerResponse.signature_link || null;

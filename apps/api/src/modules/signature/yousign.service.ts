@@ -122,8 +122,12 @@ export class YouSignService {
       lastName: string;
       email: string;
       phone?: string;
-    }
+    },
+    // Placement du champ de signature (origine haut-gauche, points). Fourni par
+    // le frontend selon le PDF genere ; defaut = bas de page 1 (retro-compat).
+    fieldPlacement?: { page: number; x: number; y: number; width: number; height: number },
   ): Promise<SignerResponse> {
+    const field = fieldPlacement ?? { page: 1, x: 77, y: 624, width: 214, height: 55 };
     return this.request<SignerResponse>(
       `/signature_requests/${signatureRequestId}/signers`,
       {
@@ -143,11 +147,11 @@ export class YouSignService {
             {
               document_id: documentId,
               type: 'signature',
-              page: 1,
-              x: 77,
-              y: 624,
-              width: 214,
-              height: 55,
+              page: field.page,
+              x: field.x,
+              y: field.y,
+              width: field.width,
+              height: field.height,
             },
           ],
         }),

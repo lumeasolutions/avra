@@ -1,4 +1,4 @@
-import { IsString, IsUUID, IsEmail, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsArray, IsNumber, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SignerDto {
@@ -16,8 +16,27 @@ export class SignerDto {
   phone?: string;
 }
 
+/** Placement du champ de signature dans le PDF (origine haut-gauche, points). */
+export class SignatureFieldDto {
+  @IsNumber()
+  page: number;
+
+  @IsNumber()
+  x: number;
+
+  @IsNumber()
+  y: number;
+
+  @IsNumber()
+  width: number;
+
+  @IsNumber()
+  height: number;
+}
+
 export class CreateSignatureDto {
-  @IsUUID()
+  // Les identifiants projet sont des cuid (ex: cmpo...), pas des UUID → IsString.
+  @IsString()
   projectId: string;
 
   @IsString()
@@ -58,4 +77,10 @@ export class CreateSignatureDto {
   @IsString()
   @IsOptional()
   documentBase64?: string;
+
+  // Position du champ de signature (calculée côté frontend selon le PDF généré).
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SignatureFieldDto)
+  signatureField?: SignatureFieldDto;
 }
