@@ -101,6 +101,8 @@ const INITIAL_APPORTEURS: Apporteur[] = [];
 
 // Helper
 const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 8);
+/** Arrondi monétaire au centime (2 décimales) — JAMAIS à l'euro entier. */
+const round2 = (n: number) => Math.round(n * 100) / 100;
 const USERS = ['Cassandra', 'Sylvie', 'Christian'];
 const randomUser = () => USERS[Math.floor(Math.random() * USERS.length)];
 
@@ -182,8 +184,8 @@ export const useFacturationStore = create<FacturationState>()(
           return s + ht * (1 + l.tva / 100);
         }, 0);
         const token = 'tok_' + id.slice(3, 9) + '_' + crypto.randomUUID().replace(/-/g, '').slice(0, 8);
-        const newInv: InvoiceDetail = { ...inv, id, ref, montantHT: Math.round(totalHT), token };
-        const baseInv: Invoice = { id, ref, dossierId: inv.dossierId, client: inv.client, date: inv.date, montantHT: Math.round(totalHT), tva: inv.tva, statut: inv.statut, type: inv.type, notes: inv.notes };
+        const newInv: InvoiceDetail = { ...inv, id, ref, montantHT: round2(totalHT), token };
+        const baseInv: Invoice = { id, ref, dossierId: inv.dossierId, client: inv.client, date: inv.date, montantHT: round2(totalHT), tva: inv.tva, statut: inv.statut, type: inv.type, notes: inv.notes };
         set(s => ({
           invoices: [baseInv, ...s.invoices],
           invoiceDetails: { ...s.invoiceDetails, [id]: newInv },
@@ -222,7 +224,7 @@ export const useFacturationStore = create<FacturationState>()(
           const ht = l.quantite * l.prixUnitaireHT * (1 - l.remise / 100);
           return s + ht * (1 + l.tva / 100);
         }, 0);
-        const newDevis: Devis = { ...devis, id, ref, token, totalHT: Math.round(totalHT), totalTTC: Math.round(totalTTC) };
+        const newDevis: Devis = { ...devis, id, ref, token, totalHT: round2(totalHT), totalTTC: round2(totalTTC) };
         set(s => ({ devis: [newDevis, ...s.devis] }));
         return id;
       },
@@ -262,7 +264,7 @@ export const useFacturationStore = create<FacturationState>()(
       convertDevisToFacture: (devisId, factureType, pourcentage) => {
         const devis = get().devis.find(d => d.id === devisId);
         if (!devis) return '';
-        const montantHT = Math.round(devis.totalHT * (pourcentage / 100));
+        const montantHT = round2(devis.totalHT * (pourcentage / 100));
         const type = factureType === 'AVOIR' ? 'Avoir' : factureType === 'ACOMPTE' || factureType === 'INTERMEDIAIRE' ? "Facture d'acompte" : 'Facture';
         const lignesAjustees: LigneDocument[] = devis.lignes.map(l => ({
           ...l,

@@ -58,9 +58,10 @@ export function generateDevisPdfForSignature(
 
   // ── En-tête ──
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(26);
+  // En-tête = nom de la société émettrice (white-label), pas "AVRA" en dur.
+  doc.setFontSize(societe.nom && societe.nom.length > 22 ? 18 : 26);
   doc.setTextColor(...DARK);
-  doc.text('AVRA', M, y);
+  doc.text(societe.nom || 'AVRA', M, y);
   doc.setFontSize(20);
   doc.setTextColor(...GOLD);
   doc.text('DEVIS', PAGE_W - M, y, { align: 'right' });
