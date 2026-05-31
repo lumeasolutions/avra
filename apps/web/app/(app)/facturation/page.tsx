@@ -1126,11 +1126,13 @@ function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
 
   const filtered = filterStatut === 'TOUTES' ? invoices : invoices.filter(i => i.statut === filterStatut);
 
+  // TTC reel (ventilation multi-taux) : on utilise totalTTC si dispo, sinon fallback mono-taux.
+  const invTTC = (i: Invoice) => i.totalTTC != null ? i.totalTTC : (i.montantHT > 0 ? i.montantHT * (1 + i.tva / 100) : 0);
   const totalHT = invoices.reduce((s, i) => s + (i.montantHT > 0 ? i.montantHT : 0), 0);
-  const totalTTC = invoices.reduce((s, i) => s + (i.montantHT > 0 ? i.montantHT * (1 + i.tva / 100) : 0), 0);
-  const totalPaye = invoices.filter(i => i.statut === 'PAYÉE').reduce((s, i) => s + i.montantHT * (1 + i.tva / 100), 0);
-  const totalRetard = invoices.filter(i => i.statut === 'RETARD').reduce((s, i) => s + Math.abs(i.montantHT * (1 + i.tva / 100)), 0);
-  const totalAttente = invoices.filter(i => i.statut === 'EN ATTENTE').reduce((s, i) => s + i.montantHT * (1 + i.tva / 100), 0);
+  const totalTTC = invoices.reduce((s, i) => s + invTTC(i), 0);
+  const totalPaye = invoices.filter(i => i.statut === 'PAYÉE').reduce((s, i) => s + invTTC(i), 0);
+  const totalRetard = invoices.filter(i => i.statut === 'RETARD').reduce((s, i) => s + Math.abs(invTTC(i)), 0);
+  const totalAttente = invoices.filter(i => i.statut === 'EN ATTENTE').reduce((s, i) => s + invTTC(i), 0);
 
   const NEXT_STATUS: Record<InvoiceStatus, InvoiceStatus | null> = {
     'EN ATTENTE': 'PAYÉE', 'ACOMPTE': 'PAYÉE', 'RETARD': 'PAYÉE', 'PAYÉE': null, 'AVOIR': null,
@@ -1183,7 +1185,7 @@ function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
         ) : (
           <div className="divide-y divide-[#304035]/5">
             {filtered.map(inv => {
-              const ttc = inv.montantHT * (1 + inv.tva / 100);
+              const ttc = invTTC(inv);
               const cfg = INVOICE_STATUS_CFG[inv.statut];
               const next = NEXT_STATUS[inv.statut];
               const detail = invoiceDetails[inv.id];
@@ -1274,7 +1276,7 @@ function OngletEFacturation() {
 
   const docsAvecToken = [
     ...devis.filter(d => d.token).map(d => ({ id: d.id, ref: d.ref, client: d.client, type: 'Devis', token: d.token!, montant: d.totalTTC, statut: d.statut })),
-    ...Object.values(invoiceDetails).filter(d => d.token).map(d => ({ id: d.id, ref: d.ref, client: d.client, type: d.type, token: d.token!, montant: d.montantHT * (1 + d.tva / 100), statut: d.statut })),
+    ...Object.values(invoiceDetails).filter(d => d.token).map(d => ({ id: d.id, ref: d.ref, client: d.client, type: d.type, token: d.token!, montant: d.totalTTC ?? d.montantHT * (1 + d.tva / 100), statut: d.statut })),
   ];
 
   const copyLink = (token: string) => {

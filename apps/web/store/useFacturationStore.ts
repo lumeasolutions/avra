@@ -37,6 +37,8 @@ export interface Invoice {
   date: string;
   montantHT: number;
   tva: number;
+  /** TTC reel (ventilation multi-taux). Source de verite pour l'affichage. */
+  totalTTC?: number;
   statut: InvoiceStatus;
   type: 'Facture' | "Facture d'acompte" | 'Avoir';
   notes?: string;
@@ -197,8 +199,8 @@ export const useFacturationStore = create<FacturationState>()(
           return s + ht * (1 + l.tva / 100);
         }, 0);
         const token = 'tok_' + id.slice(3, 9) + '_' + crypto.randomUUID().replace(/-/g, '').slice(0, 8);
-        const newInv: InvoiceDetail = { ...inv, id, ref, montantHT: round2(totalHT), token };
-        const baseInv: Invoice = { id, ref, dossierId: inv.dossierId, client: inv.client, date: inv.date, montantHT: round2(totalHT), tva: inv.tva, statut: inv.statut, type: inv.type, notes: inv.notes };
+        const newInv: InvoiceDetail = { ...inv, id, ref, montantHT: round2(totalHT), totalTTC: round2(totalTTC), token };
+        const baseInv: Invoice = { id, ref, dossierId: inv.dossierId, client: inv.client, date: inv.date, montantHT: round2(totalHT), tva: inv.tva, totalTTC: round2(totalTTC), statut: inv.statut, type: inv.type, notes: inv.notes };
         set(s => ({
           invoices: [baseInv, ...s.invoices],
           invoiceDetails: { ...s.invoiceDetails, [id]: newInv },
@@ -315,17 +317,26 @@ export const useFacturationStore = create<FacturationState>()(
       convertDevisToFacture: (devisId, factureType, pourcentage) => {
         const devis = get().devis.find(d => d.id === devisId);
         if (!devis) return '';
-        const montantHT = round2(devis.totalHT * (pourcentage / 100));
+        // Un SOLDE facture 100% du devis puis deduit les acomptes deja emis.
+        const isSolde = factureType === 'SOLDE';
+        const pct = isSolde ? 100 : pourcentage;
         const type = factureType === 'AVOIR' ? 'Avoir' : factureType === 'ACOMPTE' || factureType === 'INTERMEDIAIRE' ? "Facture d'acompte" : 'Facture';
         const lignesAjustees: LigneDocument[] = devis.lignes.map(l => ({
           ...l,
           id: 'l' + uid(),
-          prixUnitaireHT: parseFloat((l.prixUnitaireHT * (pourcentage / 100)).toFixed(2)),
-          description: l.description + (factureType !== 'STANDARD' ? ` (${factureType.toLowerCase()} ${pourcentage}%)` : ''),
+          prixUnitaireHT: parseFloat((l.prixUnitaireHT * (pct / 100)).toFixed(2)),
+          description: l.description + (isSolde ? ' (solde)' : factureType !== 'STANDARD' ? ` (${factureType.toLowerCase()} ${pct}%)` : ''),
         }));
         const avgTva = devis.lignes.length > 0
           ? Math.round(devis.lignes.reduce((s, l) => s + l.tva, 0) / devis.lignes.length)
           : 20;
+        // Solde : somme TTC des acomptes/intermediaires deja factures pour ce devis.
+        let montantDeja: number | undefined;
+        if (isSolde) {
+          montantDeja = round2(Object.values(get().invoiceDetails)
+            .filter(inv => inv.devisId === devisId && (inv.factureType === 'ACOMPTE' || inv.factureType === 'INTERMEDIAIRE'))
+            .reduce((s, inv) => s + (inv.totalTTC ?? (inv.lignes ?? []).reduce((a, l) => a + l.quantite * l.prixUnitaireHT * (1 - l.remise / 100) * (1 + l.tva / 100), 0)), 0));
+        }
         return get().addInvoiceDetail({
           dossierId: devis.dossierId,
           client: devis.client,
@@ -339,6 +350,7 @@ export const useFacturationStore = create<FacturationState>()(
           lignes: lignesAjustees,
           devisId,
           factureType,
+          montantDeja,
           conditionsPaiement: devis.conditionsPaiement,
           notes: devis.notes,
         });
