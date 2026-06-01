@@ -22,7 +22,11 @@ export interface FidelityReport {
 }
 
 const VISION_MODEL = process.env.OPENAI_VISION_MODEL || 'gpt-4o-mini';
-const FIDELITY_THRESHOLD = 0.7; // sous ce seuil → retry
+// Seuil durci (juin 2026) : 0.85 au lieu de 0.7. Observation prod : avec 0.7,
+// Vision notait 0.80 sur des rendus avec fenêtre ajoutée + crédence changée,
+// donc PAS de retry et l'utilisateur recevait une image clairement dérivée.
+// À 0.85, le retry se déclenche sur la moindre dérive structurelle perçue.
+const FIDELITY_THRESHOLD = 0.85;
 
 /**
  * Compare l'image source et le rendu IA, retourne un score de fidélité.
@@ -46,24 +50,39 @@ export async function assessRenduFidelity(
   }
 
   const prompt = [
-    'You are an architectural-fidelity judge. You will receive two images:',
+    'You are a STRICT architectural-fidelity judge. You will receive two images:',
     '- IMAGE A: the original source (3D render, CAD plan, sketch or photo)',
     '- IMAGE B: an AI-generated photorealistic version of that source',
     '',
-    'Compare them carefully. Output a single JSON object (no markdown, no code fences) with:',
+    'Your job: detect EVERY structural or material deviation between A and B, then score the fidelity. Be ruthlessly strict — when in doubt, lower the score.',
+    '',
+    'Output a single JSON object (no markdown, no code fences):',
     '{',
-    '  "fidelity": <0-1 number, 1 = perfect geometric fidelity>,',
-    '  "issues": [<short strings: "added window", "moved cabinet", "changed floor to tile", "different camera angle", ...>]',
+    '  "fidelity": <0-1 number>,',
+    '  "issues": [<short strings>]',
     '}',
     '',
-    'Score guidance:',
-    '- 1.0 = same room: same walls, same windows (count, position, size), same cabinet layout, same floor material, same backsplash, same camera angle.',
-    '- 0.8 = minor cosmetic drift (lighting, color of an accent) but structure identical.',
-    '- 0.5 = noticeable drift (different window placement, slightly different cabinet count, floor material changed without justification).',
-    '- 0.2 = major drift (different room layout, hallucinated features).',
-    '- 0.0 = completely different room.',
+    'CRITICAL DEVIATIONS — each one of these brings score down by AT LEAST 0.20:',
+    '- A window was ADDED where there was a wall in A',
+    '- A window was REMOVED that existed in A',
+    '- A window CHANGED POSITION or SIZE',
+    '- The backsplash/crédence material was CHANGED (e.g. pink tile → grey unchanged was not requested)',
+    '- The floor material was CHANGED (e.g. concrete → desert sand)',
+    '- A cabinet was ADDED or REMOVED or RESIZED',
+    '- Camera angle / framing CHANGED noticeably',
+    '- An outdoor scene appears in B that was not visible in A',
+    '- New decorative objects appeared that were not in A',
     '',
-    'Ignore differences that are NORMAL transformations from 3D-look to photo (textures more realistic, shadows softer, lighting more natural). Focus on STRUCTURE.',
+    'Score scale (be strict):',
+    '- 1.00 = perfect, no detectable deviation',
+    '- 0.90 = trivial cosmetic difference (slightly different lighting tone)',
+    '- 0.80 = one minor cosmetic drift, no structural change',
+    '- 0.70 = one material changed without explicit user request OR one minor structural element off',
+    '- 0.50 = one CRITICAL deviation (added window, changed backsplash, etc.)',
+    '- 0.30 = multiple CRITICAL deviations',
+    '- 0.10 = completely different room',
+    '',
+    'DO NOT penalize: normal 3D→photo transformation (more realistic textures, softer shadows, natural lighting). Focus ONLY on STRUCTURE and MATERIALS the user did not request to change.',
     '',
     'Respond ONLY with the JSON object.',
   ].join('\n');

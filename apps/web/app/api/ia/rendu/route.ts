@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
         projectId,
         type:        'PHOTOREALISM_ENHANCE',
         status:      'QUEUED',
-        modelsUsed:  ['fal-ai/flux-control-net-canny', 'fal-ai/flux-pro/kontext'],
+        modelsUsed:  ['fal-ai/flux-control-lora-canny/image-to-image', 'fal-ai/flux-pro/kontext'],
         params: {
           facades:       params.facades,
           planTravail:   params.planTravail,
@@ -323,7 +323,7 @@ export async function POST(req: NextRequest) {
     //  - modelsUsed reflète le pipeline réellement utilisé (pas la liste prévue).
     const costEUR = (pipelineUsed === 'controlnet-canny' ? 0.09 : 0.06) * result.imageUrls.length;
     const finalModelsUsed = pipelineUsed === 'controlnet-canny'
-      ? ['fal-ai/imageutils/canny', 'fal-ai/flux-control-net-canny']
+      ? ['fal-ai/flux-control-lora-canny/image-to-image']
       : ['fal-ai/flux-pro/kontext'];
     await prisma.iaJob.update({
       where: { id: job.id },

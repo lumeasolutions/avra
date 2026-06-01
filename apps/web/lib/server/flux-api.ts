@@ -44,12 +44,12 @@ const FLUX_MODEL_COLORISTE_I2I    = 'fal-ai/flux/dev/image-to-image';
 const FLUX_MODEL_KONTEXT_SINGLE   = 'fal-ai/flux-pro/kontext';
 const FLUX_MODEL_KONTEXT_MULTI    = 'fal-ai/flux-pro/kontext/multi';
 
-// Phase 1 (juin 2026) — ControlNet Canny pour verrouillage géométrique strict.
-// Pipeline : extraction Canny des contours de l'image source puis génération
-// Flux avec contrainte architecturale dure (les bords Canny imposent la
-// structure ; le modèle ne peut PAS inventer un mur ou une fenêtre).
-const CANNY_EXTRACT_MODEL    = 'fal-ai/imageutils/canny';
-const FLUX_CONTROLNET_CANNY  = 'fal-ai/flux-control-net-canny';
+// Phase 1 (juin 2026) — Flux Control LoRA Canny pour verrouillage géométrique.
+// Endpoint vérifié dans la doc fal.ai (juin 2026) : extraction Canny INTERNE
+// + génération Flux conditionnée en un seul appel API. Plus rapide et plus
+// fiable que le pipeline 2 étapes initial (Canny extract + Flux ControlNet)
+// qui utilisait un slug introuvable.
+const FLUX_CONTROL_LORA_CANNY = 'fal-ai/flux-control-lora-canny/image-to-image';
 
 // Stratégie infaillible (mai 2026) : SAM par texte + Inpainting par région.
 // Le pipeline garantit que tout pixel hors des 3 masques (façades, poignées,
@@ -714,105 +714,78 @@ export async function generateRenduFromReferenceKontext(
   }
 }
 
-// ─────────────────────────────────────────── PHASE 1 : CONTROLNET CANNY
+// ─────────────────────────────────────────── PHASE 1 : FLUX CONTROL LORA CANNY
 //
-// Pipeline 2 étapes pour verrouillage géométrique strict :
-//   1. Extraction Canny des contours de l'image source (lib fal-ai/imageutils)
-//   2. Génération Flux conditionnée par les contours Canny + le prompt
+// Verrouillage géométrique via Flux Control LoRA Canny — endpoint vérifié
+// dans la doc fal.ai. Un seul appel : le modèle extrait les contours Canny
+// de l'image source en interne ET les utilise comme contrainte architecturale
+// dure. Le modèle ne peut PAS générer un mur où il y avait une fenêtre dans
+// le Canny, c'est physiquement contraint.
 //
-// La différence cruciale avec Kontext : ControlNet impose les bords Canny
-// comme contrainte architecturale DURE — le modèle ne peut PAS générer un
-// mur où il y avait une fenêtre dans le Canny, c'est physiquement contraint.
-// Kontext, lui, "négocie" entre prompt et image et peut dériver.
+// Différence cruciale avec Kontext : Kontext "négocie" entre prompt et image
+// et peut dériver (fenêtre ajoutée, crédence changée). Control LoRA Canny
+// fait respecter les bords détectés.
 //
-// Fallback : si l'étape Canny OU la génération ControlNet échoue, on
-// retombe automatiquement sur Kontext (pas de plantage côté client).
-
-/** Extrait les contours Canny d'une image source via fal-ai/imageutils/canny.
- *  Retourne l'URL du Canny map PNG, ou null si l'extraction échoue. */
-async function extractCannyEdges(imageUrl: string): Promise<string | null> {
-  ensureConfigured();
-  const t0 = Date.now();
-  try {
-    // low/high thresholds Canny : 100/200 = équilibre standard pour images
-    // de cuisine/architecture. Trop bas → bruit excessif ; trop haut → on
-    // perd les bords fins (poignées, joints de meubles).
-    const result = await fal.subscribe(CANNY_EXTRACT_MODEL, {
-      input: {
-        image_url:      imageUrl,
-        low_threshold:  100,
-        high_threshold: 200,
-      },
-      logs: false,
-    });
-    const url = extractMaskUrl(result.data) ?? extractImageUrls(result.data)[0] ?? null;
-    console.log(`[Canny] extract ${url ? 'OK' : 'NO IMG'} en ${Date.now() - t0}ms`);
-    return url;
-  } catch (err) {
-    console.warn(`[Canny] extract ÉCHEC en ${Date.now() - t0}ms:`,
-      err instanceof Error ? err.message : err);
-    return null;
-  }
-}
+// Fallback : si l'appel rate (modèle indisponible, image rejetée, etc.),
+// on retombe automatiquement sur Kontext côté caller — pas de plantage.
 
 /**
- * Rendu via ControlNet Canny — verrouillage architectural strict.
+ * Rendu via Flux Control LoRA Canny — verrouillage architectural strict.
  *
- * Pipeline :
- *   - Extraction Canny des contours (50-150 px de zone d'incertitude max)
- *   - Génération Flux ControlNet avec controlnet_conditioning_scale=0.8 :
- *     forte contrainte mais laisse assez de marge au modèle pour produire
- *     des matériaux photoréalistes.
+ * Inputs requis par l'API :
+ *  - control_lora_image_url : image source (Canny extrait en interne)
+ *  - image_url              : image source (guide les couleurs)
+ *  Note : on passe la même URL aux deux — c'est le pattern recommandé pour
+ *  un rendu photoréaliste qui respecte structure ET couleurs de la source.
  *
- * Retourne success=false avec error détaillée si une des étapes rate
- * (la route caller fait alors fallback sur Kontext).
+ * Paramètres clés :
+ *  - control_lora_strength=1.0 : structure Canny verrouillée à fond
+ *  - strength=0.75 : préserve 25% de la source (couleurs), reste libre pour
+ *    transformer 3D synthétique → photo réelle (default 0.85 trop libéral)
+ *  - num_inference_steps=32 : qualité accrue (default 28)
+ *  - guidance_scale=4 : adhérence prompt sans over-fit
  */
 export async function generateRenduFromReferenceControlNet(
   params: RenduParams,
   referenceImageUrl: string,
   numImages: number = 1,
-): Promise<GenerationResult & { cannyUrl?: string | null }> {
+): Promise<GenerationResult> {
   ensureConfigured();
   const tStart = Date.now();
   const built = buildRenduFromImageKontextPrompt(params);
 
-  // Étape 1 — Canny edges
-  const cannyUrl = await extractCannyEdges(referenceImageUrl);
-  if (!cannyUrl) {
-    return {
-      success:    false,
-      imageUrl:   null,
-      imageUrls:  [],
-      prompt:     built,
-      attempts:   1,
-      durationMs: Date.now() - tStart,
-      error:      'Canny edge extraction failed',
-      cannyUrl:   null,
-    };
-  }
-
-  // Étape 2 — Génération conditionnée Canny
   try {
-    console.log(`[fal.subscribe] ${FLUX_CONTROLNET_CANNY} promptLen=${built.prompt.length}`);
-    // controlnet_conditioning_scale 0.8 : sweet spot — assez fort pour
-    // verrouiller la structure, assez souple pour permettre au modèle de
-    // produire des textures photoréalistes. > 0.9 → textures figées.
-    const result = await fal.subscribe(FLUX_CONTROLNET_CANNY, {
-      input: {
-        prompt:                         built.prompt,
-        image_url:                      referenceImageUrl,
-        control_image_url:              cannyUrl,
-        controlnet_conditioning_scale:  0.8,
-        num_images:                     Math.min(Math.max(numImages, 1), 4),
-        seed:                           built.seed,
-        num_inference_steps:            32,
-        guidance_scale:                 4.5,
-        output_format:                  'jpeg',
-      },
+    console.log(`[fal.subscribe] ${FLUX_CONTROL_LORA_CANNY} promptLen=${built.prompt.length}`);
+    const input: Record<string, unknown> = {
+      prompt:                 built.prompt,
+      control_lora_image_url: referenceImageUrl,
+      image_url:              referenceImageUrl,
+      control_lora_strength:  1.0,
+      strength:               0.75,
+      num_images:             Math.min(Math.max(numImages, 1), 4),
+      seed:                   built.seed,
+      num_inference_steps:    32,
+      guidance_scale:         4,
+      output_format:          'jpeg',
+      enable_safety_checker:  true,
+    };
+    // Si on a les dimensions natives, on les passe à l'API pour préserver
+    // le ratio exact de la source (évite les recadrages aberrants).
+    if (params.sourceWidth && params.sourceHeight) {
+      // Clamp à 1024 max sur le côté long (limite raisonnable pour Flux LoRA)
+      const longest = Math.max(params.sourceWidth, params.sourceHeight);
+      const scale = longest > 1024 ? 1024 / longest : 1;
+      input.image_size = {
+        width:  Math.round(params.sourceWidth  * scale),
+        height: Math.round(params.sourceHeight * scale),
+      };
+    }
+    const result = await fal.subscribe(FLUX_CONTROL_LORA_CANNY, {
+      input: input as never,
       logs: false,
     });
     const urls = extractImageUrls(result.data);
-    console.log(`[fal.subscribe] ${FLUX_CONTROLNET_CANNY} OK en ${Date.now() - tStart}ms (${urls.length} URL)`);
+    console.log(`[fal.subscribe] ${FLUX_CONTROL_LORA_CANNY} OK en ${Date.now() - tStart}ms (${urls.length} URL)`);
     return {
       success:    urls.length > 0,
       imageUrl:   urls[0] ?? null,
@@ -821,11 +794,10 @@ export async function generateRenduFromReferenceControlNet(
       attempts:   1,
       durationMs: Date.now() - tStart,
       error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
-      cannyUrl,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.warn(`[fal.subscribe] ${FLUX_CONTROLNET_CANNY} ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
+    console.warn(`[fal.subscribe] ${FLUX_CONTROL_LORA_CANNY} ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
     return {
       success:    false,
       imageUrl:   null,
@@ -834,7 +806,6 @@ export async function generateRenduFromReferenceControlNet(
       attempts:   1,
       durationMs: Date.now() - tStart,
       error:      message,
-      cannyUrl,
     };
   }
 }
