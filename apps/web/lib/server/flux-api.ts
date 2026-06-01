@@ -13,10 +13,14 @@
  *   - Submit + polling (fal.subscribe)
  *   - Retries internes raisonnables
  *
- *  3 modes :
+ *  3 modes (juin 2026 — text-to-image retiré) :
  *   - Coloriste img2img sans textures → fal-ai/flux/dev/image-to-image
  *   - Coloriste img2img avec textures → fal-ai/flux-pro/kontext/multi
- *   - Rendu réaliste text-to-image    → fal-ai/flux-pro/v1.1-ultra
+ *   - Rendu réaliste img2img (plan / 3D / sketch / inspi) → fal-ai/flux-pro/kontext
+ *
+ *  Le mode rendu text-to-image pur a été supprimé : sans image source,
+ *  Flux inventait sol, crédence et ouvertures de façon incohérente avec
+ *  la cuisine réelle du client.
  * ──────────────────────────────────────────────────────────────
  */
 
@@ -24,7 +28,6 @@ import { fal } from '@fal-ai/client';
 import {
   buildColoristPrompt,
   buildKontextColoristPrompt,
-  buildRenduPrompt,
   buildRenduFromImageKontextPrompt,
   buildFacadeRegionPrompt,
   buildHandleRegionPrompt,
@@ -37,7 +40,6 @@ import {
 
 // ─────────────────────────────────────────── CONFIG SDK
 
-const FLUX_MODEL_RENDU            = 'fal-ai/flux-pro/v1.1-ultra';
 const FLUX_MODEL_COLORISTE_I2I    = 'fal-ai/flux/dev/image-to-image';
 const FLUX_MODEL_KONTEXT_SINGLE   = 'fal-ai/flux-pro/kontext';
 const FLUX_MODEL_KONTEXT_MULTI    = 'fal-ai/flux-pro/kontext/multi';
@@ -528,17 +530,13 @@ export async function generateColoristImageKontext(
   }
 }
 
-// ─────────────────────────────────────────── RENDU RÉALISTE (Flux Pro Ultra)
+// ─────────────────────────────────────────── RENDU RÉALISTE (Kontext img2img)
 
 /**
- * Rendu réaliste text-to-image (sans photo source).
- * Flux Pro Ultra : qualité maximale, ~10-20s, $0.06 / image.
- */
-/**
- * Rendu Réaliste img2img via Kontext — pour transformation FIDÈLE d'un
- * plan WinnerFlex / render 3D / sketch en photo réaliste.
+ * Rendu Réaliste img2img via Kontext — SEUL mode supporté (juin 2026).
  *
- * Différent de generateRenduImage (Ultra + image_prompt léger) :
+ * Transforme fidèlement un plan WinnerFlex, un render 3D, un sketch ou
+ * une photo d'inspiration en photo réaliste :
  *  - Kontext fait une vraie image-to-image (transformation pixel-aware)
  *  - Le layout, l'angle, la pose des meubles sont préservés
  *  - Seul le rendering style change (3D synthétique → photo réelle)
@@ -584,75 +582,6 @@ export async function generateRenduFromReferenceKontext(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn(`[fal.subscribe] ${FLUX_MODEL_KONTEXT_SINGLE} (rendu) ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
-    return {
-      success:    false,
-      imageUrl:   null,
-      imageUrls:  [],
-      prompt:     built,
-      attempts:   1,
-      durationMs: Date.now() - tStart,
-      error:      message,
-    };
-  }
-}
-
-export async function generateRenduImage(
-  params: RenduParams,
-  numImages: number = 1,
-  /** Image de référence optionnelle (plan WinnerFlex, photo inspiration, sketch).
-   * Flux Pro Ultra accepte `image_prompt` qui guide la génération sans
-   * imposer la transformation stricte (contrairement à Kontext). Bon pour :
-   * - donner une intention d'agencement / proportions
-   * - inspirer un style visuel (ambiance d'une photo Pinterest)
-   * Si null, mode pur text-to-image. */
-  referenceImageUrl?: string | null,
-): Promise<GenerationResult> {
-  ensureConfigured();
-  const tStart = Date.now();
-  const built = buildRenduPrompt(params, 'standard');
-
-  try {
-    const hasRef = !!referenceImageUrl;
-    console.log(`[fal.subscribe] ${FLUX_MODEL_RENDU} ${hasRef ? 'text2img+ref' : 'text2img'} premium promptLen=${built.prompt.length}`);
-    // Flux Pro Ultra : params perfection 19/05/2026.
-    //  - raw: false → rendu poli AD-style.
-    //  - safety_tolerance '2' → permissif.
-    //  - aspect_ratio 16:9.
-    //  - image_prompt si fourni : guide la génération (style/intention).
-    //  - image_prompt_strength 0.1-0.5 : à 0.1 c'est subtil (default fal),
-    //    on monte à 0.3 pour avoir un guidage notable sans étrangler la
-    //    créativité du prompt texte (qui contient déjà tous les détails).
-    const input: Record<string, unknown> = {
-      prompt:           built.prompt,
-      num_images:       Math.min(Math.max(numImages, 1), 4),
-      seed:             built.seed,
-      output_format:    'jpeg',
-      aspect_ratio:     '16:9',
-      safety_tolerance: '2',
-      raw:              false,
-    };
-    if (hasRef) {
-      input.image_prompt          = referenceImageUrl;
-      input.image_prompt_strength = 0.3;
-    }
-    const result = await fal.subscribe(FLUX_MODEL_RENDU, {
-      input: input as never,
-      logs: false,
-    });
-    const urls = extractImageUrls(result.data);
-    console.log(`[fal.subscribe] ${FLUX_MODEL_RENDU} OK en ${Date.now() - tStart}ms (${urls.length} URL)`);
-    return {
-      success:    urls.length > 0,
-      imageUrl:   urls[0] ?? null,
-      imageUrls:  urls,
-      prompt:     built,
-      attempts:   1,
-      durationMs: Date.now() - tStart,
-      error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.warn(`[fal.subscribe] ${FLUX_MODEL_RENDU} ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
     return {
       success:    false,
       imageUrl:   null,

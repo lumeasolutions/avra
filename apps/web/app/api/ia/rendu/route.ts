@@ -10,7 +10,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RenduParams } from '@/lib/server/prompt-builder';
 import {
-  generateRenduImage,
   generateRenduFromReferenceKontext,
   ensureHttpsUrl,
 } from '@/lib/server/flux-api';
@@ -83,21 +82,29 @@ export async function POST(req: NextRequest) {
     hasPlanFile:   !!body.referenceImageDataUrl,
     extraContext:  (body.extraContext as string | undefined) ?? undefined,
   };
-  // Image de référence optionnelle (plan WinnerFlex, inspiration, sketch).
-  // data URI ou https — sera uploadée vers fal-cdn si data URI.
+  // Image de référence OBLIGATOIRE (plan WinnerFlex, render 3D, sketch ou
+  // photo d'inspiration). Le mode text-to-image pur a été retiré (juin 2026) :
+  // sans source visuelle, l'IA inventait sol/crédence/ouvertures de façon
+  // incohérente avec la pièce réelle du client. Seul Kontext img2img est
+  // désormais supporté pour ce module.
   const referenceImageDataUrl =
     typeof body.referenceImageDataUrl === 'string' && body.referenceImageDataUrl.length > 0
       ? body.referenceImageDataUrl
       : null;
+  if (!referenceImageDataUrl) {
+    return NextResponse.json(
+      { error: 'Image de référence requise. Importez un plan, un rendu 3D, un sketch ou une photo d\'inspiration pour générer le rendu réaliste.' },
+      { status: 400 },
+    );
+  }
   const numImages = Math.min(Math.max(parseInt(String(body.numImages), 10) || 1, 1), 4);
   const projectId = typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 
   // ── 4) INSERT IaJob (QUEUED) — protégé pour ne jamais laisser une erreur
   //       Prisma escape en uncaught (cf. coloriste pour le même pattern).
-  // Routing du moteur (19/05/2026) :
-  //   - Avec image de référence → Kontext (img2img fidèle, préserve layout)
-  //   - Sans image → Flux Pro Ultra (text-to-image premium, génération from-scratch)
-  const willUseKontext = !!referenceImageDataUrl;
+  // Routing du moteur (juin 2026) :
+  //   - Image de référence OBLIGATOIRE → Kontext img2img (préserve layout,
+  //     proportions, ouvertures et matériaux fidèlement à la source).
   let job;
   try {
     job = await prisma.iaJob.create({
@@ -107,7 +114,7 @@ export async function POST(req: NextRequest) {
         projectId,
         type:        'PHOTOREALISM_ENHANCE',
         status:      'QUEUED',
-        modelsUsed:  [willUseKontext ? 'fal-ai/flux-pro/kontext' : 'fal-ai/flux-pro/v1.1-ultra'],
+        modelsUsed:  ['fal-ai/flux-pro/kontext'],
         params: {
           facades:       params.facades,
           planTravail:   params.planTravail,
@@ -167,30 +174,24 @@ export async function POST(req: NextRequest) {
       data:  { status: 'PROCESSING' },
     });
 
-    // ── 6) Si image de référence fournie, on l'upload vers fal-cdn d'abord
-    //       puis on passe l'URL https à generateRenduImage pour image_prompt.
-    let referenceHttpsUrl: string | null = null;
-    if (referenceImageDataUrl) {
-      try {
-        referenceHttpsUrl = await ensureHttpsUrl(referenceImageDataUrl);
-        await prisma.iaJob.update({
-          where: { id: job.id },
-          data: { inputImageUrls: { reference: referenceHttpsUrl } },
-        });
-      } catch (uploadErr) {
-        console.warn('[API /ia/rendu] upload reference image échec:',
-          uploadErr instanceof Error ? uploadErr.message : uploadErr);
-        // On continue sans référence — pure text2img.
-        referenceHttpsUrl = null;
-      }
+    // ── 6) Upload de l'image de référence vers fal-cdn (obligatoire).
+    //       Si l'upload échoue, on FAIL la requête au lieu de tomber en
+    //       text-to-image — c'est précisément ce mode qu'on a supprimé.
+    let referenceHttpsUrl: string;
+    try {
+      referenceHttpsUrl = await ensureHttpsUrl(referenceImageDataUrl);
+      await prisma.iaJob.update({
+        where: { id: job.id },
+        data: { inputImageUrls: { reference: referenceHttpsUrl } },
+      });
+    } catch (uploadErr) {
+      console.warn('[API /ia/rendu] upload reference image échec:',
+        uploadErr instanceof Error ? uploadErr.message : uploadErr);
+      return fail(502, 'Impossible d\'uploader l\'image de référence vers le service IA. Réessayez dans un instant.', Date.now() - tStart);
     }
 
-    // ── 7) Génération : routing selon présence d'image de référence
-    //       - Avec image → Kontext img2img (transformation fidèle 3D→photo)
-    //       - Sans image → Flux Pro Ultra (text-to-image premium from scratch)
-    const result = referenceHttpsUrl
-      ? await generateRenduFromReferenceKontext(params, referenceHttpsUrl, numImages)
-      : await generateRenduImage(params, numImages, null);
+    // ── 7) Génération : Kontext img2img (transformation fidèle 3D/plan → photo)
+    const result = await generateRenduFromReferenceKontext(params, referenceHttpsUrl, numImages);
 
     if (!result.success) {
       const err = (result.error ?? '').toLowerCase();

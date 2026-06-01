@@ -496,78 +496,11 @@ export function buildColoristPrompt(
   return { prompt, negative: NEGATIVE_PROMPT, seed, level, warnings };
 }
 
-// ─────────────────────────────────────────── BUILDER RENDU RÉALISTE
-
-export function buildRenduPrompt(
-  params: RenduParams,
-  level: PromptLevel = 'standard'
-): BuiltPrompt {
-  // Refonte 19/05/2026 : utilise les blocs RENDU dédiés (plus de constantes
-  // partagées avec le coloriste — zéro régression possible).
-  const lightBlock = LIGHTING_BLOCKS_RENDU[params.lightingStyle];
-  const sizeBlock  = SIZE_BLOCKS_RENDU[params.roomSize];
-  const styleBlock = STYLE_BLOCKS_RENDU[params.style];
-
-  let prompt = '';
-
-  const solLine  = params.sol  ? `Flooring: ${params.sol} with realistic texture detail.` : '';
-  const mursLine = params.murs ? `Walls: ${params.murs}, perfectly painted with subtle texture.` : '';
-
-  if (level === 'standard') {
-    // Structure en 7 sections cohérentes — flux Pro Ultra réagit mieux à un
-    // prompt narratif structuré qu'à une liste de keywords vides.
-    prompt = [
-      // 1. Scène : type, taille, style en une phrase forte
-      `Ultra-realistic professional interior photography of a luxury French kitchen — ${sizeBlock}.`,
-      // 2. Style architectural détaillé
-      `${styleBlock}.`,
-      // 3. Façades (description libre user + amplification)
-      `Cabinet doors and panels: ${params.facades} with flawless craftsmanship, micro-detailed material finish, seamless joinery.`,
-      // 4. Plan de travail (description libre user + amplification)
-      `Countertop: ${params.planTravail} with mirror-polished surface, visible material detail, perfect edge profile.`,
-      // 5. Sol et murs (optionnels)
-      solLine,
-      mursLine,
-      // 6. Lumière (bloc riche)
-      `Lighting: ${lightBlock}.`,
-      // 7. Composition + atmosphere
-      `Symmetrical composition with strong leading lines, perfectly leveled horizon, ` +
-      `pristine staging with only essential decorative elements (a single vase of fresh herbs, ` +
-      `a wooden cutting board, sunlight pooling naturally on the counter). ` +
-      `Hyperrealistic detail in every material, true-to-life color accuracy, ` +
-      `balanced shadows and highlights, atmospheric depth.`,
-      // 8. Spécifications techniques caméra + style éditorial
-      TECH_SUFFIX_RENDU + '.',
-    ].filter(Boolean).join(' ');
-  }
-
-  else if (level === 'simplified') {
-    prompt = [
-      `Photorealistic ${params.style} French kitchen interior photography.`,
-      `${params.facades}. ${params.planTravail} countertop.`,
-      solLine, mursLine,
-      `${lightBlock}.`,
-      `Pristine staging, magazine-quality, Hasselblad medium format, 8K, Architectural Digest style.`,
-    ].filter(Boolean).join(' ');
-  }
-
-  else { // minimal — filet de sécurité ultime
-    prompt = `Photorealistic ${params.style} kitchen, ${params.facades}, ${params.planTravail} countertop, ${lightBlock}, 8K magazine quality, Hasselblad medium format.`;
-  }
-
-  if (params.extraContext && level !== 'minimal') {
-    prompt += ` Additional details: ${params.extraContext}.`;
-  }
-
-  const seed     = hashToSeed(buildSeedKey(params));
-  // Mode rendu : on utilise NEGATIVE_PROMPT_RENDU (plus riche, exclut les
-  // défauts spécifiques au text-to-image kitchen photography).
-  const warnings = validatePrompt(prompt, NEGATIVE_PROMPT_RENDU);
-
-  return { prompt, negative: NEGATIVE_PROMPT_RENDU, seed, level, warnings };
-}
-
 // ─────────────────────────────────────────── BUILDER RENDU KONTEXT (img2img)
+// Le mode rendu text-to-image (buildRenduPrompt) a été retiré (juin 2026) :
+// sans image source, l'IA inventait sol/crédence/ouvertures de façon
+// incohérente avec la pièce réelle. Le seul builder de rendu est désormais
+// buildRenduFromImageKontextPrompt — transformation fidèle d'une image source.
 // Quand l'user uploade une image (plan WinnerFlex, render 3D, sketch), on bascule
 // sur Kontext pour faire une vraie transformation fidèle au layout, plutôt
 // qu'une "inspiration" approximative via Ultra image_prompt.

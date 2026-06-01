@@ -982,23 +982,25 @@ export default function IaStudioPage() {
 
   /* ── Rendu : lancer */
   const runRendu = async () => {
-    // Plus de pré-condition : tous les champs Matériaux sont optionnels.
-    // Les defaults serveur ('Façades modernes...' / 'quartz blanc mat')
-    // prennent le relais si vide. Le tab Rendu accepte une simple génération
-    // from-scratch sans aucune saisie texte.
+    // Image de référence OBLIGATOIRE (juin 2026) — le mode text-to-image pur
+    // a été supprimé car sans source visuelle l'IA inventait sol/crédence
+    // /ouvertures de façon incohérente avec la pièce réelle du client.
+    if (!rendRefFile) {
+      setRendError('Importez un plan, un rendu 3D, un sketch ou une photo d\'inspiration pour générer le rendu réaliste.');
+      return;
+    }
     setRendLoading(true); setRendResult(null); setRendError(null);
 
     try {
-      // Image de référence optionnelle compressée côté navigateur (max 1280px,
-      // JPEG q=0.85) pour rester sous la limite Vercel et accélérer l'upload.
-      let referenceImageDataUrl: string | undefined;
-      if (rendRefFile) {
-        try {
-          referenceImageDataUrl = await compressImageToDataUrl(rendRefFile, 1280);
-        } catch {
-          // Soft-fail : on continue sans référence
-          referenceImageDataUrl = undefined;
-        }
+      // Compression côté navigateur (max 1280px, JPEG q=0.85) pour rester
+      // sous la limite Vercel et accélérer l'upload.
+      let referenceImageDataUrl: string;
+      try {
+        referenceImageDataUrl = await compressImageToDataUrl(rendRefFile, 1280);
+      } catch {
+        setRendError('Image illisible. Choisissez une autre image (PNG ou JPG).');
+        setRendLoading(false);
+        return;
       }
       const result = await callRenduAPI({
         facades:               rendFacades || 'Façades modernes, finitions haut de gamme',
@@ -1560,16 +1562,17 @@ export default function IaStudioPage() {
             {/* ── Panneau gauche */}
             <div className="space-y-4">
 
-              {/* Import image de référence (plan WinnerFlex, photo inspiration).
-                  Flux Pro Ultra l'utilise via `image_prompt` (guide style/intention,
-                  ne transforme pas strictement comme Kontext). Strength 0.3 côté
-                  serveur — assez pour orienter, pas assez pour étrangler le prompt. */}
+              {/* Import image de référence — OBLIGATOIRE depuis juin 2026.
+                  Le mode text-to-image pur a été retiré : sans image source,
+                  l'IA inventait sol, crédence et ouvertures de façon
+                  incohérente avec la cuisine réelle. On utilise désormais
+                  toujours Kontext img2img pour préserver fidèlement le layout. */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5">
                 <div className="flex items-center gap-2 mb-1">
                   <FileImage className="h-4 w-4 text-[#5b9bd5]" />
-                  <p className="font-bold text-[#304035]">Image de référence</p>
+                  <p className="font-bold text-[#304035]">Image de référence <span className="ml-1 rounded-full bg-[#5b9bd5]/10 text-[#5b9bd5] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
                 </div>
-                <p className="text-xs text-[#304035]/50 mb-4">Plan WinnerFlex, photo Pinterest ou sketch à transformer en photo réaliste</p>
+                <p className="text-xs text-[#304035]/50 mb-4">Plan WinnerFlex, rendu 3D, sketch ou photo d'inspiration — l'IA transforme votre image en photo réaliste tout en préservant le layout</p>
                 <Drop label="" sub="Déposez un plan, perspective 3D, ou photo d'inspiration"
                   onFile={setRendRefFile} file={rendRefFile} accent="#5b9bd5"
                   tips={['Plan WinnerFlex export image', 'Photo Pinterest qui inspire', 'Sketch / croquis main', 'Photo cuisine ressemblante']} />
@@ -1689,13 +1692,16 @@ export default function IaStudioPage() {
                 {/* Bloc 'Coût estimé' retiré 19/05/2026 — client n'a pas à voir
                     le moteur IA ni le coût. */}
                 <button onClick={runRendu}
-                  disabled={rendLoading}
+                  disabled={rendLoading || !rendRefFile}
+                  title={!rendRefFile ? 'Importez une image de référence (plan, rendu 3D, sketch ou inspiration)' : undefined}
                   className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{background:'linear-gradient(135deg,#5b9bd5 0%,#3a78b5 100%)'}}>
                   <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
                     {rendLoading
                       ? <><Loader2 className="h-4 w-4 animate-spin" />Génération du rendu…</>
-                      : <><Wand2 className="h-4 w-4" />Générer le rendu photoréaliste<ArrowRight className="h-4 w-4 ml-1" /></>
+                      : !rendRefFile
+                        ? <><FileImage className="h-4 w-4" />Importez d'abord une image de référence</>
+                        : <><Wand2 className="h-4 w-4" />Générer le rendu photoréaliste<ArrowRight className="h-4 w-4 ml-1" /></>
                     }
                   </span>
                 </button>
