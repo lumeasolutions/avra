@@ -62,6 +62,11 @@ export interface RenduParams {
   roomSize:          RoomSizeType;
   hasPlanFile:       boolean;  // true = fichier WinnerFlex uploadé
   extraContext?:     string;
+  /** Dimensions natives de l'image source (avant compression). Injectées
+   *  comme anchor numérique dans le prompt Kontext pour forcer le respect
+   *  du ratio et des proportions exactes. */
+  sourceWidth?:      number;
+  sourceHeight?:     number;
 }
 
 export interface BuiltPrompt {
@@ -534,8 +539,15 @@ export function buildRenduFromImageKontextPrompt(params: RenduParams): BuiltProm
     params.murs ? `walls = ${params.murs}` : null,
   ].filter(Boolean).join('; ');
 
+  // Anchor numérique des dimensions : Kontext respecte mieux le ratio quand
+  // on lui rappelle explicitement la résolution source.
+  const dimsLine = params.sourceWidth && params.sourceHeight
+    ? `Source image dimensions: ${params.sourceWidth}×${params.sourceHeight} pixels (aspect ratio ${(params.sourceWidth / params.sourceHeight).toFixed(3)}:1) — PRESERVE this exact aspect ratio in the output.`
+    : '';
+
   const prompt = [
     `TASK: Transform the source kitchen image (image 1) — whether it is a 3D render, CAD plan, sketch, or design preview — into a hyperrealistic professional interior photograph.`,
+    dimsLine,
     ``,
     `═══════════════════════════════════════════════════════════════`,
     `RULE 1 — STRICT GEOMETRY PRESERVATION (HIGHEST PRIORITY)`,

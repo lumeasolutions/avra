@@ -11,8 +11,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { RenduParams } from '@/lib/server/prompt-builder';
 import {
   generateRenduFromReferenceKontext,
+  generateRenduFromReferenceControlNet,
+  refineRenduMaterialsSAM,
   ensureHttpsUrl,
 } from '@/lib/server/flux-api';
+import { assessRenduFidelity } from '@/lib/server/vision-critic';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
 import { prisma } from '@/lib/server/prisma';
@@ -71,6 +74,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Dimensions natives de l'image source (anchor numérique pour le prompt
+  // Kontext — force le respect strict du ratio et des proportions).
+  const srcW = typeof body.sourceWidth === 'number'  && body.sourceWidth  > 0 ? body.sourceWidth  : undefined;
+  const srcH = typeof body.sourceHeight === 'number' && body.sourceHeight > 0 ? body.sourceHeight : undefined;
+
   const params: RenduParams = {
     facades:       String(facades),
     planTravail:   typeof planTravail === 'string' && planTravail.length > 0 ? planTravail : 'quartz blanc mat',
@@ -81,6 +89,8 @@ export async function POST(req: NextRequest) {
     roomSize:      roomSize as RenduParams['roomSize'],
     hasPlanFile:   !!body.referenceImageDataUrl,
     extraContext:  (body.extraContext as string | undefined) ?? undefined,
+    sourceWidth:   srcW,
+    sourceHeight:  srcH,
   };
   // Image de référence OBLIGATOIRE (plan WinnerFlex, render 3D, sketch ou
   // photo d'inspiration). Le mode text-to-image pur a été retiré (juin 2026) :
@@ -99,12 +109,18 @@ export async function POST(req: NextRequest) {
   }
   const numImages = Math.min(Math.max(parseInt(String(body.numImages), 10) || 1, 1), 4);
   const projectId = typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
+  // Phase 2 — toggle "Précision maximale" (SAM+Inpaint matériaux après génération).
+  const maxPrecision = body.maxPrecision === true;
+  // Phase 5 — nombre de "Régénérer" cliqués par l'utilisateur sur cette image.
+  const userRetryCount = typeof body.userRetryCount === 'number' && body.userRetryCount >= 0
+    ? Math.min(body.userRetryCount, 20) : 0;
 
   // ── 4) INSERT IaJob (QUEUED) — protégé pour ne jamais laisser une erreur
   //       Prisma escape en uncaught (cf. coloriste pour le même pattern).
-  // Routing du moteur (juin 2026) :
-  //   - Image de référence OBLIGATOIRE → Kontext img2img (préserve layout,
-  //     proportions, ouvertures et matériaux fidèlement à la source).
+  // Routing du moteur (juin 2026 — Phase 1) :
+  //   - Pipeline primaire : ControlNet Canny (verrouillage géométrique strict)
+  //   - Fallback transparent : Kontext img2img si ControlNet rate
+  //   Le modelsUsed définitif est mis à jour à la fin selon le pipeline réellement utilisé.
   let job;
   try {
     job = await prisma.iaJob.create({
@@ -114,7 +130,7 @@ export async function POST(req: NextRequest) {
         projectId,
         type:        'PHOTOREALISM_ENHANCE',
         status:      'QUEUED',
-        modelsUsed:  ['fal-ai/flux-pro/kontext'],
+        modelsUsed:  ['fal-ai/flux-control-net-canny', 'fal-ai/flux-pro/kontext'],
         params: {
           facades:       params.facades,
           planTravail:   params.planTravail,
@@ -190,8 +206,16 @@ export async function POST(req: NextRequest) {
       return fail(502, 'Impossible d\'uploader l\'image de référence vers le service IA. Réessayez dans un instant.', Date.now() - tStart);
     }
 
-    // ── 7) Génération : Kontext img2img (transformation fidèle 3D/plan → photo)
-    const result = await generateRenduFromReferenceKontext(params, referenceHttpsUrl, numImages);
+    // ── 7) Génération : pipeline ControlNet Canny en premier (verrouillage
+    //       géométrique strict), fallback automatique sur Kontext si échec.
+    //       Phase 5 (monitoring) : on trace pipelineUsed pour analyse.
+    let pipelineUsed: 'controlnet-canny' | 'kontext-fallback' = 'controlnet-canny';
+    let result = await generateRenduFromReferenceControlNet(params, referenceHttpsUrl, numImages);
+    if (!result.success) {
+      console.warn(`[API /ia/rendu] ControlNet Canny KO (${result.error ?? 'unknown'}) → fallback Kontext`);
+      pipelineUsed = 'kontext-fallback';
+      result = await generateRenduFromReferenceKontext(params, referenceHttpsUrl, numImages);
+    }
 
     if (!result.success) {
       const err = (result.error ?? '').toLowerCase();
@@ -199,7 +223,93 @@ export async function POST(req: NextRequest) {
       return fail(status, result.error ?? 'Génération échouée', Date.now() - tStart);
     }
 
-    // ── 7) Copie fal-cdn → Supabase
+    // ── 7bis) Phase 4 — Auto-validation Vision-LLM + retry invisible.
+    //  On envoie le couple (image source, résultat) à GPT-4o-mini Vision pour
+    //  obtenir un score de fidélité géométrique. Si fidelity < 0.7 ET qu'on
+    //  a encore du budget temps, on relance avec une seed différente
+    //  (jusqu'à 2 retries supplémentaires, total max 3 tentatives).
+    //
+    //  Budget temps strict : on garde au moins 60s de marge avant le timeout
+    //  global de 250s pour ne pas faire planter la requête. Au-delà du
+    //  budget, on accepte le résultat actuel même imparfait.
+    let autoRetryCount = 0;
+    let fidelityScore: number | null = null;
+    let fidelityIssues: string[] = [];
+    const TIME_BUDGET_MS    = 250_000;
+    const MIN_MARGIN_MS     = 60_000;
+    const MAX_AUTO_RETRIES  = 2;
+
+    while (autoRetryCount < MAX_AUTO_RETRIES) {
+      const elapsed = Date.now() - tStart;
+      if (elapsed > TIME_BUDGET_MS - MIN_MARGIN_MS) {
+        console.log(`[API /ia/rendu] budget temps écoulé (${elapsed}ms), skip auto-validation`);
+        break;
+      }
+      const firstUrl = result.imageUrls[0];
+      if (!firstUrl) break;
+
+      const report = await assessRenduFidelity(referenceHttpsUrl, firstUrl);
+      if (!report.ok) {
+        console.log(`[API /ia/rendu] vision-critic indisponible, garde résultat tel quel`);
+        break;
+      }
+      fidelityScore  = report.fidelity;
+      fidelityIssues = report.issues;
+      console.log(`[API /ia/rendu] fidelity=${report.fidelity.toFixed(2)} issues=${report.issues.length} (try ${autoRetryCount + 1})`);
+
+      if (!report.shouldRetry) break; // fidelity >= 0.7, on garde
+
+      // Retry avec seed différente. On force une nouvelle seed via Date.now()
+      // injectée dans params.extraContext qui modifie le hash du seed builder.
+      autoRetryCount++;
+      const retrySeedHint = `retry-${autoRetryCount}-${Date.now() % 100000}`;
+      const retryParams: RenduParams = {
+        ...params,
+        extraContext: params.extraContext ? `${params.extraContext} ${retrySeedHint}` : retrySeedHint,
+      };
+      const retryResult = pipelineUsed === 'controlnet-canny'
+        ? await generateRenduFromReferenceControlNet(retryParams, referenceHttpsUrl, numImages)
+        : await generateRenduFromReferenceKontext(retryParams, referenceHttpsUrl, numImages);
+      if (retryResult.success) {
+        result = retryResult;
+      } else {
+        // Retry échoué, on garde le résultat précédent
+        console.warn(`[API /ia/rendu] auto-retry ${autoRetryCount} ÉCHEC: ${retryResult.error}`);
+        break;
+      }
+    }
+
+    // ── 7ter) Phase 2 — refinement SAM "Précision maximale" (optionnel).
+    //  N'est appliqué QUE si l'utilisateur a coché le toggle UI ET qu'il
+    //  reste du budget temps (le pipeline SAM+Inpaint prend +20-40s).
+    //  Échec gracieux : si SAM rate, on garde l'image résultat actuelle.
+    let samSteps: Array<{ region: string; maskFound: boolean; inpaintOk: boolean; durationMs: number }> = [];
+    let samApplied = false;
+    if (maxPrecision) {
+      const elapsed = Date.now() - tStart;
+      if (elapsed < TIME_BUDGET_MS - MIN_MARGIN_MS) {
+        try {
+          const firstUrl = result.imageUrls[0];
+          if (firstUrl) {
+            const refined = await refineRenduMaterialsSAM(firstUrl, params);
+            samSteps = refined.steps;
+            samApplied = refined.steps.some(s => s.inpaintOk);
+            if (samApplied) {
+              // Remplace la 1re URL par l'image affinée. Les autres variantes
+              // restent inchangées (SAM séquentiel coûteux, on l'applique
+              // qu'au choix principal de l'utilisateur).
+              result = { ...result, imageUrls: [refined.imageUrl, ...result.imageUrls.slice(1)], imageUrl: refined.imageUrl };
+            }
+          }
+        } catch (samErr) {
+          console.warn(`[API /ia/rendu] SAM refinement ÉCHEC: ${samErr instanceof Error ? samErr.message : samErr}`);
+        }
+      } else {
+        console.log(`[API /ia/rendu] budget temps insuffisant pour SAM (${elapsed}ms)`);
+      }
+    }
+
+    // ── 7quater) Copie fal-cdn → Supabase
     const copied = await Promise.all(
       result.imageUrls.map((falUrl, idx) =>
         copyExternalImageToIaRenders(falUrl, buildIaRenderPath(workspaceId, job.id, idx))
@@ -208,16 +318,34 @@ export async function POST(req: NextRequest) {
     );
 
     // ── 8) UPDATE DONE
-    const costEUR = 0.06 * result.imageUrls.length; // ~$0.06 / image Flux Ultra
+    //  - costEUR : ~$0.06/image pour Kontext, ~$0.09/image pour ControlNet Canny
+    //    (Canny extract ~$0.01 + Flux ControlNet ~$0.08).
+    //  - modelsUsed reflète le pipeline réellement utilisé (pas la liste prévue).
+    const costEUR = (pipelineUsed === 'controlnet-canny' ? 0.09 : 0.06) * result.imageUrls.length;
+    const finalModelsUsed = pipelineUsed === 'controlnet-canny'
+      ? ['fal-ai/imageutils/canny', 'fal-ai/flux-control-net-canny']
+      : ['fal-ai/flux-pro/kontext'];
     await prisma.iaJob.update({
       where: { id: job.id },
       data:  {
         status:          'DONE',
         prompt:          result.prompt.prompt,
+        modelsUsed:      finalModelsUsed,
         resultImageUrls: {
           paths:      copied.map(c => c.path),
           signedUrls: copied.map(c => c.signedUrl),
           falRaw:     copied.map(c => c.falUrl),
+          // Phase 5 — tracking complet pour analyse fidélité et amélioration continue.
+          meta: {
+            pipelineUsed,
+            autoRetryCount,
+            fidelityScore,         // null si vision-critic indisponible
+            fidelityIssues,        // liste des dérives détectées
+            samApplied,            // true si refinement SAM matériaux appliqué
+            samSteps,              // détail SAM par région (façade/plan/sol)
+            maxPrecisionRequested: maxPrecision,
+            userRetryCount,        // combien de fois l'user a cliqué "Régénérer"
+          },
         },
         durationMs:      Date.now() - tStart,
         costEUR,

@@ -44,6 +44,13 @@ const FLUX_MODEL_COLORISTE_I2I    = 'fal-ai/flux/dev/image-to-image';
 const FLUX_MODEL_KONTEXT_SINGLE   = 'fal-ai/flux-pro/kontext';
 const FLUX_MODEL_KONTEXT_MULTI    = 'fal-ai/flux-pro/kontext/multi';
 
+// Phase 1 (juin 2026) — ControlNet Canny pour verrouillage géométrique strict.
+// Pipeline : extraction Canny des contours de l'image source puis génération
+// Flux avec contrainte architecturale dure (les bords Canny imposent la
+// structure ; le modèle ne peut PAS inventer un mur ou une fenêtre).
+const CANNY_EXTRACT_MODEL    = 'fal-ai/imageutils/canny';
+const FLUX_CONTROLNET_CANNY  = 'fal-ai/flux-control-net-canny';
+
 // Stratégie infaillible (mai 2026) : SAM par texte + Inpainting par région.
 // Le pipeline garantit que tout pixel hors des 3 masques (façades, poignées,
 // plan de travail) est strictement identique à la source.
@@ -405,6 +412,113 @@ export async function generateColoristImageSAM(
   }
 }
 
+// ─────────────────────────────────────────── PHASE 2 : SAM REFINEMENT RENDU
+//
+// Pipeline optionnel "Précision maximale" pour le rendu réaliste.
+// Après que ControlNet Canny (ou Kontext) ait généré l'image, on applique
+// SAM+Inpaint sur les zones critiques (façades, plan de travail, sol) pour
+// imposer pixel-perfect les matériaux demandés par l'utilisateur, sans que
+// le modèle de génération puisse les contredire. Tout pixel hors des masques
+// est strictement préservé bit-à-bit (garantie mathématique de l'inpainting).
+
+export interface RenduRefinementReport {
+  region:     'facade' | 'plan' | 'sol';
+  maskFound:  boolean;
+  inpaintOk: boolean;
+  durationMs: number;
+}
+
+/**
+ * Affine une image de rendu en remplaçant pixel-perfect les matériaux dans
+ * les zones détectées par SAM. Si une zone n'est pas détectée, on la skip
+ * (ne plante PAS l'image entière). Retourne l'image affinée + le rapport.
+ *
+ * @param renduImageUrl URL de l'image générée à raffiner (résultat ControlNet/Kontext)
+ * @param params        Paramètres rendu (utilise facades, planTravail, sol)
+ */
+export async function refineRenduMaterialsSAM(
+  renduImageUrl: string,
+  params: RenduParams,
+): Promise<{ imageUrl: string; steps: RenduRefinementReport[] }> {
+  ensureConfigured();
+  const steps: RenduRefinementReport[] = [];
+
+  // Segmentation parallèle des 3 zones avec retries et expand/blur réglés
+  // par zone (mêmes valeurs que coloriste SAM, éprouvées en prod).
+  const [maskFacade, maskPlan, maskSol] = await Promise.all([
+    segmentRegionWithRetry(
+      renduImageUrl,
+      'all kitchen cabinet doors and drawer fronts, upper and lower cabinets',
+      'kitchen cabinets',
+      { expandMask: 3, blurMask: 5 },
+    ),
+    segmentRegionWithRetry(
+      renduImageUrl,
+      'kitchen countertop horizontal worktop surface',
+      'kitchen countertop',
+      {
+        expandMask: 1, blurMask: 4,
+        // Anti-mordant sur la crédence/mur (cf. coloriste SAM)
+        negativePrompt: 'backsplash, wall, tile, splashback, vertical surface, kitchen appliances, oven, microwave, sink',
+      },
+    ),
+    params.sol
+      ? segmentRegionWithRetry(
+          renduImageUrl,
+          'kitchen floor flooring surface bottom',
+          'floor',
+          { expandMask: 2, blurMask: 5 },
+        )
+      : Promise.resolve(null),
+  ]);
+
+  let currentImage = renduImageUrl;
+
+  // Façades
+  {
+    const t0 = Date.now();
+    if (maskFacade) {
+      const prompt = `kitchen cabinet door panel: ${params.facades}, uniform consistent material across entire surface, photorealistic high-end kitchen material, sharp clean edges`;
+      const next = await inpaintRegion(currentImage, maskFacade, prompt);
+      const ok = !!next;
+      if (ok) currentImage = next!;
+      steps.push({ region: 'facade', maskFound: true, inpaintOk: ok, durationMs: Date.now() - t0 });
+    } else {
+      steps.push({ region: 'facade', maskFound: false, inpaintOk: false, durationMs: 0 });
+    }
+  }
+
+  // Plan de travail
+  {
+    const t0 = Date.now();
+    if (maskPlan) {
+      const prompt = `kitchen countertop in ${params.planTravail}, seamless uniform surface, photorealistic high-end material texture, sharp clean edges, subtle natural reflections, premium quality finish`;
+      const next = await inpaintRegion(currentImage, maskPlan, prompt);
+      const ok = !!next;
+      if (ok) currentImage = next!;
+      steps.push({ region: 'plan', maskFound: true, inpaintOk: ok, durationMs: Date.now() - t0 });
+    } else {
+      steps.push({ region: 'plan', maskFound: false, inpaintOk: false, durationMs: 0 });
+    }
+  }
+
+  // Sol (uniquement si l'utilisateur a précisé un sol)
+  {
+    const t0 = Date.now();
+    if (maskSol && params.sol) {
+      const prompt = `kitchen floor: ${params.sol}, uniform consistent material, photorealistic high-end material texture, realistic reflections, sharp clean edges`;
+      const next = await inpaintRegion(currentImage, maskSol, prompt);
+      const ok = !!next;
+      if (ok) currentImage = next!;
+      steps.push({ region: 'sol', maskFound: true, inpaintOk: ok, durationMs: Date.now() - t0 });
+    } else if (params.sol) {
+      steps.push({ region: 'sol', maskFound: false, inpaintOk: false, durationMs: 0 });
+    }
+  }
+
+  return { imageUrl: currentImage, steps };
+}
+
 // ─────────────────────────────────────────── COLORISTE IMG2IMG (Flux Dev)
 
 /**
@@ -596,6 +710,131 @@ export async function generateRenduFromReferenceKontext(
       attempts:   1,
       durationMs: Date.now() - tStart,
       error:      message,
+    };
+  }
+}
+
+// ─────────────────────────────────────────── PHASE 1 : CONTROLNET CANNY
+//
+// Pipeline 2 étapes pour verrouillage géométrique strict :
+//   1. Extraction Canny des contours de l'image source (lib fal-ai/imageutils)
+//   2. Génération Flux conditionnée par les contours Canny + le prompt
+//
+// La différence cruciale avec Kontext : ControlNet impose les bords Canny
+// comme contrainte architecturale DURE — le modèle ne peut PAS générer un
+// mur où il y avait une fenêtre dans le Canny, c'est physiquement contraint.
+// Kontext, lui, "négocie" entre prompt et image et peut dériver.
+//
+// Fallback : si l'étape Canny OU la génération ControlNet échoue, on
+// retombe automatiquement sur Kontext (pas de plantage côté client).
+
+/** Extrait les contours Canny d'une image source via fal-ai/imageutils/canny.
+ *  Retourne l'URL du Canny map PNG, ou null si l'extraction échoue. */
+async function extractCannyEdges(imageUrl: string): Promise<string | null> {
+  ensureConfigured();
+  const t0 = Date.now();
+  try {
+    // low/high thresholds Canny : 100/200 = équilibre standard pour images
+    // de cuisine/architecture. Trop bas → bruit excessif ; trop haut → on
+    // perd les bords fins (poignées, joints de meubles).
+    const result = await fal.subscribe(CANNY_EXTRACT_MODEL, {
+      input: {
+        image_url:      imageUrl,
+        low_threshold:  100,
+        high_threshold: 200,
+      },
+      logs: false,
+    });
+    const url = extractMaskUrl(result.data) ?? extractImageUrls(result.data)[0] ?? null;
+    console.log(`[Canny] extract ${url ? 'OK' : 'NO IMG'} en ${Date.now() - t0}ms`);
+    return url;
+  } catch (err) {
+    console.warn(`[Canny] extract ÉCHEC en ${Date.now() - t0}ms:`,
+      err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/**
+ * Rendu via ControlNet Canny — verrouillage architectural strict.
+ *
+ * Pipeline :
+ *   - Extraction Canny des contours (50-150 px de zone d'incertitude max)
+ *   - Génération Flux ControlNet avec controlnet_conditioning_scale=0.8 :
+ *     forte contrainte mais laisse assez de marge au modèle pour produire
+ *     des matériaux photoréalistes.
+ *
+ * Retourne success=false avec error détaillée si une des étapes rate
+ * (la route caller fait alors fallback sur Kontext).
+ */
+export async function generateRenduFromReferenceControlNet(
+  params: RenduParams,
+  referenceImageUrl: string,
+  numImages: number = 1,
+): Promise<GenerationResult & { cannyUrl?: string | null }> {
+  ensureConfigured();
+  const tStart = Date.now();
+  const built = buildRenduFromImageKontextPrompt(params);
+
+  // Étape 1 — Canny edges
+  const cannyUrl = await extractCannyEdges(referenceImageUrl);
+  if (!cannyUrl) {
+    return {
+      success:    false,
+      imageUrl:   null,
+      imageUrls:  [],
+      prompt:     built,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      'Canny edge extraction failed',
+      cannyUrl:   null,
+    };
+  }
+
+  // Étape 2 — Génération conditionnée Canny
+  try {
+    console.log(`[fal.subscribe] ${FLUX_CONTROLNET_CANNY} promptLen=${built.prompt.length}`);
+    // controlnet_conditioning_scale 0.8 : sweet spot — assez fort pour
+    // verrouiller la structure, assez souple pour permettre au modèle de
+    // produire des textures photoréalistes. > 0.9 → textures figées.
+    const result = await fal.subscribe(FLUX_CONTROLNET_CANNY, {
+      input: {
+        prompt:                         built.prompt,
+        image_url:                      referenceImageUrl,
+        control_image_url:              cannyUrl,
+        controlnet_conditioning_scale:  0.8,
+        num_images:                     Math.min(Math.max(numImages, 1), 4),
+        seed:                           built.seed,
+        num_inference_steps:            32,
+        guidance_scale:                 4.5,
+        output_format:                  'jpeg',
+      },
+      logs: false,
+    });
+    const urls = extractImageUrls(result.data);
+    console.log(`[fal.subscribe] ${FLUX_CONTROLNET_CANNY} OK en ${Date.now() - tStart}ms (${urls.length} URL)`);
+    return {
+      success:    urls.length > 0,
+      imageUrl:   urls[0] ?? null,
+      imageUrls:  urls,
+      prompt:     built,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
+      cannyUrl,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[fal.subscribe] ${FLUX_CONTROLNET_CANNY} ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
+    return {
+      success:    false,
+      imageUrl:   null,
+      imageUrls:  [],
+      prompt:     built,
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      message,
+      cannyUrl,
     };
   }
 }

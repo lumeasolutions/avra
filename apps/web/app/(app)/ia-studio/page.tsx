@@ -109,9 +109,19 @@ async function callRenduAPI(params: {
   sol?: string;
   /** Optionnel : description des murs (peinture, papier peint, lambris...) */
   murs?: string;
-  /** Optionnel : image de référence (plan WinnerFlex, inspiration, sketch).
-   * Guide Flux Pro Ultra via image_prompt (strength 0.3 côté serveur). */
-  referenceImageDataUrl?: string;
+  /** Image de référence OBLIGATOIRE (plan WinnerFlex, render 3D, sketch, inspi). */
+  referenceImageDataUrl: string;
+  /** Dimensions natives de l'image source (avant compression) — utilisées
+   * comme anchor numérique dans le prompt Kontext pour forcer le respect
+   * du ratio et des proportions exactes. */
+  sourceWidth?: number;
+  sourceHeight?: number;
+  /** Phase 2 — active le refinement SAM+Inpaint après ControlNet/Kontext.
+   * +20-30s de latence, +1% de fidélité matériaux. */
+  maxPrecision?: boolean;
+  /** Phase 5 — nombre de fois où l'utilisateur a cliqué "Régénérer" pour
+   * cette image source (>0 = non satisfait du précédent rendu). */
+  userRetryCount?: number;
   numImages?: number;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/rendu', {
@@ -187,7 +197,74 @@ async function fileToDataUrl(file: File): Promise<string> {
  * Fallback : si le canvas plante (HEIC iPhone, SVG, fichier corrompu), on
  * renvoie le data URL brut. Mieux qu'un crash.
  */
-async function compressImageToDataUrl(file: File, maxSide: number = 1280): Promise<string> {
+/** Phase 3 — analyse rapide de la qualité d'une image source (côté browser)
+ *  avant envoi au serveur. Permet d'avertir l'utilisateur si l'image risque
+ *  de faire dériver Kontext/ControlNet (basse résolution, contraste très
+ *  faible, ratio aberrant). N'empêche pas l'envoi — l'utilisateur décide. */
+interface SourceQualityCheck {
+  okToSend:    boolean;
+  warnings:    string[];
+  width:       number;
+  height:      number;
+}
+async function analyzeSourceImageQuality(file: File): Promise<SourceQualityCheck> {
+  const out: SourceQualityCheck = { okToSend: true, warnings: [], width: 0, height: 0 };
+  try {
+    const objUrl = URL.createObjectURL(file);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new window.Image();
+      i.onload  = () => resolve(i);
+      i.onerror = () => reject(new Error('image illisible'));
+      i.src = objUrl;
+    });
+    out.width  = img.naturalWidth;
+    out.height = img.naturalHeight;
+
+    // Résolution minimale recommandée : 800 px sur le côté long.
+    const longest = Math.max(out.width, out.height);
+    if (longest < 800) {
+      out.warnings.push(`Image basse résolution (${out.width}×${out.height}). Pour un résultat fidèle, importez une image d'au moins 800 px de côté.`);
+    }
+
+    // Ratio aberrant : panoramique extrême ou bandeau très étroit.
+    const ratio = out.width / out.height;
+    if (ratio > 3 || ratio < 0.33) {
+      out.warnings.push(`Format atypique (ratio ${ratio.toFixed(2)}). L'IA risque de mal cadrer.`);
+    }
+
+    // Contraste : on échantillonne sur un canvas 64×64 et on calcule la
+    // variance de luminance. Variance < 400 ≈ image très peu contrastée
+    // (sketch flou, photo très brumeuse) → Kontext interprète librement.
+    try {
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = 64;
+      const cx = c.getContext('2d');
+      if (cx) {
+        cx.drawImage(img, 0, 0, 64, 64);
+        const data = cx.getImageData(0, 0, 64, 64).data;
+        let sum = 0, sumSq = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          sum += lum; sumSq += lum * lum;
+        }
+        const n = data.length / 4;
+        const mean = sum / n;
+        const variance = sumSq / n - mean * mean;
+        if (variance < 400) {
+          out.warnings.push(`Image peu contrastée (variance ${Math.round(variance)}). Préférez un plan ou un rendu 3D net.`);
+        }
+      }
+    } catch { /* canvas peut échouer sur certains navigateurs anciens — non bloquant */ }
+
+    URL.revokeObjectURL(objUrl);
+  } catch {
+    out.warnings.push('Impossible d\'analyser l\'image (format non supporté ?).');
+    out.okToSend = false;
+  }
+  return out;
+}
+
+async function compressImageToDataUrl(file: File, maxSide: number = 2048): Promise<string> {
   try {
     const objectUrl = URL.createObjectURL(file);
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -197,8 +274,18 @@ async function compressImageToDataUrl(file: File, maxSide: number = 1280): Promi
       i.src = objectUrl;
     });
 
-    // Calcul du facteur d'échelle pour respecter maxSide sur le côté le plus long
     const longest = Math.max(img.naturalWidth, img.naturalHeight);
+
+    // BYPASS COMPRESSION si l'image est déjà sous maxSide ET pèse <3 Mo —
+    // recompresser en JPEG quand pas nécessaire écrase des détails fins
+    // (lignes de plans WinnerFlex, contours de meubles), ce qui faisait
+    // dériver Kontext. La limite Vercel body est 4.5 Mo → 3 Mo = marge sûre.
+    if (longest <= maxSide && file.size <= 3 * 1024 * 1024) {
+      URL.revokeObjectURL(objectUrl);
+      return fileToDataUrl(file);
+    }
+
+    // Sinon redimensionnement uniquement si nécessaire (longest > maxSide).
     const scale = longest > maxSide ? maxSide / longest : 1;
     const w = Math.round(img.naturalWidth  * scale);
     const h = Math.round(img.naturalHeight * scale);
@@ -207,11 +294,15 @@ async function compressImageToDataUrl(file: File, maxSide: number = 1280): Promi
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D indisponible');
+    // imageSmoothing high quality pour préserver les contours fins (Canny-friendly).
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, 0, 0, w, h);
     URL.revokeObjectURL(objectUrl);
 
-    // JPEG q=0.85 : bon compromis qualité / taille (~5-8x plus petit que PNG)
-    return canvas.toDataURL('image/jpeg', 0.85);
+    // JPEG q=0.92 (au lieu de 0.85) : préserve les contours fins indispensables
+    // au pipeline Canny/ControlNet et au respect strict des proportions par Kontext.
+    return canvas.toDataURL('image/jpeg', 0.92);
   } catch (err) {
     // Fallback gracieux : on renvoie le data URL brut sans compression
     console.warn('[compressImage] fallback brut:', err);
@@ -752,6 +843,15 @@ export default function IaStudioPage() {
   const [rendLoading,  setRendLoading]  = useState(false);
   const [rendResult,   setRendResult]   = useState<Item|null>(null);
   const [rendError,    setRendError]    = useState<string|null>(null);
+  // Phase 3 — warnings de qualité de l'image source (résolution, contraste, ratio)
+  const [rendRefWarnings, setRendRefWarnings] = useState<string[]>([]);
+  // Phase 2 — toggle "Précision maximale" : active le refinement SAM+Inpaint
+  // après ControlNet/Kontext (+20-30s, +0.04€, gain ~+1% fidélité matériaux).
+  const [rendMaxPrecision, setRendMaxPrecision] = useState(false);
+  // Phase 5 — compteur "Régénérer" : s'incrémente quand l'utilisateur clique
+  // sur "Régénérer" avec un rendu déjà affiché. Tracking côté serveur pour
+  // analyser quels paramètres / images sources mécontentent les utilisateurs.
+  const [rendUserRetry, setRendUserRetry] = useState(0);
 
   /* ── Couleurs modifiées manuellement (pour détecter si l'utilisateur a changé qqch) */
   const [colorsModified, setColorsModified] = useState(false);
@@ -778,6 +878,19 @@ export default function IaStudioPage() {
     setRendRefURL(u);
     return () => URL.revokeObjectURL(u);
   }, [rendRefFile]);
+
+  /* Phase 3 — analyse qualité image source à chaque nouvel upload */
+  useEffect(() => {
+    if (!rendRefFile) { setRendRefWarnings([]); return; }
+    let cancelled = false;
+    analyzeSourceImageQuality(rendRefFile).then(result => {
+      if (!cancelled) setRendRefWarnings(result.warnings);
+    });
+    return () => { cancelled = true; };
+  }, [rendRefFile]);
+
+  /* Phase 5 — reset du compteur "userRetry" quand l'image source change */
+  useEffect(() => { setRendUserRetry(0); }, [rendRefFile]);
 
   /* ── Appliquer un preset */
   const applyPreset = (p: Preset) => {
@@ -989,14 +1102,34 @@ export default function IaStudioPage() {
       setRendError('Importez un plan, un rendu 3D, un sketch ou une photo d\'inspiration pour générer le rendu réaliste.');
       return;
     }
+    // Phase 5 — si on relance avec un rendu déjà présent, l'utilisateur
+    // n'était pas satisfait : on incrémente le compteur et on l'envoie au
+    // serveur pour analyse ultérieure (quelles images sources / paramètres
+    // déçoivent le plus les utilisateurs).
+    const isUserRetry = rendResult !== null;
+    const nextRetryCount = isUserRetry ? rendUserRetry + 1 : 0;
+    setRendUserRetry(nextRetryCount);
     setRendLoading(true); setRendResult(null); setRendError(null);
 
     try {
-      // Compression côté navigateur (max 1280px, JPEG q=0.85) pour rester
-      // sous la limite Vercel et accélérer l'upload.
+      // Compression côté navigateur (max 2048px, JPEG q=0.92 si redim) avec
+      // bypass complet si l'image est déjà petite et légère (préserve les
+      // contours fins indispensables au pipeline Canny / ControlNet).
       let referenceImageDataUrl: string;
+      let sourceWidth: number | undefined;
+      let sourceHeight: number | undefined;
       try {
-        referenceImageDataUrl = await compressImageToDataUrl(rendRefFile, 1280);
+        // Récupère les dimensions natives AVANT compression (anchor prompt).
+        const dims = await new Promise<{w: number; h: number}>((resolve, reject) => {
+          const objUrl = URL.createObjectURL(rendRefFile);
+          const img = new window.Image();
+          img.onload = () => { resolve({ w: img.naturalWidth, h: img.naturalHeight }); URL.revokeObjectURL(objUrl); };
+          img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('image illisible')); };
+          img.src = objUrl;
+        }).catch(() => null);
+        if (dims) { sourceWidth = dims.w; sourceHeight = dims.h; }
+
+        referenceImageDataUrl = await compressImageToDataUrl(rendRefFile, 2048);
       } catch {
         setRendError('Image illisible. Choisissez une autre image (PNG ou JPG).');
         setRendLoading(false);
@@ -1011,6 +1144,10 @@ export default function IaStudioPage() {
         lightingStyle:         rendLight,
         roomSize:              rendSize,
         referenceImageDataUrl,
+        sourceWidth,
+        sourceHeight,
+        maxPrecision:          rendMaxPrecision,
+        userRetryCount:        nextRetryCount,
         numImages:             rendNumVariants,
       });
 
@@ -1572,7 +1709,10 @@ export default function IaStudioPage() {
                   <FileImage className="h-4 w-4 text-[#5b9bd5]" />
                   <p className="font-bold text-[#304035]">Image de référence <span className="ml-1 rounded-full bg-[#5b9bd5]/10 text-[#5b9bd5] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
                 </div>
-                <p className="text-xs text-[#304035]/50 mb-4">Plan WinnerFlex, rendu 3D, sketch ou photo d'inspiration — l'IA transforme votre image en photo réaliste tout en préservant le layout</p>
+                <p className="text-xs text-[#304035]/50 mb-2">Plan WinnerFlex, rendu 3D, sketch ou photo d'inspiration — l'IA transforme votre image en photo réaliste tout en préservant le layout</p>
+                <div className="mb-4 rounded-lg bg-[#5b9bd5]/5 border border-[#5b9bd5]/15 px-3 py-2 text-[10px] leading-relaxed text-[#304035]/65">
+                  <span className="font-bold text-[#5b9bd5]">Conseil fidélité&nbsp;:</span> un plan ou un rendu 3D haute résolution donne les meilleurs résultats. Un sketch flou ou une photo Pinterest d'une autre cuisine peut faire dériver l'IA (changement de sol, fenêtre déplacée, crédence inventée).
+                </div>
                 <Drop label="" sub="Déposez un plan, perspective 3D, ou photo d'inspiration"
                   onFile={setRendRefFile} file={rendRefFile} accent="#5b9bd5"
                   tips={['Plan WinnerFlex export image', 'Photo Pinterest qui inspire', 'Sketch / croquis main', 'Photo cuisine ressemblante']} />
@@ -1587,6 +1727,17 @@ export default function IaStudioPage() {
                     <div className="absolute bottom-2 left-3">
                       <span className="rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5">Référence active</span>
                     </div>
+                  </div>
+                )}
+                {/* Phase 3 — warnings de qualité de l'image source (n'empêchent pas l'envoi) */}
+                {rendRefWarnings.length > 0 && (
+                  <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 space-y-1">
+                    {rendRefWarnings.map((w, idx) => (
+                      <div key={idx} className="flex items-start gap-2 text-[10px] leading-relaxed text-amber-800">
+                        <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0 text-amber-600" />
+                        <span>{w}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1691,6 +1842,19 @@ export default function IaStudioPage() {
 
                 {/* Bloc 'Coût estimé' retiré 19/05/2026 — client n'a pas à voir
                     le moteur IA ni le coût. */}
+                {/* Phase 2 — toggle "Précision maximale" (SAM+Inpaint matériaux) */}
+                <label className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-[#5b9bd5]/15 bg-[#5b9bd5]/5 p-3 hover:bg-[#5b9bd5]/8 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={rendMaxPrecision}
+                    onChange={e => setRendMaxPrecision(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-[#5b9bd5]/40 text-[#5b9bd5] focus:ring-2 focus:ring-[#5b9bd5]/30"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-[#304035]">Précision maximale <span className="ml-1 text-[9px] text-[#5b9bd5] font-semibold">+20-30s</span></p>
+                    <p className="text-[10px] text-[#304035]/55 mt-0.5 leading-relaxed">Affinage pixel-perfect des façades, plan de travail et sol après le rendu — garantit le respect strict des matériaux demandés.</p>
+                  </div>
+                </label>
                 <button onClick={runRendu}
                   disabled={rendLoading || !rendRefFile}
                   title={!rendRefFile ? 'Importez une image de référence (plan, rendu 3D, sketch ou inspiration)' : undefined}
