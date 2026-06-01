@@ -326,27 +326,33 @@ const SIZE_BLOCKS_RENDU: Record<RoomSizeType, string> = {
     'continuous flooring and cohesive material palette across spaces',
 };
 
+// Blocs de style — DESCRIPTIONS D'ATMOSPHÈRE UNIQUEMENT (juin 2026).
+// Toute mention de sol, de matériau de plan de travail, de backsplash ou de
+// crédence a été retirée : ces éléments doivent être dictés par l'image source
+// (en mode Kontext img2img) ou par les champs explicites du formulaire (sol,
+// murs, planTravail). Avant, le style "haussmannien" injectait "parquet de
+// Versailles" et écrasait le sol demandé par l'utilisateur ("carrelage" etc.).
 const STYLE_BLOCKS_RENDU: Record<StyleType, string> = {
   contemporain:
-    'contemporary European minimalism, handleless integrated push-to-open cabinets, ' +
+    'contemporary European minimalism aesthetic, handleless integrated push-to-open cabinets, ' +
     'flush-mount appliances, German-engineered precision joinery, ' +
-    'monolithic countertop with mitered edges, hidden storage, clean horizontal lines',
+    'hidden storage, clean horizontal lines',
   classique:
-    'classic French cabinetry with raised-panel shaker doors, ornate egg-and-dart molding, ' +
+    'classic French cabinetry aesthetic with raised-panel shaker doors, ornate egg-and-dart molding, ' +
     'brass cup pulls and knobs, beadboard accents, antique brass faucet, ' +
     'timeless French country elegance with subtle ornamentation',
   industriel:
-    'industrial Brooklyn loft kitchen style, exposed brick accent wall, ' +
-    'matte black steel frame cabinets with glass fronts, concrete or live-edge wood worktop, ' +
+    'industrial Brooklyn loft kitchen aesthetic, exposed brick accent wall, ' +
+    'matte black steel frame cabinets with glass fronts, ' +
     'Edison filament pendant lights, vintage-inspired hardware, raw authentic textures',
   scandinave:
-    'Scandinavian hygge kitchen, light birch and oak wood, painted matte white cabinets, ' +
-    'subway tile splashback, brass minimalist hardware, woven natural fiber rugs, ' +
+    'Scandinavian hygge kitchen aesthetic, light birch and oak wood accents, painted matte white cabinets, ' +
+    'brass minimalist hardware, woven natural fiber accents, ' +
     'potted herbs and ceramic tableware, soft cozy Nordic atmosphere',
   haussmannien:
-    'Haussmann Parisian apartment kitchen, sky-high ceilings with ornate moldings, ' +
-    'parquet de Versailles flooring restored, marble mantel, herringbone backsplash, ' +
-    'arched windows with original ironwork, Belle Époque elegance meets modern function',
+    'Haussmann Parisian apartment kitchen aesthetic, sky-high ceilings with ornate moldings, ' +
+    'marble mantel, arched windows with original ironwork, ' +
+    'Belle Époque elegance meets modern function',
 };
 
 // Négatif renforcé pour rendu — exclut tous les défauts classiques de l'IA image
@@ -518,34 +524,65 @@ export function buildRenduFromImageKontextPrompt(params: RenduParams): BuiltProm
   const solLine  = params.sol  ? `- Floor: ${params.sol}.`  : '';
   const mursLine = params.murs ? `- Walls: ${params.murs}.` : '';
 
+  // Liste des matériaux que l'utilisateur a EXPLICITEMENT demandés. Tout ce
+  // qui n'est pas dans cette liste DOIT venir de l'image source (verrouillage
+  // géométrique strict — anti-dérive « parquet → carrelage », « mur → fenêtre »).
+  const userRequestedMaterials = [
+    `cabinet facades = ${params.facades}`,
+    `countertop = ${params.planTravail}`,
+    params.sol  ? `floor = ${params.sol}`  : null,
+    params.murs ? `walls = ${params.murs}` : null,
+  ].filter(Boolean).join('; ');
+
   const prompt = [
-    `Transform this kitchen 3D render, CAD plan, sketch, or design preview (image 1)`,
-    `into a hyperrealistic photorealistic interior photograph.`,
+    `TASK: Transform the source kitchen image (image 1) — whether it is a 3D render, CAD plan, sketch, or design preview — into a hyperrealistic professional interior photograph.`,
     ``,
-    `CRITICAL — PRESERVE EXACTLY from the source image:`,
-    `- Camera angle, framing, perspective, focal length`,
-    `- Position and shape of every cabinet, drawer, shelf and panel`,
-    `- Layout of appliances (oven, stovetop, fridge, microwave, hood, dishwasher)`,
-    `- Position of sink, faucet, plumbing`,
-    `- Wall positions, windows, doors, ceiling height`,
-    `- Tiles, backsplash pattern and material if visible`,
-    `- All decorative elements in the same place (coffee machine, toaster, plants, etc.)`,
+    `═══════════════════════════════════════════════════════════════`,
+    `RULE 1 — STRICT GEOMETRY PRESERVATION (HIGHEST PRIORITY)`,
+    `═══════════════════════════════════════════════════════════════`,
+    `Every single architectural element MUST come directly from the source image — DO NOT INVENT, DO NOT MOVE, DO NOT ADD anything that is not visible in the source:`,
+    `- Camera angle, framing, perspective, focal length, vanishing points — IDENTICAL to source`,
+    `- Wall positions, lengths, corners, openings — EXACTLY as in source`,
+    `- Windows: same position, same size, same shape, same count — NEVER add a window where there is a wall, NEVER remove an existing window`,
+    `- Doors and doorways: same position, same opening direction — NEVER add or remove`,
+    `- Ceiling height and shape — IDENTICAL`,
+    `- Every cabinet, drawer, shelf, panel: same position, same dimensions, same count, same orientation`,
+    `- Appliances (oven, stovetop, fridge, microwave, hood, dishwasher): same position, same size`,
+    `- Sink, faucet, plumbing — same position, same shape`,
+    `- Backsplash / crédence: same surface area, same boundaries — material may change ONLY if user requested below, otherwise IDENTICAL`,
+    `- Floor surface area and shape — IDENTICAL`,
+    `- Any decorative item visible in source — keep in the same place`,
     ``,
-    `ONLY CHANGE the rendering style from 3D/synthetic/CAD-look to photorealistic photography.`,
-    `Apply these material refinements where applicable:`,
-    `- Cabinet facades: ${params.facades}`,
-    `- Countertop: ${params.planTravail}`,
-    solLine,
-    mursLine,
+    `═══════════════════════════════════════════════════════════════`,
+    `RULE 2 — MATERIAL CHANGES (ONLY THESE, NOTHING ELSE)`,
+    `═══════════════════════════════════════════════════════════════`,
+    `Apply ONLY the following material refinements requested by the user. Every other material MUST be inferred from the source image (if the source shows wood flooring and the user didn't specify a floor, keep wood flooring).`,
+    `User-specified materials: ${userRequestedMaterials}.`,
     ``,
-    `Overall aesthetic: ${styleBlock}.`,
+    `═══════════════════════════════════════════════════════════════`,
+    `RULE 3 — RENDERING STYLE CHANGE (THE ONLY OTHER ALLOWED CHANGE)`,
+    `═══════════════════════════════════════════════════════════════`,
+    `Convert the visual style from synthetic/CAD/3D/sketch to hyperrealistic photography.`,
+    `Aesthetic atmosphere: ${styleBlock}.`,
     `Lighting: ${lightBlock}.`,
+    ``,
+    `═══════════════════════════════════════════════════════════════`,
+    `ABSOLUTELY FORBIDDEN — these will RUIN the output`,
+    `═══════════════════════════════════════════════════════════════`,
+    `- DO NOT change wall positions, room dimensions, or layout`,
+    `- DO NOT replace a wall with a window, or a window with a wall`,
+    `- DO NOT add, remove, move or resize cabinets, appliances, or fixtures`,
+    `- DO NOT replace floor material unless the user explicitly requested it above`,
+    `- DO NOT replace backsplash/crédence material unless the user explicitly requested it above`,
+    `- DO NOT add decorative objects that are not in the source image`,
+    `- DO NOT change the camera angle or perspective`,
+    `- DO NOT crop, zoom in, or zoom out — preserve the source framing`,
     ``,
     `Output: ultra-realistic professional interior photography, magazine-quality,`,
     `Architectural Digest editorial style, Hasselblad medium format aesthetic,`,
     `8K resolution, hyperrealistic materials and textures, true-to-life colors,`,
     `balanced lighting with realistic shadows, professional staging,`,
-    `no CGI plastic look, no 3D render look, pure photography style.`,
+    `no CGI plastic look, no 3D render look — pure photography style.`,
   ].filter(Boolean).join('\n');
 
   if (params.extraContext) {

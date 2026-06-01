@@ -555,6 +555,13 @@ export async function generateRenduFromReferenceKontext(
 
   try {
     console.log(`[fal.subscribe] ${FLUX_MODEL_KONTEXT_SINGLE} (rendu img2img) promptLen=${built.prompt.length}`);
+    // Verrouillage géométrique (juin 2026) :
+    //  - guidance_scale 5 (au lieu de 4) : Kontext suit plus strictement les
+    //    instructions de préservation listées dans le prompt. Au-delà de 6 le
+    //    modèle over-fit et produit des artefacts ; 5 est le sweet spot.
+    //  - Pas de aspect_ratio forcé : on laisse Kontext préserver le ratio de
+    //    l'image source (16:9 forcé causait des recadrages aberrants sur des
+    //    plans WinnerFlex carrés ou portraits).
     const result = await fal.subscribe(FLUX_MODEL_KONTEXT_SINGLE, {
       input: {
         prompt:           built.prompt,
@@ -562,9 +569,8 @@ export async function generateRenduFromReferenceKontext(
         num_images:       Math.min(Math.max(numImages, 1), 4),
         seed:             built.seed,
         output_format:    'jpeg',
-        aspect_ratio:     '16:9',
         safety_tolerance: '2',
-        guidance_scale:   4,
+        guidance_scale:   5,
       },
       logs: false,
     });
