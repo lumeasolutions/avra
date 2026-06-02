@@ -816,19 +816,25 @@ export async function generateRenduFromReferenceControlNet(
 
 // ─────────────────────────────────────────── PHASE 6 : ULTRA FIDÉLITÉ
 //
-// Pipeline pixel-perfect — fal-ai/flux-general/image-to-image avec :
-//  1. easycontrols Canny  (scale 1.0) → verrouille les contours architecturaux
-//  2. easycontrols Depth  (scale 0.85) → verrouille la profondeur 3D et la perspective
-//  3. reference_image_url + reference_strength 0.70 → préserve les couleurs/matériaux
-//  4. strength img2img 0.55 → préserve 45% de la source au niveau pixel
+// OBJECTIF (clarifié) : la STRUCTURE doit être identique pixel-près
+// (positions, ouvertures, mobilier, décoration, prises, robinetterie, etc.),
+// MAIS le rendu visuel doit être PHOTORÉALISTE (transformation 3D → photo).
 //
-// La combinaison de ces 4 contraintes simultanées réduit drastiquement la
-// liberté du modèle. Chaque détail visible dans la source (parquet, évier,
-// robinetterie, prises électriques, tableaux, position des chaises hautes,
-// couleur des murs/sol/plafond, décoration) est préservé.
+// Itération 2 (juin 2026) : la v1 (strength 0.55 + ref 0.70 + canny + depth)
+// était SUR-contrainte → l'image source ressortait quasi identique, sans
+// photoréalisation visible. Nouvelle balance :
+//  1. easycontrols Canny  (scale 0.85) → verrouille les contours et le layout
+//  2. easycontrols Depth  (scale 0.55) → garde la perspective mais laisse
+//     respirer les textures et l'éclairage
+//  3. Pas de reference_image_url → libère les couleurs/textures pour
+//     vraiment photoréaliser (le canny + depth gardent déjà la géométrie)
+//  4. strength img2img 0.88 → permet la transformation visuelle photoréaliste
+//     tout en gardant la structure via les ControlNets
+//  5. guidance_scale 5.5 → adhérence prompt forte pour pousser "photoreal"
+//  6. num_inference_steps 40 → qualité maximale
 //
-// Coût : ~0,15-0,20 €/image (vs 0,09 € en mode standard Canny seul).
-// Latence : ~20-35 s (vs 10-15 s en standard).
+// La géométrie reste verrouillée (ControlNets durs) mais le rendu visuel
+// peut réellement changer de style synthétique vers photo.
 
 export async function generateRenduUltraFidelity(
   params: RenduParams,
@@ -840,34 +846,30 @@ export async function generateRenduUltraFidelity(
   const built = buildRenduFromImageKontextPrompt(params);
 
   try {
-    console.log(`[fal.subscribe] ${FLUX_GENERAL_I2I} (ultra fidélité) promptLen=${built.prompt.length}`);
-    // Triple verrouillage : Canny (contours) + Depth (3D) + Reference (couleurs).
-    // Chaque contrainte agit en parallèle sur le débruitage et empêche le
-    // modèle de "réinterpréter" un détail. C'est l'équivalent d'un sandwich
-    // structurel ultra-rigide.
+    console.log(`[fal.subscribe] ${FLUX_GENERAL_I2I} (ultra fidélité v2) promptLen=${built.prompt.length}`);
+    // Balance v2 : structure verrouillée par les ControlNets, mais strength
+    // élevé pour permettre la photoréalisation visuelle. La reference-only
+    // est retirée car elle empêchait la transformation des textures.
     const input: Record<string, unknown> = {
       prompt:               built.prompt,
       image_url:            referenceImageUrl,     // img2img source
-      strength:             0.55,                  // 45% de la source préservé pixel
+      strength:             0.88,                  // VRAIE transformation visuelle
       easycontrols: [
         {
           control_method_url: 'canny',
           image_url:          referenceImageUrl,
           image_control_type: 'spatial',
-          scale:              1.0,                 // contours verrouillés à fond
+          scale:              0.85,                // contours bien verrouillés
         },
         {
           control_method_url: 'depth',
           image_url:          referenceImageUrl,
           image_control_type: 'spatial',
-          scale:              0.85,                // profondeur 3D + perspective
+          scale:              0.55,                // perspective sans étouffer
         },
       ],
-      reference_image_url:  referenceImageUrl,     // couleurs / matériaux préservés
-      reference_strength:   0.70,
-      reference_end:        1.0,
       num_inference_steps:  40,                    // qualité maximale (default 28)
-      guidance_scale:       3.5,                   // CFG modéré pour ne pas over-fit
+      guidance_scale:       5.5,                   // pousse "photorealistic"
       num_images:           Math.min(Math.max(numImages, 1), 4),
       seed:                 built.seed,
       output_format:        'jpeg',
