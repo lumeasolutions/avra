@@ -12,6 +12,7 @@ import { RenduParams } from '@/lib/server/prompt-builder';
 import {
   generateRenduFromReferenceKontext,
   generateRenduFromReferenceControlNet,
+  generateRenduUltraFidelity,
   refineRenduMaterialsSAM,
   ensureHttpsUrl,
 } from '@/lib/server/flux-api';
@@ -206,13 +207,28 @@ export async function POST(req: NextRequest) {
       return fail(502, 'Impossible d\'uploader l\'image de référence vers le service IA. Réessayez dans un instant.', Date.now() - tStart);
     }
 
-    // ── 7) Génération : pipeline ControlNet Canny en premier (verrouillage
-    //       géométrique strict), fallback automatique sur Kontext si échec.
-    //       Phase 5 (monitoring) : on trace pipelineUsed pour analyse.
-    let pipelineUsed: 'controlnet-canny' | 'kontext-fallback' = 'controlnet-canny';
-    let result = await generateRenduFromReferenceControlNet(params, referenceHttpsUrl, numImages);
+    // ── 7) Génération : routage selon mode demandé.
+    //   Mode Ultra Fidélité (maxPrecision=true) : multi-control Canny+Depth +
+    //   reference-only + strength bas (pixel-perfect, ~20-35s, ~0.18€).
+    //   Mode Standard : Flux Control LoRA Canny (rapide, ~10-15s, ~0.09€).
+    //   Fallback transparent Kontext si l'étape principale rate.
+    //   Phase 5 (monitoring) : on trace pipelineUsed pour analyse.
+    let pipelineUsed: 'ultra-fidelity' | 'controlnet-canny' | 'kontext-fallback';
+    let result;
+    if (maxPrecision) {
+      pipelineUsed = 'ultra-fidelity';
+      result = await generateRenduUltraFidelity(params, referenceHttpsUrl, numImages);
+      if (!result.success) {
+        console.warn(`[API /ia/rendu] Ultra Fidélité KO (${result.error ?? 'unknown'}) → fallback ControlNet Canny`);
+        pipelineUsed = 'controlnet-canny';
+        result = await generateRenduFromReferenceControlNet(params, referenceHttpsUrl, numImages);
+      }
+    } else {
+      pipelineUsed = 'controlnet-canny';
+      result = await generateRenduFromReferenceControlNet(params, referenceHttpsUrl, numImages);
+    }
     if (!result.success) {
-      console.warn(`[API /ia/rendu] ControlNet Canny KO (${result.error ?? 'unknown'}) → fallback Kontext`);
+      console.warn(`[API /ia/rendu] ${pipelineUsed} KO (${result.error ?? 'unknown'}) → fallback Kontext`);
       pipelineUsed = 'kontext-fallback';
       result = await generateRenduFromReferenceKontext(params, referenceHttpsUrl, numImages);
     }
@@ -267,9 +283,10 @@ export async function POST(req: NextRequest) {
         ...params,
         extraContext: params.extraContext ? `${params.extraContext} ${retrySeedHint}` : retrySeedHint,
       };
-      const retryResult = pipelineUsed === 'controlnet-canny'
-        ? await generateRenduFromReferenceControlNet(retryParams, referenceHttpsUrl, numImages)
-        : await generateRenduFromReferenceKontext(retryParams, referenceHttpsUrl, numImages);
+      const retryResult =
+          pipelineUsed === 'ultra-fidelity'   ? await generateRenduUltraFidelity(retryParams, referenceHttpsUrl, numImages)
+        : pipelineUsed === 'controlnet-canny' ? await generateRenduFromReferenceControlNet(retryParams, referenceHttpsUrl, numImages)
+                                              : await generateRenduFromReferenceKontext(retryParams, referenceHttpsUrl, numImages);
       if (retryResult.success) {
         result = retryResult;
       } else {
@@ -279,13 +296,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 7ter) Phase 2 — refinement SAM "Précision maximale" (optionnel).
-    //  N'est appliqué QUE si l'utilisateur a coché le toggle UI ET qu'il
-    //  reste du budget temps (le pipeline SAM+Inpaint prend +20-40s).
-    //  Échec gracieux : si SAM rate, on garde l'image résultat actuelle.
+    // ── 7ter) Phase 2 — refinement SAM (DÉSACTIVÉ en Ultra Fidélité).
+    //  Le pipeline Ultra Fidélité fait déjà du multi-control (canny+depth+
+    //  reference) qui couvre les matériaux ET la structure. Ajouter SAM
+    //  par-dessus serait redondant, coûteux et risquerait de ré-introduire
+    //  des dérives. SAM reste disponible si jamais on veut le réactiver,
+    //  mais désactivé par défaut quand maxPrecision est actif.
     let samSteps: Array<{ region: string; maskFound: boolean; inpaintOk: boolean; durationMs: number }> = [];
     let samApplied = false;
-    if (maxPrecision) {
+    if (maxPrecision && pipelineUsed !== 'ultra-fidelity') {
       const elapsed = Date.now() - tStart;
       if (elapsed < TIME_BUDGET_MS - MIN_MARGIN_MS) {
         try {
@@ -321,10 +340,15 @@ export async function POST(req: NextRequest) {
     //  - costEUR : ~$0.06/image pour Kontext, ~$0.09/image pour ControlNet Canny
     //    (Canny extract ~$0.01 + Flux ControlNet ~$0.08).
     //  - modelsUsed reflète le pipeline réellement utilisé (pas la liste prévue).
-    const costEUR = (pipelineUsed === 'controlnet-canny' ? 0.09 : 0.06) * result.imageUrls.length;
-    const finalModelsUsed = pipelineUsed === 'controlnet-canny'
-      ? ['fal-ai/flux-control-lora-canny/image-to-image']
-      : ['fal-ai/flux-pro/kontext'];
+    const costPerImage =
+        pipelineUsed === 'ultra-fidelity'   ? 0.18   // multi-control + ref + 40 steps
+      : pipelineUsed === 'controlnet-canny' ? 0.09   // control-lora-canny standard
+                                            : 0.06;  // fallback Kontext
+    const costEUR = costPerImage * result.imageUrls.length;
+    const finalModelsUsed =
+      pipelineUsed === 'ultra-fidelity'   ? ['fal-ai/flux-general/image-to-image (canny+depth+ref)']
+    : pipelineUsed === 'controlnet-canny' ? ['fal-ai/flux-control-lora-canny/image-to-image']
+                                          : ['fal-ai/flux-pro/kontext'];
     await prisma.iaJob.update({
       where: { id: job.id },
       data:  {

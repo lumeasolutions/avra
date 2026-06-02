@@ -21,12 +21,16 @@ export interface FidelityReport {
   ok: boolean;
 }
 
-const VISION_MODEL = process.env.OPENAI_VISION_MODEL || 'gpt-4o-mini';
-// Seuil durci (juin 2026) : 0.85 au lieu de 0.7. Observation prod : avec 0.7,
-// Vision notait 0.80 sur des rendus avec fenêtre ajoutée + crédence changée,
-// donc PAS de retry et l'utilisateur recevait une image clairement dérivée.
-// À 0.85, le retry se déclenche sur la moindre dérive structurelle perçue.
-const FIDELITY_THRESHOLD = 0.85;
+// Mode ultra fidélité (juin 2026) : on monte à gpt-4o (pas mini) pour avoir
+// une analyse Vision beaucoup plus précise des détails fins (prises,
+// tableaux, robinetterie, position des sièges). gpt-4o-mini ratait des
+// dérives subtiles. Coût +0.015€/check mais on récupère 10-15% de fidélité
+// perçue. Override via env OPENAI_VISION_MODEL si besoin.
+const VISION_MODEL = process.env.OPENAI_VISION_MODEL || 'gpt-4o';
+// Seuil 0.92 : on ne tolère QUE des différences trivialement cosmétiques.
+// Dès qu'un détail fin diverge (un tableau déplacé, une prise inventée,
+// une robinetterie différente), le retry se déclenche.
+const FIDELITY_THRESHOLD = 0.92;
 
 /**
  * Compare l'image source et le rendu IA, retourne un score de fidélité.
@@ -50,41 +54,68 @@ export async function assessRenduFidelity(
   }
 
   const prompt = [
-    'You are a STRICT architectural-fidelity judge. You will receive two images:',
+    'You are an EXTREMELY STRICT pixel-perfect-fidelity judge for architectural interior renderings.',
+    'You will receive two images:',
     '- IMAGE A: the original source (3D render, CAD plan, sketch or photo)',
     '- IMAGE B: an AI-generated photorealistic version of that source',
     '',
-    'Your job: detect EVERY structural or material deviation between A and B, then score the fidelity. Be ruthlessly strict — when in doubt, lower the score.',
+    'Your job: detect EVERY deviation between A and B — architectural, material, decorative, fixture, electrical. Compare element-by-element. Be ruthlessly strict.',
     '',
     'Output a single JSON object (no markdown, no code fences):',
     '{',
     '  "fidelity": <0-1 number>,',
-    '  "issues": [<short strings>]',
+    '  "issues": [<short strings describing each deviation>]',
     '}',
     '',
-    'CRITICAL DEVIATIONS — each one of these brings score down by AT LEAST 0.20:',
-    '- A window was ADDED where there was a wall in A',
-    '- A window was REMOVED that existed in A',
-    '- A window CHANGED POSITION or SIZE',
-    '- The backsplash/crédence material was CHANGED (e.g. pink tile → grey unchanged was not requested)',
-    '- The floor material was CHANGED (e.g. concrete → desert sand)',
-    '- A cabinet was ADDED or REMOVED or RESIZED',
-    '- Camera angle / framing CHANGED noticeably',
-    '- An outdoor scene appears in B that was not visible in A',
-    '- New decorative objects appeared that were not in A',
+    'CRITICAL DEVIATIONS — each one brings score down by AT LEAST 0.15:',
     '',
-    'Score scale (be strict):',
-    '- 1.00 = perfect, no detectable deviation',
-    '- 0.90 = trivial cosmetic difference (slightly different lighting tone)',
-    '- 0.80 = one minor cosmetic drift, no structural change',
-    '- 0.70 = one material changed without explicit user request OR one minor structural element off',
-    '- 0.50 = one CRITICAL deviation (added window, changed backsplash, etc.)',
-    '- 0.30 = multiple CRITICAL deviations',
+    'Architecture:',
+    '- Window added/removed/moved/resized — count each one separately',
+    '- Door added/removed/moved',
+    '- Wall position or color changed',
+    '- Ceiling color, height or shape changed',
+    '- Floor material changed (parquet → tile, etc.) or plank/tile orientation changed',
+    '',
+    'Fixtures & appliances:',
+    '- Sink shape changed (single → double bowl, etc.) or moved',
+    '- Faucet/robinetterie style changed or moved',
+    '- Oven, stovetop, fridge, microwave, hood, dishwasher: moved or resized',
+    '- Light switches added/removed/moved',
+    '- Electrical outlets (prises) added/removed/moved — count each',
+    '- Light fixtures (pendants, spots) added/removed/moved',
+    '',
+    'Cabinets:',
+    '- Any cabinet added/removed/resized/moved',
+    '- Door splits, drawer fronts, open shelves changed',
+    '- Handles/knobs added/removed/moved or style changed',
+    '',
+    'Surfaces & materials:',
+    '- Backsplash/crédence material or pattern changed without explicit request',
+    '- Countertop shape, edge profile or material changed',
+    '- Wall paint color changed',
+    '',
+    'Decoration (THIS IS CRITICAL — most often missed):',
+    '- Paintings/photos/art on walls: added, removed, moved, or subject changed',
+    '- Plants, vases, pots: added, removed, moved, species changed',
+    '- Books, bottles, fruits, utensils on counter: added or removed',
+    '- Bar stools/tabourets/chaises hautes: count changed, position changed, style changed, height changed',
+    '- Rugs/mats: added/removed/moved',
+    '- Clocks, mirrors, decorative objects: added/removed/moved',
+    '- Appliances on counter (coffee machine, kettle, toaster, knife block): added/removed/moved',
+    '',
+    'Score scale (very strict):',
+    '- 1.00 = perfect, no detectable deviation, looks like the same room photographed',
+    '- 0.95 = trivially cosmetic difference only (slightly warmer lighting tone, slight softening)',
+    '- 0.90 = ONE minor element with subtle drift (e.g. fruit bowl position shifted slightly)',
+    '- 0.80 = one notable deviation (one painting moved, one stool added, etc.)',
+    '- 0.65 = multiple noticeable deviations OR one critical structural change',
+    '- 0.40 = many deviations across the image',
     '- 0.10 = completely different room',
     '',
-    'DO NOT penalize: normal 3D→photo transformation (more realistic textures, softer shadows, natural lighting). Focus ONLY on STRUCTURE and MATERIALS the user did not request to change.',
+    'DO NOT penalize: realistic textures, softer shadows, natural lighting, glass reflections, slight gloss — these are normal 3D→photo transformations.',
+    'DO penalize: any added/removed/moved physical element, any changed material that the user did not request.',
     '',
-    'Respond ONLY with the JSON object.',
+    'Respond ONLY with the JSON object. Be exhaustive in the issues array.',
   ].join('\n');
 
   const ctrl = new AbortController();

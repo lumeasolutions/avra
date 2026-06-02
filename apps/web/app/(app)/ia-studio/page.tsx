@@ -1842,7 +1842,7 @@ export default function IaStudioPage() {
 
                 {/* Bloc 'Coût estimé' retiré 19/05/2026 — client n'a pas à voir
                     le moteur IA ni le coût. */}
-                {/* Phase 2 — toggle "Précision maximale" (SAM+Inpaint matériaux) */}
+                {/* Phase 6 — toggle "Ultra fidélité" (multi-control canny+depth+ref) */}
                 <label className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-[#5b9bd5]/15 bg-[#5b9bd5]/5 p-3 hover:bg-[#5b9bd5]/8 transition-colors">
                   <input
                     type="checkbox"
@@ -1851,8 +1851,8 @@ export default function IaStudioPage() {
                     className="mt-0.5 h-4 w-4 rounded border-[#5b9bd5]/40 text-[#5b9bd5] focus:ring-2 focus:ring-[#5b9bd5]/30"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-[#304035]">Précision maximale <span className="ml-1 text-[9px] text-[#5b9bd5] font-semibold">+20-30s</span></p>
-                    <p className="text-[10px] text-[#304035]/55 mt-0.5 leading-relaxed">Affinage pixel-perfect des façades, plan de travail et sol après le rendu — garantit le respect strict des matériaux demandés.</p>
+                    <p className="text-xs font-bold text-[#304035]">Ultra fidélité <span className="ml-1 text-[9px] text-[#5b9bd5] font-semibold">+15-25s</span></p>
+                    <p className="text-[10px] text-[#304035]/55 mt-0.5 leading-relaxed">Pixel-perfect : préserve à l'identique parquet, évier, robinetterie, prises, tableaux, décoration et position des sièges. À utiliser quand l'image source contient des détails fins à respecter strictement.</p>
                   </div>
                 </label>
                 <button onClick={runRendu}
