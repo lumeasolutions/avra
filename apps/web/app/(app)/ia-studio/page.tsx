@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import {
   Sparkles, Loader2, Plus, X, Check, Upload,
@@ -812,9 +813,13 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
       </div>
     </div>
 
-    {/* Lightbox plein écran — grand aperçu net + téléchargement */}
-    {zoom && !isMock && mainUrl && (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4 fi"
+    {/* Lightbox plein écran — rendu via un portal sur <body> pour échapper au
+        containing-block créé par les ancêtres animés : la classe .fu applique
+        un transform résiduel (animation fadeUp + fill-mode:both), ce qui
+        « capturait » le position:fixed et le confinait à la grille au lieu du
+        viewport (overlay décalé, boutons cachés sous le panneau Assistant). */}
+    {zoom && !isMock && mainUrl && typeof document !== 'undefined' && createPortal(
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4 fi"
         onClick={() => setZoom(false)} role="dialog" aria-modal="true">
         <div className="relative max-h-[92vh] max-w-[92vw]" onClick={e => e.stopPropagation()}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -834,7 +839,8 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body,
     )}
     </>
   );
