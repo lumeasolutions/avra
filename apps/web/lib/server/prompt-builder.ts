@@ -484,38 +484,14 @@ export function buildColoristPrompt(
   let prompt = '';
 
   if (level === 'standard') {
-    // Prompt durci (juin 2026) : édition chirurgicale plutôt que recomposition.
-    // Listes numérotées + section "STRICTLY PRESERVE" exhaustive + clôture
-    // imperative "same kitchen photo, not a recomposed showroom scene".
-    // Anti-dérive sur hotte, verrière, étagères, décoration, suspensions, etc.
-    const facadeDescs = colorDescriptors(params.facadeHex);
     prompt = [
-      `TASK: Edit the source kitchen photo with ONLY 3 material changes — keep everything else strictly identical to the source image.`,
-      ``,
-      `CHANGES TO APPLY (only these three):`,
-      `1. Cabinet door fronts and drawer fronts: change to ${facadeName} (${facadeDescs}), with ${finishBlock}${facadeTextureHint}.`,
-      `2. Cabinet handles, knobs and pulls: change to ${poigneeName}${poigneeTextureHint}.`,
-      `3. Countertop surface: change to ${planName}${planTextureHint}.`,
-      ``,
-      `STRICTLY PRESERVE from the source photo:`,
-      `- Camera angle, framing, perspective, focal length, zoom level`,
-      `- Walls, windows, glass partitions (verriere), doors, ceiling height and color`,
-      `- Floor: same material, same pattern, same plank/tile orientation`,
-      `- Backsplash / credence: same material, same pattern, same surface area`,
-      `- Hood: same shape, same size, same position, same style`,
-      `- Sink: same shape (single/double bowl), same position`,
-      `- Faucet: same model, same finish, same position`,
-      `- Open shelves: same count, same height, same content`,
-      `- Cooktop / oven / fridge / microwave / dishwasher: same model, same position`,
-      `- Lighting fixtures: do not add or remove any pendant, spot, sconce or LED strip not visible in the source`,
-      `- Wall paint and ceiling paint color: identical`,
-      `- Bar stools, chairs, table: same count, same position, same style and height`,
-      `- Any decorative object visible in source (or its absence): preserved exactly — do not add plants, vases, books, fruits, bottles, art not already there`,
-      ``,
-      `LIGHTING: ${lightBlock}. Adjust lighting realistically for the new materials only — same direction, same intensity, same shadow direction. No added light sources, no added reflections from imaginary objects.`,
-      ``,
-      `OUTPUT: photorealistic interior photography, true-to-life color accuracy on the new materials, natural reflections consistent with existing light sources, sharp focus. The output must look like the SAME kitchen photo, re-photographed after the three material changes — not a recomposed showroom scene. ${TECH_SUFFIX}.`,
-    ].join('\n');
+      `Professional architectural interior photography of a modern French kitchen.`,
+      `Kitchen cabinet fronts in ${facadeName}, ${finishBlock}${facadeTextureHint}.`,
+      `${poigneeName}${poigneeTextureHint}, ${planName}${planTextureHint}.`,
+      lightBlock + '.',
+      `Perfectly clean and staged kitchen, showroom presentation.`,
+      TECH_SUFFIX + '.',
+    ].join(' ');
   }
 
   else if (level === 'simplified') {
@@ -537,12 +513,9 @@ export function buildColoristPrompt(
   }
 
   const seed     = hashToSeed(buildSeedKey(params));
-  // Standard : négatif renforcé anti-recomposition. Simplified/minimal :
-  // version courte (fallbacks où on accepte plus de liberté du modèle).
-  const negativeUsed = level === 'standard' ? NEGATIVE_PROMPT_COLORISTE : NEGATIVE_PROMPT;
-  const warnings = validatePrompt(prompt, negativeUsed);
+  const warnings = validatePrompt(prompt, NEGATIVE_PROMPT);
 
-  return { prompt, negative: negativeUsed, seed, level, warnings };
+  return { prompt, negative: NEGATIVE_PROMPT, seed, level, warnings };
 }
 
 // ─────────────────────────────────────────── BUILDER RENDU KONTEXT (img2img)
@@ -878,3 +851,4 @@ export function buildKontextColoristPrompt(
 
   return { prompt, negative: NEGATIVE_PROMPT, seed, level, warnings };
 }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
