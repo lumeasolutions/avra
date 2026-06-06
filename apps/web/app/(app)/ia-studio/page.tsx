@@ -10,6 +10,7 @@ import {
   Image as ImageIcon, CheckCircle2, ScanLine,
   Lightbulb, Target, Award, AlertTriangle,
   Sun, Lamp, Monitor, Home, Building2,
+  Download, Maximize2,
 } from 'lucide-react';
 import { useDossierStore, useHistoryStore, useAuthStore } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -183,6 +184,30 @@ async function fileToDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(new Error('Lecture du fichier impossible'));
     reader.readAsDataURL(file);
   });
+}
+
+/* ─── Helper : force le téléchargement local d'une image distante (URL signée
+ *  Supabase / fal-cdn). On récupère le blob puis on déclenche un <a download>
+ *  pour obtenir un vrai téléchargement avec nom de fichier (l'attribut
+ *  `download` seul est ignoré en cross-origin). Si le fetch est bloqué par
+ *  CORS ou réseau, fallback gracieux : ouverture dans un nouvel onglet
+ *  (l'utilisateur fait clic droit → « Enregistrer l'image sous… »). ─── */
+async function downloadImageFromUrl(url: string, filename: string): Promise<void> {
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+  } catch {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 }
 
 /**
@@ -640,8 +665,32 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
   const allUrls = (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : []);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const mainUrl = allUrls[selectedIdx] ?? item.imageUrl;
+  const isMock = !mainUrl || mainUrl.includes('placehold');
+
+  // Téléchargement local du visuel (≠ « Sauvegarder » qui l'attache au dossier).
+  const [zoom, setZoom] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const safeTs   = item.ts.replace(/\D/g, '') || '0';
+  const fileName = `Avra-${item.module}-${safeTs}.jpg`;
+  const handleDownload = async () => {
+    if (isMock || !mainUrl) return;
+    setDownloading(true);
+    await downloadImageFromUrl(mainUrl, fileName);
+    setDownloading(false);
+  };
+
+  // Lightbox : Échap pour fermer + blocage du scroll de fond pendant l'ouverture.
+  useEffect(() => {
+    if (!zoom) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoom(false); };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+  }, [zoom]);
 
   return (
+    <>
     <div className="sr rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -650,12 +699,31 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
         </div>
       </div>
 
-      {/* Image générée ou mock — avec slider avant/après si beforeUrl dispo */}
-      <div className="overflow-hidden rounded-2xl" style={{border:`1.5px solid ${accentColor}28`}}>
-        {mainUrl && !mainUrl.includes('placehold') ? (
-          beforeUrl
-            ? <BeforeAfterSlider beforeUrl={beforeUrl} afterUrl={mainUrl} />
-            : <Image src={mainUrl} alt="Rendu IA" width={600} height={400} loading="lazy" className="w-full object-cover rounded-2xl" unoptimized />
+      {/* Grand aperçu — slider avant/après (coloriste) ou image plein cadre.
+          Cliquable pour agrandir en plein écran (lightbox). */}
+      <div className="group relative overflow-hidden rounded-2xl bg-[#f5eee8]/50" style={{border:`1.5px solid ${accentColor}28`}}>
+        {!isMock ? (
+          beforeUrl ? (
+            <div className="relative">
+              <BeforeAfterSlider beforeUrl={beforeUrl} afterUrl={mainUrl!} />
+              <button type="button"
+                onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}
+                onClick={() => setZoom(true)}
+                className="absolute bottom-2 right-2 z-20 flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm px-3 py-1.5 text-[11px] font-bold text-white hover:bg-black/70 transition-colors"
+                title="Voir le résultat en grand">
+                <Maximize2 className="h-3.5 w-3.5" />Agrandir
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setZoom(true)}
+              className="block w-full cursor-zoom-in" title="Cliquez pour agrandir le résultat">
+              <Image src={mainUrl!} alt="Résultat IA" width={1200} height={800} unoptimized
+                className="w-full h-auto max-h-[62vh] object-contain" />
+              <span className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm px-3 py-1.5 text-[11px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                <Maximize2 className="h-3.5 w-3.5" />Agrandir
+              </span>
+            </button>
+          )
         ) : (
           <div className="relative flex flex-col items-center justify-center py-12 px-6 text-center"
             style={{background:`linear-gradient(145deg, ${accentColor}12, ${accentColor}28, ${accentColor}10)`}}>
@@ -720,18 +788,55 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2.5">
-        <button onClick={onSave}
-          className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow-md hover:shadow-lg active:scale-[.98] transition-all"
-          style={{background:`linear-gradient(135deg,${accentColor},${accentColor}cc)`}}>
-          <Plus className="h-4 w-4" />Sauvegarder
-        </button>
-        <button onClick={onRegenerate}
-          className="flex items-center justify-center gap-2 rounded-xl border-2 border-[#304035]/12 py-3 text-sm font-bold text-[#304035] hover:bg-[#f5eee8] transition-colors">
-          <RotateCcw className="h-4 w-4" />Régénérer
-        </button>
+      {/* Actions : Télécharger (local) mis en avant, puis Sauvegarder (dossier) + Régénérer */}
+      <div className="space-y-2.5">
+        {!isMock && (
+          <button onClick={handleDownload} disabled={downloading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow-md hover:shadow-lg active:scale-[.98] transition-all disabled:opacity-60 disabled:cursor-wait"
+            style={{background:`linear-gradient(135deg,${accentColor},${accentColor}cc)`}}>
+            {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {downloading ? 'Téléchargement…' : "Télécharger l'image"}
+          </button>
+        )}
+        <div className="grid grid-cols-2 gap-2.5">
+          <button onClick={onSave}
+            className="flex items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-bold transition-colors hover:bg-[#f5eee8]"
+            style={{borderColor:`${accentColor}55`, color:accentColor}}>
+            <Plus className="h-4 w-4" />Sauvegarder
+          </button>
+          <button onClick={onRegenerate}
+            className="flex items-center justify-center gap-2 rounded-xl border-2 border-[#304035]/12 py-3 text-sm font-bold text-[#304035] hover:bg-[#f5eee8] transition-colors">
+            <RotateCcw className="h-4 w-4" />Régénérer
+          </button>
+        </div>
       </div>
     </div>
+
+    {/* Lightbox plein écran — grand aperçu net + téléchargement */}
+    {zoom && !isMock && mainUrl && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4 fi"
+        onClick={() => setZoom(false)} role="dialog" aria-modal="true">
+        <div className="relative max-h-[92vh] max-w-[92vw]" onClick={e => e.stopPropagation()}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={mainUrl} alt="Résultat agrandi"
+            className="max-h-[88vh] w-auto max-w-full rounded-xl object-contain shadow-2xl" />
+          <div className="absolute top-3 right-3 flex gap-2">
+            <button onClick={handleDownload} disabled={downloading}
+              className="flex h-10 items-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-[#304035] shadow-lg hover:bg-[#f5eee8] transition-colors disabled:opacity-60"
+              title="Télécharger l'image">
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Télécharger
+            </button>
+            <button onClick={() => setZoom(false)}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#304035] shadow-lg hover:bg-[#f5eee8] transition-colors"
+              title="Fermer (Échap)" aria-label="Fermer">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -1298,7 +1403,7 @@ export default function IaStudioPage() {
 
         {/* ══════════════════════════ MODULE COLORISTE */}
         {tab === 'coloriste' && (
-          <div className="fu grid gap-6 lg:grid-cols-[1fr_380px]">
+          <div className="fu grid gap-6 lg:grid-cols-[420px_1fr]">
 
             {/* ── Panneau gauche */}
             <div className="space-y-4">
@@ -1602,8 +1707,9 @@ export default function IaStudioPage() {
               </div>
             </div>
 
-            {/* ── Panneau droit */}
+            {/* ── Panneau droit : grand aperçu (sticky) + historique */}
             <div className="space-y-4">
+              <div className="space-y-4 lg:sticky lg:top-6">
 
               {/* Erreur coloriste */}
               {colorError && !colorLoading && (
@@ -1681,6 +1787,8 @@ export default function IaStudioPage() {
                 </>
               )}
 
+              </div>{/* /grand aperçu sticky */}
+
               {/* Historique IA persistant (DB IaJob — partagé workspace) */}
               <HistoryPanel
                 filterType="COLOR_VARIATION"
@@ -1694,7 +1802,7 @@ export default function IaStudioPage() {
 
         {/* ══════════════════════════ MODULE RENDU RÉALISTE */}
         {tab === 'rendu' && (
-          <div className="fu grid gap-6 lg:grid-cols-[1fr_380px]">
+          <div className="fu grid gap-6 lg:grid-cols-[420px_1fr]">
 
             {/* ── Panneau gauche */}
             <div className="space-y-4">
@@ -1872,8 +1980,9 @@ export default function IaStudioPage() {
               </div>
             </div>
 
-            {/* ── Panneau droit */}
+            {/* ── Panneau droit : grand aperçu (sticky) + historique */}
             <div className="space-y-4">
+              <div className="space-y-4 lg:sticky lg:top-6">
 
               {/* Erreur rendu */}
               {rendError && !rendLoading && (
@@ -1945,6 +2054,8 @@ export default function IaStudioPage() {
                   </div>
                 </>
               )}
+
+              </div>{/* /grand aperçu sticky */}
 
               {/* Historique IA persistant (DB IaJob — partagé workspace) */}
               <HistoryPanel
