@@ -846,6 +846,56 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
   );
 }
 
+/** Galerie des visuels sauvegardés (coloriste + rendu) — réutilisée dans
+ *  chaque module, côte à côte avec l'historique. */
+function GalleryCard({ gallery }: { gallery: Item[] }) {
+  if (gallery.length === 0) return null;
+  return (
+    <div className="fu rounded-2xl bg-white border border-[#304035]/8 shadow-md p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <ImageIcon className="h-4 w-4 text-[#304035]/60" />
+          <p className="font-black text-[#304035]">Galerie</p>
+        </div>
+        <span className="rounded-full bg-[#304035]/6 px-3 py-1 text-xs font-bold text-[#304035]/60">
+          {gallery.length} visuel{gallery.length>1?'s':''}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {gallery.map((item,i) => (
+          <div key={item.id} className="fu group rounded-2xl overflow-hidden border border-[#304035]/8 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-250 cursor-pointer"
+            style={{animationDelay:`${i*0.05}s`}}>
+            {item.imageUrl && !item.imageUrl.includes('placehold') ? (
+              <Image src={item.imageUrl} alt={item.prompt} width={300} height={200} loading="lazy" className="w-full aspect-video object-cover" unoptimized />
+            ) : (
+              <div className="relative flex items-center justify-center py-9"
+                style={{background:`linear-gradient(145deg,${item.color}18,${item.color}35)`}}>
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl shadow-md"
+                  style={{background:`linear-gradient(135deg,${item.color},${item.color}bb)`}}>
+                  {item.module==='coloriste'
+                    ? <Paintbrush className="h-5 w-5 text-white" />
+                    : <Wand2 className="h-5 w-5 text-white" />}
+                </div>
+                <div className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm"
+                  style={{background:`${item.color}22`,color:item.color}}>
+                  {item.module==='coloriste'?'Coloriste':'Rendu'}
+                </div>
+              </div>
+            )}
+            <div className="p-3">
+              <p className="text-xs font-semibold text-[#304035] line-clamp-2 leading-relaxed">{item.prompt}</p>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-[9px] text-[#304035]/40 font-medium truncate">{item.dossier}</span>
+                <span className="text-[9px] text-[#304035]/30 shrink-0 ml-1">{item.ts}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────────────────────── PAGE */
 export default function IaStudioPage() {
   const dossiers       = useDossierStore(s => s.dossiers);
@@ -1409,13 +1459,9 @@ export default function IaStudioPage() {
 
         {/* ══════════════════════════ MODULE COLORISTE */}
         {tab === 'coloriste' && (
-          <>
-          <div className="fu grid gap-6 lg:grid-cols-[420px_1fr] lg:items-start">
+          <div className="fu space-y-6">
 
-            {/* ── Panneau gauche */}
-            <div className="space-y-4">
-
-              {/* Photo */}
+              {/* Photo de la cuisine — pleine largeur */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <Camera className="h-4 w-4 text-[#a67749]" />
@@ -1438,6 +1484,9 @@ export default function IaStudioPage() {
                   </div>
                 )}
               </div>
+
+            {/* Palettes (½) + Paramètres du rendu (½) côte à côte */}
+            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
 
               {/* Palettes */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5">
@@ -1679,9 +1728,10 @@ export default function IaStudioPage() {
                   </p>
                 </div>
               </div>
+            </div>{/* /Palettes + Paramètres */}
 
-              {/* Dossier + CTA */}
-              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
+            {/* Associer au dossier + Appliquer les couleurs — pleine largeur */}
+            <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
                 <DossierPicker />
 
                 {/* Sélecteur variantes retiré 19/05/2026 : le coloriste génère
@@ -1711,12 +1761,10 @@ export default function IaStudioPage() {
                     }
                   </span>
                 </button>
-              </div>
             </div>
 
-            {/* ── Panneau droit : grand aperçu, seul dans sa colonne et sticky
-                (reste visible pendant qu'on scrolle les réglages plus hauts). */}
-            <div className="space-y-4 lg:sticky lg:top-6">
+            {/* Grand aperçu du résultat — pleine largeur */}
+            <div className="space-y-4">
 
               {/* Erreur coloriste */}
               {colorError && !colorLoading && (
@@ -1765,10 +1813,9 @@ export default function IaStudioPage() {
                 />
               )}
 
-              {/* État vide inspirant */}
+              {/* État vide inspirant (Conseils sur chantier retiré — 06/06/2026) */}
               {!colorLoading && !colorResult && (
-                <>
-                  <div className="rounded-2xl border-2 border-dashed border-[#a67749]/20 bg-gradient-to-br from-[#a67749]/5 to-white p-6 text-center">
+                  <div className="rounded-2xl border-2 border-dashed border-[#a67749]/20 bg-gradient-to-br from-[#a67749]/5 to-white p-12 text-center">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#a67749]/10">
                       <Eye className="h-7 w-7 text-[#a67749]/60" />
                     </div>
@@ -1777,35 +1824,22 @@ export default function IaStudioPage() {
                       Choisissez une palette ou configurez vos couleurs, puis lancez le Coloriste IA.
                     </p>
                   </div>
-
-                  <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-4 space-y-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/40">Conseils sur chantier</p>
-                    {[
-                      { icon:Target,    tip:'Montrez 2–3 palettes différentes au client en direct' },
-                      { icon:Zap,       tip:'Le prompt est construit automatiquement depuis vos sélections' },
-                      { icon:Lightbulb, tip:'Ajustez la finition : "mat" pour moderne, "brillant" pour classique' },
-                    ].map(({icon:I,tip},i) => (
-                      <div key={i} className="flex items-start gap-2.5">
-                        <I className="h-4 w-4 shrink-0 text-[#a67749]/60 mt-0.5" />
-                        <p className="text-xs text-[#304035]/60 leading-relaxed">{tip}</p>
-                      </div>
-                    ))}
-                  </div>
-                </>
               )}
 
-            </div>
-          </div>
+            </div>{/* /grand aperçu */}
 
-          {/* Historique IA — pleine largeur sous la grille (hors de la colonne
-              sticky, pour qu'il ne se superpose jamais au grand aperçu). */}
-          <HistoryPanel
-            filterType="COLOR_VARIATION"
-            accent="#a67749"
-            refreshTrigger={iaHistoryRefresh}
-            onSelect={openHistoryJob}
-          />
-          </>
+            {/* Historique (½) + Galerie (½) côte à côte */}
+            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+              <HistoryPanel
+                filterType="COLOR_VARIATION"
+                accent="#a67749"
+                refreshTrigger={iaHistoryRefresh}
+                onSelect={openHistoryJob}
+              />
+              <GalleryCard gallery={gallery} />
+            </div>
+
+          </div>
         )}
 
         {/* ══════════════════════════ MODULE RENDU RÉALISTE */}
@@ -2067,62 +2101,21 @@ export default function IaStudioPage() {
             </div>
           </div>
 
-          {/* Historique IA — pleine largeur sous la grille (hors de la colonne
-              sticky, pour qu'il ne se superpose jamais au grand aperçu). */}
-          <HistoryPanel
-            filterType="PHOTOREALISM_ENHANCE"
-            accent="#5b9bd5"
-            refreshTrigger={iaHistoryRefresh}
-            onSelect={openHistoryJob}
-          />
+          {/* Historique (½) + Galerie (½) côte à côte */}
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <HistoryPanel
+              filterType="PHOTOREALISM_ENHANCE"
+              accent="#5b9bd5"
+              refreshTrigger={iaHistoryRefresh}
+              onSelect={openHistoryJob}
+            />
+            <GalleryCard gallery={gallery} />
+          </div>
           </>
         )}
 
-        {/* ══════════════════════════ GALERIE GLOBALE */}
-        {gallery.length > 0 && (
-          <div className="fu rounded-2xl bg-white border border-[#304035]/8 shadow-md p-6">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <ImageIcon className="h-4 w-4 text-[#304035]/60" />
-                <p className="font-black text-[#304035]">Galerie</p>
-              </div>
-              <span className="rounded-full bg-[#304035]/6 px-3 py-1 text-xs font-bold text-[#304035]/60">
-                {gallery.length} visuel{gallery.length>1?'s':''}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {gallery.map((item,i) => (
-                <div key={item.id} className="fu group rounded-2xl overflow-hidden border border-[#304035]/8 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-250 cursor-pointer"
-                  style={{animationDelay:`${i*0.05}s`}}>
-                  {item.imageUrl && !item.imageUrl.includes('placehold') ? (
-                    <Image src={item.imageUrl} alt={item.prompt} width={300} height={200} loading="lazy" className="w-full aspect-video object-cover" unoptimized />
-                  ) : (
-                    <div className="relative flex items-center justify-center py-9"
-                      style={{background:`linear-gradient(145deg,${item.color}18,${item.color}35)`}}>
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl shadow-md"
-                        style={{background:`linear-gradient(135deg,${item.color},${item.color}bb)`}}>
-                        {item.module==='coloriste'
-                          ? <Paintbrush className="h-5 w-5 text-white" />
-                          : <Wand2 className="h-5 w-5 text-white" />}
-                      </div>
-                      <div className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm"
-                        style={{background:`${item.color}22`,color:item.color}}>
-                        {item.module==='coloriste'?'Coloriste':'Rendu'}
-                      </div>
-                    </div>
-                  )}
-                  <div className="p-3">
-                    <p className="text-xs font-semibold text-[#304035] line-clamp-2 leading-relaxed">{item.prompt}</p>
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-[9px] text-[#304035]/40 font-medium truncate">{item.dossier}</span>
-                      <span className="text-[9px] text-[#304035]/30 shrink-0 ml-1">{item.ts}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Galerie déplacée dans chaque module (côte à côte avec l'historique)
+            via <GalleryCard/> — voir le bas des onglets Coloriste et Rendu. */}
 
       </div>
     </>
