@@ -1713,9 +1713,9 @@ export default function IaStudioPage() {
               </div>
             </div>
 
-            {/* ── Panneau droit : grand aperçu (sticky) + historique */}
+            {/* ── Panneau droit : grand aperçu + historique */}
             <div className="space-y-4">
-              <div className="space-y-4 lg:sticky lg:top-6">
+              <div className="space-y-4">
 
               {/* Erreur coloriste */}
               {colorError && !colorLoading && (
@@ -1793,7 +1793,7 @@ export default function IaStudioPage() {
                 </>
               )}
 
-              </div>{/* /grand aperçu sticky */}
+              </div>{/* /grand aperçu */}
 
               {/* Historique IA persistant (DB IaJob — partagé workspace) */}
               <HistoryPanel
@@ -1986,9 +1986,9 @@ export default function IaStudioPage() {
               </div>
             </div>
 
-            {/* ── Panneau droit : grand aperçu (sticky) + historique */}
+            {/* ── Panneau droit : grand aperçu + historique */}
             <div className="space-y-4">
-              <div className="space-y-4 lg:sticky lg:top-6">
+              <div className="space-y-4">
 
               {/* Erreur rendu */}
               {rendError && !rendLoading && (
@@ -2061,7 +2061,7 @@ export default function IaStudioPage() {
                 </>
               )}
 
-              </div>{/* /grand aperçu sticky */}
+              </div>{/* /grand aperçu */}
 
               {/* Historique IA persistant (DB IaJob — partagé workspace) */}
               <HistoryPanel
