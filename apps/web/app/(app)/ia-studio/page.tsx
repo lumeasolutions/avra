@@ -1461,29 +1461,100 @@ export default function IaStudioPage() {
         {tab === 'coloriste' && (
           <div className="fu space-y-6">
 
-              {/* Photo de la cuisine — pleine largeur */}
-              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5">
+            {/* Ligne 1 : Photo (⅓) + Grand aperçu (⅔) — sections un peu plus hautes */}
+            <div className="grid gap-6 lg:grid-cols-3 lg:items-stretch">
+
+              {/* Photo de la cuisine — un tiers */}
+              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 flex flex-col lg:min-h-[400px]">
                 <div className="flex items-center gap-2 mb-4">
                   <Camera className="h-4 w-4 text-[#a67749]" />
                   <p className="font-bold text-[#304035]">Photo de la cuisine</p>
                   <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-[#a67749]/70 bg-[#a67749]/8 px-2 py-0.5 rounded-full">Optionnel</span>
                 </div>
-                <Drop label="" sub="Déposez une photo (chantier, showroom, catalogue)"
-                  onFile={setPhotoFile} file={photoFile} accent="#a67749" />
-                {photoURL && (
-                  <div className="mt-3 relative rounded-xl overflow-hidden">
-                    <Image src={photoURL} alt="cuisine" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                    <button onClick={() => {setPhotoFile(null); setPhotoURL(null);}}
-                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                    <div className="absolute bottom-2 left-3">
-                      <span className="rounded-full bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5">Photo chargée</span>
+                <div className="flex-1 flex flex-col justify-center">
+                  <Drop label="" sub="Déposez une photo (chantier, showroom, catalogue)"
+                    onFile={setPhotoFile} file={photoFile} accent="#a67749" />
+                  {photoURL && (
+                    <div className="mt-3 relative rounded-xl overflow-hidden">
+                      <Image src={photoURL} alt="cuisine" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                      <button onClick={() => {setPhotoFile(null); setPhotoURL(null);}}
+                        className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                      <div className="absolute bottom-2 left-3">
+                        <span className="rounded-full bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5">Photo chargée</span>
+                      </div>
                     </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Grand aperçu du résultat — deux tiers */}
+              <div className="space-y-4 lg:col-span-2">
+
+                {/* Erreur coloriste */}
+                {colorError && !colorLoading && (
+                  <div className="fu rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-red-700">Génération échouée</p>
+                      <p className="text-xs text-red-600/80 mt-0.5 leading-relaxed">{colorError}</p>
+                    </div>
+                    <button onClick={() => setColorError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0">
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
                 )}
-              </div>
+
+                {/* Loading */}
+                {colorLoading && (
+                  <div className="fu rounded-2xl bg-white border border-[#304035]/8 shadow-md p-6 space-y-5">
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                        style={{background:'linear-gradient(135deg,#a67749,#8a5e35)'}}>
+                        <Paintbrush className="h-6 w-6 text-white sh" />
+                      </div>
+                      <div>
+                        <p className="font-black text-[#304035]">Coloriste IA en action</p>
+                        <p className="text-xs text-[#304035]/50 mt-0.5">
+                          {(facadeTexture || poigneeTexture || planTexture)
+                            ? 'Flux Kontext · Édition multi-image (textures)…'
+                            : 'Flux Kontext · Édition guidée par instruction…'}
+                        </p>
+                      </div>
+                    </div>
+                    <ProgressBar steps={LOADING_STEPS_COLOR} color="#a67749" />
+                  </div>
+                )}
+
+                {/* Résultat — coloriste : avec slider avant/après pour comparer */}
+                {colorResult && !colorLoading && (
+                  <ResultCard
+                    item={colorResult}
+                    accentColor="#a67749"
+                    icon={Paintbrush}
+                    onSave={saveColor}
+                    onRegenerate={runColor}
+                    beforeUrl={photoURL}
+                  />
+                )}
+
+                {/* État vide inspirant (Conseils sur chantier retiré — 06/06/2026) */}
+                {!colorLoading && !colorResult && (
+                  <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#a67749]/20 bg-gradient-to-br from-[#a67749]/5 to-white p-12 text-center lg:min-h-[400px]">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#a67749]/10">
+                      <Eye className="h-7 w-7 text-[#a67749]/60" />
+                    </div>
+                    <p className="font-bold text-[#304035] mb-1.5">Aperçu du résultat</p>
+                    <p className="text-xs text-[#304035]/50 leading-relaxed">
+                      Choisissez une palette ou configurez vos couleurs, puis lancez le Coloriste IA.
+                    </p>
+                  </div>
+                )}
+
+              </div>{/* /grand aperçu (deux tiers) */}
+            </div>{/* /ligne 1 */}
 
             {/* Palettes (½) + Paramètres du rendu (½) côte à côte */}
             <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
@@ -1762,71 +1833,6 @@ export default function IaStudioPage() {
                   </span>
                 </button>
             </div>
-
-            {/* Grand aperçu du résultat — pleine largeur */}
-            <div className="space-y-4">
-
-              {/* Erreur coloriste */}
-              {colorError && !colorLoading && (
-                <div className="fu rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-red-700">Génération échouée</p>
-                    <p className="text-xs text-red-600/80 mt-0.5 leading-relaxed">{colorError}</p>
-                  </div>
-                  <button onClick={() => setColorError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-
-              {/* Loading */}
-              {colorLoading && (
-                <div className="fu rounded-2xl bg-white border border-[#304035]/8 shadow-md p-6 space-y-5">
-                  <div className="flex items-center gap-3">
-                    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
-                      style={{background:'linear-gradient(135deg,#a67749,#8a5e35)'}}>
-                      <Paintbrush className="h-6 w-6 text-white sh" />
-                    </div>
-                    <div>
-                      <p className="font-black text-[#304035]">Coloriste IA en action</p>
-                      <p className="text-xs text-[#304035]/50 mt-0.5">
-                        {(facadeTexture || poigneeTexture || planTexture)
-                          ? 'Flux Kontext · Édition multi-image (textures)…'
-                          : 'Flux Kontext · Édition guidée par instruction…'}
-                      </p>
-                    </div>
-                  </div>
-                  <ProgressBar steps={LOADING_STEPS_COLOR} color="#a67749" />
-                </div>
-              )}
-
-              {/* Résultat — coloriste : avec slider avant/après pour comparer */}
-              {colorResult && !colorLoading && (
-                <ResultCard
-                  item={colorResult}
-                  accentColor="#a67749"
-                  icon={Paintbrush}
-                  onSave={saveColor}
-                  onRegenerate={runColor}
-                  beforeUrl={photoURL}
-                />
-              )}
-
-              {/* État vide inspirant (Conseils sur chantier retiré — 06/06/2026) */}
-              {!colorLoading && !colorResult && (
-                  <div className="rounded-2xl border-2 border-dashed border-[#a67749]/20 bg-gradient-to-br from-[#a67749]/5 to-white p-12 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#a67749]/10">
-                      <Eye className="h-7 w-7 text-[#a67749]/60" />
-                    </div>
-                    <p className="font-bold text-[#304035] mb-1.5">Aperçu du résultat</p>
-                    <p className="text-xs text-[#304035]/50 leading-relaxed">
-                      Choisissez une palette ou configurez vos couleurs, puis lancez le Coloriste IA.
-                    </p>
-                  </div>
-              )}
-
-            </div>{/* /grand aperçu */}
 
             {/* Historique (½) + Galerie (½) côte à côte */}
             <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
