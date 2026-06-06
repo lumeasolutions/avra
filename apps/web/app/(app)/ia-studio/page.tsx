@@ -188,16 +188,16 @@ async function fileToDataUrl(file: File): Promise<string> {
 }
 
 /* ─── Helper : déclenche le téléchargement local de l'image générée.
- *  Les résultats sont des URL signées Supabase. On NE fetch PAS l'image : la
- *  CSP `connect-src` n'autorise pas *.supabase.co → toute requête fetch/XHR est
- *  bloquée. À la place on ajoute `download=<nom>` à l'URL signée : Supabase
- *  répond alors avec `Content-Disposition: attachment`, ce qui force un vrai
- *  téléchargement. L'ancre est cliquée de façon SYNCHRONE (dans le geste de
- *  clic) → pas de popup bloquée, aucun souci CORS/CSP. ─── */
+ *  On passe par le proxy SAME-ORIGIN /api/ia/download : le navigateur ne peut
+ *  pas récupérer l'image distante directement (CSP `connect-src` n'autorise
+ *  pas *.supabase.co, et un <a download> cross-origin ignore le nom de
+ *  fichier). Le proxy va chercher l'image côté serveur et la renvoie en
+ *  pièce jointe. Comme la route est same-origin, l'attribut `download` est
+ *  respecté et le clic synchrone évite toute popup bloquée. ─── */
 function downloadImageFromUrl(url: string, filename: string): void {
-  const sep = url.includes('?') ? '&' : '?';
+  const href = `/api/ia/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(filename)}`;
   const a = document.createElement('a');
-  a.href = `${url}${sep}download=${encodeURIComponent(filename)}`;
+  a.href = href;
   a.download = filename;
   a.rel = 'noopener';
   document.body.appendChild(a);
