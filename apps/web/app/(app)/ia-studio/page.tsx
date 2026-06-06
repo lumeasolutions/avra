@@ -187,28 +187,22 @@ async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-/* ─── Helper : force le téléchargement local d'une image distante (URL signée
- *  Supabase / fal-cdn). On récupère le blob puis on déclenche un <a download>
- *  pour obtenir un vrai téléchargement avec nom de fichier (l'attribut
- *  `download` seul est ignoré en cross-origin). Si le fetch est bloqué par
- *  CORS ou réseau, fallback gracieux : ouverture dans un nouvel onglet
- *  (l'utilisateur fait clic droit → « Enregistrer l'image sous… »). ─── */
-async function downloadImageFromUrl(url: string, filename: string): Promise<void> {
-  try {
-    const res = await fetch(url, { mode: 'cors' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objectUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
-  } catch {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  }
+/* ─── Helper : déclenche le téléchargement local de l'image générée.
+ *  Les résultats sont des URL signées Supabase. On NE fetch PAS l'image : la
+ *  CSP `connect-src` n'autorise pas *.supabase.co → toute requête fetch/XHR est
+ *  bloquée. À la place on ajoute `download=<nom>` à l'URL signée : Supabase
+ *  répond alors avec `Content-Disposition: attachment`, ce qui force un vrai
+ *  téléchargement. L'ancre est cliquée de façon SYNCHRONE (dans le geste de
+ *  clic) → pas de popup bloquée, aucun souci CORS/CSP. ─── */
+function downloadImageFromUrl(url: string, filename: string): void {
+  const sep = url.includes('?') ? '&' : '?';
+  const a = document.createElement('a');
+  a.href = `${url}${sep}download=${encodeURIComponent(filename)}`;
+  a.download = filename;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 /**
