@@ -1409,7 +1409,8 @@ export default function IaStudioPage() {
 
         {/* ══════════════════════════ MODULE COLORISTE */}
         {tab === 'coloriste' && (
-          <div className="fu grid gap-6 lg:grid-cols-[420px_1fr]">
+          <>
+          <div className="fu grid gap-6 lg:grid-cols-[420px_1fr] lg:items-start">
 
             {/* ── Panneau gauche */}
             <div className="space-y-4">
@@ -1713,9 +1714,9 @@ export default function IaStudioPage() {
               </div>
             </div>
 
-            {/* ── Panneau droit : grand aperçu + historique */}
-            <div className="space-y-4">
-              <div className="space-y-4">
+            {/* ── Panneau droit : grand aperçu, seul dans sa colonne et sticky
+                (reste visible pendant qu'on scrolle les réglages plus hauts). */}
+            <div className="space-y-4 lg:sticky lg:top-6">
 
               {/* Erreur coloriste */}
               {colorError && !colorLoading && (
@@ -1793,22 +1794,24 @@ export default function IaStudioPage() {
                 </>
               )}
 
-              </div>{/* /grand aperçu */}
-
-              {/* Historique IA persistant (DB IaJob — partagé workspace) */}
-              <HistoryPanel
-                filterType="COLOR_VARIATION"
-                accent="#a67749"
-                refreshTrigger={iaHistoryRefresh}
-                onSelect={openHistoryJob}
-              />
             </div>
           </div>
+
+          {/* Historique IA — pleine largeur sous la grille (hors de la colonne
+              sticky, pour qu'il ne se superpose jamais au grand aperçu). */}
+          <HistoryPanel
+            filterType="COLOR_VARIATION"
+            accent="#a67749"
+            refreshTrigger={iaHistoryRefresh}
+            onSelect={openHistoryJob}
+          />
+          </>
         )}
 
         {/* ══════════════════════════ MODULE RENDU RÉALISTE */}
         {tab === 'rendu' && (
-          <div className="fu grid gap-6 lg:grid-cols-[420px_1fr]">
+          <>
+          <div className="fu grid gap-6 lg:grid-cols-[420px_1fr] lg:items-start">
 
             {/* ── Panneau gauche */}
             <div className="space-y-4">
@@ -1986,9 +1989,9 @@ export default function IaStudioPage() {
               </div>
             </div>
 
-            {/* ── Panneau droit : grand aperçu + historique */}
-            <div className="space-y-4">
-              <div className="space-y-4">
+            {/* ── Panneau droit : grand aperçu, seul dans sa colonne et sticky
+                (reste visible pendant qu'on scrolle les réglages plus hauts). */}
+            <div className="space-y-4 lg:sticky lg:top-6">
 
               {/* Erreur rendu */}
               {rendError && !rendLoading && (
@@ -2061,17 +2064,18 @@ export default function IaStudioPage() {
                 </>
               )}
 
-              </div>{/* /grand aperçu */}
-
-              {/* Historique IA persistant (DB IaJob — partagé workspace) */}
-              <HistoryPanel
-                filterType="PHOTOREALISM_ENHANCE"
-                accent="#5b9bd5"
-                refreshTrigger={iaHistoryRefresh}
-                onSelect={openHistoryJob}
-              />
             </div>
           </div>
+
+          {/* Historique IA — pleine largeur sous la grille (hors de la colonne
+              sticky, pour qu'il ne se superpose jamais au grand aperçu). */}
+          <HistoryPanel
+            filterType="PHOTOREALISM_ENHANCE"
+            accent="#5b9bd5"
+            refreshTrigger={iaHistoryRefresh}
+            onSelect={openHistoryJob}
+          />
+          </>
         )}
 
         {/* ══════════════════════════ GALERIE GLOBALE */}
