@@ -1850,18 +1850,13 @@ export default function IaStudioPage() {
 
         {/* ══════════════════════════ MODULE RENDU RÉALISTE */}
         {tab === 'rendu' && (
-          <>
-          <div className="fu grid gap-6 lg:grid-cols-[420px_1fr] lg:items-start">
+          <div className="fu space-y-6">
 
-            {/* ── Panneau gauche */}
-            <div className="space-y-4">
+            {/* Ligne 1 : Image de référence (⅓) + Grand aperçu (⅔) — sections un peu plus hautes */}
+            <div className="grid gap-6 lg:grid-cols-3 lg:items-stretch">
 
-              {/* Import image de référence — OBLIGATOIRE depuis juin 2026.
-                  Le mode text-to-image pur a été retiré : sans image source,
-                  l'IA inventait sol, crédence et ouvertures de façon
-                  incohérente avec la cuisine réelle. On utilise désormais
-                  toujours Kontext img2img pour préserver fidèlement le layout. */}
-              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5">
+              {/* Image de référence — un tiers (Kontext img2img : préserve le layout) */}
+              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 flex flex-col lg:min-h-[400px]">
                 <div className="flex items-center gap-2 mb-1">
                   <FileImage className="h-4 w-4 text-[#5b9bd5]" />
                   <p className="font-bold text-[#304035]">Image de référence <span className="ml-1 rounded-full bg-[#5b9bd5]/10 text-[#5b9bd5] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
@@ -1899,14 +1894,69 @@ export default function IaStudioPage() {
                 )}
               </div>
 
-              {/* Bloc "Style et ambiance" retiré 19/05/2026 : peu utile en
-                  mode Kontext img2img où la photo source dicte déjà l'ambiance.
-                  Les states `rendStyle` et `rendLight` gardent leurs valeurs
-                  par défaut (contemporain + naturelle) qui alimentent le
-                  prompt côté serveur de façon neutre. */}
+              {/* Grand aperçu du résultat — deux tiers */}
+              <div className="space-y-4 lg:col-span-2">
 
-              {/* Façades et plan — champs courts ciblés */}
-              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
+                {/* Erreur rendu */}
+                {rendError && !rendLoading && (
+                  <div className="fu rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-red-700">Génération échouée</p>
+                      <p className="text-xs text-red-600/80 mt-0.5 leading-relaxed">{rendError}</p>
+                    </div>
+                    <button onClick={() => setRendError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Loading rendu */}
+                {rendLoading && (
+                  <div className="fu rounded-2xl bg-white border border-[#304035]/8 shadow-md p-6 space-y-5">
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                        style={{background:'linear-gradient(135deg,#5b9bd5,#3a78b5)'}}>
+                        <Wand2 className="h-6 w-6 text-white sh" />
+                      </div>
+                      <div>
+                        <p className="font-black text-[#304035]">IA Rendu en action</p>
+                        <p className="text-xs text-[#304035]/50 mt-0.5">Flux 1.1 Pro Ultra · Traitement avancé…</p>
+                      </div>
+                    </div>
+                    <ProgressBar steps={LOADING_STEPS_RENDU} color="#5b9bd5" />
+                  </div>
+                )}
+
+                {/* Résultat rendu */}
+                {rendResult && !rendLoading && (
+                  <ResultCard
+                    item={rendResult}
+                    accentColor="#5b9bd5"
+                    icon={Wand2}
+                    onSave={saveRendu}
+                    onRegenerate={runRendu}
+                  />
+                )}
+
+                {/* État vide rendu (tips retirés pour cohérence avec Coloriste) */}
+                {!rendLoading && !rendResult && (
+                  <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#5b9bd5]/20 bg-gradient-to-br from-[#5b9bd5]/5 to-white p-12 text-center lg:min-h-[400px]">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#5b9bd5]/10">
+                      <ImageIcon className="h-7 w-7 text-[#5b9bd5]/60" />
+                    </div>
+                    <p className="font-bold text-[#304035] mb-1.5">Votre rendu apparaîtra ici</p>
+                    <p className="text-xs text-[#304035]/50 leading-relaxed">
+                      Importez une image de référence et lancez le rendu photoréaliste.
+                    </p>
+                  </div>
+                )}
+
+              </div>{/* /grand aperçu (deux tiers) */}
+            </div>{/* /ligne 1 */}
+
+            {/* Matériaux — pleine largeur */}
+            <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
                 <div className="flex items-center gap-2">
                   <Palette className="h-4 w-4 text-[#5b9bd5]" />
                   <p className="font-bold text-[#304035]">Matériaux</p>
@@ -2027,97 +2077,19 @@ export default function IaStudioPage() {
                   </span>
                 </button>
               </div>
+
+            {/* Historique (½) + Galerie (½) côte à côte */}
+            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+              <HistoryPanel
+                filterType="PHOTOREALISM_ENHANCE"
+                accent="#5b9bd5"
+                refreshTrigger={iaHistoryRefresh}
+                onSelect={openHistoryJob}
+              />
+              <GalleryCard gallery={gallery} />
             </div>
 
-            {/* ── Panneau droit : grand aperçu, seul dans sa colonne et sticky
-                (reste visible pendant qu'on scrolle les réglages plus hauts). */}
-            <div className="space-y-4 lg:sticky lg:top-6">
-
-              {/* Erreur rendu */}
-              {rendError && !rendLoading && (
-                <div className="fu rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-red-700">Génération échouée</p>
-                    <p className="text-xs text-red-600/80 mt-0.5 leading-relaxed">{rendError}</p>
-                  </div>
-                  <button onClick={() => setRendError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-
-              {/* Loading rendu */}
-              {rendLoading && (
-                <div className="fu rounded-2xl bg-white border border-[#304035]/8 shadow-md p-6 space-y-5">
-                  <div className="flex items-center gap-3">
-                    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
-                      style={{background:'linear-gradient(135deg,#5b9bd5,#3a78b5)'}}>
-                      <Wand2 className="h-6 w-6 text-white sh" />
-                    </div>
-                    <div>
-                      <p className="font-black text-[#304035]">IA Rendu en action</p>
-                      <p className="text-xs text-[#304035]/50 mt-0.5">Flux 1.1 Pro Ultra · Traitement avancé…</p>
-                    </div>
-                  </div>
-                  <ProgressBar steps={LOADING_STEPS_RENDU} color="#5b9bd5" />
-                </div>
-              )}
-
-              {/* Résultat rendu */}
-              {rendResult && !rendLoading && (
-                <ResultCard
-                  item={rendResult}
-                  accentColor="#5b9bd5"
-                  icon={Wand2}
-                  onSave={saveRendu}
-                  onRegenerate={runRendu}
-                />
-              )}
-
-              {/* État vide rendu */}
-              {!rendLoading && !rendResult && (
-                <>
-                  <div className="rounded-2xl border-2 border-dashed border-[#5b9bd5]/20 bg-gradient-to-br from-[#5b9bd5]/5 to-white p-6 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#5b9bd5]/10">
-                      <ImageIcon className="h-7 w-7 text-[#5b9bd5]/60" />
-                    </div>
-                    <p className="font-bold text-[#304035] mb-1.5">Votre rendu apparaîtra ici</p>
-                    <p className="text-xs text-[#304035]/50 leading-relaxed">
-                      Configurez le style, la lumière et les matériaux — le prompt est construit automatiquement.
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-4 space-y-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/40">WinnerFlex → Photoréalisme</p>
-                    {[
-                      { icon:ScanLine,  tip:'Exportez la vue 3D filaire pour les meilleurs volumes' },
-                      { icon:Lightbulb, tip:'Précisez la direction de la lumière avec le sélecteur' },
-                      { icon:Clock,     tip:'Comptez 10 à 20 sec pour un rendu 4K haute qualité' },
-                    ].map(({icon:I,tip},i) => (
-                      <div key={i} className="flex items-start gap-2.5">
-                        <I className="h-4 w-4 shrink-0 text-[#5b9bd5]/60 mt-0.5" />
-                        <p className="text-xs text-[#304035]/60 leading-relaxed">{tip}</p>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-            </div>
           </div>
-
-          {/* Historique (½) + Galerie (½) côte à côte */}
-          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-            <HistoryPanel
-              filterType="PHOTOREALISM_ENHANCE"
-              accent="#5b9bd5"
-              refreshTrigger={iaHistoryRefresh}
-              onSelect={openHistoryJob}
-            />
-            <GalleryCard gallery={gallery} />
-          </div>
-          </>
         )}
 
         {/* Galerie déplacée dans chaque module (côte à côte avec l'historique)
