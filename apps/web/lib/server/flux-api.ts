@@ -742,12 +742,13 @@ export async function generateRenduFromReferenceKontext(
  *  Note : on passe la même URL aux deux — c'est le pattern recommandé pour
  *  un rendu photoréaliste qui respecte structure ET couleurs de la source.
  *
- * Paramètres clés :
- *  - control_lora_strength=1.0 : structure Canny verrouillée à fond
- *  - strength=0.75 : préserve 25% de la source (couleurs), reste libre pour
- *    transformer 3D synthétique → photo réelle (default 0.85 trop libéral)
- *  - num_inference_steps=32 : qualité accrue (default 28)
- *  - guidance_scale=4 : adhérence prompt sans over-fit
+ * Paramètres clés (rééquilibrés 07/06/2026 vers le photoréalisme — voir détail
+ * en ligne dans la fonction) :
+ *  - control_lora_strength=0.85 : structure Canny tenue mais pas figée (1.0
+ *    gardait l'aspect 3D synthétique en empêchant la repeinte des surfaces)
+ *  - strength=0.82 : vraie transformation 3D synthétique → photo réelle
+ *  - num_inference_steps=36 : qualité/détail photo
+ *  - guidance_scale=5 : adhérence prompt "photorealistic"
  */
 export async function generateRenduFromReferenceControlNet(
   params: RenduParams,
@@ -764,12 +765,18 @@ export async function generateRenduFromReferenceControlNet(
       prompt:                 built.prompt,
       control_lora_image_url: referenceImageUrl,
       image_url:              referenceImageUrl,
-      control_lora_strength:  1.0,
-      strength:               0.75,
+      // PHOTORÉALISME (07/06/2026) — équilibrage réalisme ↔ fidélité.
+      // Problème remonté : le rendu gardait l'aspect 3D synthétique de la
+      // source au lieu de devenir une vraie photo. Cause : verrou Canny à 1.0
+      // + strength 0.75 = le modèle était trop contraint pour "repeindre" les
+      // surfaces en photo. On rééquilibre vers le réalisme tout en gardant le
+      // layout (le Canny à 0.85 tient encore solidement la structure) :
+      control_lora_strength:  0.85,  // 1.0 → 0.85 : laisse respirer les textures
+      strength:               0.82,  // 0.75 → 0.82 : vraie transformation 3D→photo
       num_images:             Math.min(Math.max(numImages, 1), 4),
       seed:                   built.seed,
-      num_inference_steps:    32,
-      guidance_scale:         4,
+      num_inference_steps:    36,    // 32 → 36 : un peu plus de détail photo
+      guidance_scale:         5,     // 4 → 5 : pousse l'adhérence "photorealistic"
       output_format:          'jpeg',
       enable_safety_checker:  true,
     };
