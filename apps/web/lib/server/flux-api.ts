@@ -673,13 +673,15 @@ export async function generateRenduFromReferenceKontext(
 
   try {
     console.log(`[fal.subscribe] ${FLUX_MODEL_KONTEXT_SINGLE} (rendu img2img) promptLen=${built.prompt.length}`);
-    // Verrouillage géométrique (juin 2026) :
-    //  - guidance_scale 5 (au lieu de 4) : Kontext suit plus strictement les
-    //    instructions de préservation listées dans le prompt. Au-delà de 6 le
-    //    modèle over-fit et produit des artefacts ; 5 est le sweet spot.
-    //  - Pas de aspect_ratio forcé : on laisse Kontext préserver le ratio de
-    //    l'image source (16:9 forcé causait des recadrages aberrants sur des
-    //    plans WinnerFlex carrés ou portraits).
+    // Curseur RÉALISME ↔ FIDÉLITÉ (params.realism 0-100, défaut 60) → guidance_scale.
+    // Sur Kontext : guidance bas = colle à la source (plus 3D, plus fidèle au
+    // plan) ; guidance haut = pousse l'instruction "photorealistic" (plus photo).
+    // Au-delà de ~6 Kontext over-fit (artefacts) → on borne la plage à [3.5, 6].
+    // Pas d'aspect_ratio forcé : on laisse Kontext préserver le ratio source.
+    const realism = typeof params.realism === 'number'
+      ? Math.min(Math.max(params.realism, 0), 100) : 60;
+    const guidanceVal = +(3.5 + (realism / 100) * 2.5).toFixed(2);  // 3.5 → 6.0 (défaut 60 → 5.0)
+    console.log(`[rendu/kontext] realism=${realism} → guidance=${guidanceVal}`);
     const result = await fal.subscribe(FLUX_MODEL_KONTEXT_SINGLE, {
       input: {
         prompt:           built.prompt,
@@ -688,7 +690,7 @@ export async function generateRenduFromReferenceKontext(
         seed:             built.seed,
         output_format:    'jpeg',
         safety_tolerance: '2',
-        guidance_scale:   5,
+        guidance_scale:   guidanceVal,
       },
       logs: false,
     });

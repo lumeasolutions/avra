@@ -12,7 +12,6 @@ import { RenduParams } from '@/lib/server/prompt-builder';
 import {
   generateRenduFromReferenceKontext,
   generateRenduFromReferenceControlNet,
-  generateRenduUltraFidelity,
   refineRenduMaterialsSAM,
   ensureHttpsUrl,
 } from '@/lib/server/flux-api';
@@ -219,24 +218,20 @@ export async function POST(req: NextRequest) {
     //   Mode Standard : Flux Control LoRA Canny (rapide, ~10-15s, ~0.09€).
     //   Fallback transparent Kontext si l'étape principale rate.
     //   Phase 5 (monitoring) : on trace pipelineUsed pour analyse.
-    let pipelineUsed: 'ultra-fidelity' | 'controlnet-canny' | 'kontext-fallback';
+    let pipelineUsed: 'kontext' | 'controlnet-canny' | 'ultra-fidelity';
     let result;
-    if (maxPrecision) {
-      pipelineUsed = 'ultra-fidelity';
-      result = await generateRenduUltraFidelity(params, referenceHttpsUrl, numImages);
-      if (!result.success) {
-        console.warn(`[API /ia/rendu] Ultra Fidélité KO (${result.error ?? 'unknown'}) → fallback ControlNet Canny`);
-        pipelineUsed = 'controlnet-canny';
-        result = await generateRenduFromReferenceControlNet(params, referenceHttpsUrl, numImages);
-      }
-    } else {
+    // PRINCIPAL (07/06/2026, choix utilisateur) : Kontext — fal-ai/flux-pro/kontext,
+    // modèle PRO managé. Plus rapide et plus régulier que le ControlNet Canny LoRA
+    // (qui subissait de gros pics de latence fal.ai : 34s → 180s pour le même
+    // rendu), et meilleur pour le photoréalisme 3D→photo. Piloté par le curseur
+    // Réalisme↔Fidélité (mappé sur guidance_scale dans la fonction Kontext).
+    pipelineUsed = 'kontext';
+    result = await generateRenduFromReferenceKontext(params, referenceHttpsUrl, numImages);
+    if (!result.success) {
+      // SECOURS : ControlNet Canny (verrouillage géométrique strict) si Kontext rate.
+      console.warn(`[API /ia/rendu] Kontext KO (${result.error ?? 'unknown'}) → fallback ControlNet Canny`);
       pipelineUsed = 'controlnet-canny';
       result = await generateRenduFromReferenceControlNet(params, referenceHttpsUrl, numImages);
-    }
-    if (!result.success) {
-      console.warn(`[API /ia/rendu] ${pipelineUsed} KO (${result.error ?? 'unknown'}) → fallback Kontext`);
-      pipelineUsed = 'kontext-fallback';
-      result = await generateRenduFromReferenceKontext(params, referenceHttpsUrl, numImages);
     }
 
     if (!result.success) {
@@ -303,8 +298,7 @@ export async function POST(req: NextRequest) {
         extraContext: params.extraContext ? `${params.extraContext} ${retrySeedHint}` : retrySeedHint,
       };
       const retryResult =
-          pipelineUsed === 'ultra-fidelity'   ? await generateRenduUltraFidelity(retryParams, referenceHttpsUrl, numImages)
-        : pipelineUsed === 'controlnet-canny' ? await generateRenduFromReferenceControlNet(retryParams, referenceHttpsUrl, numImages)
+          pipelineUsed === 'controlnet-canny' ? await generateRenduFromReferenceControlNet(retryParams, referenceHttpsUrl, numImages)
                                               : await generateRenduFromReferenceKontext(retryParams, referenceHttpsUrl, numImages);
       if (retryResult.success) {
         result = retryResult;
@@ -323,7 +317,7 @@ export async function POST(req: NextRequest) {
     //  mais désactivé par défaut quand maxPrecision est actif.
     let samSteps: Array<{ region: string; maskFound: boolean; inpaintOk: boolean; durationMs: number }> = [];
     let samApplied = false;
-    if (maxPrecision && pipelineUsed !== 'ultra-fidelity') {
+    if (maxPrecision) {
       const elapsed = Date.now() - tStart;
       if (elapsed < TIME_BUDGET_MS - MIN_MARGIN_MS) {
         try {
@@ -360,13 +354,11 @@ export async function POST(req: NextRequest) {
     //    (Canny extract ~$0.01 + Flux ControlNet ~$0.08).
     //  - modelsUsed reflète le pipeline réellement utilisé (pas la liste prévue).
     const costPerImage =
-        pipelineUsed === 'ultra-fidelity'   ? 0.18   // multi-control + ref + 40 steps
-      : pipelineUsed === 'controlnet-canny' ? 0.09   // control-lora-canny standard
-                                            : 0.06;  // fallback Kontext
+        pipelineUsed === 'controlnet-canny' ? 0.09   // control-lora-canny (secours)
+                                            : 0.06;  // Kontext (principal)
     const costEUR = costPerImage * result.imageUrls.length;
     const finalModelsUsed =
-      pipelineUsed === 'ultra-fidelity'   ? ['fal-ai/flux-general/image-to-image (canny+depth+ref)']
-    : pipelineUsed === 'controlnet-canny' ? ['fal-ai/flux-control-lora-canny/image-to-image']
+      pipelineUsed === 'controlnet-canny' ? ['fal-ai/flux-control-lora-canny/image-to-image']
                                           : ['fal-ai/flux-pro/kontext'];
     await prisma.iaJob.update({
       where: { id: job.id },
