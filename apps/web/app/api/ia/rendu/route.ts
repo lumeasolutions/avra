@@ -260,9 +260,13 @@ export async function POST(req: NextRequest) {
     // Désormais on ne lance un retry que si elapsed < 110s (250 - 140), ce qui
     // garantit qu'il se termine largement avant le timeout.
     const MIN_MARGIN_MS     = 140_000;
-    // 1 seul retry auto (au lieu de 2) : 2 retries chaînés pouvaient atteindre
-    // ~270s. Un retry suffit comme filet qualité quand le budget temps le permet.
-    const MAX_AUTO_RETRIES  = 1;
+    // Retry auto DÉSACTIVÉ (07/06/2026, choix utilisateur « priorité vitesse ») :
+    // la 2e passe de contrôle qualité (vision-critic) relançait une génération
+    // complète et doublait quasiment le temps (audit : 167s avec retry vs ~65-85s
+    // en une passe). L'utilisateur régénère manuellement via le bouton
+    // « Régénérer » s'il n'est pas satisfait. Remettre à 1 pour réactiver le
+    // filet qualité automatique.
+    const MAX_AUTO_RETRIES  = 0;
 
     while (autoRetryCount < MAX_AUTO_RETRIES) {
       const elapsed = Date.now() - tStart;
