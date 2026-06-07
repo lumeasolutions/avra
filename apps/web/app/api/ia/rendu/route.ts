@@ -13,6 +13,7 @@ import {
   generateRenduFromReferenceKontext,
   generateRenduFromReferenceControlNet,
   refineRenduMaterialsSAM,
+  upscaleImageHighRes,
   ensureHttpsUrl,
 } from '@/lib/server/flux-api';
 import { assessRenduFidelity } from '@/lib/server/vision-critic';
@@ -118,6 +119,8 @@ export async function POST(req: NextRequest) {
   // Phase 5 — nombre de "Régénérer" cliqués par l'utilisateur sur cette image.
   const userRetryCount = typeof body.userRetryCount === 'number' && body.userRetryCount >= 0
     ? Math.min(body.userRetryCount, 20) : 0;
+  // Option « Haute résolution » : agrandit le rendu final (~4K) via upscaler IA.
+  const highRes = body.highRes === true;
 
   // ── 4) INSERT IaJob (QUEUED) — protégé pour ne jamais laisser une erreur
   //       Prisma escape en uncaught (cf. coloriste pour le même pattern).
@@ -339,6 +342,15 @@ export async function POST(req: NextRequest) {
       } else {
         console.log(`[API /ia/rendu] budget temps insuffisant pour SAM (${elapsed}ms)`);
       }
+    }
+
+    // ── Option « Haute résolution » : agrandit le rendu final (~4K) AVANT la
+    //  copie Supabase. Non bloquant : si l'upscale rate, on garde l'image
+    //  d'origine. Coût ~+0.02-0.05€, +10-25s.
+    if (highRes && result.imageUrls.length > 0) {
+      const upscaled = await Promise.all(result.imageUrls.map(u => upscaleImageHighRes(u)));
+      const merged = result.imageUrls.map((orig, i) => upscaled[i] ?? orig);
+      result = { ...result, imageUrls: merged, imageUrl: merged[0] };
     }
 
     // ── 7quater) Copie fal-cdn → Supabase

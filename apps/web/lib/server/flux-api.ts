@@ -61,6 +61,11 @@ const FLUX_GENERAL_I2I = 'fal-ai/flux-general/image-to-image';
 const EVF_SAM_MODEL    = 'fal-ai/evf-sam';
 const FLUX_INPAINT_MODEL = 'fal-ai/flux-lora/inpainting';
 
+// Agrandissement IA (07/06/2026) — option « Haute résolution / 4K ». On repasse
+// le rendu final dans clarity-upscaler (×2) : faible "creativity" + forte
+// "resemblance" → on agrandit en gardant le contenu (pas de ré-invention).
+const UPSCALER_MODEL = 'fal-ai/clarity-upscaler';
+
 let isConfigured = false;
 function ensureConfigured() {
   if (isConfigured) return;
@@ -717,6 +722,35 @@ export async function generateRenduFromReferenceKontext(
       durationMs: Date.now() - tStart,
       error:      message,
     };
+  }
+}
+
+/**
+ * Agrandissement IA du rendu final vers une image haute résolution (~4K).
+ * Option « Haute résolution » activée par l'utilisateur. NON bloquant pour
+ * l'appelant : en cas d'échec (endpoint indisponible, params, etc.), renvoie
+ * null → l'appelant garde l'image d'origine. ~10-25s selon la charge fal.ai.
+ */
+export async function upscaleImageHighRes(imageUrl: string): Promise<string | null> {
+  ensureConfigured();
+  const tStart = Date.now();
+  try {
+    const result = await fal.subscribe(UPSCALER_MODEL, {
+      input: {
+        image_url:      imageUrl,
+        upscale_factor: 2,        // ~1-2MP → ~4-8MP (image nette haute résolution)
+        prompt:         'professional interior photography, sharp focus, realistic detailed materials and textures, high resolution',
+        creativity:     0.2,      // bas : on n'invente pas de détails
+        resemblance:    0.8,      // haut : on colle au rendu d'origine
+      } as never,
+      logs: false,
+    });
+    const urls = extractImageUrls(result.data);
+    console.log(`[upscale] ${UPSCALER_MODEL} OK en ${Date.now() - tStart}ms`);
+    return urls[0] ?? null;
+  } catch (err) {
+    console.warn(`[upscale] ${UPSCALER_MODEL} ÉCHEC en ${Date.now() - tStart}ms: ${err instanceof Error ? err.message : err}`);
+    return null;
   }
 }
 

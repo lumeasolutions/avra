@@ -126,6 +126,8 @@ async function callRenduAPI(params: {
   userRetryCount?: number;
   /** Curseur « Réalisme ↔ Fidélité » 0-100 (défaut 60). */
   realism?: number;
+  /** Option « Haute résolution » : agrandit le rendu final (~4K). */
+  highRes?: boolean;
   numImages?: number;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/rendu', {
@@ -1022,6 +1024,9 @@ export default function IaStudioPage() {
   // Curseur « Réalisme ↔ Fidélité » (0-100, défaut 60) — pilote l'équilibre
   // photoréalisme vs préservation du plan dans le pipeline ControlNet Canny.
   const [rendRealism, setRendRealism] = useState(60);
+  // Option « Haute résolution » : agrandit le rendu final (~4K). OFF par défaut
+  // (garde la vitesse en itération ; à activer pour le rendu final/client).
+  const [rendHighRes, setRendHighRes] = useState(false);
   // Phase 5 — compteur "Régénérer" : s'incrémente quand l'utilisateur clique
   // sur "Régénérer" avec un rendu déjà affiché. Tracking côté serveur pour
   // analyser quels paramètres / images sources mécontentent les utilisateurs.
@@ -1322,6 +1327,7 @@ export default function IaStudioPage() {
         sourceHeight,
         maxPrecision:          rendMaxPrecision,
         realism:               rendRealism,
+        highRes:               rendHighRes,
         userRetryCount:        nextRetryCount,
         numImages:             rendNumVariants,
       });
@@ -2003,6 +2009,20 @@ export default function IaStudioPage() {
                     <span>Vraie photo (léger risque de dérive) →</span>
                   </div>
                 </div>
+
+                {/* Option Haute résolution (≈4K) — agrandissement IA, +10-25s */}
+                <label className="flex items-center gap-2.5 cursor-pointer rounded-xl border border-[#5b9bd5]/15 bg-[#5b9bd5]/5 px-3.5 py-3 hover:bg-[#5b9bd5]/8 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={rendHighRes}
+                    onChange={e => setRendHighRes(e.target.checked)}
+                    className="h-4 w-4 shrink-0 rounded border-[#5b9bd5]/40 text-[#5b9bd5] focus:ring-2 focus:ring-[#5b9bd5]/30"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-[#304035]">Haute résolution <span className="ml-1 text-[9px] text-[#5b9bd5] font-semibold">≈4K · +10-25s</span></p>
+                    <p className="text-[10px] text-[#304035]/55 leading-snug mt-0.5">Agrandit le rendu final pour une image nette haute résolution. À activer pour le rendu présenté au client.</p>
+                  </div>
+                </label>
 
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Façades & couleurs <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
