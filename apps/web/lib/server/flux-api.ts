@@ -761,22 +761,28 @@ export async function generateRenduFromReferenceControlNet(
 
   try {
     console.log(`[fal.subscribe] ${FLUX_CONTROL_LORA_CANNY} promptLen=${built.prompt.length}`);
+    // Curseur RÉALISME ↔ FIDÉLITÉ (params.realism 0-100, défaut 60), piloté
+    // depuis l'UI. Interpolation linéaire sur les 3 leviers qui arbitrent
+    // « plan synthétique préservé » ↔ « vraie photo » :
+    //   r=0   (fidélité max) : Canny verrouillé (1.0), transformation faible
+    //   r=100 (réalisme max) : Canny relâché (0.65), forte transformation photo
+    const realism = typeof params.realism === 'number'
+      ? Math.min(Math.max(params.realism, 0), 100) : 60;
+    const r = realism / 100;
+    const controlLoraStrength = +(1.0  - r * 0.35).toFixed(3);  // 1.0  → 0.65
+    const strengthVal         = +(0.72 + r * 0.18).toFixed(3);  // 0.72 → 0.90
+    const guidanceVal         = +(4.0  + r * 2.0 ).toFixed(2);  // 4.0  → 6.0
+    console.log(`[rendu] realism=${realism} → canny=${controlLoraStrength} strength=${strengthVal} guidance=${guidanceVal}`);
     const input: Record<string, unknown> = {
       prompt:                 built.prompt,
       control_lora_image_url: referenceImageUrl,
       image_url:              referenceImageUrl,
-      // PHOTORÉALISME (07/06/2026) — équilibrage réalisme ↔ fidélité.
-      // Problème remonté : le rendu gardait l'aspect 3D synthétique de la
-      // source au lieu de devenir une vraie photo. Cause : verrou Canny à 1.0
-      // + strength 0.75 = le modèle était trop contraint pour "repeindre" les
-      // surfaces en photo. On rééquilibre vers le réalisme tout en gardant le
-      // layout (le Canny à 0.85 tient encore solidement la structure) :
-      control_lora_strength:  0.85,  // 1.0 → 0.85 : laisse respirer les textures
-      strength:               0.82,  // 0.75 → 0.82 : vraie transformation 3D→photo
+      control_lora_strength:  controlLoraStrength,
+      strength:               strengthVal,
       num_images:             Math.min(Math.max(numImages, 1), 4),
       seed:                   built.seed,
-      num_inference_steps:    36,    // 32 → 36 : un peu plus de détail photo
-      guidance_scale:         5,     // 4 → 5 : pousse l'adhérence "photorealistic"
+      num_inference_steps:    36,
+      guidance_scale:         guidanceVal,
       output_format:          'jpeg',
       enable_safety_checker:  true,
     };

@@ -79,6 +79,9 @@ export async function POST(req: NextRequest) {
   // Kontext — force le respect strict du ratio et des proportions).
   const srcW = typeof body.sourceWidth === 'number'  && body.sourceWidth  > 0 ? body.sourceWidth  : undefined;
   const srcH = typeof body.sourceHeight === 'number' && body.sourceHeight > 0 ? body.sourceHeight : undefined;
+  // Curseur « Réalisme ↔ Fidélité » (0-100, défaut 60) — piloté depuis l'UI.
+  const realism = typeof body.realism === 'number' && body.realism >= 0 && body.realism <= 100
+    ? Math.round(body.realism) : 60;
 
   const params: RenduParams = {
     facades:       String(facades),
@@ -92,6 +95,7 @@ export async function POST(req: NextRequest) {
     extraContext:  (body.extraContext as string | undefined) ?? undefined,
     sourceWidth:   srcW,
     sourceHeight:  srcH,
+    realism,
   };
   // Image de référence OBLIGATOIRE (plan WinnerFlex, render 3D, sketch ou
   // photo d'inspiration). Le mode text-to-image pur a été retiré (juin 2026) :

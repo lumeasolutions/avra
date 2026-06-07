@@ -67,6 +67,10 @@ export interface RenduParams {
    *  du ratio et des proportions exactes. */
   sourceWidth?:      number;
   sourceHeight?:     number;
+  /** Curseur « Réalisme ↔ Fidélité » 0-100 (défaut 60), piloté depuis l'UI.
+   *  Plus haut = plus photoréaliste (verrou ControlNet Canny relâché, strength
+   *  + guidance plus élevés) ; plus bas = plan préservé plus strictement. */
+  realism?:          number;
 }
 
 export interface BuiltPrompt {

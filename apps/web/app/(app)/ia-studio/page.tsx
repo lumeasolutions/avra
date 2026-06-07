@@ -124,6 +124,8 @@ async function callRenduAPI(params: {
   /** Phase 5 — nombre de fois où l'utilisateur a cliqué "Régénérer" pour
    * cette image source (>0 = non satisfait du précédent rendu). */
   userRetryCount?: number;
+  /** Curseur « Réalisme ↔ Fidélité » 0-100 (défaut 60). */
+  realism?: number;
   numImages?: number;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/rendu', {
@@ -1017,6 +1019,9 @@ export default function IaStudioPage() {
   // Phase 2 — toggle "Précision maximale" : active le refinement SAM+Inpaint
   // après ControlNet/Kontext (+20-30s, +0.04€, gain ~+1% fidélité matériaux).
   const [rendMaxPrecision, setRendMaxPrecision] = useState(false);
+  // Curseur « Réalisme ↔ Fidélité » (0-100, défaut 60) — pilote l'équilibre
+  // photoréalisme vs préservation du plan dans le pipeline ControlNet Canny.
+  const [rendRealism, setRendRealism] = useState(60);
   // Phase 5 — compteur "Régénérer" : s'incrémente quand l'utilisateur clique
   // sur "Régénérer" avec un rendu déjà affiché. Tracking côté serveur pour
   // analyser quels paramètres / images sources mécontentent les utilisateurs.
@@ -1316,6 +1321,7 @@ export default function IaStudioPage() {
         sourceWidth,
         sourceHeight,
         maxPrecision:          rendMaxPrecision,
+        realism:               rendRealism,
         userRetryCount:        nextRetryCount,
         numImages:             rendNumVariants,
       });
@@ -1976,6 +1982,26 @@ export default function IaStudioPage() {
                 <div className="flex items-center gap-2">
                   <Palette className="h-4 w-4 text-[#5b9bd5]" />
                   <p className="font-bold text-[#304035]">Matériaux</p>
+                </div>
+
+                {/* Curseur Réalisme ↔ Fidélité du plan (07/06/2026) */}
+                <div className="rounded-xl bg-[#5b9bd5]/5 border border-[#5b9bd5]/15 p-3.5">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/55">Style de rendu</p>
+                    <span className="text-[11px] font-bold text-[#5b9bd5]">
+                      {rendRealism <= 33 ? 'Fidélité du plan' : rendRealism >= 67 ? 'Photoréalisme max' : 'Équilibré'}
+                    </span>
+                  </div>
+                  <input
+                    type="range" min={0} max={100} step={5} value={rendRealism}
+                    onChange={e => setRendRealism(Number(e.target.value))}
+                    className="w-full cursor-pointer accent-[#5b9bd5]"
+                    aria-label="Réalisme contre fidélité du plan"
+                  />
+                  <div className="mt-1 flex justify-between text-[9px] text-[#304035]/45">
+                    <span>← Plan exact (plus 3D)</span>
+                    <span>Vraie photo (léger risque de dérive) →</span>
+                  </div>
                 </div>
 
                 <div>
