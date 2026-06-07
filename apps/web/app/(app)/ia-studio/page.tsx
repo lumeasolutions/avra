@@ -438,6 +438,20 @@ function ProgressBar({ steps, color }: { steps:string[]; color:string }) {
   );
 }
 
+/** Compteur de temps écoulé (mm:ss) — affiché pendant une génération pour
+ *  montrer que ça AVANCE vraiment (le Rendu prend 1 à 3 min ; sans repère
+ *  l'utilisateur croit que c'est figé et ferme la page avant la fin). */
+function ElapsedTimer() {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSeconds(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const mm = Math.floor(seconds / 60);
+  const ss = seconds % 60;
+  return <>{mm}:{ss.toString().padStart(2, '0')}</>;
+}
+
 /** Zone de dépôt de fichier */
 function Drop({ label, sub, onFile, file, tips, accent }:{
   label:string; sub:string; onFile:(f:File)=>void; file:File|null; tips?:string[]; accent:string
@@ -1519,6 +1533,10 @@ export default function IaStudioPage() {
                       </div>
                     </div>
                     <ProgressBar steps={LOADING_STEPS_COLOR} color="#a67749" />
+                    <div className="flex items-center justify-between gap-3 rounded-xl bg-[#a67749]/8 border border-[#a67749]/15 px-3 py-2.5">
+                      <p className="text-[11px] leading-snug text-[#304035]/70">La colorisation prend en général <b className="text-[#304035]">15 à 40 s</b>. <b className="text-[#304035]">Ne ferme pas la page</b>.</p>
+                      <span className="shrink-0 font-mono text-base font-black tabular-nums" style={{color:'#a67749'}}><ElapsedTimer /></span>
+                    </div>
                   </div>
                 )}
 
@@ -1919,6 +1937,10 @@ export default function IaStudioPage() {
                       </div>
                     </div>
                     <ProgressBar steps={LOADING_STEPS_RENDU} color="#5b9bd5" />
+                    <div className="flex items-center justify-between gap-3 rounded-xl bg-[#5b9bd5]/8 border border-[#5b9bd5]/15 px-3 py-2.5">
+                      <p className="text-[11px] leading-snug text-[#304035]/70">Le rendu réaliste prend <b className="text-[#304035]">1 à 3 min</b>. C'est normal — <b className="text-[#304035]">ne ferme pas la page</b>.</p>
+                      <span className="shrink-0 font-mono text-base font-black tabular-nums" style={{color:'#5b9bd5'}}><ElapsedTimer /></span>
+                    </div>
                   </div>
                 )}
 
