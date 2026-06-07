@@ -178,11 +178,13 @@ export async function POST(req: NextRequest) {
   const tStart = Date.now();
 
   // Garde-fou global 250s — voir commentaire dans /api/ia/coloriste/route.ts.
-  const GLOBAL_TIMEOUT_MS = 250_000;
+  // 250→285s (07/06/2026) : on utilise la marge du maxDuration Vercel (300s)
+  // pour laisser aboutir un rendu lent (fal.ai chargé) au lieu de le tuer.
+  const GLOBAL_TIMEOUT_MS = 285_000;
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   const globalTimeout = new Promise<never>((_, reject) => {
     timeoutHandle = setTimeout(
-      () => reject(new Error('Délai serveur dépassé (250s). Le service IA est probablement saturé.')),
+      () => reject(new Error('Délai serveur dépassé (285s). Le service IA est probablement saturé, réessayez dans un instant.')),
       GLOBAL_TIMEOUT_MS,
     );
   });
