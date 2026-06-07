@@ -24,7 +24,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import {
   wasRecentlyRefreshed, isAnotherTabRefreshing,
@@ -37,10 +37,8 @@ const RETRY_BACKOFF_MS = 30 * 1000;
 const PATHNAME_REFRESH_THROTTLE_MS = 5 * 60 * 1000;
 
 export function useTokenRefresh() {
-  const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const logout = useAuthStore((s) => s.logout);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
   const lastAttemptRef = useRef<number>(0);
   const inFlightRef = useRef<boolean>(false);
@@ -115,12 +113,14 @@ export function useTokenRefresh() {
               markRefreshSuccess();
               return true;
             }
-            // Apres 2 echecs, on accepte le verdict : session morte
-            console.warn(`[useTokenRefresh] refresh definitivement KO (${reason}) — logging out`);
-            logout();
-            setTimeout(() => {
-              if (typeof window !== 'undefined') router.replace('/login?reason=session-expired');
-            }, 50);
+            // Refresh PROACTIF KO 2x — on NE déconnecte PAS ici. L'access token
+            // est très souvent ENCORE valide : un 401 de refresh est le plus
+            // souvent une simple race de rotation de token entre onglets/effets
+            // (cf. audit 07/06/2026 — un appel API passait pendant que le refresh
+            // renvoyait 401). On délègue donc la décision au mécanisme RÉACTIF
+            // d'api.ts, qui ne déconnecte QUE si un vrai appel API échoue même
+            // après refresh. Évite les déconnexions intempestives multi-onglets.
+            console.warn(`[useTokenRefresh] refresh proactif KO (${reason}) — délégué à api.ts, pas de logout`);
             return false;
           }
           console.warn(`[useTokenRefresh] refresh transient error (${res.status}, ${reason})`);
@@ -201,11 +201,9 @@ export function useTokenRefresh() {
             body: JSON.stringify({}),
           });
           if (retry.ok) { markRefreshSuccess(); return; }
-          console.warn('[useTokenRefresh] refresh definitivement KO (pathname) — logging out');
-          logout();
-          setTimeout(() => {
-            if (typeof window !== 'undefined') router.replace('/login?reason=session-expired');
-          }, 50);
+          // Idem : pas de logout sur refresh proactif KO — délégué au mécanisme
+          // réactif d'api.ts (ne déconnecte que sur un vrai appel API en échec).
+          console.warn('[useTokenRefresh] refresh proactif KO (pathname) — délégué à api.ts, pas de logout');
         } else {
           releaseLock();
         }
