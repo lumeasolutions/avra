@@ -252,8 +252,17 @@ export async function POST(req: NextRequest) {
     let fidelityScore: number | null = null;
     let fidelityIssues: string[] = [];
     const TIME_BUDGET_MS    = 250_000;
-    const MIN_MARGIN_MS     = 60_000;
-    const MAX_AUTO_RETRIES  = 2;
+    // Marge AUGMENTÉE (07/06/2026) — fix « aucun rendu » par timeout :
+    // un retry = une génération COMPLÈTE (~70-120s). L'ancienne marge (60s)
+    // autorisait un retry à démarrer jusqu'à elapsed=190s → il finissait
+    // vers ~270s → dépassait le timeout global de 250s → TOUTE la requête
+    // échouait alors qu'un résultat valide existait déjà (cf. job FAILED 250s).
+    // Désormais on ne lance un retry que si elapsed < 110s (250 - 140), ce qui
+    // garantit qu'il se termine largement avant le timeout.
+    const MIN_MARGIN_MS     = 140_000;
+    // 1 seul retry auto (au lieu de 2) : 2 retries chaînés pouvaient atteindre
+    // ~270s. Un retry suffit comme filet qualité quand le budget temps le permet.
+    const MAX_AUTO_RETRIES  = 1;
 
     while (autoRetryCount < MAX_AUTO_RETRIES) {
       const elapsed = Date.now() - tStart;
