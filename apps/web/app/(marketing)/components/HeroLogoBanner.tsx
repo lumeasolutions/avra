@@ -20,8 +20,8 @@ const HERO_BANNER_CSS = `
   50% { transform: translateY(-8px); }
 }
 @media (max-width: 1200px) {
-  .hero-logo-banner { gap: 24px !important; padding: 20px 3% !important; height: 200px !important; }
-  .hero-logo-center { width: 520px !important; height: 180px !important; }
+  .hero-logo-banner { gap: 24px !important; padding: 20px 3% !important; height: 240px !important; }
+  .hero-logo-center { width: 520px !important; height: 230px !important; }
   .hero-logo-left, .hero-logo-right { width: 160px !important; height: 160px !important; margin-left: -100px !important; margin-right: -100px !important; }
   .hero-logo-left { margin-right: -100px !important; margin-left: 0 !important; }
   .hero-logo-right { margin-left: -100px !important; margin-right: 0 !important; }
@@ -63,7 +63,7 @@ export default function HeroLogoBanner() {
         padding: '0 2%',
         flexShrink: 0,
         overflow: 'hidden',
-        height: '130px',
+        height: '250px', // 130 → 250 (08/06/2026) : logos affichés en entier, plus rognés
       }}
     >
       {/* Logo A circulaire (gauche) */}
@@ -100,7 +100,7 @@ export default function HeroLogoBanner() {
         style={{
           position: 'relative',
           width: 920,
-          height: 390,
+          height: 250,
           flexShrink: 0,
           alignSelf: 'center',
           zIndex: 2,
