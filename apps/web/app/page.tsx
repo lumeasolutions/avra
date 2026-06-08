@@ -163,16 +163,13 @@ export default function HomePage() {
         <div
           className="hero-grid"
           style={{
-            maxWidth: 1500,
+            maxWidth: 720,
             margin: '0 auto',
             padding: '12px 3% 16px',
             width: '100%',
             position: 'relative',
             zIndex: 1,
-            display: 'grid',
-            gridTemplateColumns: '0.85fr 1.35fr', // texte plus etroit a gauche, image plus large a droite
-            gap: '50px',
-            alignItems: 'flex-start',
+            display: 'block', // mockup droite retiré (08/06/2026) → colonne unique centrée
             paddingTop: '40px',
           }}
         >
@@ -315,40 +312,7 @@ export default function HomePage() {
                 non sourcables en beta privee, risque DGCCRF si jamais audites. */}
           </div>
 
-          {/* Colonne droite : mockup dashboard */}
-          <div className="hero-right-col" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '28px' }}>
-
-          {/* Mockup dashboard remplace par photohero.png (capture reelle app) — 19/05/2026
-              + ombre profonde, bordure doree subtile, float vertical anime pour decoller visuellement. */}
-          <div
-            className="hero-photo-float"
-            style={{
-              borderRadius: '20px',
-              overflow: 'hidden',
-              border: '1px solid rgba(201,169,110,.35)',
-              boxShadow: '0 40px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(201,169,110,.08), 0 8px 24px rgba(201,169,110,.18)',
-              width: '100%',
-              maxWidth: 820,
-              aspectRatio: '1917 / 1079',
-              position: 'relative',
-              background: 'rgba(255,255,255,.04)',
-              animation: 'heroPhotoFloat 6s ease-in-out infinite',
-            }}
-          >
-            <Image
-              src="/photohero.png"
-              alt="Apercu de l'application AVRA"
-              fill
-              priority
-              quality={95}
-              // sizes dimensionne pour la version zoomee (1.6x sur 820 = ~1300px)
-              // afin que Next.js serve une variante haute resolution et que le
-              // zoom hover ne pixellise pas l'image.
-              sizes="(max-width: 768px) 90vw, 1500px"
-              style={{ objectFit: 'cover' }}
-            />
-          </div>
-          </div>{/* fin colonne droite flex wrapper */}
+          {/* Colonne droite (mockup photohero.png) RETIRÉE — 08/06/2026, demande client */}
         </div>
 
         {/* Scroll indicator "DECOUVREZ" retire 19/05/2026 — paternaliste et inutile. */}

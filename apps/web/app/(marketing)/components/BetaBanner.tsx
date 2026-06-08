@@ -69,7 +69,7 @@ export default function BetaBanner() {
       >
         <span style={{ fontSize: '0.9rem' }}>🌱</span>
         <span className="beta-banner-text">
-          AVRA est en bêta privée · Lancement public en juillet 2026
+          AVRA est en bêta privée · Lancement public en janvier 2027
         </span>
         <Link
           href="/rejoindre"
