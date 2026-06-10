@@ -21,6 +21,7 @@ import { OptionSelectionModal } from '@/components/dossiers/OptionSelectionModal
 import { VendeurAssignDropdown } from '@/components/vendeur/VendeurAssignDropdown';
 import { StatsManualEntryModal } from '@/components/statistiques/StatsManualEntryModal';
 import { useProjectActions } from '@/hooks/useProjectActions';
+import { useDossierPermissions } from '@/hooks/useDossierPermissions';
 import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
@@ -115,6 +116,10 @@ export default function DossierDetailPage() {
   const dossiersSignes    = useDossierStore(s => s.dossiersSignes);
   const allInvoices       = useFacturationStore(s => s.invoices);
   const dossier           = [...dossiers, ...dossiersSignes].find(d => d.id === id);
+  // Droits : admin = tout ; vendeur = uniquement ses propres dossiers.
+  const { canEditDossier } = useDossierPermissions();
+  const canEditThis = canEditDossier(dossier);
+  const readOnly = !canEditThis;
   const invoices          = allInvoices.filter(i => i.dossierId === id);
   // Actions persistées en DB via l'API (double-write : optimistic local + API)
   const { signProject, updateProjectStatus } = useProjectActions();
@@ -382,6 +387,11 @@ export default function DossierDetailPage() {
 
   return (
     <div className="w-full space-y-0">
+      {readOnly && (
+        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          <strong>Lecture seule</strong> — ce dossier appartient à un autre vendeur. Vous pouvez le consulter et télécharger les documents, mais pas le modifier ni le supprimer.
+        </div>
+      )}
       <style>{`
         @media (max-width: 768px) {
           .dos-detail-grid { grid-template-columns: 1fr !important; }
@@ -627,6 +637,7 @@ export default function DossierDetailPage() {
 
           {/* Actions header */}
           <div className="shrink-0 flex flex-col gap-2">
+            {canEditThis && (
             <button
               onClick={() => setShowStatus(true)}
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
@@ -634,6 +645,7 @@ export default function DossierDetailPage() {
               <Tag className="h-3.5 w-3.5" />
               Changer statut
             </button>
+            )}
             {/* Bouton "Envoyer a intervenant" retire du header — pour eviter le
                 partage du dossier complet (fuite info confidentielles type
                 prix). Utiliser plutot l'icone d'envoi qui apparait a cote
@@ -670,6 +682,7 @@ export default function DossierDetailPage() {
                   />
                 )}
               </div>
+              {canEditThis && (
               <button
                 onClick={() => setShowAddFolder(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#a67749]/10 text-[#a67749] text-xs font-bold hover:bg-[#a67749]/20 transition-all"
@@ -677,6 +690,7 @@ export default function DossierDetailPage() {
                 <Plus className="h-3.5 w-3.5" />
                 Ajouter
               </button>
+              )}
             </div>
             <div className="divide-y divide-[#304035]/5">
               {(() => {
@@ -867,8 +881,8 @@ export default function DossierDetailPage() {
                     />
                   </div>
 
-                  {/* Bouton Valider / Pastille verte validée */}
-                  {isValidated ? (
+                  {/* Validation sous-dossier — éditeurs uniquement (admin / vendeur proprietaire) */}
+                  {canEditThis && (isValidated ? (
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); toggleSubfolderValidated(dossier.id, sf.label); }}
@@ -889,10 +903,10 @@ export default function DossierDetailPage() {
                     >
                       Valider
                     </button>
-                  )}
+                  ))}
 
                   {/* Bouton supprimer — menuisier uniquement, bloqué si des documents sont presents */}
-                  {isMenuisier && (
+                  {isMenuisier && canEditThis && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -987,6 +1001,7 @@ export default function DossierDetailPage() {
 
           {/* Actions principales */}
           <div className="dos-sub-grid-2 grid grid-cols-2 gap-3">
+            {canEditThis && (
             <button
               onClick={() => setShowDevis(true)}
               className="flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white text-sm transition-all hover:shadow-lg active:scale-95"
@@ -995,7 +1010,8 @@ export default function DossierDetailPage() {
               <Plus className="h-4 w-4" />
               Créer un devis
             </button>
-            {!isSigned && (
+            )}
+            {!isSigned && canEditThis && (
               <button
                 onClick={handleSigner}
                 className="flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white text-sm transition-all hover:shadow-lg active:scale-95"
@@ -1005,7 +1021,7 @@ export default function DossierDetailPage() {
                 Faire valider le projet
               </button>
             )}
-            {isSigned && !isTerminated && (
+            {isSigned && !isTerminated && canEditThis && (
               <button
                 onClick={() => toggleDossierTermine(id)}
                 className="flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white text-sm transition-all hover:shadow-lg active:scale-95"
@@ -1083,6 +1099,7 @@ export default function DossierDetailPage() {
               <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-[#304035]/5 flex items-center justify-between gap-3">
                   <h2 className="text-sm font-bold text-[#304035]">Prix achat / vente HT</h2>
+                  {canEditThis && (
                   <button
                     onClick={() => setShowPrixModal(true)}
                     className="px-3 py-1.5 rounded-lg text-xs font-bold text-white"
@@ -1091,6 +1108,7 @@ export default function DossierDetailPage() {
                   >
                     {lignes.length === 0 ? '+ Renseigner' : 'Modifier'}
                   </button>
+                  )}
                 </div>
                 {lignes.length === 0 ? (
                   <div className="px-5 py-4 text-xs text-[#304035]/45 italic">
@@ -1515,6 +1533,7 @@ export default function DossierDetailPage() {
                         >
                           <Download className="h-4 w-4" />
                         </button>
+                        {canEditThis && (
                         <button
                           onClick={() => handleDelete(doc)}
                           className="p-1.5 rounded-lg text-[#304035]/40 hover:text-red-500 hover:bg-red-50 transition-colors"
@@ -1522,6 +1541,7 @@ export default function DossierDetailPage() {
                         >
                           <X className="h-4 w-4" />
                         </button>
+                        )}
                       </div>
                     );
                   })}
@@ -1602,6 +1622,7 @@ export default function DossierDetailPage() {
                               >
                                 <Download className="h-3.5 w-3.5" />
                               </button>
+                              {canEditThis && (
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); handleDelete(doc); }}
@@ -1611,6 +1632,7 @@ export default function DossierDetailPage() {
                               >
                                 <X className="h-3.5 w-3.5" />
                               </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -1658,7 +1680,7 @@ export default function DossierDetailPage() {
                   onChange={handleFileInput}
                   className="hidden"
                   id={`sf-file-${sf.label}`}
-                  disabled={docOpStatus.kind === 'uploading' || docOpStatus.kind === 'deleting'}
+                  disabled={readOnly || docOpStatus.kind === 'uploading' || docOpStatus.kind === 'deleting'}
                 />
                 <label
                   htmlFor={`sf-file-${sf.label}`}
@@ -1673,7 +1695,8 @@ export default function DossierDetailPage() {
                 </label>
               </label>
 
-              {/* Ajouter manuellement (placeholder sans upload) */}
+              {/* Ajouter manuellement (placeholder sans upload) — éditeurs uniquement */}
+              {canEditThis && (
               <div className="flex gap-2">
                 <input
                   value={newDocName}
@@ -1690,6 +1713,7 @@ export default function DossierDetailPage() {
                   Ajouter
                 </button>
               </div>
+              )}
             </div>
           </div>
         );

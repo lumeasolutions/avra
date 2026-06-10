@@ -80,6 +80,7 @@ export class DocumentsController {
   // ─────────────────────────────────────────────────────────────────────
 
   @Get('admin')
+  @Roles('OWNER', 'ADMIN')
   findAdminDocs(
     @CurrentUser() user: JwtPayload,
     @Query('category') category?: string,
@@ -93,6 +94,7 @@ export class DocumentsController {
   }
 
   @Get('admin/stats')
+  @Roles('OWNER', 'ADMIN')
   adminStats(@CurrentUser() user: JwtPayload) {
     return this.documents.adminStats(user.workspaceId);
   }
@@ -112,6 +114,7 @@ export class DocumentsController {
   }
 
   @Get('admin/:id/versions')
+  @Roles('OWNER', 'ADMIN')
   versions(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.documents.findVersions(user.workspaceId, id);
   }
@@ -121,7 +124,7 @@ export class DocumentsController {
    * Rate-limited à 30 uploads / 5 min par user pour éviter le DoS storage.
    */
   @Post('admin/upload')
-  @Roles('OWNER', 'ADMIN', 'MEMBER')
+  @Roles('OWNER', 'ADMIN')
   @Throttle({ default: { ttl: 5 * 60 * 1000, limit: 30 } })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024 } }))
   async uploadAdminDoc(
@@ -194,6 +197,7 @@ export class DocumentsController {
   }
 
   @Get('admin/:id/download')
+  @Roles('OWNER', 'ADMIN')
   async downloadAdminDoc(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -216,6 +220,7 @@ export class DocumentsController {
    * Header `Content-Disposition: inline` pour ouvrir dans le navigateur.
    */
   @Get('admin/:id/preview')
+  @Roles('OWNER', 'ADMIN')
   async previewAdminDoc(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,

@@ -24,6 +24,9 @@ export function Sidebar() {
   const devis = useFacturationStore(s => s.devis);
   const alerts = useUIStore(s => s.alerts);
   const profession = useAuthStore(s => s.profession);
+  // Dossier administratif : visible uniquement pour l'administrateur.
+  const role = useAuthStore(s => s.user?.role);
+  const isAdmin = role === 'ADMIN' || role === 'OWNER';
   const logout = useAuthStore(s => s.logout);
   const router = useRouter();
   const handleLogout = () => {
@@ -354,10 +357,12 @@ export function Sidebar() {
           <svg viewBox="0 0 24 24" fill="none"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
           Stock
         </Link>
+        {isAdmin && (
         <Link href="/admin-docs" className={`menu-item ${pathname === '/admin-docs' ? 'active' : ''}`} onClick={close}>
           <svg viewBox="0 0 24 24" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           Dossier administratif
         </Link>
+        )}
         <Link href="/ia-studio" className={`menu-item ${pathname === '/ia-studio' ? 'active' : ''}`} onClick={close}>
           <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 17V13"/><path d="M12 17V7"/><path d="M16 17v-4"/></svg>
           IA photo réalisme

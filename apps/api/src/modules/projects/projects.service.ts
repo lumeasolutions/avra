@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { CreateProjectWithClientDto } from './dto/create-project-with-client.dto';
@@ -163,11 +163,26 @@ export class ProjectsService {
     });
   }
 
-  async update(workspaceId: string, id: string, dto: UpdateProjectDto) {
+  /**
+   * Cloisonnement vendeur : un MEMBER ne peut modifier qu'un dossier qu'il a
+   * créé (ownerId). ADMIN/OWNER peuvent tout. Aligné sur le gating d'interface.
+   */
+  private assertCanWrite(
+    existing: { ownerId: string | null },
+    actor: { sub: string; role: string },
+  ): void {
+    const isAdmin = actor.role === 'ADMIN' || actor.role === 'OWNER';
+    if (!isAdmin && existing.ownerId !== actor.sub) {
+      throw new ForbiddenException('Vous ne pouvez modifier que vos propres dossiers.');
+    }
+  }
+
+  async update(workspaceId: string, id: string, dto: UpdateProjectDto, actor: { sub: string; role: string }) {
     // OPTIMISATION: Fusionner vérification et update en une seule transaction
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.project.findFirst({ where: { id, workspaceId } });
       if (!existing) return null;
+      this.assertCanWrite(existing, actor);
       return tx.project.update({
         where: { id },
         data: dto,
@@ -185,11 +200,12 @@ export class ProjectsService {
     });
   }
 
-  async setSigned(workspaceId: string, id: string) {
+  async setSigned(workspaceId: string, id: string, actor: { sub: string; role: string }) {
     // OPTIMISATION: Fusionner vérification et update
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.project.findFirst({ where: { id, workspaceId } });
       if (!existing) return null;
+      this.assertCanWrite(existing, actor);
       return tx.project.update({
         where: { id },
         data: { lifecycleStatus: 'SIGNE', saleSignedAt: new Date() },
@@ -211,10 +227,11 @@ export class ProjectsService {
    * @param terminated true = clôt, false = rouvre
    * @returns null si dossier introuvable ou hors workspace
    */
-  async setTerminated(workspaceId: string, id: string, terminated: boolean) {
+  async setTerminated(workspaceId: string, id: string, terminated: boolean, actor: { sub: string; role: string }) {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.project.findFirst({ where: { id, workspaceId } });
       if (!existing) return null;
+      this.assertCanWrite(existing, actor);
       const now = new Date();
       return tx.project.update({
         where: { id },
@@ -253,10 +270,12 @@ export class ProjectsService {
       terminatedAt?: string | null;
       archivedAt?: string | null;
     },
+    actor: { sub: string; role: string },
   ) {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.project.findFirst({ where: { id, workspaceId } });
       if (!existing) return null;
+      this.assertCanWrite(existing, actor);
 
       const patch: Record<string, unknown> = {};
       if (data.prixLignes !== undefined) patch.prixLignes = data.prixLignes as any;

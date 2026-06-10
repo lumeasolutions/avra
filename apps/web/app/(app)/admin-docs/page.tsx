@@ -33,6 +33,8 @@ import {
   Building, Calculator, UserCog, Receipt, FileWarning, Landmark, CreditCard,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/useAuthStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
   useAdminDocsStore,
@@ -192,6 +194,12 @@ export default function AdminDocsPage() {
     uploadDoc, updateDoc, deleteDoc, bulkDeleteDocs,
     downloadDoc, fetchVersions, fetchShares, createShare, revokeShare,
   } = useAdminDocsStore();
+
+  // Dossier administratif : réservé à l'administrateur (OWNER/ADMIN).
+  const role = useAuthStore((s) => s.user?.role);
+  const router = useRouter();
+  const isAdmin = role === 'ADMIN' || role === 'OWNER';
+  useEffect(() => { if (role && !isAdmin) router.replace('/dossiers'); }, [role, isAdmin, router]);
 
   // ── État UI ──────────────────────────────────────────────────────────────
   const [activeCategory, setActiveCategory] = useState('all');
@@ -432,6 +440,18 @@ export default function AdminDocsPage() {
   // ── Render ───────────────────────────────────────────────────────────────
   const allSelected = filtered.length > 0 && selectedIds.size === filtered.length;
   const someSelected = selectedIds.size > 0 && !allSelected;
+
+  // Accès réservé : un non-admin ne voit pas le dossier administratif.
+  if (!isAdmin) {
+    return (
+      <div className="space-y-5">
+        <div className="rounded-2xl bg-white p-12 text-center shadow-md border border-[#304035]/8">
+          <h2 className="text-lg font-bold text-[#304035]">Accès réservé</h2>
+          <p className="mt-2 text-sm text-[#304035]/55">Le dossier administratif est réservé à l'administrateur.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 relative">

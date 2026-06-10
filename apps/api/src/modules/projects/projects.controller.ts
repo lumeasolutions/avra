@@ -75,7 +75,7 @@ export class ProjectsController {
     @Param('id') id: string,
     @Body() dto: UpdateProjectDto,
   ) {
-    const result = await this.projects.update(user.workspaceId, id, dto);
+    const result = await this.projects.update(user.workspaceId, id, dto, { sub: user.sub, role: user.role });
     // Invalidate caches on mutation
     await this.cacheManager.del(`projects:${user.workspaceId}`);
     await this.cacheManager.del(`projects:${id}`);
@@ -84,7 +84,7 @@ export class ProjectsController {
 
   @Post(':id/sign')
   async setSigned(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    const result = await this.projects.setSigned(user.workspaceId, id);
+    const result = await this.projects.setSigned(user.workspaceId, id, { sub: user.sub, role: user.role });
     // Invalidate caches on mutation
     await this.cacheManager.del(`projects:${user.workspaceId}`);
     await this.cacheManager.del(`projects:${id}`);
@@ -103,7 +103,7 @@ export class ProjectsController {
     @Param('id') id: string,
     @Body() body: { terminated: boolean },
   ) {
-    const result = await this.projects.setTerminated(user.workspaceId, id, !!body?.terminated);
+    const result = await this.projects.setTerminated(user.workspaceId, id, !!body?.terminated, { sub: user.sub, role: user.role });
     await this.cacheManager.del(`projects:${user.workspaceId}`);
     await this.cacheManager.del(`projects:${id}`);
     return result;
@@ -121,7 +121,7 @@ export class ProjectsController {
     @Param('id') id: string,
     @Body() dto: SaveDossierDataDto,
   ) {
-    const result = await this.projects.saveDossierData(user.workspaceId, id, dto);
+    const result = await this.projects.saveDossierData(user.workspaceId, id, dto, { sub: user.sub, role: user.role });
     await this.cacheManager.del(`projects:${user.workspaceId}`);
     await this.cacheManager.del(`projects:${id}`);
     return result;

@@ -10,6 +10,7 @@ import { ValidationDashboard } from '@/components/dossiers/ValidationDashboard';
 import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
 import { OngoingDossierDashboardModal } from '@/components/dossiers/OngoingDossierDashboardModal';
 import { useProjectActions } from '@/hooks/useProjectActions';
+import { useDossierPermissions } from '@/hooks/useDossierPermissions';
 import { DashboardTriggerButton } from '@/components/layout/DashboardTriggerButton';
 import type { Dossier } from '@/store/useDossierStore';
 
@@ -92,6 +93,8 @@ function avatarColor(name: string) {
 
 export default function DossiersPage() {
   const dossiers = useDossierStore(s => s.dossiers);
+  // Droits : admin = tout ; vendeur = ses propres dossiers uniquement.
+  const { canEditDossier } = useDossierPermissions();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   // Multi-vendeur (26/05/2026) : filtre par vendeur dans la liste.
@@ -583,6 +586,7 @@ export default function DossiersPage() {
                           <Icon className="h-3 w-3" />
                           {cfg.label}
                         </div>
+                        {canEditDossier(d) && (
                         <button
                           type="button"
                           onClick={(e) => askDelete(e, d)}
@@ -592,6 +596,7 @@ export default function DossiersPage() {
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
+                        )}
                       </div>
                     </div>
 
@@ -728,7 +733,8 @@ export default function DossiersPage() {
                     <LayoutDashboard className="h-4 w-4" />
                   </button>
 
-                  {/* Bouton corbeille (apparait au hover) */}
+                  {/* Bouton corbeille (apparait au hover) — admin ou vendeur proprietaire */}
+                  {canEditDossier(d) && (
                   <button
                     type="button"
                     onClick={(e) => askDelete(e, d)}
@@ -738,6 +744,7 @@ export default function DossiersPage() {
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
+                  )}
 
                   <ChevronRight className="card-arrow h-4 w-4 text-[#304035]/25 group-hover:text-[#a67749] transition-all shrink-0" />
                 </Link>
