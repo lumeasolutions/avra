@@ -81,6 +81,10 @@ import type { Devis } from '@/store/useFacturationStore';
 interface Props {
   /** Dossiers signés qui n'ont pas (ou pas assez de) lignes prix. */
   missingDossiers: DossierSigne[];
+  /** Tous les dossiers signés — garde le dossier courant sélectionné même
+   *  après l'ajout d'une 1re ligne (sinon il sort de missingDossiers et la
+   *  sélection saute au suivant → impossible d'ajouter plusieurs lignes). */
+  allSignes: DossierSigne[];
   /** Tous les devis (pour afficher les ACCEPTÉ par dossier dans le récap). */
   allDevis: Devis[];
   /** Callback persistance : ajout d'une ligne sur le dossier. */
@@ -127,7 +131,7 @@ function writeDraft(dossierId: string, draft: Draft): void {
 
 // ── Composant principal ────────────────────────────────────────────────────
 export function StatsGateModal({
-  missingDossiers, allDevis, onAddLigne, onRemoveLigne, onAddLignesBulk, onSkipDossier,
+  missingDossiers, allSignes, allDevis, onAddLigne, onRemoveLigne, onAddLignesBulk, onSkipDossier,
 }: Props) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(missingDossiers[0]?.id ?? null);
@@ -142,10 +146,25 @@ export function StatsGateModal({
   const [aiExtracting, setAiExtracting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  // Résout le dossier courant dans TOUS les signés (pas seulement
+  // missingDossiers) : il reste sélectionné après sa 1re ligne → saisie
+  // multi-lignes possible. On n'avance qu'au clic « Suivant ».
   const selected = useMemo(
-    () => missingDossiers.find((d) => d.id === selectedId) ?? missingDossiers[0] ?? null,
-    [missingDossiers, selectedId],
+    () =>
+      allSignes.find((d) => d.id === selectedId) ??
+      missingDossiers.find((d) => d.id === selectedId) ??
+      missingDossiers[0] ?? null,
+    [allSignes, missingDossiers, selectedId],
   );
+
+  // Liste de gauche = dossiers à compléter + le dossier courant (même s'il a
+  // déjà des lignes), pour qu'il reste visible pendant la saisie.
+  const listDossiers = useMemo(() => {
+    if (selected && !missingDossiers.some((d) => d.id === selected.id)) {
+      return [selected, ...missingDossiers];
+    }
+    return missingDossiers;
+  }, [missingDossiers, selected]);
 
   // ── [E] Brouillon : restauration au changement de dossier ───────────────
   useEffect(() => {
@@ -557,7 +576,7 @@ export function StatsGateModal({
                 Dossiers à compléter ({missingDossiers.length})
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {missingDossiers.map((d) => {
+                {listDossiers.map((d) => {
                   const isSelected = d.id === selected.id;
                   const prog = getProgress(d);
                   const color = prog.tone === 'complete' ? '#16a34a'

@@ -78,6 +78,7 @@ export default function StatistiquesPage() {
       {isGateOpen && (
         <StatsGateModal
           missingDossiers={missingDossiers}
+          allSignes={dossiersSignes}
           allDevis={allDevis}
           onAddLigne={addDossierPrixLigne}
           onRemoveLigne={removeDossierPrixLigne}
