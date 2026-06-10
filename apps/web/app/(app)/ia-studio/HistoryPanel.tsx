@@ -34,7 +34,9 @@ import {
   User as UserIcon,
 } from 'lucide-react';
 
-type JobType   = 'COLOR_VARIATION' | 'PHOTOREALISM_ENHANCE';
+// 'EDIT' = module IA Architect (MyArchitectAI). Réutilisation d'une valeur
+// d'enum existante pour un historique dédié sans migration Prisma.
+type JobType   = 'COLOR_VARIATION' | 'PHOTOREALISM_ENHANCE' | 'EDIT';
 type JobStatus = 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
 
 export interface IaJobRow {

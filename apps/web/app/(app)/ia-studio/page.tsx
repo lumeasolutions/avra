@@ -181,6 +181,57 @@ async function callRenduAPI(params: {
   return { imageUrl: null, error: message };
 }
 
+/* ─── IA Architect (MyArchitectAI) : appel de la route /api/ia/architect ─── */
+async function callArchitectAPI(params: {
+  mode: 'interior' | 'exterior';
+  facades?: string; planTravail?: string; sol?: string; murs?: string;
+  ambiance?: string; highRes?: boolean;
+  referenceImageDataUrl: string;
+  projectId?: string | null;
+}): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string; engine?: string }> {
+  const res = await fetch('/api/ia/architect', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  // Même protection défensive que callRenduAPI/callColoristAPI : on parse
+  // prudemment et on coerce tout `error` non-string (enveloppe Vercel) → évite
+  // le crash React #31 "Objects are not valid as a React child".
+  const text = await res.text();
+  let parsed: { imageUrl?: string | null; imageUrls?: string[]; error?: unknown; message?: unknown; engine?: string } | null = null;
+  try { parsed = JSON.parse(text); } catch { parsed = null; }
+
+  const coerceError = (e: unknown): string | undefined => {
+    if (e == null) return undefined;
+    if (typeof e === 'string') return e;
+    if (typeof e === 'object') {
+      const obj = e as Record<string, unknown>;
+      return (typeof obj.message === 'string' ? obj.message : undefined)
+        ?? (typeof obj.error === 'string' ? obj.error : undefined)
+        ?? 'Erreur serveur';
+    }
+    return String(e);
+  };
+
+  if (parsed) {
+    const errorMessage = coerceError(parsed.error) ?? (!res.ok ? coerceError(parsed.message) : undefined);
+    return {
+      imageUrl:  typeof parsed.imageUrl === 'string' ? parsed.imageUrl : null,
+      imageUrls: Array.isArray(parsed.imageUrls) ? parsed.imageUrls.filter(u => typeof u === 'string') as string[] : undefined,
+      error:     errorMessage,
+      engine:    typeof parsed.engine === 'string' ? parsed.engine : undefined,
+    };
+  }
+
+  let message = 'Le serveur n\'a pas pu générer le rendu MyArchitectAI.';
+  if (res.status === 504)       message = 'Le rendu a pris trop de temps (timeout). Réessayez.';
+  else if (res.status === 502)  message = 'Service MyArchitectAI momentanément indisponible. Réessayez dans une minute.';
+  else if (res.status === 429)  message = 'Trop de générations dans la dernière heure. Patientez un peu.';
+  else if (res.status === 401)  message = 'Session expirée — reconnectez-vous.';
+  else if (res.status === 400)  message = 'Image ou paramètres invalides. Vérifiez le format de l\'image.';
+  return { imageUrl: null, error: message };
+}
+
 /* ─── Helper : convertit un File en data URL pour transmission JSON ─── */
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -376,7 +427,7 @@ const CSS = `
 `;
 
 /* ─────────────────────────────────────────── TYPES */
-type Module = 'coloriste' | 'rendu';
+type Module = 'coloriste' | 'rendu' | 'architect';
 interface Preset { name:string; facade:string; poignee:string; plan:string; desc:string; mood:string; finish:FinishType; handleMaterial:string; countertopMaterial:string }
 interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:string; color:string; imageUrl?:string; imageUrls?:string[]; steps?: PipelineStep[] | null }
 
@@ -407,6 +458,13 @@ const LOADING_STEPS_RENDU = [
   'Analyse de vos paramètres',
   'Construction du prompt premium photoréaliste',
   'Génération Flux Pro Ultra (Hasselblad émulation)',
+  'Optimisation finale et sauvegarde',
+];
+// Étapes réelles du pipeline IA Architect (moteur MyArchitectAI)
+const LOADING_STEPS_ARCHITECT = [
+  'Préparation de votre image source',
+  'Construction du prompt fidélité',
+  'Rendu photoréaliste MyArchitectAI',
   'Optimisation finale et sauvegarde',
 ];
 
@@ -886,11 +944,13 @@ function GalleryCard({ gallery }: { gallery: Item[] }) {
                   style={{background:`linear-gradient(135deg,${item.color},${item.color}bb)`}}>
                   {item.module==='coloriste'
                     ? <Paintbrush className="h-5 w-5 text-white" />
-                    : <Wand2 className="h-5 w-5 text-white" />}
+                    : item.module==='architect'
+                      ? <Building2 className="h-5 w-5 text-white" />
+                      : <Wand2 className="h-5 w-5 text-white" />}
                 </div>
                 <div className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm"
                   style={{background:`${item.color}22`,color:item.color}}>
-                  {item.module==='coloriste'?'Coloriste':'Rendu'}
+                  {item.module==='coloriste'?'Coloriste':item.module==='architect'?'Architect':'Rendu'}
                 </div>
               </div>
             )}
@@ -1032,6 +1092,20 @@ export default function IaStudioPage() {
   // analyser quels paramètres / images sources mécontentent les utilisateurs.
   const [rendUserRetry, setRendUserRetry] = useState(0);
 
+  /* ── IA ARCHITECT (MyArchitectAI) — état */
+  const [archRefFile,  setArchRefFile]  = useState<File | null>(null);
+  const [archRefURL,   setArchRefURL]   = useState<string | null>(null);
+  const [archMode,     setArchMode]     = useState<'interior' | 'exterior'>('interior');
+  const [archFacades,  setArchFacades]  = useState('');
+  const [archPlan,     setArchPlan]     = useState('');
+  const [archSol,      setArchSol]      = useState('');
+  const [archMurs,     setArchMurs]     = useState('');
+  const [archAmbiance, setArchAmbiance] = useState('');
+  const [archHighRes,  setArchHighRes]  = useState(false);
+  const [archLoading,  setArchLoading]  = useState(false);
+  const [archResult,   setArchResult]   = useState<Item | null>(null);
+  const [archError,    setArchError]    = useState<string | null>(null);
+
   /* ── Couleurs modifiées manuellement (pour détecter si l'utilisateur a changé qqch) */
   const [colorsModified, setColorsModified] = useState(false);
 
@@ -1057,6 +1131,14 @@ export default function IaStudioPage() {
     setRendRefURL(u);
     return () => URL.revokeObjectURL(u);
   }, [rendRefFile]);
+
+  /* Preview image de référence IA Architect */
+  useEffect(() => {
+    if (!archRefFile) { setArchRefURL(null); return; }
+    const u = URL.createObjectURL(archRefFile);
+    setArchRefURL(u);
+    return () => URL.revokeObjectURL(u);
+  }, [archRefFile]);
 
   /* Phase 3 — analyse qualité image source à chaque nouvel upload */
   useEffect(() => {
@@ -1364,6 +1446,64 @@ export default function IaStudioPage() {
     setRendResult(null);
   };
 
+  /* ── IA Architect (MyArchitectAI) : lancer */
+  const runArchitect = async () => {
+    if (!archRefFile) {
+      setArchError('Importez un plan, un rendu 3D, un sketch ou une photo pour générer le rendu.');
+      return;
+    }
+    setArchLoading(true); setArchResult(null); setArchError(null);
+    try {
+      let referenceImageDataUrl: string;
+      try {
+        referenceImageDataUrl = await compressImageToDataUrl(archRefFile, 2048);
+      } catch {
+        setArchError('Image illisible. Choisissez une autre image (PNG ou JPG).');
+        setArchLoading(false);
+        return;
+      }
+      const result = await callArchitectAPI({
+        mode:        archMode,
+        facades:     archFacades.trim() || undefined,
+        planTravail: archPlan.trim()    || undefined,
+        sol:         archSol.trim()     || undefined,
+        murs:        archMurs.trim()    || undefined,
+        ambiance:    archAmbiance.trim() || undefined,
+        highRes:     archHighRes,
+        referenceImageDataUrl,
+        projectId:   dossierId || null,
+      });
+
+      if (result.error) { setArchError(result.error); setArchLoading(false); return; }
+
+      setIaHistoryRefresh(n => n + 1);
+
+      setArchResult({
+        id: uid(), module: 'architect',
+        prompt: archAmbiance.trim() || archFacades.trim() || (archMode === 'exterior' ? 'Rendu extérieur' : 'Rendu intérieur'),
+        dossier: dossierName,
+        ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
+        color: '#8a6cc2',
+        imageUrl: result.imageUrl ?? undefined,
+        imageUrls: result.imageUrls ?? (result.imageUrl ? [result.imageUrl] : []),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      setArchError(msg && !msg.includes('fetch')
+        ? msg
+        : 'La génération a pris trop de temps ou la connexion s\'est interrompue. Réessayez dans quelques secondes.');
+    }
+    setArchLoading(false);
+  };
+
+  const saveArchitect = () => {
+    if (!archResult) return;
+    attachToDossier(archResult, 'IA Architect');
+    setGallery(p => [archResult, ...p]);
+    addLog({ user:userName, action:'IA Architect', target:`${dossierName} — "${archResult.prompt.slice(0,40)}"`, icon:'🏛️' });
+    setArchResult(null);
+  };
+
   /* ── Sélecteur dossier */
   const DossierPicker = () => (
     <div>
@@ -1384,7 +1524,7 @@ export default function IaStudioPage() {
         <PageHeader
           icon={<Sparkles className="h-7 w-7" />}
           title="IA Studio"
-          subtitle="Deux intelligences · Une cuisine parfaite"
+          subtitle="Trois intelligences · Une cuisine parfaite"
           actions={gallery.length > 0 && (
             <div className="flex items-center gap-2.5 rounded-full border border-white/20 bg-white/15 px-4 py-2 shadow-sm">
               <div className="flex -space-x-1">
@@ -1401,7 +1541,7 @@ export default function IaStudioPage() {
         />
 
         {/* ══════════════════════════ TABS SÉLECTEUR */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {/* Coloriste */}
           <button onClick={() => setTab('coloriste')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
@@ -1469,6 +1609,43 @@ export default function IaStudioPage() {
                 {tab==='rendu' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#5b9bd5]">
                     <div className="h-2 w-2 rounded-full bg-[#5b9bd5] dp" />
+                    Module actif — prêt à l'emploi
+                  </div>
+                )}
+              </div>
+            </div>
+          </button>
+
+          {/* IA Architect (MyArchitectAI) */}
+          <button onClick={() => setTab('architect')}
+            className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
+              tab==='architect'
+                ? 'border-[#8a6cc2] bg-white shadow-xl'
+                : 'border-[#304035]/8 bg-white/70 hover:border-[#8a6cc2]/30 hover:bg-white hover:shadow-md hover:-translate-y-0.5'
+            }`}
+          >
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              style={{background:'radial-gradient(ellipse at 20% 50%, rgba(138,108,194,.06), transparent 65%)'}} />
+            {tab==='architect' && (
+              <div className="absolute inset-0"
+                style={{background:'radial-gradient(ellipse at 20% 50%, rgba(138,108,194,.07), transparent 65%)'}} />
+            )}
+            <div className="relative flex items-start gap-4">
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-md transition-transform duration-300 group-hover:scale-110 ${tab==='architect'?'scale-110':''}`}
+                style={{background:tab==='architect'?'linear-gradient(135deg,#8a6cc2,#6f54a8)':'linear-gradient(135deg,#8a6cc255,#8a6cc230)'}}>
+                <Building2 className={`h-6 w-6 ${tab==='architect'?'text-white':'text-[#8a6cc2]'}`} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-black text-[#304035] text-lg">IA Architect</p>
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#8a6cc2]/12 text-[#8a6cc2]">MyArchitectAI</span>
+                </div>
+                <p className="text-sm text-[#304035]/60 leading-relaxed">
+                  Moteur photoréaliste dédié <span className="font-semibold text-[#304035]/80">architecture & intérieur</span> — intérieur ou extérieur.
+                </p>
+                {tab==='architect' && (
+                  <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#8a6cc2]">
+                    <div className="h-2 w-2 rounded-full bg-[#8a6cc2] dp" />
                     Module actif — prêt à l'emploi
                   </div>
                 )}
@@ -2099,23 +2276,9 @@ export default function IaStudioPage() {
                 </div>
               </div>
 
-              {/* Bloc 'Qualité & format' retiré 19/05/2026 — info inutile pour
-                  le client, ces réglages sont implicites côté serveur. */}
-
               {/* Dossier + CTA */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
                 <DossierPicker />
-
-                {/* Sélecteur 'Nombre de variantes' retiré 19/05/2026 — verrouillé
-                    à 1 image (cf. même choix sur coloriste). */}
-
-                {/* Bloc 'Coût estimé' retiré 19/05/2026 — client n'a pas à voir
-                    le moteur IA ni le coût. */}
-                {/* Toggle « Ultra fidélité » RETIRÉ (07/06/2026) : il lançait le
-                    pipeline multi-ControlNet le plus lourd (40 étapes) qui
-                    dépassait souvent le timeout 250s (« service IA saturé »).
-                    Remplacé par le curseur « Réalisme ↔ Fidélité » (carte
-                    Matériaux) qui pilote le pipeline rapide ControlNet Canny. */}
                 <button onClick={runRendu}
                   disabled={rendLoading || !rendRefFile}
                   title={!rendRefFile ? 'Importez une image de référence (plan, rendu 3D, sketch ou inspiration)' : undefined}
@@ -2137,6 +2300,241 @@ export default function IaStudioPage() {
               <HistoryPanel
                 filterType="PHOTOREALISM_ENHANCE"
                 accent="#5b9bd5"
+                refreshTrigger={iaHistoryRefresh}
+                onSelect={openHistoryJob}
+              />
+              <GalleryCard gallery={gallery} />
+            </div>
+
+          </div>
+        )}
+
+        {/* ══════════════════════════ MODULE IA ARCHITECT (MyArchitectAI) */}
+        {tab === 'architect' && (
+          <div className="fu space-y-6">
+
+            {/* Ligne 1 : Image source (⅓) + Grand aperçu (⅔) */}
+            <div className="grid gap-6 lg:grid-cols-3 lg:items-stretch">
+
+              {/* Image source — un tiers */}
+              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 flex flex-col lg:min-h-[400px]">
+                <div className="flex items-center gap-2 mb-1">
+                  <FileImage className="h-4 w-4 text-[#8a6cc2]" />
+                  <p className="font-bold text-[#304035]">Image source <span className="ml-1 rounded-full bg-[#8a6cc2]/10 text-[#8a6cc2] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
+                </div>
+                <p className="text-xs text-[#304035]/50 mb-2">Plan, rendu 3D, sketch ou photo — MyArchitectAI le transforme en photo réaliste en préservant la géométrie.</p>
+                <div className="mb-4 rounded-lg bg-[#8a6cc2]/5 border border-[#8a6cc2]/15 px-3 py-2 text-[10px] leading-relaxed text-[#304035]/65">
+                  <span className="font-bold text-[#8a6cc2]">Conseil&nbsp;:</span> une image nette et bien cadrée donne les meilleurs résultats. Précisez les matériaux ci-dessous pour réduire les erreurs de rendu.
+                </div>
+                <Drop label="" sub="Déposez un plan, perspective 3D, sketch ou photo"
+                  onFile={setArchRefFile} file={archRefFile} accent="#8a6cc2"
+                  tips={['Export image WinnerFlex', 'Rendu 3D ou perspective', 'Sketch / croquis main', 'Photo de la pièce']} />
+                {archRefFile && archRefURL && (
+                  <div className="mt-3 relative rounded-xl overflow-hidden">
+                    <Image src={archRefURL} alt="Source" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    <button onClick={() => setArchRefFile(null)}
+                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="absolute bottom-2 left-3">
+                      <span className="rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5">Source active</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Grand aperçu du résultat — deux tiers */}
+              <div className="space-y-4 lg:col-span-2">
+
+                {/* Erreur */}
+                {archError && !archLoading && (
+                  <div className="fu rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-red-700">Génération échouée</p>
+                      <p className="text-xs text-red-600/80 mt-0.5 leading-relaxed">{archError}</p>
+                    </div>
+                    <button onClick={() => setArchError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Loading */}
+                {archLoading && (
+                  <div className="fu rounded-2xl bg-white border border-[#304035]/8 shadow-md p-6 space-y-5">
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                        style={{background:'linear-gradient(135deg,#8a6cc2,#6f54a8)'}}>
+                        <Building2 className="h-6 w-6 text-white sh" />
+                      </div>
+                      <div>
+                        <p className="font-black text-[#304035]">IA Architect en action</p>
+                        <p className="text-xs text-[#304035]/50 mt-0.5">MyArchitectAI · Rendu photoréaliste…</p>
+                      </div>
+                    </div>
+                    <ProgressBar steps={LOADING_STEPS_ARCHITECT} color="#8a6cc2" />
+                    <div className="flex items-center justify-between gap-3 rounded-xl bg-[#8a6cc2]/8 border border-[#8a6cc2]/15 px-3 py-2.5">
+                      <p className="text-[11px] leading-snug text-[#304035]/70">Le rendu prend en général <b className="text-[#304035]">15 à 40 s</b>. <b className="text-[#304035]">Ne fermez pas la page</b>.</p>
+                      <span className="shrink-0 font-mono text-base font-black tabular-nums" style={{color:'#8a6cc2'}}><ElapsedTimer /></span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Résultat */}
+                {archResult && !archLoading && (
+                  <ResultCard
+                    item={archResult}
+                    accentColor="#8a6cc2"
+                    icon={Building2}
+                    onSave={saveArchitect}
+                    onRegenerate={runArchitect}
+                  />
+                )}
+
+                {/* État vide */}
+                {!archLoading && !archResult && (
+                  <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#8a6cc2]/20 bg-gradient-to-br from-[#8a6cc2]/5 to-white p-12 text-center lg:min-h-[400px]">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#8a6cc2]/10">
+                      <Building2 className="h-7 w-7 text-[#8a6cc2]/60" />
+                    </div>
+                    <p className="font-bold text-[#304035] mb-1.5">Votre rendu apparaîtra ici</p>
+                    <p className="text-xs text-[#304035]/50 leading-relaxed">
+                      Importez une image source et lancez le rendu MyArchitectAI.
+                    </p>
+                  </div>
+                )}
+
+              </div>{/* /grand aperçu */}
+            </div>{/* /ligne 1 */}
+
+            {/* Paramètres — pleine largeur */}
+            <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Palette className="h-4 w-4 text-[#8a6cc2]" />
+                <p className="font-bold text-[#304035]">Paramètres du rendu</p>
+              </div>
+
+              {/* Type de rendu : intérieur / extérieur */}
+              <ChipSelector<'interior' | 'exterior'>
+                label="Type de rendu"
+                accent="#8a6cc2"
+                value={archMode}
+                onChange={setArchMode}
+                options={[
+                  { value: 'interior', label: 'Intérieur', icon: Home },
+                  { value: 'exterior', label: 'Extérieur', icon: Building2 },
+                ]}
+              />
+
+              {/* Ambiance / consigne libre */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Ambiance & consigne <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                <input
+                  value={archAmbiance}
+                  onChange={e => setArchAmbiance(e.target.value)}
+                  placeholder="Ex : lumière chaude du soir, ambiance cosy, photo professionnelle"
+                  className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
+                />
+                <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Astuce fidélité : décrivez précisément les matériaux pour limiter les inventions de l'IA. Les contraintes anti-erreur (pas d'objets en trop, géométrie préservée) sont déjà appliquées automatiquement.</p>
+              </div>
+
+              {/* Option Haute résolution (4K) */}
+              <label className="flex items-center gap-2.5 cursor-pointer rounded-xl border border-[#8a6cc2]/15 bg-[#8a6cc2]/5 px-3.5 py-3 hover:bg-[#8a6cc2]/8 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={archHighRes}
+                  onChange={e => setArchHighRes(e.target.checked)}
+                  className="h-4 w-4 shrink-0 rounded border-[#8a6cc2]/40 text-[#8a6cc2] focus:ring-2 focus:ring-[#8a6cc2]/30"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-[#304035]">Haute résolution <span className="ml-1 text-[9px] text-[#8a6cc2] font-semibold">4K · +qq s</span></p>
+                  <p className="text-[10px] text-[#304035]/55 leading-snug mt-0.5">Agrandit le rendu final en 4K. À activer pour le rendu présenté au client.</p>
+                </div>
+              </label>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Façades & couleurs <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                <input
+                  value={archFacades}
+                  onChange={e => setArchFacades(e.target.value)}
+                  placeholder="Ex : Chêne fumé mat, poignées laiton brossé"
+                  className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
+                />
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {['Chêne fumé mat', 'Noir laqué brillant', 'Blanc satiné', 'Vert sauge mat', 'Bleu nuit laqué'].map(s => (
+                    <button key={s} onClick={() => setArchFacades(s)}
+                      className="rounded-full border border-[#8a6cc2]/20 bg-[#8a6cc2]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#8a6cc2]/50 hover:bg-[#8a6cc2]/10 transition-all">
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Plan de travail <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                <input
+                  value={archPlan}
+                  onChange={e => setArchPlan(e.target.value)}
+                  placeholder="Ex : Marbre Calacatta blanc, Dekton gris, quartz noir"
+                  className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
+                />
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {['Marbre blanc Calacatta', 'Dekton gris', 'Quartz noir', 'Pierre bleue', 'Granit anthracite'].map(s => (
+                    <button key={s} onClick={() => setArchPlan(s)}
+                      className="rounded-full border border-[#8a6cc2]/20 bg-[#8a6cc2]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#8a6cc2]/50 hover:bg-[#8a6cc2]/10 transition-all">
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Sol <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                <input
+                  value={archSol}
+                  onChange={e => setArchSol(e.target.value)}
+                  placeholder="Ex : Parquet chêne contrecollé, carrelage grand format gris"
+                  className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
+                />
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Murs <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                <input
+                  value={archMurs}
+                  onChange={e => setArchMurs(e.target.value)}
+                  placeholder="Ex : Peinture mate blanche, lambris bois, crédence céramique"
+                  className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
+                />
+              </div>
+            </div>
+
+            {/* Dossier + CTA */}
+            <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
+              <DossierPicker />
+              <button onClick={runArchitect}
+                disabled={archLoading || !archRefFile}
+                title={!archRefFile ? 'Importez une image source (plan, rendu 3D, sketch ou photo)' : undefined}
+                className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{background:'linear-gradient(135deg,#8a6cc2 0%,#6f54a8 100%)'}}>
+                <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
+                  {archLoading
+                    ? <><Loader2 className="h-4 w-4 animate-spin" />Génération du rendu…</>
+                    : !archRefFile
+                      ? <><FileImage className="h-4 w-4" />Importez d'abord une image source</>
+                      : <><Building2 className="h-4 w-4" />Générer avec MyArchitectAI<ArrowRight className="h-4 w-4 ml-1" /></>
+                  }
+                </span>
+              </button>
+            </div>
+
+            {/* Historique (½) + Galerie (½) côte à côte */}
+            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+              <HistoryPanel
+                filterType="EDIT"
+                accent="#8a6cc2"
                 refreshTrigger={iaHistoryRefresh}
                 onSelect={openHistoryJob}
               />

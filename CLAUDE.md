@@ -91,7 +91,8 @@ prisma/schema.prisma              — Schéma DB (Waitlist, DemoRequest, User...
 | `ANTHROPIC_API_KEY` | sk-ant-*** (fallback transparent — optionnel) |
 | `ANTHROPIC_MODEL` | `claude-opus-4-6` (fallback) |
 | `AI_PROVIDER` | `auto` (default) — `openai` / `anthropic` / `mock` pour forcer |
-| `FAL_KEY` | — (génération images, inchangé) |
+| `FAL_KEY` | — (génération images Coloriste + Rendu, inchangé) |
+| `MYARCHITECT_API_KEY` | — (module IA Architect / MyArchitectAI ; sans clé → mode démo) |
 
 ## Utilisateurs bêta actifs en DB
 
@@ -123,9 +124,25 @@ les images.
 | Extract dossier (NEW) | OpenAI | `gpt-4o` + json_schema strict |
 | Chat marketing (visiteurs) | OpenAI | `gpt-4o-mini` |
 | Rendu / coloriste | fal.ai | inchangé |
+| IA Architect (NEW) | MyArchitectAI | render/interior · render/exterior · upscale-4k |
 
 **Service principal** : `apps/api/src/modules/ia/ai.service.ts`
 **Service extraction** : `apps/api/src/modules/ia/extraction.service.ts`
+
+### Module IA Architect (juin 2026 — MyArchitectAI)
+
+3e moteur de rendu de l'IA Studio (onglet « IA Architect »), à côté de
+Coloriste et Rendu. Utilise l'API MyArchitectAI (~0,03 $/rendu, white-label).
+
+- Wrapper serveur : `apps/web/lib/server/myarchitect-api.ts`
+- Route API : `apps/web/app/api/ia/architect/route.ts` (auth + rate-limit
+  10/h + IaJob + upload source Supabase → URL signée → render → copie Supabase)
+- UI : onglet dans `apps/web/app/(app)/ia-studio/page.tsx` (accent violet #8a6cc2)
+- Type IaJob : réutilise `EDIT` (historique dédié, **sans migration Prisma**)
+- Activation : poser `MYARCHITECT_API_KEY` (Vercel). Sans clé → mode démo
+  (renvoie l'image source). Aucune autre étape requise.
+- Prompt anti-erreurs baked-in (pas de negativePrompt sur render/interior|exterior) :
+  préservation layout/géométrie, pas d'objets en trop, pas de déformation.
 **Doc complète** : `apps/api/src/modules/ia/README.md`
 
 ### Endpoint extraction documents
@@ -161,6 +178,8 @@ pré-remplit les champs en un clic. L'utilisateur garde la main.
   Anthropic fallback transparent, suppression worker DALL-E legacy
 - **(mai 2026)** Extraction IA documents : endpoint `/extract-dossier`
   + bouton UI dans la modale Validation projet
+- **(juin 2026)** Module IA Architect (MyArchitectAI) : 3e onglet IA Studio,
+  route `/api/ia/architect` + wrapper `myarchitect-api.ts` (active via MYARCHITECT_API_KEY)
 
 ### 🔲 P1 restants
 - Playwright E2E (parcours login, waitlist, démo)

@@ -69,6 +69,11 @@ export class EnvironmentVariables {
   @IsString()
   AI_PROVIDER?: string; // 'auto' | 'openai' | 'anthropic' | 'mock'
 
+  // 🏛️ IA Architect — moteur de rendu MyArchitectAI (module IA Studio).
+  // Lue côté Next.js (apps/web/app/api/ia/architect). Sans clé → mode démo.
+  @IsString()
+  MYARCHITECT_API_KEY?: string;
+
   @IsString()
   GOOGLE_AI_API_KEY?: string;
 
