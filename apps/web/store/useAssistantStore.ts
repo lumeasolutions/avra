@@ -18,10 +18,12 @@ import { persist } from 'zustand/middleware';
 
 export interface AssistantPendingAction {
   // create_devis/create_facture ajoutes le 28/05/2026 (volet 4 assistant)
-  type: 'navigate' | 'create_dossier' | 'create_devis' | 'create_facture' | 'info';
+  type: 'navigate' | 'create_dossier' | 'create_devis' | 'create_facture' | 'create_event' | 'create_demande' | 'info';
   label: string;
   target?: string;
   data?: any;
+  // Volet 5 (06/2026) : params structures extraits par le modele (function-call).
+  params?: Record<string, unknown>;
 }
 
 export interface AssistantMessage {

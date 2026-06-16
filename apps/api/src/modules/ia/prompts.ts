@@ -22,6 +22,12 @@ export const SYSTEM_PROMPTS = {
     demandePendingCount?: number;
     demandeEnCoursCount?: number;
     invitationsPendingCount?: number;
+    // Volet 6 (06/2026) — contexte enrichi (details, pas seulement compteurs)
+    unpaidInvoicesText?: string;
+    unpaidTotalEUR?: number;
+    upcomingEventsText?: string;
+    stockRuptureText?: string;
+    demandesWaitingText?: string;
     // Volet 2 (28/05/2026) — personnalite choisie dans Parametres → IA
     personnalite?: 'professionnel' | 'amical' | 'concis';
   }): string => {
@@ -50,6 +56,17 @@ export const SYSTEM_PROMPTS = {
       lines.push(`- Demandes en cours d'exécution: ${context.demandeEnCoursCount}`);
     if (context?.invitationsPendingCount !== undefined)
       lines.push(`- Invitations intervenants en attente: ${context.invitationsPendingCount}`);
+    // Volet 6 : detail enrichi — l'assistant peut citer montants, dates, noms.
+    if (context?.unpaidInvoicesText)
+      lines.push(`- Factures impayées / en retard: ${context.unpaidInvoicesText}`);
+    if (context?.unpaidTotalEUR !== undefined)
+      lines.push(`- Total à recouvrer: ${Math.round(context.unpaidTotalEUR)}€`);
+    if (context?.upcomingEventsText)
+      lines.push(`- RDV / interventions à venir: ${context.upcomingEventsText}`);
+    if (context?.stockRuptureText)
+      lines.push(`- Articles en rupture de stock: ${context.stockRuptureText}`);
+    if (context?.demandesWaitingText)
+      lines.push(`- Demandes en attente de réponse: ${context.demandesWaitingText}`);
     const contextStr = lines.length > 0
       ? `\nContexte utilisateur actuel (données réelles du workspace):\n${lines.join('\n')}`.trim()
       : '';
@@ -98,19 +115,35 @@ ${contextStr}
 
 Tes responsabilités:
 1. Répondre aux questions sur les dossiers, factures, planning, demandes, intervenants
-2. Naviguer les utilisateurs vers les bonnes pages
-3. Créer des dossiers clients
+2. Emmener les utilisateurs vers les bonnes pages (outil navigate)
+3. Créer des dossiers clients, devis et factures (outils dédiés, voir ci-dessous)
 4. Proposer des rendus et colorisations (les images sont générées côté serveur)
 5. Générer des alertes intelligentes sur les problèmes détectés
 6. Expliquer le process et rassurer sur les délais
 7. Aider à composer une demande adaptée (suggestion de type, titre, planification) à envoyer à un intervenant
 8. Recommander d'inviter un intervenant si le workspace n'a pas le bon profil disponible
 
+Actions (outils):
+- Quand l'utilisateur demande EXPLICITEMENT de créer un dossier/devis/facture,
+  de planifier un RDV (create_event), d'envoyer une demande à un intervenant
+  (create_demande) ou d'aller sur une page, APPELLE l'outil correspondant pour
+  PROPOSER l'action.
+- Tu ne fais que proposer : l'utilisateur valide ensuite d'un clic (carte de
+  confirmation) avant toute création réelle. Inutile de redemander « voulez-vous
+  confirmer ? » : la confirmation se fait dans l'interface.
+- N'appelle un outil que si tu as les infos minimales. Pour un dossier, le NOM
+  du client est obligatoire : s'il manque, demande-le, n'invente rien.
+- Pour un devis/facture, ne renseigne des lignes/montants QUE si l'utilisateur
+  les a précisés. Sinon laisse-les vides : un brouillon sera ouvert pour édition.
+- Si un outil n'est pas disponible (action désactivée dans les Paramètres),
+  explique-le simplement et propose de guider l'utilisateur à la main.
+
 ${toneBlock}
 
 Ne fais JAMAIS:
-- Inventer de données
+- Inventer des données (noms, montants, prix, dates)
 - Promettre des images générées si l'utilisateur n'a pas d'API configurée
+- Créer/modifier quoi que ce soit sans passer par un outil de proposition
 - Dépasser tes limites de rôle
 - Utiliser un ton agressif ou déprimant`;
   },

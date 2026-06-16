@@ -81,7 +81,7 @@ export class IaController {
    */
   @SkipCsrf()
   @Post('chat')
-  async chatStream(@CurrentUser() user: JwtPayload | undefined, @Body() body: { messages: Array<{ role: 'user' | 'assistant'; content: string }>; personnalite?: 'professionnel' | 'amical' | 'concis'; acces?: { dossiers?: boolean; facturation?: boolean; planning?: boolean; stock?: boolean; stats?: boolean; intervenants?: boolean } }, @Res() res: Response) {
+  async chatStream(@CurrentUser() user: JwtPayload | undefined, @Body() body: { messages: Array<{ role: 'user' | 'assistant'; content: string }>; personnalite?: 'professionnel' | 'amical' | 'concis'; acces?: { dossiers?: boolean; facturation?: boolean; planning?: boolean; stock?: boolean; stats?: boolean; intervenants?: boolean }; actions?: { dossier?: boolean; devis?: boolean; facture?: boolean; navigation?: boolean; event?: boolean; demande?: boolean } }, @Res() res: Response) {
     try {
       // Volet 3 (28/05/2026) : l'assistant ne recoit que les categories de
       // donnees autorisees (Parametres → IA). Defaut = autorise si non fourni
@@ -90,6 +90,21 @@ export class IaController {
       const canDossiers = acces.dossiers !== false;
       const canFacturation = acces.facturation !== false;
       const canIntervenants = acces.intervenants !== false;
+      const canPlanning = acces.planning !== false;
+      const canStock = acces.stock !== false;
+
+      // Volet 5 (06/2026) : actions REELLES via function-calling. On n'expose un
+      // outil que si le toggle correspondant est explicitement actif. Defaut =
+      // false (anciens clients sans 'actions' -> chat pur, aucune mutation).
+      const a = body?.actions ?? {};
+      const enabledActions = {
+        dossier: a.dossier === true,
+        devis: a.devis === true,
+        facture: a.facture === true,
+        navigation: a.navigation === true,
+        event: a.event === true,
+        demande: a.demande === true,
+      };
 
       // Charger le contexte workspace si user connecté
       let dossiers: any[] = [];
@@ -97,10 +112,13 @@ export class IaController {
       let intervenants: any[] = [];
       let demandes: any[] = [];
       let invitationsPending = 0;
+      let events: any[] = [];
+      let stock: any[] = [];
 
       if (user?.workspaceId) {
         const ws = user.workspaceId;
-        [dossiers, invoices, intervenants, demandes, invitationsPending] = await Promise.all([
+        const now = new Date();
+        [dossiers, invoices, intervenants, demandes, invitationsPending, events, stock] = await Promise.all([
           canDossiers
             ? this.prisma.project.findMany({
                 where: { workspaceId: ws },
@@ -111,7 +129,12 @@ export class IaController {
           canFacturation
             ? this.prisma.paymentRequest.findMany({
                 where: { workspaceId: ws },
-                select: { id: true, status: true },
+                // Volet 6 : montants + client pour repondre "qui me doit combien".
+                select: {
+                  id: true, status: true, amount: true, type: true,
+                  project: { select: { name: true, client: { select: { firstName: true, lastName: true } } } },
+                },
+                orderBy: { createdAt: 'desc' },
               })
             : Promise.resolve([] as any[]),
           canIntervenants
@@ -125,7 +148,11 @@ export class IaController {
           canIntervenants
             ? (this.prisma as any).demande.findMany({
                 where: { workspaceId: ws },
-                select: { id: true, status: true, type: true },
+                // Volet 6 : titre + echeance + intervenant cible pour "qui attend quoi".
+                select: {
+                  id: true, status: true, type: true, title: true, scheduledFor: true,
+                  intervenant: { select: { companyName: true, firstName: true, lastName: true } },
+                },
                 orderBy: { createdAt: 'desc' },
                 take: 200,
               })
@@ -135,6 +162,23 @@ export class IaController {
                 where: { workspaceId: ws, status: 'PENDING' },
               })
             : Promise.resolve(0),
+          // Volet 6 : les 8 prochains RDV / interventions a venir.
+          canPlanning
+            ? this.prisma.event.findMany({
+                where: { workspaceId: ws, startAt: { gte: now } },
+                select: { title: true, startAt: true, type: true },
+                orderBy: { startAt: 'asc' },
+                take: 8,
+              })
+            : Promise.resolve([] as any[]),
+          // Volet 6 : articles en rupture de stock.
+          canStock
+            ? this.prisma.stockItem.findMany({
+                where: { workspaceId: ws, status: 'OUT_OF_STOCK' },
+                select: { name: true, model: true },
+                take: 12,
+              })
+            : Promise.resolve([] as any[]),
         ]);
       }
 
@@ -172,6 +216,50 @@ export class IaController {
         d.status === 'ACCEPTEE' || d.status === 'EN_COURS'
       ).length;
 
+      // ── Volet 6 : textes de contexte ENRICHI (l'assistant "voit" le detail) ──
+      const fmtFr = (d: any) => {
+        try {
+          return new Date(d).toLocaleString('fr-FR', {
+            timeZone: 'Europe/Paris', weekday: 'short', day: '2-digit', month: '2-digit',
+            hour: '2-digit', minute: '2-digit',
+          });
+        } catch { return ''; }
+      };
+      const eur = (n: number) => `${Math.round(n)}€`;
+
+      // Factures impayees (PENDING) + en retard (FAILED) avec montants + client.
+      const unpaidList = invoices.filter((i: any) => i.status === 'PENDING' || i.status === 'FAILED');
+      const unpaidTotalEUR = unpaidList.reduce((s: number, i: any) => s + Number(i.amount ?? 0), 0);
+      const clientOfInvoice = (i: any) => {
+        const c = i.project?.client;
+        const n = c ? `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() : '';
+        return n || i.project?.name || 'client';
+      };
+      const unpaidInvoicesText = unpaidList.slice(0, 10)
+        .map((i: any) => `${clientOfInvoice(i)} : ${eur(Number(i.amount ?? 0))} (${i.status === 'FAILED' ? 'en retard' : 'en attente'})`)
+        .join(' ; ');
+
+      // RDV / interventions a venir.
+      const upcomingEventsText = events
+        .map((e: any) => `${fmtFr(e.startAt)} — ${e.title}`)
+        .join(' ; ');
+
+      // Ruptures de stock.
+      const stockRuptureText = stock
+        .map((s: any) => (s.model ? `${s.name} (${s.model})` : s.name))
+        .join(', ');
+
+      // Demandes en attente : titre + intervenant cible + echeance.
+      const intervenantOfDemande = (d: any) => {
+        const iv = d.intervenant;
+        if (!iv) return '—';
+        return iv.companyName || `${iv.firstName ?? ''} ${iv.lastName ?? ''}`.trim() || '—';
+      };
+      const waitingDemandes = demandes.filter((d: any) => d.status === 'ENVOYEE' || d.status === 'VUE');
+      const demandesWaitingText = waitingDemandes.slice(0, 10)
+        .map((d: any) => `${d.title} → ${intervenantOfDemande(d)}${d.scheduledFor ? ' (prévu ' + fmtFr(d.scheduledFor) + ')' : ''}`)
+        .join(' ; ');
+
       // Convertir au format messages
       const messages = (body.messages || []).map((m) => ({
         role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
@@ -194,7 +282,14 @@ export class IaController {
         demandePendingCount: canIntervenants ? demandePendingCount : undefined,
         demandeEnCoursCount: canIntervenants ? demandeEnCoursCount : undefined,
         invitationsPendingCount: canIntervenants ? invitationsPending : undefined,
+        // Volet 6 : contexte enrichi (chaine vide -> undefined -> ligne omise).
+        unpaidInvoicesText: canFacturation ? (unpaidInvoicesText || undefined) : undefined,
+        unpaidTotalEUR: canFacturation && unpaidTotalEUR > 0 ? unpaidTotalEUR : undefined,
+        upcomingEventsText: canPlanning ? (upcomingEventsText || undefined) : undefined,
+        stockRuptureText: canStock ? (stockRuptureText || undefined) : undefined,
+        demandesWaitingText: canIntervenants ? (demandesWaitingText || undefined) : undefined,
         personnalite: body?.personnalite,
+        enabledActions,
       });
 
       // Configurer la réponse SSE
@@ -208,10 +303,17 @@ export class IaController {
       // Envoyer les headers SSE maintenant (avant les events)
       res.flushHeaders();
 
-      // Streamer les chunks
-      stream.on('data', (chunk) => {
+      // Streamer les evenements (object-mode) : texte token-par-token OU une
+      // action a confirmer. Tolere aussi une string brute par securite.
+      stream.on('data', (evt: unknown) => {
         if (res.writableEnded) return;
-        res.write(`data: ${JSON.stringify({ content: chunk.toString() })}\n\n`);
+        if (evt && typeof evt === 'object' && (evt as any).type === 'action') {
+          res.write(`data: ${JSON.stringify({ action: (evt as any).value })}\n\n`);
+        } else if (evt && typeof evt === 'object' && (evt as any).type === 'text') {
+          res.write(`data: ${JSON.stringify({ content: (evt as any).value })}\n\n`);
+        } else {
+          res.write(`data: ${JSON.stringify({ content: String(evt) })}\n\n`);
+        }
       });
 
       stream.on('end', () => {

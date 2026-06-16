@@ -12,6 +12,8 @@ import type {
   ActiveProvider,
   ProviderHint,
   AIStatus,
+  AssistantAction,
+  EnabledActions,
 } from './types';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -137,25 +139,54 @@ export class AIService {
           .map((m) => ({ role: m.role, content: m.content })),
       ];
 
+      // Volet 5 : outils de function-calling exposes selon les toggles IA.
+      // Si aucun n'est active -> tools=undefined -> chat pur (comportement
+      // historique inchange).
+      const tools = this.buildTools(context?.enabledActions);
+
       const stream = await client.chat.completions.create({
         model: this.modelPremium,
         messages: apiMessages,
         max_tokens: 2048,
         stream: true,
+        // parallel_tool_calls:false -> au plus UNE action proposee a la fois
+        // (le front n'affiche qu'une carte de confirmation par message).
+        ...(tools ? { tools, tool_choice: 'auto' as const, parallel_tool_calls: false } : {}),
       });
 
       const logger = this.logger;
+      const buildAction = (name: string, args: string) => this.buildAction(name, args);
+      // Object-mode : on emet des evenements { type:'text'|'action', value }.
       return Readable.from(
         (async function* () {
+          // Accumulateur des tool_calls (les arguments arrivent en plusieurs
+          // deltas qu'il faut concatener par index).
+          const toolAcc: Record<number, { name: string; args: string }> = {};
           try {
             for await (const event of stream) {
-              const delta = event.choices?.[0]?.delta?.content;
-              if (delta) yield delta;
+              const delta = event.choices?.[0]?.delta;
+              if (delta?.content) yield { type: 'text', value: delta.content };
+              const tcs = delta?.tool_calls;
+              if (tcs) {
+                for (const tc of tcs) {
+                  const idx = tc.index ?? 0;
+                  if (!toolAcc[idx]) toolAcc[idx] = { name: '', args: '' };
+                  if (tc.function?.name) toolAcc[idx].name += tc.function.name;
+                  if (tc.function?.arguments) toolAcc[idx].args += tc.function.arguments;
+                }
+              }
+            }
+            // Fin du stream : on materialise les actions accumulees.
+            for (const key of Object.keys(toolAcc)) {
+              const acc = toolAcc[Number(key)];
+              const action = buildAction(acc.name, acc.args);
+              if (action) yield { type: 'action', value: action };
             }
           } catch (err) {
             logger.error('OpenAI stream error:', err);
           }
         })(),
+        { objectMode: true },
       );
     } catch (error) {
       this.logger.error('OpenAI chat stream error:', error);
@@ -165,6 +196,216 @@ export class AIService {
         return this.anthropicChatStream(messages, context);
       }
       return this.mockChatStream(messages);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  //              FUNCTION-CALLING : OUTILS + MAPPING ACTIONS
+  // ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Construit la liste d'outils OpenAI selon les toggles actifs. L'IA ne fait
+   * que PROPOSER l'action (extraction des params) ; l'execution reelle se fait
+   * cote frontend apres confirmation explicite de l'utilisateur.
+   * Retourne undefined si aucun outil actif (-> chat pur).
+   */
+  private buildTools(enabled?: EnabledActions): any[] | undefined {
+    if (!enabled) return undefined;
+    const lineItemSchema = {
+      type: 'object',
+      properties: {
+        description: { type: 'string', description: 'Désignation de la ligne' },
+        quantity: { type: 'string', description: 'Quantité en chiffres, ex "1"' },
+        unitPrice: { type: 'string', description: 'Prix unitaire HT en chiffres, ex "1500"' },
+        vatRate: { type: 'string', description: 'Taux de TVA en %, défaut "20"' },
+        unit: { type: 'string', description: 'Unité, ex "forfait", "m²", "h"' },
+      },
+      required: ['description', 'quantity', 'unitPrice'],
+    };
+    const tools: any[] = [];
+    if (enabled.dossier) {
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'create_dossier',
+          description:
+            "Proposer la création d'un nouveau dossier client. À utiliser UNIQUEMENT si l'utilisateur demande explicitement de créer/ajouter un dossier. N'invente JAMAIS le nom du client : s'il manque, demande-le au lieu d'appeler l'outil.",
+          parameters: {
+            type: 'object',
+            properties: {
+              lastName: { type: 'string', description: 'Nom de famille du client (obligatoire)' },
+              firstName: { type: 'string', description: 'Prénom du client (optionnel)' },
+              email: { type: 'string', description: 'Email du client (optionnel)' },
+              phone: { type: 'string', description: 'Téléphone du client (optionnel)' },
+            },
+            required: ['lastName'],
+          },
+        },
+      });
+    }
+    if (enabled.devis) {
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'create_devis',
+          description:
+            "Proposer la création d'un devis. Renseigne les lignes UNIQUEMENT si l'utilisateur précise des montants ; sinon laisse 'lines' vide (un brouillon sera créé puis ouvert pour édition). N'invente jamais de prix.",
+          parameters: {
+            type: 'object',
+            properties: {
+              clientName: { type: 'string', description: 'Nom du client / destinataire (optionnel)' },
+              objet: { type: 'string', description: 'Objet / titre du devis (optionnel)' },
+              lines: { type: 'array', description: 'Lignes du devis (optionnel)', items: lineItemSchema },
+            },
+            required: [],
+          },
+        },
+      });
+    }
+    if (enabled.facture) {
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'create_facture',
+          description:
+            "Proposer la création d'une facture. Renseigne les lignes UNIQUEMENT si l'utilisateur précise des montants ; sinon laisse 'lines' vide (un brouillon sera créé puis ouvert pour édition). N'invente jamais de prix.",
+          parameters: {
+            type: 'object',
+            properties: {
+              clientName: { type: 'string', description: 'Nom du client / destinataire (optionnel)' },
+              objet: { type: 'string', description: 'Objet / titre de la facture (optionnel)' },
+              lines: { type: 'array', description: 'Lignes de la facture (optionnel)', items: lineItemSchema },
+            },
+            required: [],
+          },
+        },
+      });
+    }
+    if (enabled.navigation) {
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'navigate',
+          description: "Proposer d'emmener l'utilisateur sur une page de l'application.",
+          parameters: {
+            type: 'object',
+            properties: {
+              target: {
+                type: 'string',
+                enum: ['dossiers', 'planning', 'facturation', 'stock', 'statistiques', 'ia-studio', 'parametres', 'intervenants'],
+                description: 'Page de destination',
+              },
+            },
+            required: ['target'],
+          },
+        },
+      });
+    }
+    if (enabled.event) {
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'create_event',
+          description:
+            "Proposer la création d'un RDV / intervention dans le planning. À utiliser si l'utilisateur demande de planifier/poser un rendez-vous. Déduis la date/heure depuis la demande et renvoie-la au format ISO 8601 (ex 2026-06-18T14:00:00). Si la date est ambiguë, demande-la au lieu d'appeler l'outil.",
+          parameters: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'Titre du RDV (ex "Mesure cuisine Dupont")' },
+              startAt: { type: 'string', description: 'Date et heure de début au format ISO 8601' },
+              endAt: { type: 'string', description: 'Date et heure de fin ISO 8601 (optionnel)' },
+              type: {
+                type: 'string',
+                enum: ['RDV_CLIENT', 'VISITE_CHANTIER', 'LIVRAISON', 'INSTALLATION', 'REUNION', 'RELANCE', 'APPEL', 'DEPLACEMENT', 'AUTRE'],
+                description: 'Type d\'évènement (défaut RDV_CLIENT)',
+              },
+              location: { type: 'string', description: 'Lieu (optionnel)' },
+            },
+            required: ['title', 'startAt'],
+          },
+        },
+      });
+    }
+    if (enabled.demande) {
+      tools.push({
+        type: 'function',
+        function: {
+          name: 'create_demande',
+          description:
+            "Proposer l'envoi d'une demande de travail à un intervenant (poseur, livreur, SAV…). À utiliser si l'utilisateur demande d'envoyer/assigner une tâche à un intervenant. Donne le NOM de l'intervenant tel qu'évoqué ; ne l'invente pas, demande-le s'il manque.",
+          parameters: {
+            type: 'object',
+            properties: {
+              intervenantName: { type: 'string', description: "Nom de l'intervenant cible (obligatoire)" },
+              title: { type: 'string', description: 'Titre / objet de la demande (obligatoire)' },
+              type: {
+                type: 'string',
+                enum: ['POSE', 'LIVRAISON', 'SAV', 'MESURE', 'DEVIS', 'CONFIRMATION_COMMANDE', 'COMPLEMENT', 'AUTRE'],
+                description: 'Type de demande (défaut AUTRE)',
+              },
+              notes: { type: 'string', description: 'Brief / détails (optionnel)' },
+              scheduledFor: { type: 'string', description: 'Date souhaitée ISO 8601 (optionnel)' },
+            },
+            required: ['intervenantName', 'title'],
+          },
+        },
+      });
+    }
+    return tools.length ? tools : undefined;
+  }
+
+  /** Mappe un tool_call OpenAI accumulé vers une AssistantAction sûre (ou null). */
+  private buildAction(name: string, argsRaw: string): AssistantAction | null {
+    let params: Record<string, unknown> = {};
+    try {
+      params = argsRaw ? JSON.parse(argsRaw) : {};
+    } catch {
+      params = {};
+    }
+    const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+    switch (name) {
+      case 'create_dossier': {
+        const lastName = str(params.lastName);
+        if (!lastName) return null; // pas de nom -> on ne propose pas une création vide
+        const firstName = str(params.firstName);
+        return {
+          type: 'create_dossier',
+          label: `Créer le dossier ${firstName ? firstName + ' ' : ''}${lastName}`,
+          params,
+        };
+      }
+      case 'create_devis': {
+        const client = str(params.clientName);
+        return { type: 'create_devis', label: `Créer un devis${client ? ' pour ' + client : ''}`, params };
+      }
+      case 'create_facture': {
+        const client = str(params.clientName);
+        return { type: 'create_facture', label: `Créer une facture${client ? ' pour ' + client : ''}`, params };
+      }
+      case 'navigate': {
+        const target = str(params.target);
+        const labels: Record<string, string> = {
+          dossiers: 'Dossiers', planning: 'Planning', facturation: 'Facturation',
+          stock: 'Stock', statistiques: 'Statistiques', 'ia-studio': 'IA Studio',
+          parametres: 'Paramètres', intervenants: 'Intervenants',
+        };
+        if (!labels[target]) return null;
+        return { type: 'navigate', label: `Aller sur ${labels[target]}`, params: { target } };
+      }
+      case 'create_event': {
+        const title = str(params.title);
+        const startAt = str(params.startAt);
+        if (!title || !startAt) return null; // sans titre+date, on ne propose rien
+        return { type: 'create_event', label: `Créer le RDV « ${title} »`, params };
+      }
+      case 'create_demande': {
+        const who = str(params.intervenantName);
+        const title = str(params.title);
+        if (!who || !title) return null;
+        return { type: 'create_demande', label: `Envoyer « ${title} » à ${who}`, params };
+      }
+      default:
+        return null;
     }
   }
 
@@ -206,7 +447,10 @@ export class AIService {
       const logger = this.logger;
       let sseBuffer = '';
 
+      // Object-mode : meme contrat que openaiChatStream (events { type, value }).
+      // Le fallback Anthropic ne propose pas d'actions (texte uniquement).
       return new Readable({
+        objectMode: true,
         async read() {
           try {
             while (true) {
@@ -229,7 +473,7 @@ export class AIService {
                 try {
                   const event = JSON.parse(jsonStr);
                   if (event.type === 'content_block_delta' && event.delta?.text) {
-                    this.push(event.delta.text);
+                    this.push({ type: 'text', value: event.delta.text });
                   }
                   if (event.type === 'message_stop') {
                     this.push(null);
@@ -396,10 +640,11 @@ export class AIService {
     return Readable.from(
       (async function* () {
         for (const char of mockResponse) {
-          yield char;
+          yield { type: 'text', value: char };
           await new Promise((r) => setTimeout(r, 20));
         }
       })(),
+      { objectMode: true },
     );
   }
 

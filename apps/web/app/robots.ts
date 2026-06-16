@@ -33,7 +33,6 @@ export default function robots(): MetadataRoute.Robots {
           '/favicon.ico',
           // Application privée (route group app)
           '/dashboard',
-          '/assistant',
           '/commandes',
           '/dossiers',
           '/dossiers-signes',

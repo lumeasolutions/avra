@@ -8,6 +8,7 @@ import { useRelanceEngine } from '@/hooks/useRelanceEngine';
 import { useDataSync } from '@/hooks/useDataSync';
 import { useAlertEngine } from '@/hooks/useAlertEngine';
 import { useTokenRefresh } from '@/hooks/useTokenRefresh';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 /* Dynamic import pour code splitting */
 const AssistantFAB = nextDynamic(() => import('@/components/layout/AssistantFAB').then(mod => mod.AssistantFAB), {
@@ -46,13 +47,12 @@ function DataSyncProvider() {
 // Pages où l'assistant est en mode toggle (FAB) au lieu de permanent
 const TOGGLE_PAGES = ['/planning', '/planning-gestion'];
 
-// Pages qui sont elles-mêmes l'assistant — pas de FAB ni de panel
-const NO_ASSISTANT_PAGES = ['/assistant'];
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '';
   const isTogglePage = TOGGLE_PAGES.some(p => pathname === p || pathname.startsWith(p + '/'));
-  const isNoAssistantPage = NO_ASSISTANT_PAGES.some(p => pathname === p || pathname.startsWith(p + '/'));
+  // Sur mobile, le panneau latéral est masqué (display:none < 900px) : le FAB
+  // devient le SEUL accès à l'assistant — on l'affiche donc sur toutes les pages.
+  const isMobile = useIsMobile();
 
   return (
     <AppGuard>
@@ -76,11 +76,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
 
-        {/* Pages planning : FAB toggle classique */}
-        {isTogglePage && <AssistantFAB />}
+        {/* FAB assistant : pages planning (tous écrans) + TOUTES les pages sur mobile
+            (le panneau latéral étant masqué sous 900px, le FAB est le seul accès). */}
+        {(isTogglePage || isMobile) && <AssistantFAB />}
 
-        {/* Toutes les autres pages (sauf /assistant) : panel permanent desktop */}
-        {!isTogglePage && !isNoAssistantPage && (
+        {/* Panneau permanent à droite : desktop uniquement, hors pages planning/assistant. */}
+        {!isTogglePage && !isMobile && (
           <div
             className="assistant-panel-desktop"
             style={{
