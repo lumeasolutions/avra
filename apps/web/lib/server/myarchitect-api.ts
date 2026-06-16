@@ -254,3 +254,33 @@ export async function generateArchitectRender(
 
   return { success: true, imageUrls, prompt, endpoint, upscaled };
 }
+
+
+/**
+ * Coloriste via MyArchitectAI — change les couleurs/finitions d'une cuisine
+ * existante à partir d'un prompt déjà construit (couleurs façades/poignées/plan).
+ * Utilise render/interior (l'« Edit by prompt » par surface de MyArchitectAI
+ * n'est pas encore exposé en API). En mode mock : renvoie l'image source.
+ *
+ * @param prompt   Prompt coloriste (construit via buildColoristPrompt côté route)
+ * @param imageUrl URL https publique de la photo de cuisine source
+ */
+export async function generateColoristeRender(
+  prompt: string,
+  imageUrl: string,
+): Promise<ArchitectResult> {
+  if (!isArchitectEnabled()) {
+    return {
+      success: true,
+      imageUrls: [imageUrl],
+      prompt: `${prompt} [MODE DÉMO — clé MyArchitectAI non configurée]`,
+      endpoint: 'mock',
+      upscaled: false,
+    };
+  }
+  const res = await renderInterior(imageUrl, prompt);
+  if (!res.ok) {
+    return { success: false, imageUrls: [], prompt, endpoint: 'render/interior', upscaled: false, error: res.error };
+  }
+  return { success: true, imageUrls: res.outputs, prompt, endpoint: 'render/interior', upscaled: false };
+}

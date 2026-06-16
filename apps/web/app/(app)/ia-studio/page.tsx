@@ -232,6 +232,42 @@ async function callArchitectAPI(params: {
   return { imageUrl: null, error: message };
 }
 
+/* ─── Coloriste MyArchitectAI : appel de /api/ia/coloriste-architect ─── */
+async function callColoristeArchitectAPI(params: {
+  facadeHex: string; poigneeHex: string; planHex: string;
+  facadeFinish: FinishType; lightingStyle: LightingType;
+  poigneeFinish?: FinishType; planFinish?: FinishType;
+  handleMaterial?: string; countertopMaterial?: string;
+  sourceImageDataUrl: string; projectId?: string | null;
+}): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
+  const res = await fetch('/api/ia/coloriste-architect', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params),
+  });
+  const text = await res.text();
+  let parsed: { imageUrl?: string | null; imageUrls?: string[]; error?: unknown; message?: unknown } | null = null;
+  try { parsed = JSON.parse(text); } catch { parsed = null; }
+  const coerce = (e: unknown): string | undefined => {
+    if (e == null) return undefined;
+    if (typeof e === 'string') return e;
+    if (typeof e === 'object') { const o = e as Record<string, unknown>; return (typeof o.message === 'string' ? o.message : undefined) ?? (typeof o.error === 'string' ? o.error : undefined) ?? 'Erreur serveur'; }
+    return String(e);
+  };
+  if (parsed) {
+    return {
+      imageUrl:  typeof parsed.imageUrl === 'string' ? parsed.imageUrl : null,
+      imageUrls: Array.isArray(parsed.imageUrls) ? parsed.imageUrls.filter(u => typeof u === 'string') as string[] : undefined,
+      error:     coerce(parsed.error) ?? (!res.ok ? coerce(parsed.message) : undefined),
+    };
+  }
+  let message = 'Le serveur n\'a pas pu coloriser via MyArchitectAI.';
+  if (res.status === 504) message = 'La colorisation a pris trop de temps. Réessayez.';
+  else if (res.status === 502) message = 'Service MyArchitectAI momentanément indisponible. Réessayez.';
+  else if (res.status === 429) message = 'Trop de générations dans la dernière heure. Patientez un peu.';
+  else if (res.status === 401) message = 'Session expirée — reconnectez-vous.';
+  else if (res.status === 400) message = 'Photo ou paramètres invalides.';
+  return { imageUrl: null, error: message };
+}
+
 /* ─── Helper : convertit un File en data URL pour transmission JSON ─── */
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -427,7 +463,7 @@ const CSS = `
 `;
 
 /* ─────────────────────────────────────────── TYPES */
-type Module = 'coloriste' | 'rendu' | 'architect';
+type Module = 'coloriste' | 'rendu' | 'architect' | 'coloriste-archi';
 interface Preset { name:string; facade:string; poignee:string; plan:string; desc:string; mood:string; finish:FinishType; handleMaterial:string; countertopMaterial:string }
 interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:string; color:string; imageUrl?:string; imageUrls?:string[]; steps?: PipelineStep[] | null }
 
@@ -942,7 +978,7 @@ function GalleryCard({ gallery }: { gallery: Item[] }) {
                 style={{background:`linear-gradient(145deg,${item.color}18,${item.color}35)`}}>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl shadow-md"
                   style={{background:`linear-gradient(135deg,${item.color},${item.color}bb)`}}>
-                  {item.module==='coloriste'
+                  {(item.module==='coloriste'||item.module==='coloriste-archi')
                     ? <Paintbrush className="h-5 w-5 text-white" />
                     : item.module==='architect'
                       ? <Building2 className="h-5 w-5 text-white" />
@@ -950,7 +986,7 @@ function GalleryCard({ gallery }: { gallery: Item[] }) {
                 </div>
                 <div className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm"
                   style={{background:`${item.color}22`,color:item.color}}>
-                  {item.module==='coloriste'?'Coloriste':item.module==='architect'?'Architect':'Rendu'}
+                  {item.module==='coloriste'?'Coloriste':item.module==='coloriste-archi'?'Coloriste+':item.module==='architect'?'Architect':'Rendu'}
                 </div>
               </div>
             )}
@@ -1050,6 +1086,11 @@ export default function IaStudioPage() {
   const [colorLoading, setColorLoading] = useState(false);
   const [colorResult,  setColorResult]  = useState<Item|null>(null);
   const [colorError,   setColorError]   = useState<string|null>(null);
+
+  /* ── COLORISTE MyArchitectAI — état (réutilise photo + couleurs du coloriste) */
+  const [colorArchLoading, setColorArchLoading] = useState(false);
+  const [colorArchResult,  setColorArchResult]  = useState<Item|null>(null);
+  const [colorArchError,   setColorArchError]   = useState<string|null>(null);
 
   /* ── RENDU — état */
   // Image de référence (plan WinnerFlex, photo d'inspiration, sketch).
@@ -1354,6 +1395,52 @@ export default function IaStudioPage() {
     setColorResult(null);
   };
 
+  /* ── Coloriste MyArchitectAI : lancer (même couleurs, moteur MyArchitectAI) */
+  const runColoristeArchi = async () => {
+    if (!photoFile) { setColorArchError('Photo de la cuisine requise.'); return; }
+    setColorArchLoading(true); setColorArchResult(null); setColorArchError(null);
+    try {
+      let sourceImageDataUrl: string;
+      try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280); }
+      catch { setColorArchError('Impossible de lire la photo. Réessayez avec un autre fichier.'); setColorArchLoading(false); return; }
+      const result = await callColoristeArchitectAPI({
+        facadeHex:          preset?.facade   ?? facadeCol,
+        poigneeHex:         preset?.poignee  ?? poigneeCol,
+        planHex:            preset?.plan     ?? planCol,
+        facadeFinish:       preset?.finish   ?? facadeFinish,
+        poigneeFinish:      poigneeFinish ?? undefined,
+        planFinish:         planFinish ?? undefined,
+        handleMaterial:     preset?.handleMaterial,
+        countertopMaterial: preset?.countertopMaterial,
+        lightingStyle:      colorLight,
+        sourceImageDataUrl,
+        projectId:          dossierId || null,
+      });
+      if (result.error) { setColorArchError(result.error); setColorArchLoading(false); return; }
+      setIaHistoryRefresh(n => n + 1);
+      const desc = preset ? `${preset.name} — ${preset.desc}` : `Façades ${facadeCol} ${facadeFinish}`;
+      setColorArchResult({
+        id: uid(), module: 'coloriste-archi', prompt: desc, dossier: dossierName,
+        ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
+        color: preset?.facade ?? facadeCol,
+        imageUrl: result.imageUrl ?? undefined,
+        imageUrls: result.imageUrls ?? (result.imageUrl ? [result.imageUrl] : []),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      setColorArchError(msg && !msg.includes('fetch') ? msg : 'La génération a pris trop de temps ou la connexion s\'est interrompue. Réessayez.');
+    }
+    setColorArchLoading(false);
+  };
+
+  const saveColoristeArchi = () => {
+    if (!colorArchResult) return;
+    attachToDossier(colorArchResult, 'Coloriste MyArchitectAI');
+    setGallery(p => [colorArchResult, ...p]);
+    addLog({ user:userName, action:'Coloriste MyArchitectAI', target:`${dossierName} — "${colorArchResult.prompt.slice(0,40)}"`, icon:'🎨' });
+    setColorArchResult(null);
+  };
+
   /* ── Rendu : lancer */
   const runRendu = async () => {
     // Image de référence OBLIGATOIRE (juin 2026) — le mode text-to-image pur
@@ -1541,7 +1628,7 @@ export default function IaStudioPage() {
         />
 
         {/* ══════════════════════════ TABS SÉLECTEUR */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Coloriste */}
           <button onClick={() => setTab('coloriste')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
@@ -1652,6 +1739,43 @@ export default function IaStudioPage() {
               </div>
             </div>
           </button>
+
+          {/* Coloriste MyArchitectAI */}
+          <button onClick={() => setTab('coloriste-archi')}
+            className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
+              tab==='coloriste-archi'
+                ? 'border-[#2f9e8f] bg-white shadow-xl'
+                : 'border-[#304035]/8 bg-white/70 hover:border-[#2f9e8f]/30 hover:bg-white hover:shadow-md hover:-translate-y-0.5'
+            }`}
+          >
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              style={{background:'radial-gradient(ellipse at 20% 50%, rgba(47,158,143,.06), transparent 65%)'}} />
+            {tab==='coloriste-archi' && (
+              <div className="absolute inset-0"
+                style={{background:'radial-gradient(ellipse at 20% 50%, rgba(47,158,143,.07), transparent 65%)'}} />
+            )}
+            <div className="relative flex items-start gap-4">
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-md transition-transform duration-300 group-hover:scale-110 ${tab==='coloriste-archi'?'scale-110':''}`}
+                style={{background:tab==='coloriste-archi'?'linear-gradient(135deg,#2f9e8f,#247a6f)':'linear-gradient(135deg,#2f9e8f55,#2f9e8f30)'}}>
+                <Paintbrush className={`h-6 w-6 ${tab==='coloriste-archi'?'text-white':'text-[#2f9e8f]'}`} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-black text-[#304035] text-lg">Coloriste IA+</p>
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#2f9e8f]/12 text-[#2f9e8f]">MyArchitectAI</span>
+                </div>
+                <p className="text-sm text-[#304035]/60 leading-relaxed">
+                  Même principe que le Coloriste, <span className="font-semibold text-[#304035]/80">moteur MyArchitectAI</span> — photo + couleurs.
+                </p>
+                {tab==='coloriste-archi' && (
+                  <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#2f9e8f]">
+                    <div className="h-2 w-2 rounded-full bg-[#2f9e8f] dp" />
+                    Module actif — prêt à l'emploi
+                  </div>
+                )}
+              </div>
+            </div>
+          </button>
         </div>
 
         {/* ══════════════════════════ MODULE COLORISTE */}
@@ -1659,7 +1783,7 @@ export default function IaStudioPage() {
           <div className="fu space-y-6">
 
             {/* Ligne 1 : Photo (⅓) + Grand aperçu (⅔) — sections un peu plus hautes */}
-            <div className="grid gap-6 lg:grid-cols-3 lg:items-stretch">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
 
               {/* Photo de la cuisine — un tiers */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 flex flex-col lg:min-h-[400px]">
@@ -1758,7 +1882,7 @@ export default function IaStudioPage() {
             </div>{/* /ligne 1 */}
 
             {/* Palettes (½) + Paramètres du rendu (½) côte à côte */}
-            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
 
               {/* Palettes */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5">
@@ -1782,7 +1906,7 @@ export default function IaStudioPage() {
                     "Finition façades" ci-dessous (source de vérité unique). */}
                 <div className="mt-4 pt-4 border-t border-[#304035]/8">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/40 mb-3">Ou personnalisez manuellement</p>
-                  <div className="flex gap-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
                     {([
                       { key:'facade',  label:'Façades',     val:facadeCol,  set:setFacadeCol,
                         finishVal: facadeFinish, setFinish: (v: FinishType | null) => v && setFacadeFinish(v),
@@ -2036,7 +2160,7 @@ export default function IaStudioPage() {
             </div>
 
             {/* Historique (½) + Galerie (½) côte à côte */}
-            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
               <HistoryPanel
                 filterType="COLOR_VARIATION"
                 accent="#a67749"
@@ -2054,7 +2178,7 @@ export default function IaStudioPage() {
           <div className="fu space-y-6">
 
             {/* Ligne 1 : Image de référence (⅓) + Grand aperçu (⅔) — sections un peu plus hautes */}
-            <div className="grid gap-6 lg:grid-cols-3 lg:items-stretch">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
 
               {/* Image de référence — un tiers (Kontext img2img : préserve le layout) */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 flex flex-col lg:min-h-[400px]">
@@ -2296,7 +2420,7 @@ export default function IaStudioPage() {
               </div>
 
             {/* Historique (½) + Galerie (½) côte à côte */}
-            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
               <HistoryPanel
                 filterType="PHOTOREALISM_ENHANCE"
                 accent="#5b9bd5"
@@ -2314,7 +2438,7 @@ export default function IaStudioPage() {
           <div className="fu space-y-6">
 
             {/* Ligne 1 : Image source (⅓) + Grand aperçu (⅔) */}
-            <div className="grid gap-6 lg:grid-cols-3 lg:items-stretch">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
 
               {/* Image source — un tiers */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 flex flex-col lg:min-h-[400px]">
@@ -2531,13 +2655,152 @@ export default function IaStudioPage() {
             </div>
 
             {/* Historique (½) + Galerie (½) côte à côte */}
-            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
               <HistoryPanel
                 filterType="EDIT"
                 accent="#8a6cc2"
                 refreshTrigger={iaHistoryRefresh}
                 onSelect={openHistoryJob}
               />
+              <GalleryCard gallery={gallery} />
+            </div>
+
+          </div>
+        )}
+
+        {/* ══════════════════════════ MODULE COLORISTE MyArchitectAI */}
+        {tab === 'coloriste-archi' && (
+          <div className="fu space-y-6">
+
+            <div className="grid gap-6 lg:grid-cols-3 lg:items-stretch">
+              {/* Photo de la cuisine */}
+              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 flex flex-col lg:min-h-[400px]">
+                <div className="flex items-center gap-2 mb-1">
+                  <Paintbrush className="h-4 w-4 text-[#2f9e8f]" />
+                  <p className="font-bold text-[#304035]">Photo de la cuisine <span className="ml-1 rounded-full bg-[#2f9e8f]/10 text-[#2f9e8f] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
+                </div>
+                <p className="text-xs text-[#304035]/50 mb-2">Importez la photo, choisissez vos couleurs ci-dessous — MyArchitectAI recolorise la cuisine.</p>
+                <Drop label="" sub="Déposez la photo de la cuisine"
+                  onFile={setPhotoFile} file={photoFile} accent="#2f9e8f"
+                  tips={['Photo de la cuisine existante', 'Showroom / catalogue', 'Bien éclairée et nette']} />
+                {photoFile && photoURL && (
+                  <div className="mt-3 relative rounded-xl overflow-hidden">
+                    <Image src={photoURL} alt="Cuisine" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
+                    <button onClick={() => setPhotoFile(null)}
+                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Aperçu résultat */}
+              <div className="space-y-4 lg:col-span-2">
+                {colorArchError && !colorArchLoading && (
+                  <div className="fu rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-red-700">Colorisation échouée</p>
+                      <p className="text-xs text-red-600/80 mt-0.5 leading-relaxed">{colorArchError}</p>
+                    </div>
+                    <button onClick={() => setColorArchError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0"><X className="h-4 w-4" /></button>
+                  </div>
+                )}
+                {colorArchLoading && (
+                  <div className="fu rounded-2xl bg-white border border-[#304035]/8 shadow-md p-6 space-y-5">
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{background:'linear-gradient(135deg,#2f9e8f,#247a6f)'}}>
+                        <Paintbrush className="h-6 w-6 text-white sh" />
+                      </div>
+                      <div>
+                        <p className="font-black text-[#304035]">Coloriste IA+ en action</p>
+                        <p className="text-xs text-[#304035]/50 mt-0.5">MyArchitectAI · Recolorisation…</p>
+                      </div>
+                    </div>
+                    <ProgressBar steps={LOADING_STEPS_COLOR} color="#2f9e8f" />
+                    <div className="flex items-center justify-between gap-3 rounded-xl bg-[#2f9e8f]/8 border border-[#2f9e8f]/15 px-3 py-2.5">
+                      <p className="text-[11px] leading-snug text-[#304035]/70">Recolorisation en général <b className="text-[#304035]">15 à 40 s</b>. <b className="text-[#304035]">Ne ferme pas la page</b>.</p>
+                      <span className="shrink-0 font-mono text-base font-black tabular-nums" style={{color:'#2f9e8f'}}><ElapsedTimer /></span>
+                    </div>
+                  </div>
+                )}
+                {colorArchResult && !colorArchLoading && (
+                  <ResultCard item={colorArchResult} accentColor="#2f9e8f" icon={Paintbrush} onSave={saveColoristeArchi} onRegenerate={runColoristeArchi} />
+                )}
+                {!colorArchLoading && !colorArchResult && (
+                  <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#2f9e8f]/20 bg-gradient-to-br from-[#2f9e8f]/5 to-white p-12 text-center lg:min-h-[400px]">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#2f9e8f]/10"><Paintbrush className="h-7 w-7 text-[#2f9e8f]/60" /></div>
+                    <p className="font-bold text-[#304035] mb-1.5">Votre colorisation apparaîtra ici</p>
+                    <p className="text-xs text-[#304035]/50 leading-relaxed">Importez une photo, choisissez les couleurs et lancez MyArchitectAI.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Palettes + couleurs */}
+            <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
+              <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Palettes & couleurs</p></div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {PRESETS.map(pr => (
+                  <PresetCard key={pr.name} p={pr} active={preset?.name === pr.name} onClick={() => applyPreset(pr)} />
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {([
+                  { label: 'Façades',        val: facadeCol,  set: setFacadeCol },
+                  { label: 'Poignées',       val: poigneeCol, set: setPoigneeCol },
+                  { label: 'Plan de travail',val: planCol,    set: setPlanCol },
+                ] as const).map(({ label, val, set }) => (
+                  <label key={label} className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50">{label}</span>
+                    <span className="flex items-center gap-2 rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-2.5 py-2">
+                      <input type="color" value={val} onChange={e => { set(e.target.value); setPreset(null); setColorsModified(true); }} className="h-7 w-9 rounded cursor-pointer border-0 bg-transparent p-0" />
+                      <span className="text-xs font-mono text-[#304035]/70">{val}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <ChipSelector<FinishType>
+                label="Finition des façades" accent="#2f9e8f"
+                value={facadeFinish} onChange={(v) => { setFacadeFinish(v); }}
+                options={[
+                  { value: 'mat', label: 'Mat' }, { value: 'satiné', label: 'Satiné' },
+                  { value: 'brillant', label: 'Brillant' }, { value: 'brossé', label: 'Brossé' },
+                  { value: 'bois', label: 'Bois' },
+                ]}
+              />
+              <ChipSelector<LightingType>
+                label="Éclairage" accent="#2f9e8f"
+                value={colorLight} onChange={(v) => { setColorLight(v); }}
+                options={[
+                  { value: 'naturelle', label: 'Naturelle', icon: Sun },
+                  { value: 'spots', label: 'Spots', icon: Lamp },
+                  { value: 'mixte', label: 'Mixte', icon: Monitor },
+                ]}
+              />
+            </div>
+
+            {/* Dossier + CTA */}
+            <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
+              <DossierPicker />
+              <button onClick={runColoristeArchi}
+                disabled={colorArchLoading || !photoFile}
+                title={!photoFile ? 'Importez la photo de la cuisine' : undefined}
+                className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{background:'linear-gradient(135deg,#2f9e8f 0%,#247a6f 100%)'}}>
+                <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
+                  {colorArchLoading
+                    ? <><Loader2 className="h-4 w-4 animate-spin" />Colorisation…</>
+                    : !photoFile
+                      ? <><FileImage className="h-4 w-4" />Importez d'abord la photo</>
+                      : <><Paintbrush className="h-4 w-4" />Coloriser avec MyArchitectAI<ArrowRight className="h-4 w-4 ml-1" /></>
+                  }
+                </span>
+              </button>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+              <HistoryPanel filterType="COLOR_VARIATION" accent="#2f9e8f" refreshTrigger={iaHistoryRefresh} onSelect={openHistoryJob} />
               <GalleryCard gallery={gallery} />
             </div>
 
