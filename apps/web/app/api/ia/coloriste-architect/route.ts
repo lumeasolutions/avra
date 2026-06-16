@@ -100,18 +100,21 @@ export async function POST(req: NextRequest) {
     countertopMaterial: str(body.countertopMaterial),
   };
 
-  // Prompt coloriste — même builder que le Coloriste Flux, RENFORCÉ d'une
-  // contrainte de préservation : MyArchitectAI re-rend la pièce (≠ édition
-  // img2img de Kontext), donc on lui impose explicitement de NE changer QUE
-  // les couleurs/finitions et de garder la cuisine identique (layout, meubles,
-  // géométrie, cadrage). Réduit fortement la dérive.
-  const COLORISTE_GUARD =
-    'IMPORTANT: keep the exact same kitchen — identical layout, geometry, cabinet shapes, '
-    + 'furniture and appliance positions, walls, floor, windows and camera angle. '
-    + 'Recolor ONLY the cabinet fronts, handles and countertop with the colors and finishes '
-    + 'described above. Do not move, add or remove any object, no new furniture, no warped or '
-    + 'deformed shapes, no distorted lines, no text. Photorealistic, sharp focus, high detail.';
-  const prompt = `${buildColoristPrompt(params).prompt} ${COLORISTE_GUARD}`;
+  // Prompt coloriste pour MyArchitectAI (render/interior re-rend la pièce).
+  // ORDRE VOLONTAIRE : on met l'ORDRE DE RECOLORISATION EN PREMIER (les modèles
+  // de diffusion pondèrent davantage le début du prompt) pour que le changement
+  // de couleur soit réellement appliqué, PUIS la description des couleurs, PUIS
+  // une préservation LÉGÈRE (layout/cadrage) — sans « identique » qui étoufferait
+  // le changement de couleur.
+  const RECOLOR_DIRECTIVE =
+    'Repaint and recolor this existing kitchen. Strongly change the colors: apply the new '
+    + 'colors and finishes to the cabinet fronts, the handles and the countertop. The new '
+    + 'colors must be clearly and fully applied (no leftover original colors). ';
+  const PRESERVE =
+    ' Keep the same room layout, cabinet and appliance positions and the same camera angle; '
+    + 'do not add or remove furniture, no warped or deformed shapes, no text. Photorealistic, '
+    + 'sharp focus, high detail.';
+  const prompt = `${RECOLOR_DIRECTIVE}${buildColoristPrompt(params).prompt}${PRESERVE}`;
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 
