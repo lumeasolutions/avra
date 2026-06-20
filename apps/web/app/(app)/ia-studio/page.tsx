@@ -2811,4 +2811,10 @@ export default function IaStudioPage() {
           </div>
         )}
 
-        {/* Galerie déplacée dans chaque module (côt
+        {/* Galerie déplacée dans chaque module (côte à côte avec l'historique)
+            via <GalleryCard/> — voir le bas des onglets Coloriste et Rendu. */}
+
+      </div>
+    </>
+  );
+}
