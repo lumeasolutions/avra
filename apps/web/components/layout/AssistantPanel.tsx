@@ -273,7 +273,7 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
             {/* KPIs */}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, padding:'10px 12px 6px' }}>
               {[
-                { val:dossiers.filter(d => d.status==='URGENT').length, label:'URGENTS', color:'#D32F2F', bg:'#FFF0F0' },
+                { val:activeAlerts.filter(a => a.severity==='error').length, label:'URGENTS', color:'#D32F2F', bg:'#FFF0F0' },
                 { val:dossiersSignes.length,                             label:'SIGNÉS',  color:'#388E3C', bg:'#F0FFF2' },
                 { val:invoices.filter(i => i.statut==='RETARD').length,  label:'RETARDS', color:'#E07B00', bg:'#FFF8F0' },
               ].map(({ val, label, color, bg }) => (

@@ -4,7 +4,6 @@ import nextDynamic from 'next/dynamic';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AppGuard } from '@/components/layout/AppGuard';
 import { usePathname } from 'next/navigation';
-import { useRelanceEngine } from '@/hooks/useRelanceEngine';
 import { useDataSync } from '@/hooks/useDataSync';
 import { useAlertEngine } from '@/hooks/useAlertEngine';
 import { useTokenRefresh } from '@/hooks/useTokenRefresh';
@@ -23,7 +22,6 @@ const AssistantPanel = nextDynamic(() => import('@/components/layout/AssistantPa
 });
 
 function RelanceEngineProvider() {
-  useRelanceEngine();
   return null;
 }
 
