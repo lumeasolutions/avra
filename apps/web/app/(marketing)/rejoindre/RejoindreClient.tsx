@@ -87,7 +87,7 @@ export default function RejoindreClient() {
             marginBottom: '24px',
           }}>
             <span>🌱</span>
-            <span>Bêta privée · Lancement juillet 2026</span>
+            <span>Bêta privée · Lancement janvier 2027</span>
           </div>
 
           <>
@@ -109,7 +109,7 @@ export default function RejoindreClient() {
                 color: 'rgba(255,255,255,0.75)',
                 marginBottom: '40px',
               }}>
-                AVRA est actuellement en bêta privée. Le lancement public est prévu en <strong style={{ color: '#e8c97a' }}>juillet 2026</strong>. Laissez-nous votre email pour être prévenu(e) en priorité et bénéficier d&apos;un accès anticipé.
+                AVRA est actuellement en bêta privée. Le lancement public est prévu en <strong style={{ color: '#e8c97a' }}>janvier 2027</strong>. Laissez-nous votre email pour être prévenu(e) en priorité et bénéficier d&apos;un accès anticipé.
               </p>
 
               <form onSubmit={handleSubmit} style={{

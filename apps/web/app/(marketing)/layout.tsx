@@ -99,7 +99,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
               price: '0',
               priceCurrency: 'EUR',
               availability: 'https://schema.org/PreOrder',
-              description: 'Beta privee jusqu\'au lancement public en juillet 2026',
+              description: 'Beta privee jusqu\'au lancement public en janvier 2027',
             },
             inLanguage: 'fr-FR',
             featureList: [

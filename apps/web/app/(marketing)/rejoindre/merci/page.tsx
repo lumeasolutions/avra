@@ -7,7 +7,7 @@ import Footer from '../../components/Footer';
 export const metadata: Metadata = {
   title: "Merci — Vous êtes sur la liste d'attente AVRA",
   description:
-    "Votre inscription est confirmée. Vous serez contacté(e) dès l'ouverture de la bêta AVRA en juillet 2026.",
+    "Votre inscription est confirmée. Vous serez contacté(e) dès l'ouverture de la bêta AVRA en janvier 2027.",
   robots: { index: false, follow: false },
 };
 
@@ -105,7 +105,7 @@ export default function MerciPage() {
             Vous êtes inscrit(e) sur la liste d&apos;attente d&apos;AVRA.
             Nous vous contacterons dès l&apos;ouverture de la bêta et au
             lancement officiel en{' '}
-            <strong style={{ color: '#e8c97a' }}>juillet 2026</strong>.
+            <strong style={{ color: '#e8c97a' }}>janvier 2027</strong>.
           </p>
 
           {/* Prochaines étapes */}

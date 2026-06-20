@@ -381,7 +381,7 @@ export default function ERPCuisinisteGuide() {
           </li>
         </ul>
         <p>
-          AVRA est en bêta privée jusqu'au lancement public de juillet 2026. Les premiers utilisateurs ont
+          AVRA est en bêta privée jusqu'au lancement public de janvier 2027. Les premiers utilisateurs ont
           accès à un accompagnement personnalisé de 90 jours et à un tarif fondateur verrouillé à vie.
         </p>
 

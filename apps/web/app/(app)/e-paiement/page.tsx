@@ -41,7 +41,7 @@ export default function EPaiementPage() {
               <strong>GoCardless</strong> (SEPA).
             </p>
             <p className="text-xs text-[#304035]/45 mt-3">
-              Bêta privée — feature shippée pour la GA juillet 2026.
+              Bêta privée — feature shippée pour la GA janvier 2027.
             </p>
           </div>
         </div>
@@ -96,7 +96,7 @@ export default function EPaiementPage() {
             type="button"
             disabled
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#304035] text-white text-xs font-semibold opacity-40 cursor-not-allowed"
-            title="Fonctionnalité activée à la GA juillet 2026"
+            title="Fonctionnalité activée à la GA janvier 2027"
           >
             <Plus className="h-3.5 w-3.5" />
             Nouveau lien

@@ -5,7 +5,7 @@ Fichier de référence pour les sessions Claude. Mis à jour : mai 2026.
 ## Projet
 
 SaaS ERP B2B français pour cuisinistes, menuisiers, architectes d'intérieur et agenceurs.
-Bêta privée jusqu'à juillet 2026. Site public : https://avra.fr
+Bêta privée jusqu'à janvier 2027. Site public : https://avra.fr
 
 ## Stack
 

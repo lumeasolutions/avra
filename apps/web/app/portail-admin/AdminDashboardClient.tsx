@@ -191,7 +191,7 @@ export default function AdminDashboardClient() {
       <div style={headerStyle}>
         <div>
           <h1 style={titleStyle}>Administration AVRA</h1>
-          <p style={subtitleStyle}>Bêta privée · Lancement juillet 2026</p>
+          <p style={subtitleStyle}>Bêta privée · Lancement janvier 2027</p>
         </div>
         <button onClick={fetchData} style={btnSecondaryStyle} title="Actualiser">
           ↺ Actualiser

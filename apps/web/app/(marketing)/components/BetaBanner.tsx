@@ -95,7 +95,7 @@ export default function BetaBanner() {
             display: none;
           }
           .beta-banner::before {
-            content: '🌱 Bêta privée · Juillet 2026';
+            content: '🌱 Bêta privée · Janvier 2027';
             font-weight: 600;
           }
         }

@@ -288,7 +288,7 @@ export function FinalCTA({
       <div aria-hidden style={{ position: 'absolute', left: '-80px', bottom: '-80px', width: '240px', height: '240px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(232,201,122,0.12), transparent 70%)', filter: 'blur(30px)' }} />
       <div style={{ position: 'relative', textAlign: 'center', maxWidth: '640px', margin: '0 auto' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#e8c97a', marginBottom: '16px', fontWeight: 700 }}>
-          <Sparkles size={14} aria-hidden /> Bêta privée · Lancement juillet 2026
+          <Sparkles size={14} aria-hidden /> Bêta privée · Lancement janvier 2027
         </div>
         <h2 style={{ fontFamily: 'var(--font-playfair-display, Playfair Display), Georgia, serif', fontSize: 'clamp(1.6rem, 3vw, 2.3rem)', margin: '0 0 14px', fontWeight: 800, lineHeight: 1.15 }}>
           {title}

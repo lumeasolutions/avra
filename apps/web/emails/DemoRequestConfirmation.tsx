@@ -126,7 +126,7 @@ export default function DemoRequestConfirmation({
               </Link>
             </Text>
             <Text style={footerText}>
-              © {new Date().getFullYear()} AVRA · Bêta privée · Lancement juillet 2026
+              © {new Date().getFullYear()} AVRA · Bêta privée · Lancement janvier 2027
             </Text>
           </Section>
         </Container>

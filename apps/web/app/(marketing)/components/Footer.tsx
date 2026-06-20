@@ -108,7 +108,7 @@ export default function Footer() {
       {/* Footer Bottom */}
       <div className="footer-bottom">
         <span>
-          © {currentYear} AVRA by Luméa — Tous droits réservés · Conforme e-facture 2026 · Bêta privée, lancement juillet 2026
+          © {currentYear} AVRA by Luméa — Tous droits réservés · Conforme e-facture 2026 · Bêta privée, lancement janvier 2027
         </span>
         <div className="footer-bottom-links">
           <Link href="/mentions-legales">Mentions légales</Link>

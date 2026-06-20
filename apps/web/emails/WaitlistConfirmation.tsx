@@ -58,7 +58,7 @@ export default function WaitlistConfirmation({
           fontStyle="normal"
         />
       </Head>
-      <Preview>Vous êtes sur la liste d'attente AVRA 🌱 Lancement public en juillet 2026</Preview>
+      <Preview>Vous êtes sur la liste d'attente AVRA 🌱 Lancement public en janvier 2027</Preview>
       <Body style={body}>
         <Container style={container}>
           {/* En-tête doré */}
@@ -88,7 +88,7 @@ export default function WaitlistConfirmation({
 
             <Text style={paragraph}>
               AVRA est actuellement en <strong>bêta privée</strong>. Le lancement public est prévu en{' '}
-              <strong style={{ color: '#C9A96E' }}>juillet 2026</strong>. Vous serez contacté(e) en priorité
+              <strong style={{ color: '#C9A96E' }}>janvier 2027</strong>. Vous serez contacté(e) en priorité
               dès l'ouverture des accès.
             </Text>
 
@@ -120,7 +120,7 @@ export default function WaitlistConfirmation({
               </Link>
             </Text>
             <Text style={footerText}>
-              © {new Date().getFullYear()} AVRA · Bêta privée · Lancement juillet 2026
+              © {new Date().getFullYear()} AVRA · Bêta privée · Lancement janvier 2027
             </Text>
           </Section>
         </Container>

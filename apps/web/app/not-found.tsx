@@ -47,7 +47,7 @@ export default function NotFound() {
           maxWidth: '420px',
         }}
       >
-        La page que vous recherchez n&apos;existe pas ou a été déplacée. AVRA est en bêta privée — lancement public en juillet 2026.
+        La page que vous recherchez n&apos;existe pas ou a été déplacée. AVRA est en bêta privée — lancement public en janvier 2027.
       </p>
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
         <Link

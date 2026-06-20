@@ -22,7 +22,7 @@ import Footer from '../components/Footer';
 const faqItems = [
   {
     q: "AVRA est-il disponible immédiatement ?",
-    a: "AVRA est actuellement en bêta privée. Le lancement public est prévu pour juillet 2026. En attendant, vous pouvez demander une démo pour découvrir le produit et rejoindre la liste d'attente pour être prioritaire au lancement.",
+    a: "AVRA est actuellement en bêta privée. Le lancement public est prévu pour janvier 2027. En attendant, vous pouvez demander une démo pour découvrir le produit et rejoindre la liste d'attente pour être prioritaire au lancement.",
   },
   {
     q: "Qu'est-ce qu'un showroom ?",
@@ -299,7 +299,7 @@ export default function TarifsClient() {
               </a>
               <a href="/rejoindre" style={{ textDecoration: 'none', display: 'block', marginBottom: '2rem' }}>
                 <button style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 20px', background: 'transparent', color: '#8a5c2a', border: '1px solid rgba(201,169,110,0.35)', borderRadius: 12, fontSize: '0.88rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  🌱 Rejoindre la liste d&apos;attente (lancement juillet 2026)
+                  🌱 Rejoindre la liste d&apos;attente (lancement janvier 2027)
                 </button>
               </a>
 

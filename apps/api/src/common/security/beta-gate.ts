@@ -1,6 +1,6 @@
 /**
  * Bêta Gate — Whitelist d'emails autorisés à créer un compte ou se connecter
- * pendant la phase de bêta privée (lancement juillet 2026).
+ * pendant la phase de bêta privée (lancement janvier 2027).
  *
  * Configuration :
  * - BETA_GATE_ENABLED=true       → active la whitelist

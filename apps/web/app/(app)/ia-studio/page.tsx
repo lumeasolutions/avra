@@ -1628,7 +1628,7 @@ export default function IaStudioPage() {
         />
 
         {/* ══════════════════════════ TABS SÉLECTEUR */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
           {/* Coloriste */}
           <button onClick={() => setTab('coloriste')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
@@ -1666,7 +1666,8 @@ export default function IaStudioPage() {
             </div>
           </button>
 
-          {/* Rendu Réaliste */}
+          {/* Rendu Réaliste — masqué (onglet désactivé) */}
+          {false && (
           <button onClick={() => setTab('rendu')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
               tab==='rendu'
@@ -1702,6 +1703,7 @@ export default function IaStudioPage() {
               </div>
             </div>
           </button>
+          )}
 
           {/* IA Architect (MyArchitectAI) */}
           <button onClick={() => setTab('architect')}
@@ -1740,7 +1742,8 @@ export default function IaStudioPage() {
             </div>
           </button>
 
-          {/* Coloriste MyArchitectAI */}
+          {/* Coloriste IA+ (MyArchitectAI) — masqué (onglet désactivé) */}
+          {false && (
           <button onClick={() => setTab('coloriste-archi')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
               tab==='coloriste-archi'
@@ -1776,6 +1779,7 @@ export default function IaStudioPage() {
               </div>
             </div>
           </button>
+          )}
         </div>
 
         {/* ══════════════════════════ MODULE COLORISTE */}

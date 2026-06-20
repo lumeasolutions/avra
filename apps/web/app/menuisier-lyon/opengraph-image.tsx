@@ -128,7 +128,7 @@ export default async function Image() {
             avra-app.fr
           </div>
           <div style={{ fontSize: 18, color: 'rgba(249,246,240,0.7)' }}>
-            Bêta privée · Lancement juillet 2026
+            Bêta privée · Lancement janvier 2027
           </div>
         </div>
       </div>

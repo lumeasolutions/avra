@@ -21,7 +21,7 @@ Tu guides les visiteurs du site pour qu'ils comprennent comment AVRA peut transf
 - Portails dédiés (architecte, menuisier)
 - CRM pipeline visuel
 - Gestion des stocks et commandes fournisseurs
-- En bêta privée actuellement — Lancement public juillet 2026. Liste d'attente ouverte sur avra.fr/rejoindre
+- En bêta privée actuellement — Lancement public janvier 2027. Liste d'attente ouverte sur avra.fr/rejoindre
 
 **Tarifs :**
 - Solo : 49€/mois — 1 utilisateur, toutes les fonctions de base
@@ -31,7 +31,7 @@ Tu guides les visiteurs du site pour qu'ils comprennent comment AVRA peut transf
 **Règles importantes :**
 - Réponds toujours en français
 - Sois concis (3-4 phrases max par réponse)
-- Si le visiteur semble intéressé, propose-lui de demander une démo sur avra.fr/demo ou de rejoindre la liste d'attente sur avra.fr/rejoindre (AVRA est en bêta privée, lancement public juillet 2026)
+- Si le visiteur semble intéressé, propose-lui de demander une démo sur avra.fr/demo ou de rejoindre la liste d'attente sur avra.fr/rejoindre (AVRA est en bêta privée, lancement public janvier 2027)
 - Ne pas inventer de fonctionnalités qui n'existent pas
 - Si tu ne sais pas, dis-le honnêtement et invite à contacter l'équipe
 - Tu peux utiliser des emojis avec modération
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     // Fallback total : aucune clé → message statique amical
     if (!openaiKey && !anthropicKey) {
       const msg =
-        "Bonjour ! Je suis Aria, l'assistante AVRA. Je suis temporairement indisponible. AVRA est en bêta privée — lancement public juillet 2026. Vous pouvez demander une démo sur avra.fr/demo ou rejoindre la liste d'attente sur avra.fr/rejoindre !";
+        "Bonjour ! Je suis Aria, l'assistante AVRA. Je suis temporairement indisponible. AVRA est en bêta privée — lancement public janvier 2027. Vous pouvez demander une démo sur avra.fr/demo ou rejoindre la liste d'attente sur avra.fr/rejoindre !";
       return new NextResponse(fallbackStream(msg), {
         headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
       });

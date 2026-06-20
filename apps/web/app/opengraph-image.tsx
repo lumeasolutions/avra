@@ -78,7 +78,7 @@ export default async function Image() {
             textAlign: 'center',
           }}
         >
-          Bêta privée · Lancement juillet 2026
+          Bêta privée · Lancement janvier 2027
         </div>
       </div>
     ),

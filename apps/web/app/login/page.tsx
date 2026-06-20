@@ -400,7 +400,7 @@ function LoginPageInner() {
                 transform: 'none',
               }} />
               <span style={{ color: '#C9A96E', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                Bêta privée · Lancement juillet 2026
+                Bêta privée · Lancement janvier 2027
               </span>
             </div>
             </div>
