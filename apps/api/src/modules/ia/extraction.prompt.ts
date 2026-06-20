@@ -29,11 +29,15 @@ Tu reçois les documents d'un dossier client (devis signés, plans, fiches techn
    → Si une date n'est pas mentionnée explicitement OU déductible avec confiance, retourne null.
    → Ne jamais inventer une date. La précision prime sur la complétude.
 
-2. **Liste des commandes fournisseurs** détectées dans les documents :
-   - "fournisseur" : nom du fournisseur (obligatoire, string non vide)
+2. **Liste des lignes produits / commandes fournisseurs** détectées dans les documents :
+   - "fournisseur" : nom du fournisseur / émetteur du document (obligatoire, string non vide)
+   - "produit" : désignation de l'article/ligne (ex "Four encastrable Bosch HBA171BS1F", "Plan de travail granit noir"). null UNIQUEMENT si le document n'a aucun détail ligne par ligne.
    - "dateButoir" : date butoir de la commande (ISO YYYY-MM-DD ou null)
-   - "montantHT" : montant HT en euros (number ou null)
+   - "montantHT" : montant HT en euros de CETTE ligne (number ou null)
    - "categorie" : catégorie du produit/service ("CUISINE", "ELECTRO", "GRANIT", "MENUISERIE", "POSE", autre — ou null)
+
+   → DÉTAIL PAR PRODUIT (important) : si le document est un devis ou une facture DÉTAILLÉE (plusieurs lignes d'articles), retourne UNE entrée par ligne d'article — chacune avec son "produit" et son "montantHT" propre. N'AGRÈGE JAMAIS les lignes en un seul total. Répète le "fournisseur" sur chaque ligne.
+   → Si le document n'a pas de détail ligne par ligne, retourne une seule entrée globale ("produit": null, "montantHT": total HT).
 
 3. **Liste des livraisons attendues** :
    - "categorie" : catégorie de la livraison (CUISINE, ELECTRO, GRANIT, MENUISERIE, etc.)
@@ -92,11 +96,12 @@ export const EXTRACTION_JSON_SCHEMA = {
           additionalProperties: false,
           properties: {
             fournisseur: { type: 'string' },
+            produit: { type: ['string', 'null'] },
             dateButoir: { type: ['string', 'null'] },
             montantHT: { type: ['number', 'null'] },
             categorie: { type: ['string', 'null'] },
           },
-          required: ['fournisseur', 'dateButoir', 'montantHT', 'categorie'],
+          required: ['fournisseur', 'produit', 'dateButoir', 'montantHT', 'categorie'],
         },
       },
       livraisons: {

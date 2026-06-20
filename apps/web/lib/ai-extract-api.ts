@@ -16,6 +16,8 @@ export interface ExtractionDatesButoires {
 
 export interface ExtractionCommande {
   fournisseur: string;
+  /** Désignation du produit/article (détail ligne par ligne). null si commande globale. */
+  produit: string | null;
   dateButoir: string | null;
   montantHT: number | null;
   categorie: string | null;

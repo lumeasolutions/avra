@@ -284,18 +284,21 @@ export function StatsGateModal({
       // Dedup : ne pas creer une ligne si une existe deja avec meme
       // (fournisseur, prixAchatHT). Evite les doublons sur clics multiples.
       const existing = new Set(
-        selectedLignes.map((l) => `${l.fournisseur}::${l.prixAchatHT}`),
+        selectedLignes.map((l) => `${l.fournisseur}::${l.produit ?? ''}::${l.prixAchatHT}`),
       );
       const toImport = (result.commandes ?? [])
         .filter((c) => c.fournisseur && typeof c.montantHT === 'number' && c.montantHT > 0)
         .map((c) => ({
           fournisseur: c.fournisseur,
+          // Détail par produit : chaque ligne d'article du devis/facture devient
+          // une ligne de prix distincte (produit = désignation extraite par l'IA).
+          produit: c.produit ?? undefined,
           prixAchatHT: c.montantHT as number,
           // L'IA ne distingue pas encore prix achat/vente — l'utilisateur
           // completera le prix de vente apres extraction.
           prixVenteHT: 0,
         }))
-        .filter((l) => !existing.has(`${l.fournisseur}::${l.prixAchatHT}`));
+        .filter((l) => !existing.has(`${l.fournisseur}::${l.produit ?? ''}::${l.prixAchatHT}`));
       if (toImport.length === 0) {
         setToast({ message: 'IA : aucune nouvelle ligne à extraire (déjà importé ou pas de montants détectés)', tone: 'info' });
       } else {
@@ -935,7 +938,10 @@ export function StatsGateModal({
                             borderRadius: 10, fontSize: 12,
                           }}
                         >
-                          <span style={{ fontWeight: 700, color: '#304035' }}>{l.fournisseur}</span>
+                          <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                            <span style={{ fontWeight: 700, color: '#304035', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.produit || l.fournisseur}</span>
+                            {l.produit && <span style={{ fontSize: 10, color: 'rgba(48,64,53,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.fournisseur}</span>}
+                          </span>
                           <span style={{ color: '#dc2626' }}>Achat {fmt(l.prixAchatHT)}</span>
                           <span style={{ color: needsVente ? '#f59e0b' : '#16a34a', fontWeight: needsVente ? 700 : 400 }}>
                             {needsVente ? '⚠ Vente à saisir' : `Vente ${fmt(l.prixVenteHT)}`}

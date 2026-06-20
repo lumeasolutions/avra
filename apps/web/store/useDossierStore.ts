@@ -118,6 +118,8 @@ export interface DossierPrixLigne {
   id: string;
   /** Marque/fournisseur (LEICHT, LAPALMA, MARBRIER, BORA…). Saisie libre. */
   fournisseur: string;
+  /** Désignation du produit/article (détail par produit issu de l'extraction IA). */
+  produit?: string;
   /** Prix d'achat HT en euros (coût pour le pro). */
   prixAchatHT: number;
   /** Prix de vente HT en euros (facturé au client). */
