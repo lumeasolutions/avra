@@ -223,9 +223,9 @@ async function callArchitectAPI(params: {
     };
   }
 
-  let message = 'Le serveur n\'a pas pu générer le rendu MyArchitectAI.';
+  let message = 'Le serveur n\'a pas pu générer le rendu.';
   if (res.status === 504)       message = 'Le rendu a pris trop de temps (timeout). Réessayez.';
-  else if (res.status === 502)  message = 'Service MyArchitectAI momentanément indisponible. Réessayez dans une minute.';
+  else if (res.status === 502)  message = 'Service de rendu momentanément indisponible. Réessayez dans une minute.';
   else if (res.status === 429)  message = 'Trop de générations dans la dernière heure. Patientez un peu.';
   else if (res.status === 401)  message = 'Session expirée — reconnectez-vous.';
   else if (res.status === 400)  message = 'Image ou paramètres invalides. Vérifiez le format de l\'image.';
@@ -259,9 +259,9 @@ async function callColoristeArchitectAPI(params: {
       error:     coerce(parsed.error) ?? (!res.ok ? coerce(parsed.message) : undefined),
     };
   }
-  let message = 'Le serveur n\'a pas pu coloriser via MyArchitectAI.';
+  let message = 'Le serveur n\'a pas pu coloriser.';
   if (res.status === 504) message = 'La colorisation a pris trop de temps. Réessayez.';
-  else if (res.status === 502) message = 'Service MyArchitectAI momentanément indisponible. Réessayez.';
+  else if (res.status === 502) message = 'Service de rendu momentanément indisponible. Réessayez.';
   else if (res.status === 429) message = 'Trop de générations dans la dernière heure. Patientez un peu.';
   else if (res.status === 401) message = 'Session expirée — reconnectez-vous.';
   else if (res.status === 400) message = 'Photo ou paramètres invalides.';
@@ -500,7 +500,7 @@ const LOADING_STEPS_RENDU = [
 const LOADING_STEPS_ARCHITECT = [
   'Préparation de votre image source',
   'Construction du prompt fidélité',
-  'Rendu photoréaliste MyArchitectAI',
+  'Rendu photoréaliste',
   'Optimisation finale et sauvegarde',
 ];
 
@@ -1435,9 +1435,9 @@ export default function IaStudioPage() {
 
   const saveColoristeArchi = () => {
     if (!colorArchResult) return;
-    attachToDossier(colorArchResult, 'Coloriste MyArchitectAI');
+    attachToDossier(colorArchResult, 'Coloriste IA');
     setGallery(p => [colorArchResult, ...p]);
-    addLog({ user:userName, action:'Coloriste MyArchitectAI', target:`${dossierName} — "${colorArchResult.prompt.slice(0,40)}"`, icon:'🎨' });
+    addLog({ user:userName, action:'Coloriste IA', target:`${dossierName} — "${colorArchResult.prompt.slice(0,40)}"`, icon:'🎨' });
     setColorArchResult(null);
   };
 
@@ -1585,9 +1585,9 @@ export default function IaStudioPage() {
 
   const saveArchitect = () => {
     if (!archResult) return;
-    attachToDossier(archResult, 'IA Architect');
+    attachToDossier(archResult, 'Rendu Réaliste');
     setGallery(p => [archResult, ...p]);
-    addLog({ user:userName, action:'IA Architect', target:`${dossierName} — "${archResult.prompt.slice(0,40)}"`, icon:'🏛️' });
+    addLog({ user:userName, action:'Rendu Réaliste', target:`${dossierName} — "${archResult.prompt.slice(0,40)}"`, icon:'🏛️' });
     setArchResult(null);
   };
 
@@ -1705,7 +1705,7 @@ export default function IaStudioPage() {
           </button>
           )}
 
-          {/* IA Architect (MyArchitectAI) */}
+          {/* Rendu Réaliste */}
           <button onClick={() => setTab('architect')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
               tab==='architect'
@@ -1726,8 +1726,8 @@ export default function IaStudioPage() {
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-black text-[#304035] text-lg">IA Architect</p>
-                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#8a6cc2]/12 text-[#8a6cc2]">MyArchitectAI</span>
+                  <p className="font-black text-[#304035] text-lg">Rendu Réaliste</p>
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#8a6cc2]/12 text-[#8a6cc2]">Post-conception</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
                   Moteur photoréaliste dédié <span className="font-semibold text-[#304035]/80">architecture & intérieur</span> — intérieur ou extérieur.
@@ -1742,7 +1742,7 @@ export default function IaStudioPage() {
             </div>
           </button>
 
-          {/* Coloriste IA+ (MyArchitectAI) — masqué (onglet désactivé) */}
+          {/* Coloriste IA+ — masqué (onglet désactivé) */}
           {false && (
           <button onClick={() => setTab('coloriste-archi')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
@@ -1765,10 +1765,10 @@ export default function IaStudioPage() {
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <p className="font-black text-[#304035] text-lg">Coloriste IA+</p>
-                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#2f9e8f]/12 text-[#2f9e8f]">MyArchitectAI</span>
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#2f9e8f]/12 text-[#2f9e8f]">Post-conception</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Même principe que le Coloriste, <span className="font-semibold text-[#304035]/80">moteur MyArchitectAI</span> — photo + couleurs.
+                  Même principe que le Coloriste, <span className="font-semibold text-[#304035]/80">moteur IA</span> — photo + couleurs.
                 </p>
                 {tab==='coloriste-archi' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#2f9e8f]">
@@ -2437,7 +2437,7 @@ export default function IaStudioPage() {
           </div>
         )}
 
-        {/* ══════════════════════════ MODULE IA ARCHITECT (MyArchitectAI) */}
+        {/* ══════════════════════════ MODULE RENDU RÉALISTE */}
         {tab === 'architect' && (
           <div className="fu space-y-6">
 
@@ -2450,7 +2450,7 @@ export default function IaStudioPage() {
                   <FileImage className="h-4 w-4 text-[#8a6cc2]" />
                   <p className="font-bold text-[#304035]">Image source <span className="ml-1 rounded-full bg-[#8a6cc2]/10 text-[#8a6cc2] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
                 </div>
-                <p className="text-xs text-[#304035]/50 mb-2">Plan, rendu 3D, sketch ou photo — MyArchitectAI le transforme en photo réaliste en préservant la géométrie.</p>
+                <p className="text-xs text-[#304035]/50 mb-2">Plan, rendu 3D, sketch ou photo — l'IA le transforme en photo réaliste en préservant la géométrie.</p>
                 <div className="mb-4 rounded-lg bg-[#8a6cc2]/5 border border-[#8a6cc2]/15 px-3 py-2 text-[10px] leading-relaxed text-[#304035]/65">
                   <span className="font-bold text-[#8a6cc2]">Conseil&nbsp;:</span> une image nette et bien cadrée donne les meilleurs résultats. Précisez les matériaux ci-dessous pour réduire les erreurs de rendu.
                 </div>
@@ -2498,8 +2498,8 @@ export default function IaStudioPage() {
                         <Building2 className="h-6 w-6 text-white sh" />
                       </div>
                       <div>
-                        <p className="font-black text-[#304035]">IA Architect en action</p>
-                        <p className="text-xs text-[#304035]/50 mt-0.5">MyArchitectAI · Rendu photoréaliste…</p>
+                        <p className="font-black text-[#304035]">Rendu Réaliste en action</p>
+                        <p className="text-xs text-[#304035]/50 mt-0.5">Rendu photoréaliste…</p>
                       </div>
                     </div>
                     <ProgressBar steps={LOADING_STEPS_ARCHITECT} color="#8a6cc2" />
@@ -2529,7 +2529,7 @@ export default function IaStudioPage() {
                     </div>
                     <p className="font-bold text-[#304035] mb-1.5">Votre rendu apparaîtra ici</p>
                     <p className="text-xs text-[#304035]/50 leading-relaxed">
-                      Importez une image source et lancez le rendu MyArchitectAI.
+                      Importez une image source et lancez le rendu.
                     </p>
                   </div>
                 )}
@@ -2652,7 +2652,7 @@ export default function IaStudioPage() {
                     ? <><Loader2 className="h-4 w-4 animate-spin" />Génération du rendu…</>
                     : !archRefFile
                       ? <><FileImage className="h-4 w-4" />Importez d'abord une image source</>
-                      : <><Building2 className="h-4 w-4" />Générer avec MyArchitectAI<ArrowRight className="h-4 w-4 ml-1" /></>
+                      : <><Building2 className="h-4 w-4" />Générer le rendu<ArrowRight className="h-4 w-4 ml-1" /></>
                   }
                 </span>
               </button>
@@ -2672,7 +2672,7 @@ export default function IaStudioPage() {
           </div>
         )}
 
-        {/* ══════════════════════════ MODULE COLORISTE MyArchitectAI */}
+        {/* ══════════════════════════ MODULE COLORISTE IA+ */}
         {tab === 'coloriste-archi' && (
           <div className="fu space-y-6">
 
@@ -2683,7 +2683,7 @@ export default function IaStudioPage() {
                   <Paintbrush className="h-4 w-4 text-[#2f9e8f]" />
                   <p className="font-bold text-[#304035]">Photo de la cuisine <span className="ml-1 rounded-full bg-[#2f9e8f]/10 text-[#2f9e8f] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
                 </div>
-                <p className="text-xs text-[#304035]/50 mb-2">Importez la photo, choisissez vos couleurs ci-dessous — MyArchitectAI recolorise la cuisine.</p>
+                <p className="text-xs text-[#304035]/50 mb-2">Importez la photo, choisissez vos couleurs ci-dessous — l'IA recolorise la cuisine.</p>
                 <Drop label="" sub="Déposez la photo de la cuisine"
                   onFile={setPhotoFile} file={photoFile} accent="#2f9e8f"
                   tips={['Photo de la cuisine existante', 'Showroom / catalogue', 'Bien éclairée et nette']} />
@@ -2718,7 +2718,7 @@ export default function IaStudioPage() {
                       </div>
                       <div>
                         <p className="font-black text-[#304035]">Coloriste IA+ en action</p>
-                        <p className="text-xs text-[#304035]/50 mt-0.5">MyArchitectAI · Recolorisation…</p>
+                        <p className="text-xs text-[#304035]/50 mt-0.5">Recolorisation…</p>
                       </div>
                     </div>
                     <ProgressBar steps={LOADING_STEPS_COLOR} color="#2f9e8f" />
@@ -2735,7 +2735,7 @@ export default function IaStudioPage() {
                   <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#2f9e8f]/20 bg-gradient-to-br from-[#2f9e8f]/5 to-white p-12 text-center lg:min-h-[400px]">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#2f9e8f]/10"><Paintbrush className="h-7 w-7 text-[#2f9e8f]/60" /></div>
                     <p className="font-bold text-[#304035] mb-1.5">Votre colorisation apparaîtra ici</p>
-                    <p className="text-xs text-[#304035]/50 leading-relaxed">Importez une photo, choisissez les couleurs et lancez MyArchitectAI.</p>
+                    <p className="text-xs text-[#304035]/50 leading-relaxed">Importez une photo, choisissez les couleurs et lancez la colorisation.</p>
                   </div>
                 )}
               </div>
@@ -2797,7 +2797,7 @@ export default function IaStudioPage() {
                     ? <><Loader2 className="h-4 w-4 animate-spin" />Colorisation…</>
                     : !photoFile
                       ? <><FileImage className="h-4 w-4" />Importez d'abord la photo</>
-                      : <><Paintbrush className="h-4 w-4" />Coloriser avec MyArchitectAI<ArrowRight className="h-4 w-4 ml-1" /></>
+                      : <><Paintbrush className="h-4 w-4" />Coloriser<ArrowRight className="h-4 w-4 ml-1" /></>
                   }
                 </span>
               </button>
@@ -2811,10 +2811,4 @@ export default function IaStudioPage() {
           </div>
         )}
 
-        {/* Galerie déplacée dans chaque module (côte à côte avec l'historique)
-            via <GalleryCard/> — voir le bas des onglets Coloriste et Rendu. */}
-
-      </div>
-    </>
-  );
-}
+        {/* Galerie déplacée dans chaque module (côt

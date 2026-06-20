@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
     if (!result.success || result.imageUrls.length === 0) {
       const err = (result.error ?? '').toLowerCase();
       const status = err.includes('délai') || err.includes('aucune image') ? 504 : 502;
-      return fail(status, result.error ?? 'Colorisation MyArchitectAI échouée.');
+      return fail(status, result.error ?? 'Colorisation échouée.');
     }
 
     // ── 7) Copie du résultat → Supabase

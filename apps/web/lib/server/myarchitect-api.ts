@@ -125,7 +125,7 @@ async function callEndpoint(
 ): Promise<EndpointResult> {
   const apiKey = process.env.MYARCHITECT_API_KEY;
   if (!apiKey) {
-    return { ok: false, outputs: [], error: 'MYARCHITECT_API_KEY non configurée' };
+    return { ok: false, outputs: [], error: 'Clé du moteur de rendu non configurée' };
   }
 
   const controller = new AbortController();
@@ -161,16 +161,16 @@ async function callEndpoint(
           : '');
       const friendly =
         res.status === 403
-          ? 'Clé API MyArchitectAI invalide ou crédit épuisé.'
+          ? 'Clé API du moteur de rendu invalide ou crédit épuisé.'
           : res.status === 400
-            ? `Entrée refusée par MyArchitectAI${msg ? ` : ${msg}` : ''}.`
-            : `MyArchitectAI a renvoyé une erreur ${res.status}${msg ? ` : ${msg}` : ''}.`;
+            ? `Entrée refusée par le moteur de rendu${msg ? ` : ${msg}` : ''}.`
+            : `Le moteur de rendu a renvoyé une erreur ${res.status}${msg ? ` : ${msg}` : ''}.`;
       return { ok: false, outputs: [], error: friendly };
     }
 
     const outputs = extractOutputs(parsed);
     if (outputs.length === 0) {
-      return { ok: false, outputs: [], error: 'MyArchitectAI n\'a renvoyé aucune image.' };
+      return { ok: false, outputs: [], error: 'Le moteur de rendu n\'a renvoyé aucune image.' };
     }
     return { ok: true, outputs };
   } catch (err) {
@@ -179,8 +179,8 @@ async function callEndpoint(
       ok: false,
       outputs: [],
       error: aborted
-        ? 'MyArchitectAI a dépassé le délai d\'attente. Réessayez dans un instant.'
-        : `Connexion à MyArchitectAI impossible : ${err instanceof Error ? err.message : 'erreur réseau'}.`,
+        ? 'Le moteur de rendu a dépassé le délai d\'attente. Réessayez dans un instant.'
+        : `Connexion au moteur de rendu impossible : ${err instanceof Error ? err.message : 'erreur réseau'}.`,
     };
   } finally {
     clearTimeout(timeout);
@@ -223,7 +223,7 @@ export async function generateArchitectRender(
     return {
       success: true,
       imageUrls: [imageUrl],
-      prompt: `${prompt} [MODE DÉMO — clé MyArchitectAI non configurée]`,
+      prompt: `${prompt} [MODE DÉMO — clé du moteur de rendu non configurée]`,
       endpoint: 'mock',
       upscaled: false,
     };
@@ -273,7 +273,7 @@ export async function generateColoristeRender(
     return {
       success: true,
       imageUrls: [imageUrl],
-      prompt: `${prompt} [MODE DÉMO — clé MyArchitectAI non configurée]`,
+      prompt: `${prompt} [MODE DÉMO — clé du moteur de rendu non configurée]`,
       endpoint: 'mock',
       upscaled: false,
     };
