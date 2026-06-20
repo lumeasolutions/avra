@@ -217,6 +217,11 @@ export function StatsGateModal({
           /^OPTION\s+\d+/i.test(L) ||
           /^PROJET\s+VERSION\s+\d+\s*[–—-]\s*(APS|APD)/i.test(L) ||
           /^PROJET\s+\d+/i.test(L) ||
+          // 20/06/2026 : a la signature, l'APD validee architecte est renommee
+          // "APD VERSION N (DOSSIER SIGNE)" (cf buildArchitecteValidated dans
+          // useDossierStore). Ce label ne matchait aucune regex -> projet jamais
+          // detecte cote stats. On l'ajoute pour que les devis architecte remontent.
+          /^APD\s+VERSION\s+\d+/i.test(L) ||
           ARCHITECTE_PROJET_VERSION_REGEX.test(L) ||
           CUISINISTE_OPTION_REGEX.test(L) ||
           MENUISIER_PROJET_REGEX.test(L)
