@@ -281,24 +281,28 @@ export function StatsGateModal({
     setAiError(null);
     try {
       const result = await extractDossier(selected.id);
-      // Dedup : ne pas creer une ligne si une existe deja avec meme
-      // (fournisseur, prixAchatHT). Evite les doublons sur clics multiples.
-      const existing = new Set(
-        selectedLignes.map((l) => `${l.fournisseur}::${l.produit ?? ''}::${l.prixAchatHT}`),
-      );
+      // Dedup par (fournisseur, produit) : on ne re-crée pas une ligne déjà
+      // présente, même si l'utilisateur a complété ses prix entre-temps. Évite
+      // les doublons en cas de ré-extraction (clic multiple ou ajout de doc).
+      const key = (l: { fournisseur: string; produit?: string }) =>
+        `${l.fournisseur}::${(l.produit ?? '').trim().toLowerCase()}`;
+      const existing = new Set(selectedLignes.map(key));
       const toImport = (result.commandes ?? [])
-        .filter((c) => c.fournisseur && typeof c.montantHT === 'number' && c.montantHT > 0)
-        .map((c) => ({
-          fournisseur: c.fournisseur,
-          // Détail par produit : chaque ligne d'article du devis/facture devient
-          // une ligne de prix distincte (produit = désignation extraite par l'IA).
-          produit: c.produit ?? undefined,
-          prixAchatHT: c.montantHT as number,
-          // L'IA ne distingue pas encore prix achat/vente — l'utilisateur
-          // completera le prix de vente apres extraction.
-          prixVenteHT: 0,
-        }))
-        .filter((l) => !existing.has(`${l.fournisseur}::${l.produit ?? ''}::${l.prixAchatHT}`));
+        .map((c) => {
+          // L'IA range le prix d'achat dans montantHT (facture/bon fournisseur)
+          // et le prix de vente dans montantVenteHT (devis client). Une entrée
+          // par produit, fusionnée si le produit est dans les deux documents.
+          const achat = typeof c.montantHT === 'number' && c.montantHT > 0 ? c.montantHT : 0;
+          const vente = typeof c.montantVenteHT === 'number' && c.montantVenteHT > 0 ? c.montantVenteHT : 0;
+          return {
+            fournisseur: c.fournisseur,
+            produit: c.produit ?? undefined,
+            prixAchatHT: achat,
+            prixVenteHT: vente,
+          };
+        })
+        .filter((l) => l.fournisseur && (l.prixAchatHT > 0 || l.prixVenteHT > 0))
+        .filter((l) => !existing.has(key(l)));
       if (toImport.length === 0) {
         setToast({ message: 'IA : aucune nouvelle ligne à extraire (déjà importé ou pas de montants détectés)', tone: 'info' });
       } else {

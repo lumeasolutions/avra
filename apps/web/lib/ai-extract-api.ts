@@ -19,7 +19,10 @@ export interface ExtractionCommande {
   /** Désignation du produit/article (détail ligne par ligne). null si commande globale. */
   produit: string | null;
   dateButoir: string | null;
+  /** Prix d'ACHAT HT (coût pour le pro) — lu sur facture/bon de commande fournisseur. */
   montantHT: number | null;
+  /** Prix de VENTE HT (facturé au client) — lu sur un devis client. */
+  montantVenteHT: number | null;
   categorie: string | null;
 }
 

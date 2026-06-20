@@ -29,15 +29,17 @@ Tu reçois les documents d'un dossier client (devis signés, plans, fiches techn
    → Si une date n'est pas mentionnée explicitement OU déductible avec confiance, retourne null.
    → Ne jamais inventer une date. La précision prime sur la complétude.
 
-2. **Liste des lignes produits / commandes fournisseurs** détectées dans les documents :
-   - "fournisseur" : nom du fournisseur / émetteur du document (obligatoire, string non vide)
+2. **Liste des lignes produits** détectées dans les documents :
+   - "fournisseur" : nom du fournisseur réel si connu (ex "BOSCH", "ELECTRO PRO"), sinon l'émetteur du document (obligatoire, string non vide)
    - "produit" : désignation de l'article/ligne (ex "Four encastrable Bosch HBA171BS1F", "Plan de travail granit noir"). null UNIQUEMENT si le document n'a aucun détail ligne par ligne.
    - "dateButoir" : date butoir de la commande (ISO YYYY-MM-DD ou null)
-   - "montantHT" : montant HT en euros de CETTE ligne (number ou null)
+   - "montantHT" : prix d'ACHAT HT en euros (coût pour le professionnel) — lu sur une FACTURE ou un BON DE COMMANDE FOURNISSEUR. null si inconnu.
+   - "montantVenteHT" : prix de VENTE HT en euros (facturé au client) — lu sur un DEVIS CLIENT. null si inconnu.
    - "categorie" : catégorie du produit/service ("CUISINE", "ELECTRO", "GRANIT", "MENUISERIE", "POSE", autre — ou null)
 
-   → DÉTAIL PAR PRODUIT (important) : si le document est un devis ou une facture DÉTAILLÉE (plusieurs lignes d'articles), retourne UNE entrée par ligne d'article — chacune avec son "produit" et son "montantHT" propre. N'AGRÈGE JAMAIS les lignes en un seul total. Répète le "fournisseur" sur chaque ligne.
-   → Si le document n'a pas de détail ligne par ligne, retourne une seule entrée globale ("produit": null, "montantHT": total HT).
+   → ACHAT vs VENTE (crucial) : un DEVIS CLIENT (émis PAR le professionnel/cuisiniste VERS son client) contient des prix de VENTE → range-les dans "montantVenteHT". Une FACTURE ou un BON DE COMMANDE FOURNISSEUR (émis par un fournisseur VERS le professionnel) contient des prix d'ACHAT → range-les dans "montantHT". Repère l'émetteur/destinataire pour trancher.
+   → UNE SEULE ENTRÉE PAR PRODUIT (important) : retourne UNE entrée par article. Si le MÊME produit apparaît à la fois dans un devis ET dans une facture, FUSIONNE-le en une seule entrée renseignant à la fois "montantHT" (achat) ET "montantVenteHT" (vente). Un même produit peut être libellé légèrement différemment d'un document à l'autre (ex "Four Bosch HBA171" ≈ "Four Bosch HBA171 — inox") : reconnais-le comme identique.
+   → DÉTAIL : ne regroupe jamais des produits DIFFÉRENTS en un seul total. Si un document n'a aucun détail ligne par ligne, retourne une entrée globale ("produit": null) avec le total dans la bonne colonne (achat ou vente).
 
 3. **Liste des livraisons attendues** :
    - "categorie" : catégorie de la livraison (CUISINE, ELECTRO, GRANIT, MENUISERIE, etc.)
@@ -99,9 +101,10 @@ export const EXTRACTION_JSON_SCHEMA = {
             produit: { type: ['string', 'null'] },
             dateButoir: { type: ['string', 'null'] },
             montantHT: { type: ['number', 'null'] },
+            montantVenteHT: { type: ['number', 'null'] },
             categorie: { type: ['string', 'null'] },
           },
-          required: ['fournisseur', 'produit', 'dateButoir', 'montantHT', 'categorie'],
+          required: ['fournisseur', 'produit', 'dateButoir', 'montantHT', 'montantVenteHT', 'categorie'],
         },
       },
       livraisons: {
