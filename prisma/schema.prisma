@@ -33,21 +33,6 @@ enum WorkspacePlan {
   ENTERPRISE
 }
 
-/// Statut d'un membre (vendeur) dans un workspace.
-enum MembershipStatus {
-  ACTIVE
-  SUSPENDED
-}
-
-/// Statut d'une invitation de membre/vendeur à rejoindre un workspace.
-enum WorkspaceInvitationStatus {
-  PENDING
-  ACCEPTED
-  REFUSED
-  EXPIRED
-  REVOKED
-}
-
 enum TradeType {
   ARCHITECTE_INTERIEUR
   CUISINISTE
@@ -280,11 +265,6 @@ model Workspace {
   plan        WorkspacePlan @default(STARTER)
   trialEndsAt DateTime?
   isActive    Boolean       @default(true)
-  /// Sièges (membres/vendeurs) inclus dans le forfait. Au-delà : facturation à
-  /// l'usage (extraSeatPriceEUR / membre supplémentaire). Phase 1 : suivi du
-  /// dépassement uniquement (affiché), pas encore de débit Stripe.
-  includedSeats     Int     @default(3)
-  extraSeatPriceEUR Int     @default(40)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -312,7 +292,6 @@ model Workspace {
   documentAuditLogs  DocumentAuditLog[]
   intervenantInvitations IntervenantInvitation[]
   demandes           Demande[]
-  workspaceInvitations WorkspaceInvitation[]
 }
 
 model User {
@@ -354,11 +333,6 @@ model User {
   demandeMessages          DemandeMessage[]         @relation("DemandeMessageAuthor")
   demandeAttachments       DemandeAttachment[]      @relation("DemandeAttachmentUploadedBy")
   demandeStatusEvents      DemandeStatusEvent[]     @relation("DemandeStatusEventTriggeredBy")
-  /// Invitations de membres/vendeurs créées / acceptées par cet utilisateur.
-  workspaceInvitationsCreated  WorkspaceInvitation[] @relation("WorkspaceInvitationCreatedBy")
-  workspaceInvitationsAccepted WorkspaceInvitation[] @relation("WorkspaceInvitationAcceptedBy")
-  /// Dossiers dont cet utilisateur est le VENDEUR (distinct de ownerId/créateur).
-  vendeurProjects          Project[]                @relation("ProjectVendeur")
 }
 
 model UserWorkspace {
@@ -366,9 +340,6 @@ model UserWorkspace {
   userId      String
   workspaceId String
   role        UserRole  @default(MEMBER)
-  /// Actif / suspendu — désactive un vendeur sans supprimer son compte ni son
-  /// historique. Un membre SUSPENDED ne consomme plus de siège.
-  status      MembershipStatus @default(ACTIVE)
   joinedAt    DateTime  @default(now())
 
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -394,37 +365,6 @@ model WorkspaceSettings {
   updatedAt         DateTime  @updatedAt
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-}
-
-/// Invitation d'un membre/vendeur à rejoindre un workspace (compte interne,
-/// distinct d'IntervenantInvitation qui concerne les sous-traitants externes).
-/// Token 256 bits, expiration 14 jours par défaut. L'acceptation crée un User
-/// + un UserWorkspace (rôle = role de l'invitation).
-model WorkspaceInvitation {
-  id               String   @id @default(cuid())
-  workspaceId      String
-  email            String
-  role             UserRole @default(MEMBER)
-  token            String   @unique
-  status           WorkspaceInvitationStatus @default(PENDING)
-  firstName        String?
-  lastName         String?
-  message          String?
-  expiresAt        DateTime
-  acceptedAt       DateTime?
-  refusedAt        DateTime?
-  revokedAt        DateTime?
-  acceptedByUserId String?
-  createdById      String
-  createdAt        DateTime @default(now())
-
-  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy        User      @relation("WorkspaceInvitationCreatedBy", fields: [createdById], references: [id])
-  acceptedByUser   User?     @relation("WorkspaceInvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
-
-  @@index([workspaceId, status])
-  @@index([email])
-  @@index([expiresAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -517,9 +457,6 @@ model Project {
   terminatedAt    DateTime?
   archivedAt      DateTime?
   vendeurName     String?
-  /// Lien structuré vers le User vendeur (en plus de vendeurName, gardé en
-  /// fallback). Sert au cloisonnement : un vendeur ne voit que SES dossiers.
-  vendeurUserId   String?
   statsSkipped    Boolean                @default(false)
   // Listes/objets JSON (cf. types frontend DossierPrixLigne, ConfirmationFournisseur, dateButoires)
   prixLignes      Json?
@@ -529,7 +466,6 @@ model Project {
   workspace            Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   client               Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
   owner                User?                  @relation("ProjectOwner", fields: [ownerId], references: [id])
-  vendeurUser          User?                  @relation("ProjectVendeur", fields: [vendeurUserId], references: [id], onDelete: SetNull)
   folders              ProjectFolder[]
   documents            Document[]
   events               Event[]
@@ -550,7 +486,6 @@ model Project {
 
   @@index([workspaceId])
   @@index([clientId])
-  @@index([vendeurUserId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1433,7 +1368,7 @@ model AutomationRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WAITLIST (Bêta privée — lancement janvier 2027)
+// WAITLIST (Bêta privée — lancement juillet 2026)
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Waitlist {
