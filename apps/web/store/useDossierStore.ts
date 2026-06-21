@@ -252,7 +252,7 @@ export const SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'RELEVE DE MESURES' },
   { label: 'PLAN TECHNIQUE DCE', alert: true },
   { label: 'COMMANDES', alert: true },
-  { label: 'LIVRAISONS' },
+  { label: 'BON DE LIVRAISON' },
   { label: 'FICHE DE POSE' },
   { label: 'PERMIS DE CONSTRUIRE' },
   { label: 'SAV' },
@@ -285,7 +285,7 @@ export const MENUISIER_SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'COMMANDES FOURNISSEURS' },
   { label: 'CONFIRMATIONS / COMMANDE' },
   { label: 'FICHE DE POSE' },
-  { label: 'LIVRAISON' },
+  { label: 'BON DE LIVRAISON' },
   { label: 'SAV' },
 ];
 
@@ -307,7 +307,7 @@ export const CUISINISTE_SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'RELEVÉ DÉFINITIF' },
   { label: 'COMMANDE' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS' },
-  { label: 'LIVRAISON' },
+  { label: 'BON DE LIVRAISON' },
   { label: 'FICHE DE POSE' },
   { label: 'SAV' },
 ];
@@ -333,7 +333,7 @@ export const ARCHITECTE_SIGNED_SUBFOLDERS: SubFolder[] = [
   { label: 'MARCHÉ / SIGNATURES' },
   { label: 'COMMANDES FOURNISSEURS' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS FOURNISSEURS' },
-  { label: 'LIVRAISON' },
+  { label: 'BON DE LIVRAISON' },
   { label: 'SUIVI DE CHANTIER' },
   { label: 'RÉCEPTION SAV' },
 ];
