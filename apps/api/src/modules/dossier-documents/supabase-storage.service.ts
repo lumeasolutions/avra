@@ -50,15 +50,30 @@ export class SupabaseStorageService {
    * Utilisé par l'extraction IA (pdf-parse).
    */
   async download(path: string): Promise<Buffer> {
-    const { data, error } = await this.getClient()
-      .storage.from(this.bucket)
-      .download(path);
-    if (error || !data) {
-      this.logger.error(`[download ${path}] ${error?.message ?? 'no data'}`);
-      throw new InternalServerErrorException('Impossible de télécharger le fichier');
+    // Retry (3 tentatives, backoff) : le download Supabase echoue parfois de
+    // maniere transitoire sur la Serverless Function (cold start / reseau), ce
+    // qui faisait remonter a tort "Aucun document exploitable" cote extraction IA.
+    let lastErr: unknown = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const { data, error } = await this.getClient()
+          .storage.from(this.bucket)
+          .download(path);
+        if (error || !data) throw new Error(error?.message ?? 'no data');
+        const arrayBuffer = await data.arrayBuffer();
+        return Buffer.from(arrayBuffer);
+      } catch (e) {
+        lastErr = e;
+        this.logger.warn(
+          `[download ${path}] tentative ${attempt}/3 echouee: ${(e as Error)?.message ?? e}`,
+        );
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 300 * attempt));
+      }
     }
-    const arrayBuffer = await data.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    this.logger.error(
+      `[download ${path}] echec apres 3 tentatives: ${(lastErr as Error)?.message ?? lastErr}`,
+    );
+    throw new InternalServerErrorException('Impossible de télécharger le fichier');
   }
 
   /** Génère une URL signée temporaire (en secondes). */
