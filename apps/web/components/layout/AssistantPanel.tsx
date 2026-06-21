@@ -274,7 +274,7 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, padding:'10px 12px 6px' }}>
               {[
                 { val:activeAlerts.filter(a => a.severity==='error').length, label:'URGENTS', color:'#D32F2F', bg:'#FFF0F0' },
-                { val:dossiersSignes.length,                             label:'SIGNÉS',  color:'#388E3C', bg:'#F0FFF2' },
+                { val:dossiers.length,                                   label:'EN COURS', color:'#388E3C', bg:'#F0FFF2' },
                 { val:activeAlerts.filter(a => { const k = (a as any).sourceKey ?? ''; return k.startsWith('facture-') || k.startsWith('cmd-livraison-') || (k.startsWith('butoir-') && !k.startsWith('butoir-soon-')); }).length, label:'RETARDS', color:'#E07B00', bg:'#FFF8F0' },
               ].map(({ val, label, color, bg }) => (
                 <div key={label} style={{ background:'white', borderRadius:14, padding:'9px 4px', textAlign:'center', boxShadow:'0 2px 8px rgba(0,0,0,0.07)' }}>
