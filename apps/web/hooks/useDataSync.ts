@@ -165,11 +165,11 @@ export function useDataSync() {
       const currentPerduIds = new Set(store.dossiersPerdus.map((d) => d.id));
       const hasDemoPerdu = [...currentPerduIds].some((id) => DEMO_PERDU_IDS.has(id));
 
-      // Si workspace vide ET données démo dans le store → vider
+      // Backend = source de vérité : si le workspace n'a AUCUN projet, on vide
+      // les stores locaux. Sinon un compte remis à zéro garderait son cache
+      // localStorage et afficherait des dossiers + stats fantômes.
       if (!Array.isArray(data) || data.length === 0) {
-        if (hasDemoData) useDossierStore.setState({ dossiers: [] });
-        if (hasDemoSigned) useDossierStore.setState({ dossiersSignes: [] });
-        if (hasDemoPerdu) useDossierStore.setState({ dossiersPerdus: [] });
+        useDossierStore.setState({ dossiers: [], dossiersSignes: [], dossiersPerdus: [] });
         return;
       }
 
@@ -356,10 +356,9 @@ export function useDataSync() {
       const currentGestIds = new Set(store.gestEvents.map((e) => e.id));
       const hasDemoGest = [...currentGestIds].some((id) => DEMO_GEST_IDS.has(id));
 
-      // Si workspace vide → vider les events démo
+      // Backend vide → on vide aussi le planning local (compte remis à zéro).
       if (!Array.isArray(data) || data.length === 0) {
-        if (hasDemoEvents) usePlanningStore.setState({ planningEvents: [] });
-        if (hasDemoGest) usePlanningStore.setState({ gestEvents: [] });
+        usePlanningStore.setState({ planningEvents: [], gestEvents: [] });
         return;
       }
 
@@ -521,9 +520,9 @@ export function useDataSync() {
       const currentIds = new Set(store.intervenants.map((i) => i.id));
       const hasDemoData = [...currentIds].some((id) => DEMO_INTERVENANT_IDS.has(id));
 
-      // Si workspace vide → vider les intervenants démo
+      // Backend vide → on vide aussi les intervenants locaux (compte remis à zéro).
       if (!Array.isArray(data) || data.length === 0) {
-        if (hasDemoData) useIntervenantStore.setState({ intervenants: [] });
+        useIntervenantStore.setState({ intervenants: [] });
         return;
       }
 
