@@ -244,8 +244,11 @@ export function StatsGateModal({
     return subfolders
       .filter((sf) =>
         /CONFIRMATION/i.test(sf.label) ||
+        /COMMANDE/i.test(sf.label) ||
+        /FOURNISSEUR/i.test(sf.label) ||
         /FACTURE.*ACHAT/i.test(sf.label) ||
-        /FACTURES.*ACHATS/i.test(sf.label),
+        /FACTURES.*ACHATS/i.test(sf.label) ||
+        /ACHAT/i.test(sf.label),
       )
       .map((sf) => ({
         label: sf.label,
@@ -853,11 +856,7 @@ export function StatsGateModal({
                   }}>
                     <Package size={11} /> Confirmations validées <span style={{ fontWeight: 600, opacity: 0.7 }}>(prix achat)</span>
                   </p>
-                  {confirmsValidees.length === 0 ? (
-                    <p style={{
-                      margin: 0, fontSize: 11, color: 'rgba(48,64,53,0.5)', fontStyle: 'italic',
-                    }}>Aucune confirmation validée.</p>
-                  ) : (
+                  {confirmsValidees.length > 0 && (
                     <ul style={{
                       listStyle: 'none', padding: 0, margin: 0,
                       display: 'flex', flexDirection: 'column', gap: 4,
@@ -889,6 +888,58 @@ export function StatsGateModal({
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {/* NOUVEAU 21/06/2026 : documents des sous-dossiers Commande / Confirmations / Factures achat
+                      (symetrie avec les devis cote vente) — tes factures deposees apparaissent ici */}
+                  {confirmationsSubfolders.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: confirmsValidees.length > 0 ? 8 : 0 }}>
+                      {confirmationsSubfolders.map((g) => (
+                        <div key={g.label}>
+                          <p style={{
+                            margin: '0 0 4px', fontSize: 9, fontWeight: 800,
+                            color: '#059669', textTransform: 'uppercase',
+                            letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 4,
+                          }}>
+                            <FolderOpen size={9} /> {g.label} <span style={{ opacity: 0.6, fontWeight: 600 }}>({g.docs.length})</span>
+                          </p>
+                          <ul style={{
+                            listStyle: 'none', padding: 0, margin: 0,
+                            display: 'flex', flexDirection: 'column', gap: 2,
+                          }}>
+                            {g.docs.map((doc, di) => (
+                              <li key={doc.docId ?? `${g.label}-${doc.name}-${di}`}>
+                                <button
+                                  onClick={() => handleOpenDoc(doc)}
+                                  style={{
+                                    width: '100%', padding: '3px 6px', borderRadius: 5,
+                                    border: 'none', background: 'transparent', cursor: 'pointer',
+                                    fontSize: 11, color: '#304035', textAlign: 'left',
+                                    display: 'flex', alignItems: 'center', gap: 6,
+                                    transition: 'background 0.15s',
+                                  }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(16,185,129,0.12)')}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                  title={`Ouvrir ${doc.name} dans un nouvel onglet`}
+                                >
+                                  <FileText size={10} color="#059669" style={{ flexShrink: 0 }} />
+                                  <span style={{
+                                    overflow: 'hidden', textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap', flex: 1,
+                                    textDecoration: 'underline', textDecorationStyle: 'dotted',
+                                  }}>{doc.name}</span>
+                                  <ExternalLink size={9} color="rgba(48,64,53,0.4)" style={{ flexShrink: 0 }} />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {confirmsValidees.length === 0 && confirmationsSubfolders.length === 0 && (
+                    <p style={{
+                      margin: 0, fontSize: 11, color: 'rgba(48,64,53,0.5)', fontStyle: 'italic',
+                    }}>Aucune confirmation validée — ajoutez vos factures d&apos;achat dans le sous-dossier « Commande / Confirmations fournisseurs » pour les retrouver ici.</p>
                   )}
                 </div>
               </div>
