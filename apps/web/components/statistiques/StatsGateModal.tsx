@@ -289,10 +289,8 @@ export function StatsGateModal({
     setAiExtracting(true);
     setAiError(null);
     try {
-      const result = await extractDossier(selected.id, mode === 'both' ? 'all' : mode);
-      // Normalisation robuste pour rapprocher achat (factures) et vente (devis)
-      // d'un même produit malgré les variantes : accents, casse, raison sociale
-      // ("LEICHT Küchen AG" → "leicht"), préfixe marque ("FRANKE - ...").
+      // Normalisation robuste : accents, casse, raison sociale ("LEICHT Küchen
+      // AG" → "leicht"), préfixe marque ("FRANKE - ...").
       const accentless = (s?: string) =>
         (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       const FOURN_STOP = new Set(['ag','sas','sasu','sa','sarl','gmbh','kg','sl','bv','llc','ltd','inc','co','eurl','france','deutschland','kuchen','distribution','distributeur','pro','group','groupe']);
@@ -300,32 +298,51 @@ export function StatsGateModal({
         accentless(s).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w && !FOURN_STOP.has(w)).join(' ').trim();
       const normProduit = (s?: string) =>
         accentless(s).toLowerCase().replace(/^\s*[a-z0-9&]{2,}\s*[-–—:]\s*/, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+      // Clé de rapprochement = fournisseur + 4 premiers mots du produit.
+      // Tolère les variantes de fin de désignation ("évier ... mitigeur" vs
+      // "évier ... mitigeur douchette") sans fusionner des produits différents.
       const key = (l: { fournisseur: string; produit?: string }) =>
-        `${normFournisseur(l.fournisseur)}::${normProduit(l.produit)}`;
+        `${normFournisseur(l.fournisseur)}::${normProduit(l.produit).split(' ').filter(Boolean).slice(0, 4).join(' ')}`;
 
-      // Index des lignes existantes par clé (fournisseur, produit).
+      // 'both' = DEUX extractions CIBLÉES (devis seul, puis factures seules) :
+      // beaucoup plus fiable que de tout lire d'un coup. On combine en mémoire.
+      const passes: Array<'vente' | 'achat'> = mode === 'both' ? ['vente', 'achat'] : [mode];
+      const combined = new Map<string, { fournisseur: string; produit?: string; achat: number; vente: number }>();
+      let nbCommandes = 0;
+      let conf = 0;
+      for (const pass of passes) {
+        const result = await extractDossier(selected.id, pass);
+        nbCommandes += (result.commandes ?? []).length;
+        conf = Math.max(conf, Math.round((result.confiance ?? 0) * 100));
+        (result.commandes ?? []).forEach((c) => {
+          if (!c.fournisseur) return;
+          const ach = pass !== 'vente' && typeof c.montantHT === 'number' && c.montantHT > 0 ? c.montantHT : 0;
+          const ven = pass !== 'achat' && typeof c.montantVenteHT === 'number' && c.montantVenteHT > 0 ? c.montantVenteHT : 0;
+          if (ach <= 0 && ven <= 0) return;
+          const k = key({ fournisseur: c.fournisseur, produit: c.produit ?? undefined });
+          const cur = combined.get(k);
+          if (cur) {
+            if (ach > 0 && cur.achat <= 0) cur.achat = ach;
+            if (ven > 0 && cur.vente <= 0) cur.vente = ven;
+          } else {
+            combined.set(k, { fournisseur: c.fournisseur, produit: c.produit ?? undefined, achat: ach, vente: ven });
+          }
+        });
+      }
+
+      // Réconcilie avec les lignes déjà saisies (complète sans écraser, ni doublon).
       const existingByKey = new Map<string, DossierPrixLigne>();
       selectedLignes.forEach((l) => { if (!existingByKey.has(key(l))) existingByKey.set(key(l), l); });
-
       let created = 0;
       let merged = 0;
       const toCreate: Omit<DossierPrixLigne, 'id'>[] = [];
-
-      const wantAchat = mode === 'achat' || mode === 'both';
-      const wantVente = mode === 'vente' || mode === 'both';
-      (result.commandes ?? []).forEach((c) => {
-        const ach = wantAchat && typeof c.montantHT === 'number' && c.montantHT > 0 ? c.montantHT : 0;
-        const ven = wantVente && typeof c.montantVenteHT === 'number' && c.montantVenteHT > 0 ? c.montantVenteHT : 0;
-        if (!c.fournisseur || (ach <= 0 && ven <= 0)) return;
-
-        const k = key({ fournisseur: c.fournisseur, produit: c.produit ?? undefined });
+      combined.forEach((v) => {
+        const k = key(v);
         const existing = existingByKey.get(k);
-
         if (existing) {
-          // Complète UNIQUEMENT les colonnes manquantes (jamais d'écrasement).
           const patch: Partial<Omit<DossierPrixLigne, 'id'>> = {};
-          if (ach > 0 && !(existing.prixAchatHT > 0)) patch.prixAchatHT = ach;
-          if (ven > 0 && !(existing.prixVenteHT > 0)) patch.prixVenteHT = ven;
+          if (v.achat > 0 && !(existing.prixAchatHT > 0)) patch.prixAchatHT = v.achat;
+          if (v.vente > 0 && !(existing.prixVenteHT > 0)) patch.prixVenteHT = v.vente;
           if (Object.keys(patch).length > 0) {
             onUpdateLigne(selected.id, existing.id, patch);
             if (patch.prixAchatHT != null) existing.prixAchatHT = patch.prixAchatHT;
@@ -333,34 +350,20 @@ export function StatsGateModal({
             merged++;
           }
         } else {
-          const ligne = {
-            fournisseur: c.fournisseur,
-            produit: c.produit ?? undefined,
-            prixAchatHT: ach,
-            prixVenteHT: ven,
-          };
+          const ligne = { fournisseur: v.fournisseur, produit: v.produit, prixAchatHT: v.achat, prixVenteHT: v.vente };
           toCreate.push(ligne);
           existingByKey.set(k, { id: '__pending__', ...ligne } as DossierPrixLigne);
           created++;
         }
       });
-
       if (toCreate.length > 0) onAddLignesBulk(selected.id, toCreate);
 
-      const conf = Math.round((result.confiance ?? 0) * 100);
-      const label = mode === 'achat' ? "prix d'achat (factures)" : mode === 'vente' ? 'prix de vente (devis)' : 'achat + vente (devis + factures)';
-      const nbCommandes = (result.commandes ?? []).length;
+      const label = mode === 'achat' ? "prix d'achat (factures)" : mode === 'vente' ? 'prix de vente (devis)' : 'achat + vente';
       if (created === 0 && merged === 0) {
         if (nbCommandes === 0) {
-          // Extraction revenue vide → souvent un échec transitoire de lecture des
-          // documents. On le signale clairement et on invite à réessayer (évite
-          // le clic « dans le vide »).
           setAiError("L'IA n'a rien pu lire cette fois (lecture des documents). Patientez quelques secondes puis réessayez.");
         } else {
-          setToast({
-            message: `IA : aucun ${mode === 'achat' ? "montant d'achat" : mode === 'vente' ? 'montant de vente' : 'prix'} nouveau (déjà importé).`,
-            tone: 'info',
-          });
+          setToast({ message: `IA ${label} : rien de nouveau (déjà importé).`, tone: 'info' });
         }
       } else {
         const parts: string[] = [];
@@ -373,8 +376,8 @@ export function StatsGateModal({
       let userMsg = "Échec extraction IA — vérifiez OPENAI_API_KEY ou saisissez manuellement";
       if (msg.toLowerCase().includes('openai')) {
         userMsg = "Service IA non configuré (OPENAI_API_KEY manquant). Saisissez manuellement.";
-      } else if (msg.toLowerCase().includes('aucun document')) {
-        userMsg = "Aucun document analysable dans ce dossier (PDF requis).";
+      } else if (msg.toLowerCase().includes('aucun document') || msg.toLowerCase().includes('aucun devis') || msg.toLowerCase().includes('aucune facture')) {
+        userMsg = "Document introuvable : devis dans OPTION/PROJET/APD, factures dans « Commandes fournisseurs ».";
       } else if (msg.toLowerCase().includes('throttl') || msg.toLowerCase().includes('limit')) {
         userMsg = "Trop d'appels IA — patientez 1 minute avant de réessayer.";
       } else if (msg) {
