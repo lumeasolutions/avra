@@ -14,6 +14,8 @@ export default function ContactClient() {
     message: '',
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
@@ -22,12 +24,28 @@ export default function ContactClient() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('Formulaire de contact soumis:', formData);
-    setIsSubmitted(true);
-    setFormData({ firstName: '', lastName: '', email: '', subject: 'support', message: '' });
-    setTimeout(() => setIsSubmitted(false), 3000);
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "L'envoi a échoué. Réessayez.");
+      }
+      setIsSubmitted(true);
+      setFormData({ firstName: '', lastName: '', email: '', subject: 'support', message: '' });
+      setTimeout(() => setIsSubmitted(false), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -90,13 +108,17 @@ export default function ContactClient() {
                       <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6, color: '#1e2b22' }}>Message</label>
                       <textarea aria-label="Décrivez votre question ou problème..." name="message" value={formData.message} onChange={handleChange} placeholder="Décrivez votre question ou problème..." rows={5} required style={{ width: '100%', padding: '12px 16px', border: '1px solid #ddd', borderRadius: 8, fontSize: 16, fontFamily: 'inherit', resize: 'none' }} />
                     </div>
+                    {error && (
+                      <p role="alert" style={{ color: '#b3261e', fontSize: 14, margin: 0 }}>{error}</p>
+                    )}
                     <button
                       type="submit"
-                      style={{ background: '#1e2b22', color: '#ffffff', border: 'none', padding: '16px 32px', borderRadius: 8, fontSize: 18, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
-                      onMouseOver={(e) => { (e.target as HTMLElement).style.background = '#304035'; }}
+                      disabled={isSubmitting}
+                      style={{ background: '#1e2b22', color: '#ffffff', border: 'none', padding: '16px 32px', borderRadius: 8, fontSize: 18, fontWeight: 600, cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.7 : 1, transition: 'background 0.2s' }}
+                      onMouseOver={(e) => { if (!isSubmitting) (e.target as HTMLElement).style.background = '#304035'; }}
                       onMouseOut={(e) => { (e.target as HTMLElement).style.background = '#1e2b22'; }}
                     >
-                      Envoyer le message
+                      {isSubmitting ? 'Envoi…' : 'Envoyer le message'}
                     </button>
                   </form>
                 )}
