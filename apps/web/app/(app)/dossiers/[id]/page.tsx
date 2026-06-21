@@ -379,6 +379,14 @@ export default function DossierDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dossier?.id]);
 
+  // ── Validation projet (hooks) — DOIVENT être avant le early-return ci-dessous.
+  //    Sinon, si le dossier disparaît du store (ex. "Marquer perdu" qui le
+  //    retire), le composant re-render et saute ces hooks -> React error #300.
+  const [showOptionSelectionModal, setShowOptionSelectionModal] = useState(false);
+  const [showDateButoiresModal, setShowDateButoiresModal] = useState(false);
+  const [signing, setSigning] = useState(false);
+  const [selectedOptions, setSelectedOptions] = useState<ValidatedOptionSelection[]>([]);
+
   if (!dossier) {
     return (
       <div className="space-y-6 w-full">
@@ -408,16 +416,7 @@ export default function DossierDetailPage() {
   const stepIdx = STATUS_ORDER.indexOf(dossier.status);
   const totalHT = invoices.reduce((s, i) => s + (i.montantHT > 0 ? i.montantHT : 0), 0);
 
-  // ── Validation projet : flow en 2 étapes (19/05/2026) ─────────────────
-  // 1. OptionSelectionModal — l'utilisateur coche les options à valider
-  //    (1 ou plusieurs OPTION N / PROJET N / PROJET VERSION N – APD).
-  // 2. DateButoireValidationModal — l'utilisateur renseigne les dates butoires
-  //    de chaque sous-dossier signé AVANT de pouvoir valider.
-  const [showOptionSelectionModal, setShowOptionSelectionModal] = useState(false);
-  const [showDateButoiresModal, setShowDateButoiresModal] = useState(false);
-  const [signing, setSigning] = useState(false);
-  const [selectedOptions, setSelectedOptions] = useState<ValidatedOptionSelection[]>([]);
-
+  // (hooks de validation projet remontés avant le early-return — voir plus haut)
   // Detection des candidats options/projet/version selon profession — utilise
   // pour decider si on ouvre l'OptionSelectionModal ou si on saute direct
   // aux dates butoires (cas "0 option" → pas de choix a faire).
