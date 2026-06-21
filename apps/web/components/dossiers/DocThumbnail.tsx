@@ -20,7 +20,7 @@
  * (Map<docId, blobUrl>) — vidé naturellement quand l'onglet ferme.
  */
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { FileText, ImageIcon, FileSpreadsheet, FileSignature, File as FileIcon } from 'lucide-react';
 import type { DocumentFile } from '@/store/useDossierStore';
 import { getDocSignedUrl } from '@/lib/dossier-docs-api';
@@ -115,15 +115,18 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
   const style = BUCKET_STYLE[bucket];
   const [imgUrl, setImgUrl] = useState<string | null>(doc.dataUrl ?? null);
   const [imgFailed, setImgFailed] = useState(false);
+  // Compteur de nouvelles tentatives image (URL fraîche) avant abandon.
+  const [imgRetry, setImgRetry] = useState(0);
   // Pour les PDFs : data URL de la 1ère page rendue via pdfjs-dist
   const [pdfThumbDataUrl, setPdfThumbDataUrl] = useState<string | null>(null);
   const [pdfRendering, setPdfRendering] = useState(false);
+  // Compteur de nouvelles tentatives rendu PDF avant fallback icône.
+  const [pdfRetry, setPdfRetry] = useState(0);
   // Pour les Office (Word/Excel/PowerPoint) : signed URL pour iframe scaled
   const [officeUrl, setOfficeUrl] = useState<string | null>(null);
   const [officeFailed, setOfficeFailed] = useState(false);
-  const renderTriggeredRef = useRef(false);
 
-  // Fetch URL signée pour les images stockées côté backend
+  // Fetch URL signée pour les images stockées côté backend (avec retry)
   useEffect(() => {
     if (bucket !== 'image') return;
     if (doc.dataUrl) return; // déjà disponible
@@ -131,19 +134,26 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
     let cancelled = false;
     (async () => {
       try {
+        if (imgRetry > 0) await new Promise((r) => setTimeout(r, 400 * imgRetry));
         const { signedUrl } = await getDocSignedUrl(dossierId, doc.docId!);
-        if (!cancelled) setImgUrl(signedUrl);
+        if (cancelled) return;
+        // cache-buster sur retry pour forcer le navigateur à recharger
+        const fresh = imgRetry > 0
+          ? `${signedUrl}${signedUrl.includes('?') ? '&' : '?'}_r=${imgRetry}`
+          : signedUrl;
+        setImgUrl(fresh);
       } catch {
-        if (!cancelled) setImgFailed(true);
+        if (cancelled) return;
+        if (imgRetry < 3) setImgRetry((n) => n + 1);
+        else setImgFailed(true);
       }
     })();
     return () => { cancelled = true; };
-  }, [bucket, doc.docId, doc.dataUrl, dossierId]);
+  }, [bucket, doc.docId, doc.dataUrl, dossierId, imgRetry]);
 
-  // Rendu thumbnail PDF (1ère page) au montage — utilise le cache process-wide.
+  // Rendu thumbnail PDF (1ère page) — cache process-wide + retry (2 essais).
   useEffect(() => {
     if (bucket !== 'pdf') return;
-    if (renderTriggeredRef.current) return; // évite double-fetch en strict mode dev
     if (!doc.docId && !doc.dataUrl) return; // placeholder pur, pas de contenu
 
     const cacheKey = doc.docId ?? doc.dataUrl ?? '';
@@ -154,11 +164,11 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
     }
 
     let cancelled = false;
-    renderTriggeredRef.current = true;
     setPdfRendering(true);
 
     (async () => {
       try {
+        if (pdfRetry > 0) await new Promise((r) => setTimeout(r, 500 * pdfRetry));
         // Récupère l'URL source du PDF (signed pour backend, dataUrl pour legacy)
         let pdfUrl: string;
         if (doc.dataUrl) {
@@ -173,14 +183,18 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
         if (dataUrl) {
           PDF_THUMBNAIL_CACHE.set(cacheKey, dataUrl);
           setPdfThumbDataUrl(dataUrl);
+        } else if (pdfRetry < 2) {
+          setPdfRetry((n) => n + 1);
         }
+      } catch {
+        if (!cancelled && pdfRetry < 2) setPdfRetry((n) => n + 1);
       } finally {
         if (!cancelled) setPdfRendering(false);
       }
     })();
 
     return () => { cancelled = true; };
-  }, [bucket, doc.docId, doc.dataUrl, dossierId]);
+  }, [bucket, doc.docId, doc.dataUrl, dossierId, pdfRetry]);
 
   // Fetch signed URL pour les Office (Word/Excel/PowerPoint) — utilisé par
   // l'iframe Office Online viewer en mode mini (thumbnail).
@@ -295,7 +309,10 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
           src={imgUrl!}
           alt={doc.name}
           loading="lazy"
-          onError={() => setImgFailed(true)}
+          onError={() => {
+            if (imgRetry < 3) setImgRetry((n) => n + 1);
+            else setImgFailed(true);
+          }}
         />
       ) : showPdfThumb ? (
         // Rendu de la 1ère page du PDF via pdfjs-dist (canvas → data URL)

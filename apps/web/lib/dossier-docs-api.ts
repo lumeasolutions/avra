@@ -119,12 +119,25 @@ export async function listDossierDocs(dossierId: string): Promise<DossierDocDto[
   return api<DossierDocDto[]>(`/dossiers/${encodeURIComponent(dossierId)}/documents`);
 }
 
-/** Récupère une URL signée fraîche pour un document (expire en 60 min). */
+/** Récupère une URL signée fraîche pour un document (expire en 60 min).
+ *  Réessaie automatiquement (3 tentatives, backoff) : la génération de l'URL
+ *  signée peut échouer ponctuellement (réseau, storage froid juste après un
+ *  upload) → fiabilise l'affichage des aperçus PDF/images. */
 export async function getDocSignedUrl(
   dossierId: string,
   docId: string,
 ): Promise<{ signedUrl: string; expiresIn: number }> {
-  return api(`/dossiers/${encodeURIComponent(dossierId)}/documents/${encodeURIComponent(docId)}/signed-url`);
+  const path = `/dossiers/${encodeURIComponent(dossierId)}/documents/${encodeURIComponent(docId)}/signed-url`;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await api<{ signedUrl: string; expiresIn: number }>(path);
+    } catch (err) {
+      lastErr = err;
+      await new Promise((r) => setTimeout(r, 300 + attempt * 500));
+    }
+  }
+  throw lastErr;
 }
 
 /** Supprime un document (DB + storage). */
