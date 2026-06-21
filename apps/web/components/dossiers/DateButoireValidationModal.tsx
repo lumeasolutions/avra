@@ -160,7 +160,7 @@ export const DEFAULT_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'RELEVE DE MESURES',    kind: 'date'   },
   { label: 'PLAN TECHNIQUE',       kind: 'date'   },
   { label: 'COMMANDES',            kind: 'access' },
-  { label: 'LIVRAISON',            kind: 'access' },
+  { label: 'BON DE LIVRAISON',            kind: 'access' },
   { label: 'FICHE DE POSE',        kind: 'date'   },
   { label: 'PERMIS DE CONSTRUIRE', kind: 'date'   },
   { label: 'SAV',                  kind: 'static' },
@@ -189,7 +189,7 @@ export const MENUISIER_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'FICHE DE POSE',            kind: 'date'   },
   { label: 'COMMANDES FOURNISSEURS',   kind: 'access' },
   { label: 'CONFIRMATIONS / COMMANDE', kind: 'access' },
-  { label: 'LIVRAISON',                kind: 'access' },
+  { label: 'BON DE LIVRAISON',                kind: 'access' },
 ];
 
 /**
@@ -211,7 +211,7 @@ export const CUISINISTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'FICHE DE POSE',                     kind: 'date'   },
   { label: 'COMMANDE',                          kind: 'access' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS',   kind: 'access' },
-  { label: 'LIVRAISON',                         kind: 'access' },
+  { label: 'BON DE LIVRAISON',                         kind: 'access' },
 ];
 
 /**
@@ -234,7 +234,7 @@ export const ARCHITECTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'SUIVI DE CHANTIER',                                kind: 'date'   },
   { label: 'COMMANDES FOURNISSEURS',                           kind: 'access' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS FOURNISSEURS',     kind: 'access' },
-  { label: 'LIVRAISON',                                        kind: 'access' },
+  { label: 'BON DE LIVRAISON',                                        kind: 'access' },
 ];
 
 export interface DateButoireValidationProps {
