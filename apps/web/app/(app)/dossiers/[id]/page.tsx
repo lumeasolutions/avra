@@ -7,7 +7,7 @@ import {
   FolderOpen, FileText, ImageIcon, Ruler, CheckCircle, ArrowLeft,
   GitCompare, AlertTriangle, Plus, ChevronRight, Tag, Phone, Mail,
   MapPin, Calendar, Receipt, FileCheck, StickyNote, Pencil, X,
-  Clock, Circle, TrendingUp, Zap, Eye, Download, Check, CornerDownRight, LayoutDashboard, LayoutGrid, List, Wand2, Sparkles
+  Clock, Circle, TrendingUp, Zap, Eye, Download, Check, CornerDownRight, LayoutDashboard, LayoutGrid, List, Wand2, Sparkles, FolderPlus
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument, DossierPrixLigne } from '@/store/useDossierStore';
@@ -235,6 +235,8 @@ export default function DossierDetailPage() {
   const [showStatus,    setShowStatus]    = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showAddFolder, setShowAddFolder] = useState(false);
+  // Sous-dossier imbriqué : chemin du parent dans lequel on crée (null = racine)
+  const [addFolderParent, setAddFolderParent] = useState<string | null>(null);
 
   // Fermeture clavier du tableau de bord
   useEffect(() => {
@@ -462,10 +464,14 @@ export default function DossierDetailPage() {
       router.push('/dossiers-signes');
     }
   };
+  const SUBFOLDER_SEP = ' ▸ ';
   const handleAddFolder = () => {
-    if (!newFolderLabel.trim()) return;
-    addSubfolder(id, newFolderLabel.trim());
-    setNewFolderLabel(''); setShowAddFolder(false);
+    const name = newFolderLabel.trim();
+    if (!name) return;
+    // imbrication par chemin : "Parent ▸ Enfant"
+    const label = addFolderParent ? `${addFolderParent}${SUBFOLDER_SEP}${name}` : name;
+    addSubfolder(id, label);
+    setNewFolderLabel(''); setShowAddFolder(false); setAddFolderParent(null);
   };
 
   return (
@@ -769,7 +775,7 @@ export default function DossierDetailPage() {
               </div>
               {canEditThis && (
               <button
-                onClick={() => setShowAddFolder(true)}
+                onClick={() => { setAddFolderParent(null); setShowAddFolder(true); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#a67749]/10 text-[#a67749] text-xs font-bold hover:bg-[#a67749]/20 transition-all"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -831,7 +837,27 @@ export default function DossierDetailPage() {
                 } else {
                   for (const sub of dossier.subfolders) items.push({ sf: sub, depth: 0 });
                 }
-                return items;
+                // ── Imbrication par chemin "Parent ▸ Enfant" : chaque enfant est
+                //    placé juste sous son parent, profondeur = nb de séparateurs.
+                const SEP = ' ▸ ';
+                const withDepth: DisplayItem[] = items.map((it) => ({
+                  sf: it.sf,
+                  depth: it.sf.label.includes(SEP) ? it.sf.label.split(SEP).length - 1 : it.depth,
+                }));
+                const ordered: DisplayItem[] = [];
+                const seen = new Set<string>();
+                const pushTree = (it: DisplayItem) => {
+                  if (seen.has(it.sf.label)) return;
+                  seen.add(it.sf.label);
+                  ordered.push(it);
+                  const segs = it.sf.label.split(SEP).length;
+                  withDepth
+                    .filter((c) => c.sf.label.startsWith(it.sf.label + SEP) && c.sf.label.split(SEP).length === segs + 1)
+                    .forEach(pushTree);
+                };
+                withDepth.filter((it) => !it.sf.label.includes(SEP)).forEach(pushTree);
+                withDepth.forEach((it) => { if (!seen.has(it.sf.label)) ordered.push(it); });
+                return ordered;
               })().map(({ sf, depth }, i) => {
                 // Alerte dynamique : uniquement si le sous-dossier est vide
                 // (aucun document présent). Dès qu'un document est ajouté,
@@ -848,7 +874,8 @@ export default function DossierDetailPage() {
                   tabIndex={0}
                   onClick={() => setOpenedSubfolder(sf.label)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); } }}
-                  className={`subfolder-row flex w-full items-center gap-4 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749] hover:bg-[#304035]/[0.02] cursor-pointer ${isChildVersion ? 'pl-12 bg-[#a67749]/[0.025]' : ''}`}
+                  className={`subfolder-row flex w-full items-center gap-4 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749] hover:bg-[#304035]/[0.02] cursor-pointer ${isChildVersion ? 'bg-[#a67749]/[0.025]' : ''}`}
+                  style={depth > 0 ? { paddingLeft: 20 + depth * 26 } : undefined}
                 >
                   {isChildVersion && (
                     <CornerDownRight className="h-4 w-4 text-[#a67749]/50 shrink-0 -ml-1" />
@@ -857,7 +884,7 @@ export default function DossierDetailPage() {
                     {getIconForType(sf.icon)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className={`font-semibold text-sm block truncate ${isChildVersion ? 'text-[#304035]/85' : 'text-[#304035]'}`}>{sf.label}</span>
+                    <span className={`font-semibold text-sm block truncate ${isChildVersion ? 'text-[#304035]/85' : 'text-[#304035]'}`}>{sf.label.includes(' ▸ ') ? sf.label.split(' ▸ ').pop() : sf.label}</span>
                     <span className="text-xs text-[#304035]/50 mt-0.5 block">
                       Modifié le {displayDate} · {docsCount} document{docsCount > 1 ? 's' : ''}
                     </span>
@@ -941,6 +968,19 @@ export default function DossierDetailPage() {
                       </button>
                     );
                   })()}
+
+                  {/* Créer un sous-dossier imbriqué ici (organisation libre par l'utilisateur) */}
+                  {canEditThis && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setAddFolderParent(sf.label); setShowAddFolder(true); }}
+                      className="flex items-center justify-center h-7 w-7 rounded-full bg-[#304035]/8 text-[#304035]/70 hover:bg-[#304035] hover:text-white transition-all shrink-0"
+                      title={`Créer un sous-dossier dans « ${(sf.label.includes(' ▸ ') ? sf.label.split(' ▸ ').pop() : sf.label)} »`}
+                      aria-label="Créer un sous-dossier ici"
+                    >
+                      <FolderPlus className="h-4 w-4" strokeWidth={2.2} />
+                    </button>
+                  )}
 
                   {/* Bouton "Envoyer aux intervenants" — TOUJOURS visible
                       (meme sur sous-dossier vide) pour permettre au pro
@@ -1937,7 +1977,10 @@ export default function DossierDetailPage() {
       {showAddFolder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10">
-            <h3 className="text-xl font-bold text-[#304035] mb-5">Nouveau dossier</h3>
+            <h3 className="text-xl font-bold text-[#304035] mb-2">Nouveau sous-dossier</h3>
+            {addFolderParent && (
+              <p className="text-xs text-[#304035]/60 mb-4">dans « {addFolderParent.includes(' ▸ ') ? addFolderParent.split(' ▸ ').pop() : addFolderParent} »</p>
+            )}
             <input autoFocus value={newFolderLabel}
               onChange={e => setNewFolderLabel(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddFolder()}
@@ -1945,7 +1988,7 @@ export default function DossierDetailPage() {
               className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-4 py-3 text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#304035]/20 mb-5" />
             <div className="flex gap-3">
               <button onClick={handleAddFolder} className="flex-1 rounded-xl bg-[#304035] py-3 font-bold text-white hover:bg-[#304035]/90 transition-colors">Ajouter</button>
-              <button onClick={() => setShowAddFolder(false)} className="flex-1 rounded-xl border border-[#304035]/20 py-3 font-medium text-[#304035] hover:bg-[#f5eee8] transition-colors">Annuler</button>
+              <button onClick={() => { setShowAddFolder(false); setAddFolderParent(null); }} className="flex-1 rounded-xl border border-[#304035]/20 py-3 font-medium text-[#304035] hover:bg-[#f5eee8] transition-colors">Annuler</button>
             </div>
           </div>
         </div>
