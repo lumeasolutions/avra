@@ -289,19 +289,20 @@ export function StatsGateModal({
       const existing = new Set(selectedLignes.map(key));
       const toImport = (result.commandes ?? [])
         .map((c) => {
-          // L'IA range le prix d'achat dans montantHT (facture/bon fournisseur)
-          // et le prix de vente dans montantVenteHT (devis client). Une entrée
-          // par produit, fusionnée si le produit est dans les deux documents.
-          const achat = typeof c.montantHT === 'number' && c.montantHT > 0 ? c.montantHT : 0;
-          const vente = typeof c.montantVenteHT === 'number' && c.montantVenteHT > 0 ? c.montantVenteHT : 0;
+          // Séparation stricte : l'extraction (devis OPTION/PROJET/APD) ne remplit
+          // QUE le prix de VENTE. Le prix d'achat vient uniquement des
+          // confirmations fournisseurs (bouton « Importer N confirmations »).
+          const vente = typeof c.montantVenteHT === 'number' && c.montantVenteHT > 0
+            ? c.montantVenteHT
+            : (typeof c.montantHT === 'number' && c.montantHT > 0 ? c.montantHT : 0);
           return {
             fournisseur: c.fournisseur,
             produit: c.produit ?? undefined,
-            prixAchatHT: achat,
+            prixAchatHT: 0,
             prixVenteHT: vente,
           };
         })
-        .filter((l) => l.fournisseur && (l.prixAchatHT > 0 || l.prixVenteHT > 0))
+        .filter((l) => l.fournisseur && l.prixVenteHT > 0)
         .filter((l) => !existing.has(key(l)));
       if (toImport.length === 0) {
         setToast({ message: 'IA : aucune nouvelle ligne à extraire (déjà importé ou pas de montants détectés)', tone: 'info' });
@@ -309,7 +310,7 @@ export function StatsGateModal({
         onAddLignesBulk(selected.id, toImport);
         const conf = Math.round((result.confiance ?? 0) * 100);
         setToast({
-          message: `🪄 IA : ${toImport.length} ligne${toImport.length > 1 ? 's' : ''} créée${toImport.length > 1 ? 's' : ''} (confiance ${conf}%) — complétez les prix vente`,
+          message: `🪄 IA : ${toImport.length} ligne${toImport.length > 1 ? 's' : ''} créée${toImport.length > 1 ? 's' : ''} (confiance ${conf}%) — l'achat vient des confirmations fournisseurs`,
           tone: 'ok',
         });
       }
@@ -843,7 +844,7 @@ export function StatsGateModal({
               </p>
 
               {/* [IA] Bouton d'extraction IA (27/05/2026) — analyse les PDF
-                  du dossier (devis + factures) et cree les lignes prix d'achat
+                  du devis (OPTION/PROJET/APD) et cree les lignes prix de vente
                   automatiquement. Reutilise l'endpoint /ia/extract-dossier
                   deja utilise par DateButoireValidationModal. */}
               <button
@@ -863,7 +864,7 @@ export function StatsGateModal({
                   opacity: aiExtracting ? 0.7 : 1,
                   transition: 'opacity 0.2s',
                 }}
-                title="L'IA analyse les PDF du dossier (devis, factures) et crée automatiquement les lignes de prix d'achat."
+                title="L'IA lit le devis (OPTION/PROJET/APD) et crée les lignes de prix de vente. Le prix d'achat vient des confirmations fournisseurs."
               >
                 {aiExtracting ? (
                   <>
@@ -878,7 +879,7 @@ export function StatsGateModal({
                 ) : (
                   <>
                     <Wand2 size={14} />
-                    🪄 Extraire avec IA (devis + factures)
+                    🪄 Extraire le prix de vente (devis)
                     <Sparkles size={11} />
                   </>
                 )}
