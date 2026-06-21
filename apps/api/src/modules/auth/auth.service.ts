@@ -443,6 +443,97 @@ export class AuthService {
     });
   }
 
+  /**
+   * Register d'un membre/vendeur via token d'invitation WorkspaceInvitation.
+   * Contourne le beta gate (l'invité est parrainé par un workspace whitelisté).
+   * Ne crée PAS de workspace propre : crée le User et le rattache au workspace
+   * de l'invitation via UserWorkspace (rôle de l'invitation, statut ACTIVE).
+   */
+  async registerWorkspaceMember(dto: {
+    token: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+  }) {
+    if (!dto.token) throw new ForbiddenException('Token requis');
+
+    const inv = await (this.prisma as any).workspaceInvitation.findUnique({
+      where: { token: dto.token },
+    });
+    if (!inv) throw new ForbiddenException('Invitation invalide');
+    if (inv.status !== 'PENDING') throw new ForbiddenException(`Invitation deja ${inv.status.toLowerCase()}`);
+    if (inv.expiresAt < new Date()) {
+      await (this.prisma as any).workspaceInvitation.update({
+        where: { id: inv.id },
+        data: { status: 'EXPIRED' },
+      });
+      throw new ForbiddenException('Invitation expiree');
+    }
+
+    const email = inv.email.toLowerCase();
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new ConflictException(
+        'Un compte existe deja avec cet email. Connectez-vous pour rejoindre l\'equipe.',
+      );
+    }
+
+    const role = inv.role; // 'MEMBER' | 'ADMIN' (UserRole)
+
+    return this.prisma.$transaction(async (tx) => {
+      const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_COST);
+      const refreshTokenPlain = crypto.randomBytes(32).toString('hex');
+      const hashedRefresh = await this.tokenRotation.hashRefreshToken(refreshTokenPlain);
+
+      // 1. Crée le User
+      const user = await tx.user.create({
+        data: {
+          email,
+          passwordHash: hashedPassword,
+          firstName: dto.firstName ?? inv.firstName ?? null,
+          lastName: dto.lastName ?? inv.lastName ?? null,
+          refreshToken: hashedRefresh,
+          refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          isActive: true,
+        },
+      });
+
+      // 2. Rattache l'utilisateur au workspace (siège vendeur/admin, actif)
+      await tx.userWorkspace.create({
+        data: {
+          userId: user.id,
+          workspaceId: inv.workspaceId,
+          role,
+          status: 'ACTIVE',
+        },
+      });
+
+      // 3. Marque l'invitation acceptée
+      await (tx as any).workspaceInvitation.update({
+        where: { id: inv.id },
+        data: {
+          status: 'ACCEPTED',
+          acceptedAt: new Date(),
+          acceptedByUserId: user.id,
+        },
+      });
+
+      // 4. JWT — workspaceId + role réels (contrairement à l'intervenant qui
+      //    a workspaceId null). Login automatique côté contrôleur.
+      const accessToken = await this.jwt.signAsync(
+        { sub: user.id, email: user.email, workspaceId: inv.workspaceId, role } as any,
+        { expiresIn: '15m' },
+      );
+
+      return {
+        userId: user.id,
+        workspaceId: inv.workspaceId,
+        accessToken,
+        refreshToken: refreshTokenPlain,
+      };
+    });
+  }
+
   // ✅ TÂCHE 9 — Registration
   async register(dto: RegisterDto) {
     // 🌱 Bêta gate — bloque toute création de compte publique pendant la bêta privée.
