@@ -99,8 +99,13 @@ export const useAuthStore = create<AuthState>()(
         set({ profession: p });
       },
 
-      // TEMPORARY DEV ONLY — voir DevPortalSwitcher
-      _devForceProfession: (p) => set({ profession: p }),
+      // TEMPORARY DEV ONLY — voir DevPortalSwitcher.
+      // F19: neutralisé en production pour ne pas pouvoir contourner le verrou
+      // de portail (one-time) une fois en prod/GA.
+      _devForceProfession: (p) => {
+        if (process.env.NODE_ENV === 'production') return;
+        set({ profession: p });
+      },
 
       logout: () => {
         // Appelle l'API backend pour purger les cookies HttpOnly (access + refresh)
