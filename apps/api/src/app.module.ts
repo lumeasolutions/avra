@@ -27,6 +27,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { DossierDocumentsModule } from './modules/dossier-documents/dossier-documents.module';
 import { QuotesModule } from './modules/quotes/quotes.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { TeamModule } from './modules/team/team.module';
 
 @Module({
   imports: [
@@ -42,9 +43,12 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
     //   In current Vercel serverless setup, in-memory throttle resets per cold-start
     //   — acceptable for soft rate-limiting, NOT for strict brute-force protection.
     ThrottlerModule.forRoot([
+      // Un seul throttler global (300/min). IMPORTANT : tout throttler NOMME ici
+      // s'applique a TOUTES les routes (comportement @nestjs/throttler). Avoir
+      // 'auth' (5/15min) et 'ai' (5/min) en global generait des 429 parasites
+      // partout (ex. ouverture de documents). Les limites strictes sont donc
+      // appliquees PAR ROUTE via @Throttle({ default: {...} }).
       { name: 'default', ttl: 60000, limit: 300 },
-      { name: 'auth', ttl: 15 * 60 * 1000, limit: 5 }, // 5 requests per 15 minutes
-      { name: 'ai', ttl: 60_000, limit: 5 }, // 5 IA-extraction calls per minute per IP
     ]),
     MulterModule.register({ storage: require('multer').memoryStorage() }),
     // ✅ SECURITY: Common security module (CSRF, etc.)
@@ -70,6 +74,7 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
     DossierDocumentsModule,
     QuotesModule,
     InvoicesModule,
+    TeamModule,
   ],
   providers: [
     // ✅ Apply ThrottlerGuard globally

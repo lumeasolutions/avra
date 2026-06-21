@@ -118,7 +118,7 @@ export class AuthController {
   // les attaques distribuées tout en restant utilisable.
   @Public()
   @SkipCsrf()
-  @Throttle({ auth: { ttl: 5 * 60 * 1000, limit: 20 } })
+  @Throttle({ default: { ttl: 5 * 60 * 1000, limit: 20 } })
   @Post('login')
   async login(
     @Body() dto: LoginDto,
@@ -152,7 +152,7 @@ export class AuthController {
    */
   @Public()
   @SkipCsrf()
-  @Throttle({ auth: { ttl: 60 * 1000, limit: 30 } })
+  @Throttle({ default: { ttl: 60 * 1000, limit: 30 } })
   @Post('refresh')
   async refresh(
     @Req() req: Request,
@@ -203,7 +203,7 @@ export class AuthController {
   // 🔒 SECURITY: Brute-force protection — limit registration attempts
   @Public()
   @SkipCsrf()
-  @Throttle({ auth: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 5 } })
   @Post('register')
   async register(
     @Body() dto: RegisterDto,
@@ -231,7 +231,7 @@ export class AuthController {
    */
   @Public()
   @SkipCsrf()
-  @Throttle({ auth: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 5 } })
   @Post('register-intervenant')
   async registerIntervenant(
     @Body() dto: { token: string; password: string; firstName?: string; lastName?: string },
@@ -253,10 +253,39 @@ export class AuthController {
     return { userId: result.userId, intervenantId: result.intervenantId };
   }
 
+  /**
+   * Register specifique membre/vendeur via token d'invitation d'equipe.
+   * Contourne le beta gate (parraine par un workspace whitelist), cree le
+   * compte et le rattache au workspace (UserWorkspace = role de l'invitation).
+   */
+  @Public()
+  @SkipCsrf()
+  @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Post('register-member')
+  async registerMember(
+    @Body() dto: { token: string; password: string; firstName?: string; lastName?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    if (!dto?.token || typeof dto.token !== 'string') throw new BadRequestException('Token requis');
+    if (!dto?.password || dto.password.length < 8) throw new BadRequestException('Mot de passe : 8 caracteres minimum');
+    const result = await this.auth.registerWorkspaceMember({
+      token: dto.token,
+      password: dto.password,
+      firstName: typeof dto.firstName === 'string' ? dto.firstName.slice(0, 100) : undefined,
+      lastName: typeof dto.lastName === 'string' ? dto.lastName.slice(0, 100) : undefined,
+    });
+    setAuthCookies(res, {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      userId: result.userId,
+    });
+    return { userId: result.userId, workspaceId: result.workspaceId };
+  }
+
   // ── Réinitialisation du mot de passe ────────────────────────────────────
   @Public()
   @SkipCsrf()
-  @Throttle({ auth: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 5 } })
   @Post('reset-password')
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.auth.resetPassword(dto.userId, dto.token, dto.newPassword);
@@ -266,7 +295,7 @@ export class AuthController {
   // ── Mot de passe oublié ─────────────────────────────────────────────────
   @Public()
   @SkipCsrf()
-  @Throttle({ auth: { ttl: 15 * 60 * 1000, limit: 5 } })
+  @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 5 } })
   @Post('forgot-password')
   async forgotPassword(@Body() dto: { email: string }) {
     // Toujours retourner 200 — ne jamais révéler si l'email existe

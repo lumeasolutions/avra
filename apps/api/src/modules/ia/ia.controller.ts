@@ -505,7 +505,7 @@ Preserve proportions and layout, modify only colors and finishes. Photorealistic
    *  - Vérification d'ownership workspace dans le service
    */
   @Post('extract-dossier')
-  @Throttle({ ai: { ttl: 60_000, limit: 5 } })
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   async extractDossier(
     @CurrentUser() user: JwtPayload,
     @Body() body: ExtractDossierDto,
