@@ -50,28 +50,36 @@ export class SupabaseStorageService {
    * Utilisé par l'extraction IA (pdf-parse).
    */
   async download(path: string): Promise<Buffer> {
-    // Retry (3 tentatives, backoff) : le download Supabase echoue parfois de
-    // maniere transitoire sur la Serverless Function (cold start / reseau), ce
-    // qui faisait remonter a tort "Aucun document exploitable" cote extraction IA.
+    // Telechargement via URL SIGNEE + fetch : nettement plus fiable que le SDK
+    // .download() sur la Serverless Function (qui echouait par intermittence ->
+    // "Aucun document exploitable"). 4 tentatives + backoff, puis repli SDK.
     let lastErr: unknown = null;
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= 4; attempt++) {
       try {
         const { data, error } = await this.getClient()
           .storage.from(this.bucket)
-          .download(path);
-        if (error || !data) throw new Error(error?.message ?? 'no data');
-        const arrayBuffer = await data.arrayBuffer();
-        return Buffer.from(arrayBuffer);
+          .createSignedUrl(path, 120);
+        if (error || !data?.signedUrl) throw new Error(error?.message ?? 'no signed url');
+        const res = await fetch(data.signedUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const ab = await res.arrayBuffer();
+        if (!ab.byteLength) throw new Error('empty body');
+        return Buffer.from(ab);
       } catch (e) {
         lastErr = e;
         this.logger.warn(
-          `[download ${path}] tentative ${attempt}/3 echouee: ${(e as Error)?.message ?? e}`,
+          `[download ${path}] tentative ${attempt}/4 echouee: ${(e as Error)?.message ?? e}`,
         );
-        if (attempt < 3) await new Promise((r) => setTimeout(r, 300 * attempt));
+        if (attempt < 4) await new Promise((r) => setTimeout(r, 400 * attempt));
       }
     }
+    // Dernier recours : SDK direct
+    try {
+      const { data, error } = await this.getClient().storage.from(this.bucket).download(path);
+      if (!error && data) return Buffer.from(await data.arrayBuffer());
+    } catch (e) { lastErr = e; }
     this.logger.error(
-      `[download ${path}] echec apres 3 tentatives: ${(lastErr as Error)?.message ?? lastErr}`,
+      `[download ${path}] echec apres 4 tentatives + SDK: ${(lastErr as Error)?.message ?? lastErr}`,
     );
     throw new InternalServerErrorException('Impossible de télécharger le fichier');
   }
