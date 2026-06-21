@@ -214,6 +214,29 @@ export function useProjectActions() {
   );
 
   /**
+   * Restaure un dossier perdu : le remet en actif (lifecycleStatus DRAFT).
+   * La resync (useDataSync) le replace ensuite dans "Dossiers en cours".
+   */
+  const restoreLostProject = useCallback(
+    async (id: string): Promise<void> => {
+      store.restaurerDossierPerdu(id);
+
+      if (user?.id === 'demo' || !user?.workspaceId) return;
+      if (isLocalOnlyId(id)) return;
+
+      try {
+        await api(`/projects/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ lifecycleStatus: 'DRAFT' }),
+        });
+      } catch (err) {
+        console.warn('[ProjectActions] API restore failed:', err);
+      }
+    },
+    [user, store],
+  );
+
+  /**
    * Met à jour le statut d'un dossier.
    */
   const updateProjectStatus = useCallback(
@@ -312,6 +335,7 @@ export function useProjectActions() {
     createProject,
     signProject,
     loseProject,
+    restoreLostProject,
     updateProjectStatus,
     deleteProject,
     terminateProject,

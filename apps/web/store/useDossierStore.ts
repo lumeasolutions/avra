@@ -615,6 +615,9 @@ interface DossierState {
   updateCommandeAccess: (dossierId: string, label: string, entryId: string, patch: Partial<Omit<CommandeAccessEntry, 'id'>>) => void;
   removeCommandeAccess: (dossierId: string, label: string, entryId: string) => void;
   perdreDossier: (id: string, reason: string) => void;
+  /** Restaure un dossier perdu : le retire de dossiersPerdus (le backend le
+   *  repasse en actif, la resync le replace dans "en cours"). */
+  restaurerDossierPerdu: (id: string) => void;
   /**
    * Supprime définitivement un dossier (active, signé ou perdu) du store local.
    * En backend l'appel API est fait depuis useProjectActions.deleteProject.
@@ -1069,6 +1072,10 @@ export const useDossierStore = create<DossierState>()(
           dossiers: s.dossiers.filter(d => d.id !== id),
           dossiersPerdus: [perdu, ...s.dossiersPerdus],
         }));
+      },
+
+      restaurerDossierPerdu: (id) => {
+        set(s => ({ dossiersPerdus: s.dossiersPerdus.filter(d => d.id !== id) }));
       },
 
       deleteDossier: (id) => {

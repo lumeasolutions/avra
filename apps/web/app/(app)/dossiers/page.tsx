@@ -93,6 +93,7 @@ function avatarColor(name: string) {
 
 export default function DossiersPage() {
   const dossiers = useDossierStore(s => s.dossiers);
+  const dossiersPerdus = useDossierStore(s => s.dossiersPerdus);
   // Droits : admin = tout ; vendeur = ses propres dossiers uniquement.
   const { canEditDossier } = useDossierPermissions();
   const [search, setSearch] = useState('');
@@ -459,6 +460,15 @@ export default function DossiersPage() {
         >
           Tous ({dossiers.length})
         </button>
+
+        {/* Acces aux dossiers perdus (non signes) */}
+        <Link
+          href="/dossiers-perdus"
+          className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border bg-white text-red-500/80 border-red-200 hover:bg-red-50"
+          title="Voir les dossiers perdus (non signes)"
+        >
+          Perdus ({dossiersPerdus.length})
+        </Link>
 
         {/* Filtre vendeur — multi-vendeur 26/05/2026 */}
         {(() => {

@@ -123,7 +123,7 @@ export default function DossierDetailPage() {
   const readOnly = !canEditThis;
   const invoices          = allInvoices.filter(i => i.dossierId === id);
   // Actions persistées en DB via l'API (double-write : optimistic local + API)
-  const { signProject, updateProjectStatus } = useProjectActions();
+  const { signProject, updateProjectStatus, loseProject } = useProjectActions();
   // Actions uniquement locales (pas encore d'endpoint API dédié).
   // NOTE : subfolders, validation, notes sont conservés en localStorage.
   // Pour les rendre multi-device, il faudra ajouter des endpoints backend
@@ -237,6 +237,9 @@ export default function DossierDetailPage() {
   const [showAddFolder, setShowAddFolder] = useState(false);
   // Sous-dossier imbriqué : chemin du parent dans lequel on crée (null = racine)
   const [addFolderParent, setAddFolderParent] = useState<string | null>(null);
+  // Marquer le dossier comme perdu (en cours uniquement)
+  const [showPerduModal, setShowPerduModal] = useState(false);
+  const [perduReason, setPerduReason] = useState('');
 
   // Fermeture clavier du tableau de bord
   useEffect(() => {
@@ -472,6 +475,12 @@ export default function DossierDetailPage() {
     const label = addFolderParent ? `${addFolderParent}${SUBFOLDER_SEP}${name}` : name;
     addSubfolder(id, label);
     setNewFolderLabel(''); setShowAddFolder(false); setAddFolderParent(null);
+  };
+  const handlePerdu = async () => {
+    if (!perduReason.trim()) return;
+    await loseProject(id, perduReason.trim());
+    setShowPerduModal(false); setPerduReason('');
+    router.push('/dossiers');
   };
 
   return (
@@ -735,6 +744,16 @@ export default function DossierDetailPage() {
             >
               <Tag className="h-3.5 w-3.5" />
               Changer statut
+            </button>
+            )}
+            {canEditThis && !isSigned && (
+            <button
+              onClick={() => setShowPerduModal(true)}
+              className="flex items-center gap-2 bg-red-500/15 hover:bg-red-500/25 border border-red-300/30 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
+              title="Marquer ce dossier comme perdu (non signé)"
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Marquer perdu
             </button>
             )}
             {/* Bouton "Envoyer a intervenant" retire du header — pour eviter le
@@ -1974,6 +1993,24 @@ export default function DossierDetailPage() {
       )}
 
       {/* ══ MODAL : Ajout d'un sous-dossier ══ */}
+      {showPerduModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10">
+            <h3 className="text-xl font-bold text-[#304035] mb-2">Marquer le dossier perdu</h3>
+            <p className="text-xs text-[#304035]/60 mb-4">Le dossier quittera « En cours » et ira dans « Dossiers perdus ». Réversible (restaurable).</p>
+            <input autoFocus value={perduReason}
+              onChange={e => setPerduReason(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handlePerdu()}
+              placeholder="Raison (ex : budget, concurrent, sans suite...)"
+              className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-4 py-3 text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-red-300/40 mb-5" />
+            <div className="flex gap-3">
+              <button onClick={handlePerdu} disabled={!perduReason.trim()} className="flex-1 rounded-xl bg-red-600 py-3 font-bold text-white hover:bg-red-700 disabled:opacity-40 transition-colors">Marquer perdu</button>
+              <button onClick={() => { setShowPerduModal(false); setPerduReason(''); }} className="flex-1 rounded-xl border border-[#304035]/20 py-3 font-medium text-[#304035] hover:bg-[#f5eee8] transition-colors">Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAddFolder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10">
