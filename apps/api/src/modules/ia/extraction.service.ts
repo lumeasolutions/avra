@@ -345,6 +345,15 @@ export class ExtractionService {
       const content = response.choices?.[0]?.message?.content;
       if (!content) throw new InternalServerErrorException("Reponse OpenAI vide");
 
+      // M10 : détecter une réponse coupée par max_tokens (sinon JSON.parse échoue
+      // et renvoie « Format de réponse IA invalide », message trompeur).
+      if (response.choices?.[0]?.finish_reason === 'length') {
+        this.logger.error('Extraction tronquée : max_tokens atteint (finish_reason=length)');
+        throw new InternalServerErrorException(
+          'Réponse IA tronquée : trop de contenu à analyser. Réduisez le nombre de documents.',
+        );
+      }
+
       let parsed: ExtractionResult;
       try {
         parsed = JSON.parse(content);

@@ -602,7 +602,9 @@ export class AIService {
           ? await this.openaiChat([{ role: 'user', content }], undefined, this.modelCheap)
           : await this.chat([{ role: 'user', content }]);
       return this.parseAlerts(response);
-    } catch {
+    } catch (err) {
+      // Avant : échec totalement silencieux (indistinct de « aucune alerte »).
+      this.logger.warn(`suggestAlerts a échoué : ${(err as Error)?.message ?? 'erreur inconnue'}`);
       return [];
     }
   }
@@ -618,6 +620,9 @@ export class AIService {
           text: match[2].trim(),
         });
       }
+    }
+    if (alerts.length === 0 && response.trim().length > 0) {
+      this.logger.warn('parseAlerts : aucune alerte reconnue (format de réponse IA inattendu).');
     }
     return alerts;
   }

@@ -80,6 +80,7 @@ export class IaController {
    * Body: { messages: Array<{ role: 'user'|'assistant', content: string }> }
    */
   @SkipCsrf()
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   @Post('chat')
   async chatStream(@CurrentUser() user: JwtPayload | undefined, @Body() body: { messages: Array<{ role: 'user' | 'assistant'; content: string }>; personnalite?: 'professionnel' | 'amical' | 'concis'; acces?: { dossiers?: boolean; facturation?: boolean; planning?: boolean; stock?: boolean; stats?: boolean; intervenants?: boolean }; actions?: { dossier?: boolean; devis?: boolean; facture?: boolean; navigation?: boolean; event?: boolean; demande?: boolean } }, @Res() res: Response) {
     try {
@@ -325,19 +326,22 @@ export class IaController {
       stream.on('error', (error) => {
         this.logger.error('Chat stream error:', error);
         if (res.writableEnded) return;
-        res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+        // Message générique : ne pas fuiter le détail du provider IA au client.
+        res.write(`data: ${JSON.stringify({ error: 'Le service IA a rencontré une erreur.' })}\n\n`);
         res.end();
       });
     } catch (error) {
       this.logger.error('Chat endpoint error:', error);
+      // Message générique au client (détail loggé côté serveur uniquement).
+      const clientMsg = 'Le service IA est momentanément indisponible. Réessayez.';
       // Si headers SSE déjà envoyés, on ne peut plus faire de .json() — on ferme proprement
       if (res.headersSent) {
         if (!res.writableEnded) {
-          res.write(`data: ${JSON.stringify({ error: (error as Error).message })}\n\n`);
+          res.write(`data: ${JSON.stringify({ error: clientMsg })}\n\n`);
           res.end();
         }
       } else {
-        res.status(500).json({ error: (error as Error).message });
+        res.status(500).json({ error: clientMsg });
       }
     }
   }
@@ -347,6 +351,7 @@ export class IaController {
    * POST /api/ia/analyze
    */
   @Post('analyze')
+  @Throttle({ default: { ttl: 60_000, limit: 15 } })
   async analyzeDossier(@CurrentUser() user: JwtPayload, @Body() body: { dossierId: string }) {
     try {
       const dossier = await this.prisma.project.findFirst({
@@ -378,7 +383,7 @@ export class IaController {
       return { analysis };
     } catch (error) {
       this.logger.error('Analyze error:', error);
-      return { error: (error as Error).message };
+      return { error: "L'analyse IA a échoué. Réessayez plus tard." };
     }
   }
 
@@ -387,6 +392,7 @@ export class IaController {
    * POST /api/ia/suggest-alerts
    */
   @Post('suggest-alerts')
+  @Throttle({ default: { ttl: 60_000, limit: 15 } })
   async suggestAlerts(@CurrentUser() user: JwtPayload) {
     try {
       const [dossiers, invoices, events] = await Promise.all([
@@ -414,7 +420,7 @@ export class IaController {
       return { alerts };
     } catch (error) {
       this.logger.error('Suggest alerts error:', error);
-      return { error: (error as Error).message };
+      return { error: "La génération d'alertes a échoué. Réessayez plus tard." };
     }
   }
 
@@ -423,6 +429,7 @@ export class IaController {
    * POST /api/ia/rendu
    */
   @Post('rendu')
+  @Throttle({ default: { ttl: 60_000, limit: 15 } })
   async generateRender(
     @CurrentUser() user: JwtPayload,
     @Body() body: { facades: string; planTravail: string; style: string; lightingStyle: string; roomSize: string },
@@ -440,7 +447,7 @@ Haute qualité, détails réalistes, perspective professionnelle.`;
       return result;
     } catch (error) {
       this.logger.error('Generate render error:', error);
-      return { imageUrl: null, error: (error as Error).message };
+      return { imageUrl: null, error: 'La génération du rendu a échoué. Réessayez.' };
     }
   }
 
@@ -449,6 +456,7 @@ Haute qualité, détails réalistes, perspective professionnelle.`;
    * POST /api/ia/coloriste
    */
   @Post('coloriste')
+  @Throttle({ default: { ttl: 60_000, limit: 15 } })
   async colorize(
     @CurrentUser() user: JwtPayload,
     @Body()
@@ -479,7 +487,7 @@ Preserve proportions and layout, modify only colors and finishes. Photorealistic
       return result;
     } catch (error) {
       this.logger.error('Colorize error:', error);
-      return { imageUrl: null, error: (error as Error).message };
+      return { imageUrl: null, error: 'La colorisation a échoué. Réessayez.' };
     }
   }
 
