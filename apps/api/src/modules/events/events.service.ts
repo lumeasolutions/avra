@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -8,7 +8,24 @@ import { EventCalendarType } from '../../prisma-enums';
 export class EventsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * 🔒 SÉCURITÉ: vérifie qu'un projectId fourni par le client appartient bien
+   * au workspace courant. Sinon un utilisateur pouvait rattacher un event au
+   * projet d'un autre tenant (et en fuiter le nom via le select `project`).
+   */
+  private async assertProjectInWorkspace(workspaceId: string, projectId?: string | null) {
+    if (!projectId) return;
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, workspaceId },
+      select: { id: true },
+    });
+    if (!project) {
+      throw new BadRequestException('Projet introuvable dans ce workspace.');
+    }
+  }
+
   async create(workspaceId: string, userId: string, dto: CreateEventDto) {
+    await this.assertProjectInWorkspace(workspaceId, dto.projectId);
     return this.prisma.event.create({
       data: {
         ...dto,
@@ -99,6 +116,7 @@ export class EventsService {
   }
 
   async update(workspaceId: string, id: string, dto: UpdateEventDto) {
+    await this.assertProjectInWorkspace(workspaceId, dto.projectId);
     // OPTIMISATION: Fusionner vérification et update
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.event.findFirst({ where: { id, workspaceId } });

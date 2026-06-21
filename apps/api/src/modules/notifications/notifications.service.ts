@@ -34,10 +34,11 @@ export class NotificationsService {
     return { data, total, page, pageSize };
   }
 
-  async markAsRead(workspaceId: string, id: string) {
-    // OPTIMISATION: Vérifier l'appartenance à l'utilisateur et mettre à jour en une seule requête
+  async markAsRead(workspaceId: string, userId: string, id: string) {
+    // 🔒 SÉCURITÉ: scoper aussi par userId — sinon un membre pouvait marquer lue
+    // la notification d'un autre membre du même workspace.
     return this.prisma.notification.updateMany({
-      where: { id, workspaceId },
+      where: { id, workspaceId, userId },
       data: { isRead: true, readAt: new Date() },
     });
   }

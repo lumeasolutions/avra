@@ -1,40 +1,16 @@
 /**
  * auth-guard.ts — Vérification d'authentification pour les routes API Next.js
  *
- * Vérifie la présence et la validité basique du cookie de session.
- * La vérification cryptographique complète de la signature JWT
- * est déléguée au backend NestJS (qui effectue cette validation à chaque appel API).
+ * Vérifie la signature cryptographique (HS256) ET l'expiration du JWT du cookie
+ * de session, via `getVerifiedClaims` (cf. jwt-verify.ts).
+ *
+ * ⚠️ Auparavant la signature N'était PAS vérifiée ici : un token forgé
+ * permettait IDOR cross-tenant / accès admin sur les routes serverless qui
+ * parlent directement à Prisma (cf. audit sécurité C1). C'est désormais corrigé.
  */
 
 import type { NextRequest } from 'next/server';
-
-/**
- * Décode et valide un JWT (structure + expiration, pas la signature).
- * La signature est validée par le backend NestJS.
- */
-function isJwtStructurallyValid(token: string): boolean {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return false;
-
-    const payload = JSON.parse(
-      Buffer.from(parts[1], 'base64url').toString('utf-8')
-    );
-
-    // Vérifier l'expiration
-    if (payload.exp && typeof payload.exp === 'number') {
-      const nowSec = Math.floor(Date.now() / 1000);
-      if (nowSec > payload.exp) return false;
-    }
-
-    // Exiger un sujet ou identifiant
-    if (!payload.sub && !payload.id && !payload.userId) return false;
-
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { getVerifiedClaims } from './jwt-verify';
 
 // HIGH-002: only accept the legacy `logged_in` demo cookie when we are
 // genuinely on a developer machine — never on Vercel previews/production.
@@ -45,7 +21,8 @@ const IS_LOCAL_DEV =
 export function isAuthenticated(req: NextRequest): boolean {
   const accessToken = req.cookies.get('access_token')?.value;
   if (accessToken) {
-    return isJwtStructurallyValid(accessToken);
+    const claims = getVerifiedClaims(accessToken);
+    return !!(claims && (claims.sub || claims.id || claims.userId));
   }
   if (IS_LOCAL_DEV) {
     const loggedIn = req.cookies.get('logged_in')?.value;
@@ -55,34 +32,25 @@ export function isAuthenticated(req: NextRequest): boolean {
 }
 
 /**
- * Extrait l'ID utilisateur depuis le JWT du cookie access_token.
- * Utilisé pour scoper les fichiers stockés (ex: ia-renders/<userId>/...).
- * Retourne null si le token est absent ou invalide.
+ * Extrait l'ID utilisateur depuis le JWT (signature vérifiée) du cookie
+ * access_token. Utilisé pour scoper les fichiers stockés
+ * (ex: ia-renders/<userId>/...). Retourne null si le token est absent/invalide.
  */
 export function getUserIdFromRequest(req: NextRequest): string | null {
-  const accessToken = req.cookies.get('access_token')?.value;
-  if (!accessToken) return null;
-  try {
-    const parts = accessToken.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
-    return (payload.sub ?? payload.id ?? payload.userId ?? null) || null;
-  } catch {
-    return null;
-  }
+  const claims = getVerifiedClaims(req.cookies.get('access_token')?.value);
+  if (!claims) return null;
+  const userId = claims.sub ?? claims.id ?? claims.userId;
+  return userId ? String(userId) : null;
 }
 
 /**
- * Contexte utilisateur extrait du JWT — pour les routes serverless qui doivent
- * scoper en DB (workspaceId) et auditer (createdById).
+ * Contexte utilisateur extrait du JWT (signature vérifiée) — pour les routes
+ * serverless qui scopent en DB (workspaceId) et auditent (createdById).
  *
  * Le backend NestJS encode `workspaceId` directement dans le payload JWT
- * (cf. workspace.guard.ts L32 : `user.workspaceId`).
+ * (cf. workspace.guard.ts : `user.workspaceId`).
  *
- * Retourne null si le token est absent / invalide / sans workspaceId.
- * NB : la signature crypto n'est PAS vérifiée ici — elle l'est côté NestJS
- * pour tout appel sortant. Pour les routes serverless qui n'appellent pas
- * NestJS (comme /api/ia/*), on accepte le payload tel quel.
+ * Retourne null si le token est absent / invalide / expiré / sans workspaceId.
  */
 export interface UserContext {
   userId:      string;
@@ -92,31 +60,17 @@ export interface UserContext {
 }
 
 export function getUserContextFromRequest(req: NextRequest): UserContext | null {
-  const accessToken = req.cookies.get('access_token')?.value;
-  if (!accessToken) return null;
-  try {
-    const parts = accessToken.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
+  const claims = getVerifiedClaims(req.cookies.get('access_token')?.value);
+  if (!claims) return null;
 
-    const userId      = payload.sub ?? payload.id ?? payload.userId;
-    const workspaceId = payload.workspaceId ?? payload.workspace?.id;
+  const userId      = claims.sub ?? claims.id ?? claims.userId;
+  const workspaceId = claims.workspaceId ?? claims.workspace?.id;
+  if (!userId || !workspaceId) return null;
 
-    if (!userId || !workspaceId) return null;
-
-    // Expiration : si le JWT est expiré, on rejette (cohérent avec isAuthenticated)
-    if (payload.exp && typeof payload.exp === 'number') {
-      const nowSec = Math.floor(Date.now() / 1000);
-      if (nowSec > payload.exp) return null;
-    }
-
-    return {
-      userId:      String(userId),
-      workspaceId: String(workspaceId),
-      email:       payload.email,
-      role:        payload.role,
-    };
-  } catch {
-    return null;
-  }
+  return {
+    userId:      String(userId),
+    workspaceId: String(workspaceId),
+    email:       typeof claims.email === 'string' ? claims.email : undefined,
+    role:        typeof claims.role === 'string' ? claims.role : undefined,
+  };
 }

@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, UseInterceptors, Inject } from '@nestjs/common';
-import { CacheInterceptor, CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { WorkspaceScopedCacheInterceptor } from '../../common/interceptors/workspace-scoped-cache.interceptor';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
@@ -27,14 +28,14 @@ export class ClientsController {
   }
 
   @Get()
-  @UseInterceptors(CacheInterceptor)
+  @UseInterceptors(WorkspaceScopedCacheInterceptor)
   @CacheTTL(300) // 5 minutes
   findAll(@CurrentUser() user: JwtPayload) {
     return this.clients.findAll(user.workspaceId);
   }
 
   @Get(':id')
-  @UseInterceptors(CacheInterceptor)
+  @UseInterceptors(WorkspaceScopedCacheInterceptor)
   @CacheTTL(600) // 10 minutes
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.clients.findOne(user.workspaceId, id);

@@ -32,6 +32,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
+    // Code Prisma (P2002, P2025, etc.) si l'erreur en porte un.
+    const prismaCode = (exception as { code?: string })?.code;
+
     // Détermine le statut HTTP à renvoyer.
     let status: number = HttpStatus.INTERNAL_SERVER_ERROR;
     let clientMessage: string | object = 'Internal server error';
@@ -39,6 +42,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       clientMessage = exception.getResponse();
+    } else if (typeof prismaCode === 'string' && prismaCode.startsWith('P')) {
+      // Mappe les erreurs Prisma connues vers un statut HTTP correct.
+      // On renvoie un message GÉNÉRIQUE (jamais le détail Prisma) au client.
+      const mapped = mapPrismaError(prismaCode);
+      if (mapped) {
+        status = mapped.status;
+        clientMessage = mapped.message;
+      }
     }
 
     // Construit un message de log technique pour le serveur, qui inclut :
@@ -49,7 +60,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
     //  - la stack trace.
     const errorName = exception instanceof Error ? exception.constructor.name : typeof exception;
     const errorMessage = exception instanceof Error ? exception.message : String(exception);
-    const prismaCode = (exception as { code?: string })?.code;
     const stack = exception instanceof Error ? exception.stack : undefined;
 
     // Log compact (1 ligne) — facile à grep dans les logs Vercel.
@@ -76,5 +86,27 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // HttpException avec un objet (ex: ValidationPipe) → on garde la forme.
       response.status(status).json(clientMessage);
     }
+  }
+}
+
+/**
+ * Mappe un code d'erreur Prisma connu vers un statut HTTP + un message client
+ * GÉNÉRIQUE (on ne fuite jamais le détail Prisma, qui peut révéler des noms de
+ * colonnes/contraintes). Retourne null pour les codes non mappés (→ 500).
+ */
+function mapPrismaError(code: string): { status: number; message: string } | null {
+  switch (code) {
+    case 'P2002': // Unique constraint violation
+      return { status: HttpStatus.CONFLICT, message: 'Cette ressource existe déjà.' };
+    case 'P2025': // Record not found (update/delete)
+      return { status: HttpStatus.NOT_FOUND, message: 'Ressource introuvable.' };
+    case 'P2003': // Foreign key constraint failed
+      return { status: HttpStatus.BAD_REQUEST, message: 'Référence invalide.' };
+    case 'P2000': // Value too long for column
+      return { status: HttpStatus.BAD_REQUEST, message: 'Une valeur dépasse la taille autorisée.' };
+    case 'P2014': // Required relation violation
+      return { status: HttpStatus.BAD_REQUEST, message: 'Relation requise manquante ou invalide.' };
+    default:
+      return null;
   }
 }

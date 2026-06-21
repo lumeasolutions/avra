@@ -55,12 +55,20 @@ export class AuditInterceptor implements NestInterceptor {
               ? IpAnonymizer.anonymize(clientIp)
               : null;
 
+            // 🔒 SÉCURITÉ/RGPD: ne stocker QUE l'identifiant de l'entité touchée.
+            // Auparavant `{ entityId, ...result }` sérialisait tout l'objet retourné
+            // (email, tokens, etc.) en clair dans auditLog.changes, hors du scrubbing.
+            const entityId =
+              result && typeof result === 'object' && 'id' in result
+                ? (result as { id?: unknown }).id
+                : undefined;
+
             await this.prisma.auditLog.create({
               data: {
                 workspaceId: user.workspaceId,
                 userId: user.sub,
                 action: action as any,
-                changes: result ? { entityId: result.id, ...result } : null,
+                changes: entityId !== undefined ? { entityId } : null,
                 ipAddress: anonymizedIp,
               },
             });

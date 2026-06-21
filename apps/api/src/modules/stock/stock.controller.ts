@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Put, Delete, Query, UseGuards, UseInterceptors, Inject } from '@nestjs/common';
-import { CacheInterceptor, CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { WorkspaceScopedCacheInterceptor } from '../../common/interceptors/workspace-scoped-cache.interceptor';
 import { StockService } from './stock.service';
 import { CreateStockItemDto } from './dto/create-stock-item.dto';
 import { UpdateStockItemDto } from './dto/update-stock-item.dto';
@@ -28,14 +29,14 @@ export class StockController {
   }
 
   @Get()
-  @UseInterceptors(CacheInterceptor)
+  @UseInterceptors(WorkspaceScopedCacheInterceptor)
   @CacheTTL(300) // 5 minutes
   findAll(@CurrentUser() user: JwtPayload, @Query('status') status?: StockItemStatus) {
     return this.stock.findAll(user.workspaceId, status);
   }
 
   @Get(':id')
-  @UseInterceptors(CacheInterceptor)
+  @UseInterceptors(WorkspaceScopedCacheInterceptor)
   @CacheTTL(600) // 10 minutes
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.stock.findOne(user.workspaceId, id);

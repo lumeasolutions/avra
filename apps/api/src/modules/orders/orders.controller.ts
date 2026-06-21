@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards, UseInterceptors, Inject } from '@nestjs/common';
-import { CacheInterceptor, CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { WorkspaceScopedCacheInterceptor } from '../../common/interceptors/workspace-scoped-cache.interceptor';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -30,14 +31,14 @@ export class OrdersController {
   }
 
   @Get()
-  @UseInterceptors(CacheInterceptor)
+  @UseInterceptors(WorkspaceScopedCacheInterceptor)
   @CacheTTL(300) // 5 minutes
   findAll(@CurrentUser() user: JwtPayload, @Query('projectId') projectId?: string) {
     return projectId ? this.orders.findByProject(user.workspaceId, projectId) : this.orders.findByWorkspace(user.workspaceId);
   }
 
   @Get(':id')
-  @UseInterceptors(CacheInterceptor)
+  @UseInterceptors(WorkspaceScopedCacheInterceptor)
   @CacheTTL(600) // 10 minutes
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.orders.findOne(user.workspaceId, id);

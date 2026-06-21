@@ -9,6 +9,7 @@
  */
 
 import type { NextRequest } from 'next/server';
+import { getVerifiedClaims } from './jwt-verify';
 
 type AdminCheckResult = { ok: true; email: string } | { ok: false };
 
@@ -19,29 +20,17 @@ const IS_LOCAL_DEV =
   (!process.env.VERCEL_ENV || process.env.VERCEL_ENV === 'development');
 
 /**
- * Extrait l'email du payload JWT sans vérifier la signature
- * (la vérification crypto est faite par le backend NestJS).
+ * Extrait l'email du payload JWT APRÈS vérification de la signature (HS256) et
+ * de l'expiration (cf. jwt-verify.ts). Sans cette vérification, un cookie forgé
+ * avec l'email admin connu donnait un accès admin complet (audit sécurité C1).
  */
 function extractEmailFromJwt(token: string): string | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
-
-    // Vérifier expiration
-    if (payload.exp && typeof payload.exp === 'number') {
-      if (Math.floor(Date.now() / 1000) > payload.exp) return null;
-    }
-
-    const email =
-      payload.email ??
-      payload.sub ??
-      null;
-
-    return typeof email === 'string' ? email.trim().toLowerCase() : null;
-  } catch {
-    return null;
-  }
+  const claims = getVerifiedClaims(token);
+  if (!claims) return null;
+  const email =
+    (typeof claims.email === 'string' ? claims.email : null) ??
+    (typeof claims.sub === 'string' ? claims.sub : null);
+  return typeof email === 'string' ? email.trim().toLowerCase() : null;
 }
 
 /**

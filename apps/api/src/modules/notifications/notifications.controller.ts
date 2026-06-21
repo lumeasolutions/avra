@@ -16,6 +16,6 @@ export class NotificationsController {
 
   @Post(':id/read')
   markAsRead(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.notifications.markAsRead(user.workspaceId, id);
+    return this.notifications.markAsRead(user.workspaceId, user.sub, id);
   }
 }

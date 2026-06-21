@@ -86,21 +86,31 @@ export class ClientsService {
   }
 
   async update(workspaceId: string, id: string, dto: UpdateClientDto) {
-    // OPTIMISATION: Fusionner les deux requêtes findFirst + update en une seule avec upsert-like pattern
-    return this.prisma.client.update({
-      where: { id },
-      data: dto,
-      select: {
-        id: true,
-        type: true,
-        companyName: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        isActive: true,
-      },
-    }).catch(() => null);
+    // 🔒 SÉCURITÉ: vérifier l'appartenance au workspace AVANT toute écriture.
+    // Auparavant `where: { id }` ignorait le workspaceId → IDOR cross-tenant
+    // (un workspace pouvait modifier les clients d'un autre). Le `.catch(()=>null)`
+    // masquait en plus toute erreur. On reprend le pattern transactionnel de `remove`.
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.client.findFirst({
+        where: { id, workspaceId },
+        select: { id: true },
+      });
+      if (!existing) return null;
+      return tx.client.update({
+        where: { id },
+        data: dto,
+        select: {
+          id: true,
+          type: true,
+          companyName: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          isActive: true,
+        },
+      });
+    });
   }
 
   async remove(workspaceId: string, id: string) {

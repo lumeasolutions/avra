@@ -1,5 +1,6 @@
 import { Controller, Get, UseGuards, UseInterceptors } from '@nestjs/common';
-import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
+import { CacheTTL } from '@nestjs/cache-manager';
+import { WorkspaceScopedCacheInterceptor } from '../../common/interceptors/workspace-scoped-cache.interceptor';
 import { StatsService } from './stats.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -11,7 +12,7 @@ export class StatsController {
   constructor(private readonly stats: StatsService) {}
 
   @Get('global')
-  @UseInterceptors(CacheInterceptor)
+  @UseInterceptors(WorkspaceScopedCacheInterceptor)
   @CacheTTL(300) // 5 minutes
   getGlobal(@CurrentUser() user: JwtPayload) {
     return this.stats.getGlobal(user.workspaceId);
