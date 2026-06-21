@@ -159,7 +159,14 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
 
   // Helper : un item est completed selon son kind
   const isItemCompleted = (item: DateButoireItem): boolean => {
-    if (item.kind === 'date') return !!saved[item.label];
+    if (item.kind === 'date') {
+      // Une étape n'est "validée" que si sa date est AUJOURD'HUI ou PASSÉE.
+      // Une échéance future (date butoir auto-remplie / IA) = pas encore faite.
+      const v = saved[item.label];
+      if (!v) return false;
+      const d = new Date(v);
+      return !isNaN(d.getTime()) && d <= today;
+    }
     if (item.kind === 'access') return isAccessCompleted(item.label);
     // 'static' (SAV) — informationnel, on compte comme non-bloquant
     // mais on l'inclut dans le total pour transparence.
@@ -176,10 +183,10 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
     if (!val) return 'none';
     const d = new Date(val);
     if (isNaN(d.getTime())) return 'none';
-    if (d < today) return 'past';
+    if (d <= today) return 'done'; // aujourd'hui ou passé = réellement validé
     const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff <= 7) return 'urgent';
-    return 'ok';
+    if (diff <= 7) return 'urgent'; // échéance future proche
+    return 'planned'; // échéance future lointaine (à venir, pas encore faite)
   };
 
   return (
@@ -299,7 +306,7 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
             const pendingCount = progressItems.filter(i => !isItemCompleted(i)).length;
             const pctRound = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
             return (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 18 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 10, marginBottom: 18 }}>
                 <div style={{
                   padding: '12px 14px', borderRadius: 12,
                   background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.18)',
@@ -443,15 +450,20 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
               const status = getDateStatus(item.label);
               const val = saved[item.label];
               const isFilled = !!val;
-              const dotColor = isFilled
-                ? (status === 'past' ? '#6b7280' : status === 'urgent' ? '#f97316' : '#10b981')
-                : '#e5e7eb';
-              const bgColor = isFilled
-                ? (status === 'urgent' ? 'rgba(249,115,22,0.06)' : 'rgba(16,185,129,0.05)')
-                : 'transparent';
-              const borderColor = isFilled
-                ? (status === 'urgent' ? 'rgba(249,115,22,0.2)' : 'rgba(16,185,129,0.2)')
-                : 'rgba(48,64,53,0.08)';
+              // Couleurs sémantiques : vert = validé (date <= aujourd'hui),
+              // orange = échéance urgente (<= 7 j), bleu = à venir, gris = à valider.
+              const dotColor = !isFilled ? '#e5e7eb'
+                : status === 'done' ? '#10b981'
+                : status === 'urgent' ? '#f97316'
+                : '#3b82f6';
+              const bgColor = !isFilled ? 'transparent'
+                : status === 'done' ? 'rgba(16,185,129,0.05)'
+                : status === 'urgent' ? 'rgba(249,115,22,0.06)'
+                : 'rgba(59,130,246,0.05)';
+              const borderColor = !isFilled ? 'rgba(48,64,53,0.08)'
+                : status === 'done' ? 'rgba(16,185,129,0.2)'
+                : status === 'urgent' ? 'rgba(249,115,22,0.2)'
+                : 'rgba(59,130,246,0.2)';
               return (
                 <div
                   key={item.label}
@@ -474,10 +486,16 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 4,
                         fontSize: '0.75rem', fontWeight: '700',
-                        color: status === 'urgent' ? '#f97316' : status === 'past' ? '#6b7280' : '#16a34a',
+                        color: status === 'done' ? '#16a34a' : status === 'urgent' ? '#f97316' : '#2563eb',
                       }}>
-                        <CheckCircle2 style={{ width: 12, height: 12 }} />
-                        {status === 'past' ? `Passée · ${formatDate(val)}` : status === 'urgent' ? `Urgent · ${formatDate(val)}` : formatDate(val)}
+                        {status === 'done'
+                          ? <CheckCircle2 style={{ width: 12, height: 12 }} />
+                          : <Clock style={{ width: 12, height: 12 }} />}
+                        {status === 'done'
+                          ? `Validé · ${formatDate(val)}`
+                          : status === 'urgent'
+                            ? `Urgent · ${formatDate(val)}`
+                            : `À venir · ${formatDate(val)}`}
                       </span>
                       <button
                         type="button"
