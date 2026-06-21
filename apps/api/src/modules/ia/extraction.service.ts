@@ -132,9 +132,7 @@ export class ExtractionService {
       // 0-1 document : un seul appel suffit. >10 : on evite trop d'appels paralleles.
       return this.callOpenAI(textPayload, imagePayload);
     }
-    const settled = await Promise.allSettled(
-      chunks.map((c) => this.callOpenAI(c.text, c.images)),
-    );
+    const settled = await this.runChunksLimited(chunks, 2);
     return this.mergeExtractionResults(settled);
   }
 
@@ -312,6 +310,70 @@ export class ExtractionService {
       this.logger.warn(`exceljs extract failed: ${(err as Error).message}`);
       return '';
     }
+  }
+
+  /**
+   * Lance les appels OpenAI document-par-document avec une CONCURRENCE LIMITEE
+   * (pas tous d'un coup) + RETRY par appel. Sans ca, envoyer 3+ appels gpt-4o
+   * simultanes sur la meme cle API declenchait un rate-limit (429) sur l'un
+   * d'eux → le chunk etait abandonne → une facture disparaissait du resultat.
+   */
+  private async runChunksLimited(
+    chunks: Array<{ text: ExtractionDocumentPayload[]; images: ExtractionImagePayload[] }>,
+    concurrency: number,
+  ): Promise<PromiseSettledResult<ExtractionResult>[]> {
+    const results: PromiseSettledResult<ExtractionResult>[] = new Array(chunks.length);
+    let next = 0;
+    const worker = async () => {
+      while (next < chunks.length) {
+        const i = next++;
+        try {
+          results[i] = {
+            status: 'fulfilled',
+            value: await this.callOpenAIWithRetry(chunks[i].text, chunks[i].images),
+          };
+        } catch (reason) {
+          results[i] = { status: 'rejected', reason };
+        }
+      }
+    };
+    const workers = Array.from(
+      { length: Math.max(1, Math.min(concurrency, chunks.length)) },
+      () => worker(),
+    );
+    await Promise.all(workers);
+    return results;
+  }
+
+  /**
+   * callOpenAI avec retry sur rate-limit (429) et erreurs serveur transitoires
+   * (5xx / reseau). 4 tentatives, backoff exponentiel + jitter. Garantit qu'un
+   * document n'est pas perdu a cause d'un 429 ponctuel.
+   */
+  private async callOpenAIWithRetry(
+    textPayload: ExtractionDocumentPayload[],
+    imagePayload: ExtractionImagePayload[],
+  ): Promise<ExtractionResult> {
+    let lastErr: any;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        return await this.callOpenAI(textPayload, imagePayload);
+      } catch (err: any) {
+        lastErr = err;
+        const status = err?.status ?? err?.statusCode;
+        const retriable =
+          status === 429 ||
+          status === undefined ||
+          (typeof status === 'number' && status >= 500 && status < 600);
+        if (!retriable || attempt === 3) break;
+        const wait = 800 * Math.pow(2, attempt) + Math.floor(Math.random() * 400);
+        this.logger.warn(
+          `callOpenAI retry ${attempt + 1}/3 (status=${status ?? 'n/a'}) dans ${wait}ms`,
+        );
+        await new Promise((r) => setTimeout(r, wait));
+      }
+    }
+    throw lastErr;
   }
 
   /** Fusionne les resultats d'extractions document-par-document (mode parallele). */
