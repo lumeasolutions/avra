@@ -86,6 +86,14 @@ export default function DashboardPage() {
       }
     });
 
+    // Dossiers signés sans prix achat/vente renseignés → à compléter (stats de marge)
+    storeSignes.forEach((d: any) => {
+      const hasPrix = (d.prixLignes?.length ?? 0) > 0;
+      if (!hasPrix && !d.statsSkipped && !d.terminated) {
+        actions.push({ id: 'px-' + d.id, type: 'dossier', label: 'Prix à renseigner', detail: d.name, href: '/statistiques', priority: 'medium' });
+      }
+    });
+
     // Sort: high first
     return actions.sort((a, b) => (a.priority === 'high' ? -1 : b.priority === 'high' ? 1 : 0));
   }, [storeDevis, storeInvoices, storeSignes]);
@@ -104,8 +112,24 @@ export default function DashboardPage() {
   // Planning du jour : events whose day index matches today (weekOffset=0 = current week)
   const todayEvents = storePlanningEvents.filter(ev => ev.day === todayDayIndex && (ev.weekOffset ?? 0) === 0);
 
-  // Activité récente : 8 derniers logs
-  const recentLogs = storeLogs.slice(0, 8);
+  // Activité récente — flux DÉRIVÉ des données réelles (dossiers signés/créés,
+  // devis, factures) fusionné avec les logs IA. Trié par date décroissante, 8 max.
+  const parseFr = (s?: string): number => {
+    if (!s) return 0;
+    const m = s.match(/(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+    if (!m) { const t = Date.parse(s); return isNaN(t) ? 0 : t; }
+    return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] ?? 0), +(m[5] ?? 0)).getTime();
+  };
+  const recentLogs = (() => {
+    type Act = { ts: number; user: string; action: string; target: string; time: string; icon: string };
+    const acts: Act[] = [];
+    storeLogs.forEach((l: any) => acts.push({ ts: parseFr(l.time), user: l.user, action: l.action, target: l.target, time: l.time, icon: l.icon }));
+    storeSignes.forEach((d: any) => acts.push({ ts: parseFr(d.signedDate || d.createdAt), user: d.vendeurName || '—', action: 'Dossier signé', target: d.name, time: d.signedDate || d.createdAt || '', icon: '✅' }));
+    storeDossiers.forEach((d: any) => acts.push({ ts: parseFr(d.createdAt), user: d.vendeurName || '—', action: 'Nouveau dossier', target: d.name, time: d.createdAt || '', icon: '📁' }));
+    storeDevis.forEach((d: any) => acts.push({ ts: parseFr(d.dateCreation), user: '—', action: `Devis ${d.ref ?? ''}`.trim(), target: d.client || '', time: d.dateCreation || '', icon: '📝' }));
+    storeInvoices.forEach((i: any) => acts.push({ ts: parseFr(i.date), user: '—', action: `Facture ${i.ref ?? ''}`.trim(), target: i.client || '', time: i.date || '', icon: '💶' }));
+    return acts.filter((a) => a.ts > 0).sort((a, b) => b.ts - a.ts).slice(0, 8);
+  })();
 
   const KPIs = [
     { label: 'Dossiers actifs',   value: stats?.projectsInVente ?? 0,      icon: <FolderOpen className="h-6 w-6" />,   color: 'bg-[#304035]',    href: '/dossiers' },
