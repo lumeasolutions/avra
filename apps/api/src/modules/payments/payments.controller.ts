@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -30,8 +31,8 @@ export class PaymentsController {
 
   @Put(':id/status')
   @Roles('OWNER', 'ADMIN')
-  updateStatus(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body('status') status: string) {
-    return this.payments.updateStatus(user.workspaceId, id, status);
+  updateStatus(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() dto: UpdatePaymentStatusDto) {
+    return this.payments.updateStatus(user.workspaceId, id, dto.status);
   }
 
   @Delete(':id')

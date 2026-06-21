@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 
@@ -70,8 +70,24 @@ export class PaymentsService {
   }
 
   async create(workspaceId: string, dto: CreatePaymentDto) {
+    // 🔒 IDOR: le projet doit appartenir au workspace.
+    const project = await this.prisma.project.findFirst({
+      where: { id: dto.projectId, workspaceId },
+      select: { id: true },
+    });
+    if (!project) throw new BadRequestException('Projet introuvable dans ce workspace.');
+
+    // Mapping EXPLICITE vers les colonnes réelles de PaymentRequest.
+    // description/dueDate/reference NE SONT PAS des colonnes du modèle : on les
+    // ignore (sinon `...dto` provoquait un 500 PrismaClientValidationError).
+    // Pour les persister, ajouter les colonnes via migration (cf. Phase 12).
     return this.prisma.paymentRequest.create({
-      data: { ...dto, workspaceId },
+      data: {
+        workspaceId,
+        projectId: dto.projectId,
+        type: dto.type as any,
+        amount: dto.amount,
+      },
       select: {
         id: true,
         type: true,

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 // Le projet embarque un shim @prisma/client manuel
 // (apps/api/src/types/prisma-client.d.ts) qui n'expose pas `Prisma.Decimal`.
 // On importe donc la classe Decimal directement depuis le runtime Prisma et on
@@ -157,6 +157,11 @@ export class QuotesService {
     return this.prisma.$transaction(async (tx: any) => {
       const existing = await tx.quote.findFirst({ where: { id, workspaceId } });
       if (!existing) throw new NotFoundException(`Quote ${id} not found`);
+      // Garde-fou : ne pas reconvertir un devis déjà facturé (évite de ré-incrémenter
+      // le compteur F-{annee}-{NNNN} et d'écraser la référence).
+      if (existing.status === 'INVOICED') {
+        throw new BadRequestException('Ce devis est déjà converti en facture.');
+      }
 
       const year = new Date().getFullYear();
       const count = await tx.quote.count({ where: { workspaceId, status: 'INVOICED' } });

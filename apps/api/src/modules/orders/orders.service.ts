@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CreateOrderDto } from './dto/create-order.dto';
 
 @Injectable()
 export class OrdersService {
@@ -51,9 +52,45 @@ export class OrdersService {
     });
   }
 
-  async create(workspaceId: string, dto: any) {
+  async create(workspaceId: string, dto: CreateOrderDto) {
+    // 🔒 IDOR: projet (et fournisseur si fourni) doivent appartenir au workspace.
+    const project = await this.prisma.project.findFirst({
+      where: { id: dto.projectId, workspaceId },
+      select: { id: true },
+    });
+    if (!project) throw new BadRequestException('Projet introuvable dans ce workspace.');
+    if (dto.supplierId) {
+      const supplier = await this.prisma.supplier.findFirst({
+        where: { id: dto.supplierId, workspaceId },
+        select: { id: true },
+      });
+      if (!supplier) throw new BadRequestException('Fournisseur introuvable dans ce workspace.');
+    }
+
+    const lines = dto.lines ?? [];
     return this.prisma.supplierOrder.create({
-      data: { ...dto, workspaceId },
+      data: {
+        workspaceId,
+        projectId: dto.projectId,
+        supplierId: dto.supplierId ?? null,
+        reference: dto.reference ?? null,
+        notes: dto.notes ?? null,
+        // Prisma exige `lines: { create: [...] }` — l'ancien `...dto` passait un
+        // tableau brut → 500 dès qu'une commande comportait des lignes.
+        // (colonne ligne = `sku`, pas `reference`).
+        ...(lines.length
+          ? {
+              lines: {
+                create: lines.map((l) => ({
+                  description: l.description,
+                  quantity: l.quantity,
+                  unitPrice: l.unitPrice,
+                  sku: l.reference ?? null,
+                })),
+              },
+            }
+          : {}),
+      },
       select: {
         id: true,
         reference: true,
