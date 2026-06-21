@@ -338,7 +338,7 @@ export class ExtractionService {
           { role: 'user', content: userContent as any },
         ],
         response_format: { type: 'json_schema', json_schema: EXTRACTION_JSON_SCHEMA as any },
-        max_tokens: 2048,
+        max_tokens: 4096,
         temperature: 0.1,
       });
 

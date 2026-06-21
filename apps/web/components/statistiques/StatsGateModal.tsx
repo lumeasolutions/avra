@@ -289,7 +289,7 @@ export function StatsGateModal({
     setAiExtracting(true);
     setAiError(null);
     try {
-      const result = await extractDossier(selected.id);
+      const result = await extractDossier(selected.id, mode);
       // Normalisation robuste pour rapprocher achat (factures) et vente (devis)
       // d'un même produit malgré les variantes : accents, casse, raison sociale
       // ("LEICHT Küchen AG" → "leicht"), préfixe marque ("FRANKE - ...").

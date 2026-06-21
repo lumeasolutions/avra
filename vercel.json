@@ -7,7 +7,7 @@
     "functions": {
           "apps/web/api/index.ts": {
                   "memory": 1024,
-                  "maxDuration": 30,
+                  "maxDuration": 60,
                   "includeFiles": "apps/api/dist/**"
           }
     },
