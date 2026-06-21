@@ -284,12 +284,12 @@ export function StatsGateModal({
   // Fusion non destructive : si une ligne (fournisseur, produit) existe déjà,
   // on COMPLÈTE la colonne manquante au lieu de créer un doublon. On n'écrase
   // jamais une valeur déjà saisie.
-  const runExtraction = useCallback(async (mode: 'vente' | 'achat') => {
+  const runExtraction = useCallback(async (mode: 'vente' | 'achat' | 'both') => {
     if (!selected || aiExtracting) return;
     setAiExtracting(true);
     setAiError(null);
     try {
-      const result = await extractDossier(selected.id, mode);
+      const result = await extractDossier(selected.id, mode === 'both' ? 'all' : mode);
       // Normalisation robuste pour rapprocher achat (factures) et vente (devis)
       // d'un même produit malgré les variantes : accents, casse, raison sociale
       // ("LEICHT Küchen AG" → "leicht"), préfixe marque ("FRANKE - ...").
@@ -311,34 +311,35 @@ export function StatsGateModal({
       let merged = 0;
       const toCreate: Omit<DossierPrixLigne, 'id'>[] = [];
 
+      const wantAchat = mode === 'achat' || mode === 'both';
+      const wantVente = mode === 'vente' || mode === 'both';
       (result.commandes ?? []).forEach((c) => {
-        const montant = mode === 'achat'
-          ? (typeof c.montantHT === 'number' && c.montantHT > 0 ? c.montantHT : 0)
-          : (typeof c.montantVenteHT === 'number' && c.montantVenteHT > 0 ? c.montantVenteHT : 0);
-        if (!c.fournisseur || montant <= 0) return;
+        const ach = wantAchat && typeof c.montantHT === 'number' && c.montantHT > 0 ? c.montantHT : 0;
+        const ven = wantVente && typeof c.montantVenteHT === 'number' && c.montantVenteHT > 0 ? c.montantVenteHT : 0;
+        if (!c.fournisseur || (ach <= 0 && ven <= 0)) return;
 
         const k = key({ fournisseur: c.fournisseur, produit: c.produit ?? undefined });
         const existing = existingByKey.get(k);
 
         if (existing) {
-          // Complète la colonne manquante sur la ligne existante (additif).
-          if (mode === 'achat' && !(existing.prixAchatHT > 0)) {
-            onUpdateLigne(selected.id, existing.id, { prixAchatHT: montant });
-            merged++;
-          } else if (mode === 'vente' && !(existing.prixVenteHT > 0)) {
-            onUpdateLigne(selected.id, existing.id, { prixVenteHT: montant });
+          // Complète UNIQUEMENT les colonnes manquantes (jamais d'écrasement).
+          const patch: Partial<Omit<DossierPrixLigne, 'id'>> = {};
+          if (ach > 0 && !(existing.prixAchatHT > 0)) patch.prixAchatHT = ach;
+          if (ven > 0 && !(existing.prixVenteHT > 0)) patch.prixVenteHT = ven;
+          if (Object.keys(patch).length > 0) {
+            onUpdateLigne(selected.id, existing.id, patch);
+            if (patch.prixAchatHT != null) existing.prixAchatHT = patch.prixAchatHT;
+            if (patch.prixVenteHT != null) existing.prixVenteHT = patch.prixVenteHT;
             merged++;
           }
-          // sinon : colonne déjà renseignée → on ne touche à rien.
         } else {
           const ligne = {
             fournisseur: c.fournisseur,
             produit: c.produit ?? undefined,
-            prixAchatHT: mode === 'achat' ? montant : 0,
-            prixVenteHT: mode === 'vente' ? montant : 0,
+            prixAchatHT: ach,
+            prixVenteHT: ven,
           };
           toCreate.push(ligne);
-          // Marque la clé comme prise pour éviter un doublon dans le même lot.
           existingByKey.set(k, { id: '__pending__', ...ligne } as DossierPrixLigne);
           created++;
         }
@@ -347,7 +348,7 @@ export function StatsGateModal({
       if (toCreate.length > 0) onAddLignesBulk(selected.id, toCreate);
 
       const conf = Math.round((result.confiance ?? 0) * 100);
-      const label = mode === 'achat' ? "prix d'achat (factures)" : 'prix de vente (devis)';
+      const label = mode === 'achat' ? "prix d'achat (factures)" : mode === 'vente' ? 'prix de vente (devis)' : 'achat + vente (devis + factures)';
       const nbCommandes = (result.commandes ?? []).length;
       if (created === 0 && merged === 0) {
         if (nbCommandes === 0) {
@@ -357,7 +358,7 @@ export function StatsGateModal({
           setAiError("L'IA n'a rien pu lire cette fois (lecture des documents). Patientez quelques secondes puis réessayez.");
         } else {
           setToast({
-            message: `IA : aucun ${mode === 'achat' ? "montant d'achat" : 'montant de vente'} nouveau (déjà importé).`,
+            message: `IA : aucun ${mode === 'achat' ? "montant d'achat" : mode === 'vente' ? 'montant de vente' : 'prix'} nouveau (déjà importé).`,
             tone: 'info',
           });
         }
@@ -388,6 +389,7 @@ export function StatsGateModal({
 
   const handleExtractAI    = useCallback(() => runExtraction('vente'), [runExtraction]);
   const handleExtractAchat = useCallback(() => runExtraction('achat'), [runExtraction]);
+  const handleExtractBoth  = useCallback(() => runExtraction('both'), [runExtraction]);
 
   // Auto-clear erreur IA apres 8s
   useEffect(() => {
@@ -898,6 +900,47 @@ export function StatsGateModal({
               }}>
                 Saisie des prix
               </p>
+
+              {/* [IA both] Bouton PRINCIPAL (21/06/2026) — une seule extraction
+                  lit le devis ET les factures ; l'IA associe chaque produit à son
+                  prix d'achat et de vente (zéro doublon, marge correcte). */}
+              <button
+                onClick={handleExtractBoth}
+                disabled={aiExtracting}
+                className="sg-import-btn"
+                style={{
+                  width: '100%', marginBottom: 10, padding: '12px 14px',
+                  borderRadius: 12, border: '1.5px solid #047857',
+                  background: aiExtracting
+                    ? 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)'
+                    : 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)',
+                  color: '#065f46', fontWeight: 800, fontSize: 12.5,
+                  cursor: aiExtracting ? 'wait' : 'pointer',
+                  display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: 6, textAlign: 'center',
+                  opacity: aiExtracting ? 0.7 : 1,
+                  transition: 'opacity 0.2s',
+                }}
+                title="Recommandé : l'IA lit le devis ET les factures fournisseurs en une fois et remplit le prix d'achat ET de vente par produit."
+              >
+                {aiExtracting ? (
+                  <>
+                    <span className="sg-spinner" style={{
+                      width: 14, height: 14, borderRadius: '50%',
+                      border: '2px solid rgba(4,120,87,0.3)',
+                      borderTopColor: '#065f46',
+                      animation: 'sg-spin 0.7s linear infinite',
+                    }} />
+                    Analyse IA des documents…
+                  </>
+                ) : (
+                  <>
+                    <Wand2 size={15} />
+                    🪄 Extraire achat + vente (recommandé)
+                    <Sparkles size={11} />
+                  </>
+                )}
+              </button>
 
               {/* [IA] Bouton d'extraction IA (27/05/2026) — analyse les PDF
                   du devis (OPTION/PROJET/APD) et cree les lignes prix de vente
