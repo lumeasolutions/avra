@@ -47,3 +47,31 @@ apps/api/src/generated/
 
 .vercel
 .env*.local
+
+# ─── Hygiène (audit juin 2026) — purement additif ───
+# Artefacts de build / OS
+*.tsbuildinfo
+desktop.ini
+
+# Scripts de commit/déploiement jetables à la racine
+/commit-*.bat
+/deploy-*.bat
+/push-*.bat
+/*-push.bat
+/just-push.bat
+/force-redeploy.bat
+/fix-deploy.bat
+
+# Fichiers de test / sauvegardes / audits locaux (ne pas committer de données client)
+_TESTS_IA/
+*-TEST-*.pdf
+DEVIS-TEST-*.pdf
+FACTURE-TEST-*.pdf
+_audit_kitchen.png
+_SAUVEGARDE_*.md
+sg4.tsx
+/h origin main
+
+# Worktrees Claude imbriqués + locks
+.claude/worktrees/
+.claude/scheduled_tasks.lock
