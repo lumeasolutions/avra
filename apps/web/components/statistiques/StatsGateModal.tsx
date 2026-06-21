@@ -147,6 +147,8 @@ export function StatsGateModal({
   // et retourne des { fournisseur, montantHT } qu'on transforme en lignes prix.
   const [aiExtracting, setAiExtracting] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  // Glisser-déposer : id de la ligne en cours de drag (pour fusion manuelle)
+  const [dragLigneId, setDragLigneId] = useState<string | null>(null);
 
   // Résout le dossier courant dans TOUS les signés (pas seulement
   // missingDossiers) : il reste sélectionné après sa 1re ligne → saisie
@@ -304,8 +306,14 @@ export function StatsGateModal({
       // Clé de rapprochement = fournisseur + 4 premiers mots du produit.
       // Tolère les variantes de fin de désignation ("évier ... mitigeur" vs
       // "évier ... mitigeur douchette") sans fusionner des produits différents.
-      const key = (l: { fournisseur: string; produit?: string }) =>
-        `${normFournisseur(l.fournisseur)}::${normProduit(l.produit).split(' ').filter(Boolean).slice(0, 4).join(' ')}`;
+      // Clé de rapprochement — PRIORITÉ AU PRODUIT : un même produit doit
+      // fusionner son achat (facture, marque exacte) et sa vente (devis, qui
+      // met souvent le nom du cuisiniste comme "fournisseur"). On matche donc
+      // sur les 6 premiers mots du produit ; à défaut de produit, sur le fournisseur.
+      const key = (l: { fournisseur: string; produit?: string }) => {
+        const p = normProduit(l.produit).split(' ').filter(Boolean).slice(0, 6).join(' ');
+        return p ? `p::${p}` : `f::${normFournisseur(l.fournisseur)}`;
+      };
 
       // 'both' = DEUX extractions CIBLÉES (devis seul, puis factures seules) :
       // beaucoup plus fiable que de tout lire d'un coup. On combine en mémoire.
@@ -325,7 +333,11 @@ export function StatsGateModal({
           const k = key({ fournisseur: c.fournisseur, produit: c.produit ?? undefined });
           const cur = combined.get(k);
           if (cur) {
-            if (ach > 0 && cur.achat <= 0) cur.achat = ach;
+            if (ach > 0 && cur.achat <= 0) {
+              cur.achat = ach;
+              // la facture d'achat porte la vraie marque → on l'affiche de préférence
+              if (c.fournisseur) cur.fournisseur = c.fournisseur;
+            }
             if (ven > 0 && cur.vente <= 0) cur.vente = ven;
           } else {
             combined.set(k, { fournisseur: c.fournisseur, produit: c.produit ?? undefined, achat: ach, vente: ven });
@@ -476,6 +488,24 @@ export function StatsGateModal({
   }, [selected, confirmsValidees, selectedLignes, onAddLignesBulk]);
 
   // ── [P0] Pré-remplir depuis une confirmation cliquée ────────────────────
+  // Fusion manuelle par glisser-déposer : on verse les prix manquants de la
+  // ligne source dans la ligne cible, puis on supprime la source.
+  const handleMergeLignes = useCallback((sourceId: string, targetId: string) => {
+    if (!selected || sourceId === targetId) return;
+    const src = selectedLignes.find((l) => l.id === sourceId);
+    const tgt = selectedLignes.find((l) => l.id === targetId);
+    if (!src || !tgt) return;
+    const patch: Partial<Omit<DossierPrixLigne, 'id'>> = {};
+    if (!(tgt.prixAchatHT > 0) && src.prixAchatHT > 0) patch.prixAchatHT = src.prixAchatHT;
+    if (!(tgt.prixVenteHT > 0) && src.prixVenteHT > 0) patch.prixVenteHT = src.prixVenteHT;
+    if (!tgt.produit && src.produit) patch.produit = src.produit;
+    // si la cible n'a pas de marque claire mais la source oui, on garde la marque
+    if ((!tgt.fournisseur || /cuisines?\s*pro/i.test(tgt.fournisseur)) && src.fournisseur) patch.fournisseur = src.fournisseur;
+    if (Object.keys(patch).length > 0) onUpdateLigne(selected.id, tgt.id, patch);
+    onRemoveLigne(selected.id, src.id);
+    setToast({ message: '🔗 Lignes fusionnées', tone: 'ok' });
+  }, [selected, selectedLignes, onUpdateLigne, onRemoveLigne]);
+
   const handlePreFillFromConfirmation = useCallback((c: ConfirmationFournisseur) => {
     setDraft({
       fournisseur: c.fournisseur ?? '',
@@ -1120,7 +1150,7 @@ export function StatsGateModal({
                     color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase',
                     letterSpacing: '0.08em',
                   }}>
-                    Lignes saisies ({selectedLignes.length})
+                    Lignes saisies ({selectedLignes.length}) <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0, opacity: 0.7 }}>· glissez une ligne sur une autre pour fusionner</span>
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {selectedLignes.map((l) => {
@@ -1130,12 +1160,20 @@ export function StatsGateModal({
                       return (
                         <div
                           key={l.id}
+                          draggable
+                          onDragStart={(e) => { setDragLigneId(l.id); e.dataTransfer.effectAllowed = 'move'; }}
+                          onDragOver={(e) => { if (dragLigneId && dragLigneId !== l.id) e.preventDefault(); }}
+                          onDrop={(e) => { e.preventDefault(); if (dragLigneId) handleMergeLignes(dragLigneId, l.id); setDragLigneId(null); }}
+                          onDragEnd={() => setDragLigneId(null)}
+                          title="Glissez cette ligne sur une autre pour fusionner achat + vente"
                           style={{
                             display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.1fr auto',
                             gap: 10, alignItems: 'center', padding: '8px 12px',
                             background: needsVente ? 'rgba(245,158,11,0.06)' : '#fff',
-                            border: `1px solid ${needsVente ? 'rgba(245,158,11,0.3)' : 'rgba(48,64,53,0.08)'}`,
-                            borderRadius: 10, fontSize: 12,
+                            border: `1px solid ${dragLigneId && dragLigneId !== l.id ? 'rgba(16,185,129,0.6)' : (needsVente ? 'rgba(245,158,11,0.3)' : 'rgba(48,64,53,0.08)')}`,
+                            borderRadius: 10, fontSize: 12, cursor: 'grab',
+                            opacity: dragLigneId === l.id ? 0.5 : 1,
+                            boxShadow: dragLigneId && dragLigneId !== l.id ? 'inset 0 0 0 2px rgba(16,185,129,0.25)' : 'none',
                           }}
                         >
                           <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
