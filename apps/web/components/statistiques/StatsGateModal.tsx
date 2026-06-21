@@ -91,6 +91,8 @@ interface Props {
   onAddLigne: (dossierId: string, ligne: Omit<DossierPrixLigne, 'id'>) => void;
   /** Callback persistance : suppression d'une ligne. */
   onRemoveLigne: (dossierId: string, ligneId: string) => void;
+  /** Callback persistance : mise à jour partielle d'une ligne (fusion achat/vente). */
+  onUpdateLigne: (dossierId: string, ligneId: string, patch: Partial<Omit<DossierPrixLigne, 'id'>>) => void;
   /** Auto-import : ajoute N lignes d'un coup (StatsGate v2). */
   onAddLignesBulk: (dossierId: string, lignes: Omit<DossierPrixLigne, 'id'>[]) => void;
   /** Snooze : reporte un dossier hors du gate (StatsGate v2). */
@@ -131,7 +133,7 @@ function writeDraft(dossierId: string, draft: Draft): void {
 
 // ── Composant principal ────────────────────────────────────────────────────
 export function StatsGateModal({
-  missingDossiers, allSignes, allDevis, onAddLigne, onRemoveLigne, onAddLignesBulk, onSkipDossier,
+  missingDossiers, allSignes, allDevis, onAddLigne, onRemoveLigne, onUpdateLigne, onAddLignesBulk, onSkipDossier,
 }: Props) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(missingDossiers[0]?.id ?? null);
@@ -275,44 +277,78 @@ export function StatsGateModal({
   const marge = totalVente - totalAchat;
   const margePct = totalVente > 0 ? Math.round((marge / totalVente) * 100) : 0;
 
-  const handleExtractAI = useCallback(async () => {
+  // Moteur d'extraction IA partagé par les 2 boutons (vente / achat).
+  // Séparation stricte :
+  //   mode 'vente' → lit le DEVIS (OPTION/PROJET/APD) → colonne VENTE (montantVenteHT)
+  //   mode 'achat' → lit les FACTURES fournisseurs    → colonne ACHAT (montantHT)
+  // Fusion non destructive : si une ligne (fournisseur, produit) existe déjà,
+  // on COMPLÈTE la colonne manquante au lieu de créer un doublon. On n'écrase
+  // jamais une valeur déjà saisie.
+  const runExtraction = useCallback(async (mode: 'vente' | 'achat') => {
     if (!selected || aiExtracting) return;
     setAiExtracting(true);
     setAiError(null);
     try {
       const result = await extractDossier(selected.id);
-      // Dedup par (fournisseur, produit) : on ne re-crée pas une ligne déjà
-      // présente, même si l'utilisateur a complété ses prix entre-temps. Évite
-      // les doublons en cas de ré-extraction (clic multiple ou ajout de doc).
+      const norm = (s?: string) => (s ?? '').trim().toLowerCase();
       const key = (l: { fournisseur: string; produit?: string }) =>
-        `${l.fournisseur}::${(l.produit ?? '').trim().toLowerCase()}`;
-      const existing = new Set(selectedLignes.map(key));
-      const toImport = (result.commandes ?? [])
-        .map((c) => {
-          // Séparation stricte : l'extraction (devis OPTION/PROJET/APD) ne remplit
-          // QUE le prix de VENTE. Le prix d'achat vient uniquement des
-          // confirmations fournisseurs (bouton « Importer N confirmations »).
-          const vente = typeof c.montantVenteHT === 'number' && c.montantVenteHT > 0
-            ? c.montantVenteHT
-            : (typeof c.montantHT === 'number' && c.montantHT > 0 ? c.montantHT : 0);
-          return {
+        `${norm(l.fournisseur)}::${norm(l.produit)}`;
+
+      // Index des lignes existantes par clé (fournisseur, produit).
+      const existingByKey = new Map<string, DossierPrixLigne>();
+      selectedLignes.forEach((l) => { if (!existingByKey.has(key(l))) existingByKey.set(key(l), l); });
+
+      let created = 0;
+      let merged = 0;
+      const toCreate: Omit<DossierPrixLigne, 'id'>[] = [];
+
+      (result.commandes ?? []).forEach((c) => {
+        const montant = mode === 'achat'
+          ? (typeof c.montantHT === 'number' && c.montantHT > 0 ? c.montantHT : 0)
+          : (typeof c.montantVenteHT === 'number' && c.montantVenteHT > 0 ? c.montantVenteHT : 0);
+        if (!c.fournisseur || montant <= 0) return;
+
+        const k = key({ fournisseur: c.fournisseur, produit: c.produit ?? undefined });
+        const existing = existingByKey.get(k);
+
+        if (existing) {
+          // Complète la colonne manquante sur la ligne existante (additif).
+          if (mode === 'achat' && !(existing.prixAchatHT > 0)) {
+            onUpdateLigne(selected.id, existing.id, { prixAchatHT: montant });
+            merged++;
+          } else if (mode === 'vente' && !(existing.prixVenteHT > 0)) {
+            onUpdateLigne(selected.id, existing.id, { prixVenteHT: montant });
+            merged++;
+          }
+          // sinon : colonne déjà renseignée → on ne touche à rien.
+        } else {
+          const ligne = {
             fournisseur: c.fournisseur,
             produit: c.produit ?? undefined,
-            prixAchatHT: 0,
-            prixVenteHT: vente,
+            prixAchatHT: mode === 'achat' ? montant : 0,
+            prixVenteHT: mode === 'vente' ? montant : 0,
           };
-        })
-        .filter((l) => l.fournisseur && l.prixVenteHT > 0)
-        .filter((l) => !existing.has(key(l)));
-      if (toImport.length === 0) {
-        setToast({ message: 'IA : aucune nouvelle ligne à extraire (déjà importé ou pas de montants détectés)', tone: 'info' });
-      } else {
-        onAddLignesBulk(selected.id, toImport);
-        const conf = Math.round((result.confiance ?? 0) * 100);
+          toCreate.push(ligne);
+          // Marque la clé comme prise pour éviter un doublon dans le même lot.
+          existingByKey.set(k, { id: '__pending__', ...ligne } as DossierPrixLigne);
+          created++;
+        }
+      });
+
+      if (toCreate.length > 0) onAddLignesBulk(selected.id, toCreate);
+
+      const conf = Math.round((result.confiance ?? 0) * 100);
+      const label = mode === 'achat' ? "prix d'achat (factures)" : 'prix de vente (devis)';
+      if (created === 0 && merged === 0) {
         setToast({
-          message: `🪄 IA : ${toImport.length} ligne${toImport.length > 1 ? 's' : ''} créée${toImport.length > 1 ? 's' : ''} (confiance ${conf}%) — l'achat vient des confirmations fournisseurs`,
-          tone: 'ok',
+          message: `IA : aucun ${mode === 'achat' ? "montant d'achat" : 'montant de vente'} détecté (déjà importé ou pas de document analysable).`,
+          tone: 'info',
         });
+      } else {
+        const parts: string[] = [];
+        if (created) parts.push(`${created} ligne${created > 1 ? 's' : ''} créée${created > 1 ? 's' : ''}`);
+        if (merged) parts.push(`${merged} complétée${merged > 1 ? 's' : ''}`);
+        setToast({ message: `🪄 IA ${label} : ${parts.join(' + ')} (confiance ${conf}%)`, tone: 'ok' });
       }
     } catch (err: any) {
       const msg = (err?.message ?? '').toString();
@@ -331,7 +367,10 @@ export function StatsGateModal({
       setAiExtracting(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, aiExtracting, selectedLignes, onAddLignesBulk]);
+  }, [selected, aiExtracting, selectedLignes, onAddLignesBulk, onUpdateLigne]);
+
+  const handleExtractAI    = useCallback(() => runExtraction('vente'), [runExtraction]);
+  const handleExtractAchat = useCallback(() => runExtraction('achat'), [runExtraction]);
 
   // Auto-clear erreur IA apres 8s
   useEffect(() => {
@@ -880,6 +919,48 @@ export function StatsGateModal({
                   <>
                     <Wand2 size={14} />
                     🪄 Extraire le prix de vente (devis)
+                    <Sparkles size={11} />
+                  </>
+                )}
+              </button>
+
+              {/* [IA achat] 2e bouton (21/06/2026) — l'IA lit les FACTURES
+                  fournisseurs du dossier et remplit la colonne ACHAT. Symétrique
+                  du bouton vente, fusionne sur la ligne existante si même
+                  (fournisseur, produit). Couleur ambre pour distinguer l'achat. */}
+              <button
+                onClick={handleExtractAchat}
+                disabled={aiExtracting}
+                className="sg-import-btn"
+                style={{
+                  width: '100%', marginBottom: 10, padding: '11px 14px',
+                  borderRadius: 12, border: '1.5px solid #d97706',
+                  background: aiExtracting
+                    ? 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)'
+                    : 'linear-gradient(135deg, #fffbeb 0%, #fde68a 100%)',
+                  color: '#92400e', fontWeight: 700, fontSize: 12,
+                  cursor: aiExtracting ? 'wait' : 'pointer',
+                  display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: 6, textAlign: 'center',
+                  opacity: aiExtracting ? 0.7 : 1,
+                  transition: 'opacity 0.2s',
+                }}
+                title="L'IA lit les factures fournisseurs du dossier et crée/complète les lignes de prix d'achat. Le prix de vente vient du devis."
+              >
+                {aiExtracting ? (
+                  <>
+                    <span className="sg-spinner" style={{
+                      width: 14, height: 14, borderRadius: '50%',
+                      border: '2px solid rgba(217,119,6,0.3)',
+                      borderTopColor: '#92400e',
+                      animation: 'sg-spin 0.7s linear infinite',
+                    }} />
+                    Analyse IA des documents…
+                  </>
+                ) : (
+                  <>
+                    <Wand2 size={14} />
+                    🪄 Extraire le prix d&apos;achat (factures)
                     <Sparkles size={11} />
                   </>
                 )}

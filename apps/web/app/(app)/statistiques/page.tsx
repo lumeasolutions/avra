@@ -39,6 +39,7 @@ export default function StatistiquesPage() {
   const dossiersPerdus = useDossierStore((s) => s.dossiersPerdus);
   const addDossierPrixLigne     = useDossierStore((s) => s.addDossierPrixLigne);
   const removeDossierPrixLigne  = useDossierStore((s) => s.removeDossierPrixLigne);
+  const updateDossierPrixLigne  = useDossierStore((s) => s.updateDossierPrixLigne);
   const addDossierPrixLignesBulk = useDossierStore((s) => s.addDossierPrixLignesBulk);
   const setDossierStatsSkipped  = useDossierStore((s) => s.setDossierStatsSkipped);
 
@@ -82,6 +83,7 @@ export default function StatistiquesPage() {
           allDevis={allDevis}
           onAddLigne={addDossierPrixLigne}
           onRemoveLigne={removeDossierPrixLigne}
+          onUpdateLigne={updateDossierPrixLigne}
           onAddLignesBulk={addDossierPrixLignesBulk}
           onSkipDossier={setDossierStatsSkipped}
         />
