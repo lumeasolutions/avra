@@ -31,8 +31,11 @@ export class SignatureController {
   @Public()
   async handleYousignWebhook(@Req() req: Request, @Body() body: any, @Res() res: Response) {
     const secret = process.env.YOUSIGN_WEBHOOK_SECRET;
-    // En prod, le secret DOIT être configuré. En dev, on peut bypass si explicitement absent.
-    if (process.env.NODE_ENV === 'production' && !secret) {
+    // Le secret DOIT être configuré PARTOUT sauf en dev local strict. Avant, en
+    // preview Vercel (NODE_ENV != production) sans secret, le webhook était traité
+    // SANS auth → un POST public pouvait forcer un statut SIGNED/REFUSED (M6).
+    const isLocalDev = process.env.NODE_ENV === 'development' && !process.env.VERCEL_ENV;
+    if (!secret && !isLocalDev) {
       console.error('[YouSign] YOUSIGN_WEBHOOK_SECRET not configured — rejecting webhook');
       return res.status(500).json({ received: false });
     }
@@ -77,7 +80,9 @@ export class SignatureController {
             newStatus = 'EXPIRED';
           }
 
-          if (newStatus) {
+          // Idempotence : ne jamais régresser un statut SIGNED (un webhook
+          // 'expired'/'declined' tardif après 'done' ne doit pas l'écraser).
+          if (newStatus && record.status !== 'SIGNED') {
             await this.prisma.signatureRequest.update({
               where: { id: record.id },
               data: {

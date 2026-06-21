@@ -217,6 +217,7 @@ export class DemandesController {
    */
   @Post('internal/relance-all')
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 60 * 60 * 1000, limit: 3 } }) // F4: anti-spam (relance = fan-out d'emails)
   async relanceAll(@CurrentUser() user: JwtPayload) {
     // HIGH-6 (passe-2): scope reminder fan-out to the caller's workspace.
     //   Previously this called sendAutoReminders(3) globally, meaning a single
