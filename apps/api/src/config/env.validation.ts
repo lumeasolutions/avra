@@ -108,6 +108,21 @@ export class EnvironmentVariables {
 }
 
 export function validate(config: Record<string, any>) {
+  // Fail-fast: les secrets VITAUX doivent être présents. La validation
+  // class-validator ci-dessous garde `skipMissingProperties: true` (pour ne pas
+  // exiger les nombreuses variables optionnelles déclarées @IsString sans
+  // @IsOptional), donc on contrôle explicitement l'essentiel ici — sinon
+  // l'app démarrait silencieusement avec DATABASE_URL/JWT_SECRET indéfinis.
+  const REQUIRED = ['DATABASE_URL', 'JWT_SECRET'];
+  const missing = REQUIRED.filter(
+    (k) => config[k] === undefined || String(config[k]).trim() === '',
+  );
+  if (missing.length > 0) {
+    throw new Error(
+      `❌ Variables d'environnement requises manquantes : ${missing.join(', ')}`,
+    );
+  }
+
   const validatedConfig = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });

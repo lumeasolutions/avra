@@ -29,6 +29,20 @@ Le frontend Next.js ET l'API NestJS sont tous les deux sur Vercel :
 - Routing : `/api/v1/*` → serverless function (défini dans `vercel.json` rewrites)
 - En dev : proxy Next.js vers `localhost:3001` (via `next.config.js` rewrites)
 
+> ⚠️ **Config Vercel (à connaître).** Le projet Vercel a `rootDirectory: "apps/web"`
+> (cf. `.vercel/project.json`), donc Vercel lit **`apps/web/vercel.json`** (qui
+> surcharge les settings du dashboard) — PAS le `vercel.json` racine (config
+> historique, conservée mais inactive avec ce rootDirectory). Le handler
+> serverless `apps/web/api/index.ts` charge l'API compilée via
+> `require('../../api/dist/app.module')` ; le `buildCommand` de
+> `apps/web/vercel.json` build donc bien `@avra/api` avant `@avra/web`.
+> Après tout changement touchant ce routage, **vérifier par un déploiement**
+> (Preview) que `/api/v1/health` répond `{status:"ok"}`.
+>
+> Alternative non finalisée : des `Dockerfile` existent (bascule API conteneurisée).
+> Pour l'activer il faudrait héberger l'API ailleurs, pointer `NEXT_PUBLIC_API_URL`
+> dessus, configurer CORS, et retirer le bloc `functions`/`rewrites` du vercel.json.
+
 ## Bêta gate
 
 - `BETA_GATE_ENABLED=true` → whitelist active

@@ -11,9 +11,21 @@ const rootDir = __dirname;
 const apiDir = path.join(rootDir, 'apps', 'api');
 const sep = process.platform === 'win32' ? ';' : ':';
 
-// Prisma binary in pnpm store
+// Prisma binary in pnpm store.
 const pnpmStore = path.join(rootDir, 'node_modules', '.pnpm');
-const prismaPath = path.join(pnpmStore, 'prisma@5.22.0', 'node_modules', 'prisma', 'build', 'index.js');
+// Chemin historique (fonctionne avec prisma 5.22.0 pinné à la racine).
+let prismaPath = path.join(pnpmStore, 'prisma@5.22.0', 'node_modules', 'prisma', 'build', 'index.js');
+// Robustesse : la racine pin 5.22.0 mais les apps utilisent ^5.22.0, donc un
+// `pnpm update` peut changer la version et casser le chemin en dur. Si le
+// chemin historique n'existe pas, on résout dynamiquement (version-agnostique).
+if (!fs.existsSync(prismaPath)) {
+  try {
+    const prismaPkg = require.resolve('prisma/package.json', { paths: [apiDir, rootDir] });
+    prismaPath = path.join(path.dirname(prismaPkg), 'build', 'index.js');
+  } catch {
+    /* le contrôle fs.existsSync ci-dessous gèrera l'absence proprement */
+  }
+}
 // Schema is at root/prisma/schema.prisma
 const schemaPath = path.join(rootDir, 'prisma', 'schema.prisma');
 
