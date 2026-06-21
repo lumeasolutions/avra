@@ -290,9 +290,18 @@ export function StatsGateModal({
     setAiError(null);
     try {
       const result = await extractDossier(selected.id);
-      const norm = (s?: string) => (s ?? '').trim().toLowerCase();
+      // Normalisation robuste pour rapprocher achat (factures) et vente (devis)
+      // d'un même produit malgré les variantes : accents, casse, raison sociale
+      // ("LEICHT Küchen AG" → "leicht"), préfixe marque ("FRANKE - ...").
+      const accentless = (s?: string) =>
+        (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const FOURN_STOP = new Set(['ag','sas','sasu','sa','sarl','gmbh','kg','sl','bv','llc','ltd','inc','co','eurl','france','deutschland','kuchen','distribution','distributeur','pro','group','groupe']);
+      const normFournisseur = (s?: string) =>
+        accentless(s).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w && !FOURN_STOP.has(w)).join(' ').trim();
+      const normProduit = (s?: string) =>
+        accentless(s).toLowerCase().replace(/^\s*[a-z0-9&]{2,}\s*[-–—:]\s*/, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
       const key = (l: { fournisseur: string; produit?: string }) =>
-        `${norm(l.fournisseur)}::${norm(l.produit)}`;
+        `${normFournisseur(l.fournisseur)}::${normProduit(l.produit)}`;
 
       // Index des lignes existantes par clé (fournisseur, produit).
       const existingByKey = new Map<string, DossierPrixLigne>();
@@ -339,11 +348,19 @@ export function StatsGateModal({
 
       const conf = Math.round((result.confiance ?? 0) * 100);
       const label = mode === 'achat' ? "prix d'achat (factures)" : 'prix de vente (devis)';
+      const nbCommandes = (result.commandes ?? []).length;
       if (created === 0 && merged === 0) {
-        setToast({
-          message: `IA : aucun ${mode === 'achat' ? "montant d'achat" : 'montant de vente'} détecté (déjà importé ou pas de document analysable).`,
-          tone: 'info',
-        });
+        if (nbCommandes === 0) {
+          // Extraction revenue vide → souvent un échec transitoire de lecture des
+          // documents. On le signale clairement et on invite à réessayer (évite
+          // le clic « dans le vide »).
+          setAiError("L'IA n'a rien pu lire cette fois (lecture des documents). Patientez quelques secondes puis réessayez.");
+        } else {
+          setToast({
+            message: `IA : aucun ${mode === 'achat' ? "montant d'achat" : 'montant de vente'} nouveau (déjà importé).`,
+            tone: 'info',
+          });
+        }
       } else {
         const parts: string[] = [];
         if (created) parts.push(`${created} ligne${created > 1 ? 's' : ''} créée${created > 1 ? 's' : ''}`);
@@ -375,7 +392,7 @@ export function StatsGateModal({
   // Auto-clear erreur IA apres 8s
   useEffect(() => {
     if (!aiError) return;
-    const t = setTimeout(() => setAiError(null), 8000);
+    const t = setTimeout(() => setAiError(null), 12000);
     return () => clearTimeout(t);
   }, [aiError]);
 

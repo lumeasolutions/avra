@@ -30,7 +30,7 @@ Tu reçois les documents d'un dossier client (devis signés, plans, fiches techn
    → Ne jamais inventer une date. La précision prime sur la complétude.
 
 2. **Liste des lignes produits** détectées dans les documents :
-   - "fournisseur" : nom du fournisseur réel si connu (ex "BOSCH", "ELECTRO PRO"), sinon l'émetteur du document (obligatoire, string non vide)
+   - "fournisseur" : la MARQUE du produit, en nom COURT et CONSTANT (ex "LEICHT", "SIEMENS", "FRANKE", "BOSCH") — JAMAIS la raison sociale complète : "LEICHT Küchen AG" → "LEICHT", "SIEMENS France SAS" → "SIEMENS". Utilise EXACTEMENT le même libellé de marque pour un produit qu'il apparaisse sur le devis ou sur une facture (c'est ce qui permet de rapprocher achat et vente). Pour une facture de DISTRIBUTEUR qui regroupe plusieurs marques, utilise la MARQUE de chaque ligne (ex "FRANKE", "SILESTONE"), PAS le nom du distributeur. Si aucune marque n'est identifiable, utilise l'émetteur du document. (obligatoire, string non vide)
    - "produit" : désignation de l'article/ligne (ex "Four encastrable Bosch HBA171BS1F", "Plan de travail granit noir"). null UNIQUEMENT si le document n'a aucun détail ligne par ligne.
    - "dateButoir" : date butoir de la commande (ISO YYYY-MM-DD ou null)
    - "montantHT" : prix d'ACHAT HT en euros (coût pour le professionnel) — lu sur une FACTURE ou un BON DE COMMANDE FOURNISSEUR. null si inconnu.
@@ -40,6 +40,7 @@ Tu reçois les documents d'un dossier client (devis signés, plans, fiches techn
    → ACHAT vs VENTE (crucial) : un DEVIS CLIENT (émis PAR le professionnel/cuisiniste VERS son client) contient des prix de VENTE → range-les dans "montantVenteHT". Une FACTURE ou un BON DE COMMANDE FOURNISSEUR (émis par un fournisseur VERS le professionnel) contient des prix d'ACHAT → range-les dans "montantHT". Repère l'émetteur/destinataire pour trancher.
    → UNE SEULE ENTRÉE PAR PRODUIT (important) : retourne UNE entrée par article. Si le MÊME produit apparaît à la fois dans un devis ET dans une facture, FUSIONNE-le en une seule entrée renseignant à la fois "montantHT" (achat) ET "montantVenteHT" (vente). Un même produit peut être libellé légèrement différemment d'un document à l'autre (ex "Four Bosch HBA171" ≈ "Four Bosch HBA171 — inox") : reconnais-le comme identique.
    → DÉTAIL : ne regroupe jamais des produits DIFFÉRENTS en un seul total. Si un document n'a aucun détail ligne par ligne, retourne une entrée globale ("produit": null) avec le total dans la bonne colonne (achat ou vente).
+   → EXHAUSTIVITÉ (important) : extrais TOUTES les lignes de CHAQUE document, sans exception. Une facture qui regroupe plusieurs marques/produits (distributeur) doit produire AUTANT d'entrées que de lignes — n'en oublie aucune. Parcours chaque document jusqu'au bout.
 
 3. **Liste des livraisons attendues** :
    - "categorie" : catégorie de la livraison (CUISINE, ELECTRO, GRANIT, MENUISERIE, etc.)

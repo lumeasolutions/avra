@@ -294,9 +294,15 @@ export default function DossierDetailPage() {
     setAiPrixMsg(null);
     try {
       const result = await extractDossier(dossier.id, scope);
-      const norm = (s?: string) => (s ?? '').trim().toLowerCase();
+      const accentless = (s?: string) =>
+        (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const FOURN_STOP = new Set(['ag','sas','sasu','sa','sarl','gmbh','kg','sl','bv','llc','ltd','inc','co','eurl','france','deutschland','kuchen','distribution','distributeur','pro','group','groupe']);
+      const normFournisseur = (s?: string) =>
+        accentless(s).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w && !FOURN_STOP.has(w)).join(' ').trim();
+      const normProduit = (s?: string) =>
+        accentless(s).toLowerCase().replace(/^\s*[a-z0-9&]{2,}\s*[-–—:]\s*/, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
       const keyOf = (l: { fournisseur: string; produit?: string }) =>
-        `${norm(l.fournisseur)}::${norm(l.produit)}`;
+        `${normFournisseur(l.fournisseur)}::${normProduit(l.produit)}`;
       const existing = new Map<string, DossierPrixLigne>();
       (dossier.prixLignes ?? []).forEach((l) => {
         if (!existing.has(keyOf(l))) existing.set(keyOf(l), l);
@@ -334,11 +340,13 @@ export default function DossierDetailPage() {
       });
       if (toCreate.length > 0) addDossierPrixLignesBulk(dossier.id, toCreate);
       const conf = Math.round((result.confiance ?? 0) * 100);
+      const nbCommandes = (result.commandes ?? []).length;
       if (created === 0 && merged === 0) {
-        setAiPrixMsg({
-          tone: 'info',
-          text: `IA : aucun ${scope === 'achat' ? "montant d'achat" : 'montant de vente'} detecte.`,
-        });
+        if (nbCommandes === 0) {
+          setAiPrixMsg({ tone: 'err', text: "L'IA n'a rien pu lire cette fois. Patientez quelques secondes puis reessayez." });
+        } else {
+          setAiPrixMsg({ tone: 'info', text: `IA : aucun ${scope === 'achat' ? "montant d'achat" : 'montant de vente'} nouveau (deja importe).` });
+        }
       } else {
         const parts: string[] = [];
         if (created) parts.push(`${created} ligne${created > 1 ? 's' : ''} creee${created > 1 ? 's' : ''}`);
