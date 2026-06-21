@@ -1148,6 +1148,10 @@ export const useDossierStore = create<DossierState>()(
               : d
           ),
         }));
+        // Persiste la validation en base (manquait — les autres actions
+        // confirmation le faisaient déjà). Sans ça, valider une confirmation
+        // n'était pas sauvegardé et disparaissait au rechargement.
+        pushDossierData(get, dossierId);
       },
 
       reset: () => set({
