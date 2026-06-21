@@ -121,7 +121,21 @@ export class ExtractionService {
       `Extraction payload: ${textPayload.length} doc(s) texte, ${imagePayload.length} image(s) - kinds=${JSON.stringify(stats)}`,
     );
 
-    return this.callOpenAI(textPayload, imagePayload);
+    // Fiabilité : si plusieurs documents, on analyse CHAQUE document dans son
+    // propre appel IA (en parallèle) puis on fusionne. L'IA ne peut plus en
+    // oublier un quand on lui en donne plusieurs d'un coup (plusieurs factures).
+    const chunks: Array<{ text: ExtractionDocumentPayload[]; images: ExtractionImagePayload[] }> = [
+      ...textPayload.map((t) => ({ text: [t], images: [] as ExtractionImagePayload[] })),
+      ...imagePayload.map((im) => ({ text: [] as ExtractionDocumentPayload[], images: [im] })),
+    ];
+    if (chunks.length <= 1 || chunks.length > 10) {
+      // 0-1 document : un seul appel suffit. >10 : on evite trop d'appels paralleles.
+      return this.callOpenAI(textPayload, imagePayload);
+    }
+    const settled = await Promise.allSettled(
+      chunks.map((c) => this.callOpenAI(c.text, c.images)),
+    );
+    return this.mergeExtractionResults(settled);
   }
 
   // -----------------------------------------------------------------
@@ -298,6 +312,31 @@ export class ExtractionService {
       this.logger.warn(`exceljs extract failed: ${(err as Error).message}`);
       return '';
     }
+  }
+
+  /** Fusionne les resultats d'extractions document-par-document (mode parallele). */
+  private mergeExtractionResults(
+    settled: PromiseSettledResult<ExtractionResult>[],
+  ): ExtractionResult {
+    const ok = settled
+      .filter((s): s is PromiseFulfilledResult<ExtractionResult> => s.status === 'fulfilled')
+      .map((s) => s.value);
+    if (ok.length === 0) {
+      const firstErr = settled.find((s) => s.status === 'rejected') as PromiseRejectedResult | undefined;
+      throw firstErr?.reason ?? new InternalServerErrorException('Extraction IA echouee');
+    }
+    const dateKeys: Array<keyof ExtractionResult['datesButoires']> = [
+      'suiviChantier', 'releveMesures', 'planTechnique', 'fichePose', 'permisConstruire',
+    ];
+    const datesButoires = {} as ExtractionResult['datesButoires'];
+    for (const k of dateKeys) {
+      datesButoires[k] = ok.map((r) => r.datesButoires?.[k]).find((v) => v != null) ?? null;
+    }
+    const commandes = ok.flatMap((r) => r.commandes ?? []);
+    const livraisons = ok.flatMap((r) => r.livraisons ?? []);
+    const confiance = ok.reduce((s, r) => s + (r.confiance ?? 0), 0) / ok.length;
+    const notes = ok.map((r) => r.notes).filter(Boolean).join(' - ').slice(0, 500);
+    return { datesButoires, commandes, livraisons, confiance, notes };
   }
 
   private async callOpenAI(
