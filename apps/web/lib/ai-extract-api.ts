@@ -41,10 +41,14 @@ export interface ExtractionResult {
 }
 
 /** Appelle le backend pour extraire les données IA d'un dossier. */
-export async function extractDossier(dossierId: string): Promise<ExtractionResult> {
+export async function extractDossier(
+  dossierId: string,
+  scope?: 'achat' | 'vente' | 'all',
+): Promise<ExtractionResult> {
+  const payload = scope && scope !== 'all' ? { dossierId, scope } : { dossierId };
   return api<ExtractionResult>('/ia/extract-dossier', {
     method: 'POST',
-    body: JSON.stringify({ dossierId }),
+    body: JSON.stringify(payload),
   });
 }
 

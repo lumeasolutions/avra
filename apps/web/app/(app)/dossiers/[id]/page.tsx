@@ -7,10 +7,10 @@ import {
   FolderOpen, FileText, ImageIcon, Ruler, CheckCircle, ArrowLeft,
   GitCompare, AlertTriangle, Plus, ChevronRight, Tag, Phone, Mail,
   MapPin, Calendar, Receipt, FileCheck, StickyNote, Pencil, X,
-  Clock, Circle, TrendingUp, Zap, Eye, Download, Check, CornerDownRight, LayoutDashboard, LayoutGrid, List
+  Clock, Circle, TrendingUp, Zap, Eye, Download, Check, CornerDownRight, LayoutDashboard, LayoutGrid, List, Wand2, Sparkles
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
-import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
+import type { DocumentFile, SubFolderDocument, DossierPrixLigne } from '@/store/useDossierStore';
 import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
@@ -20,6 +20,7 @@ import { DateButoireValidationModal } from '@/components/dossiers/DateButoireVal
 import { OptionSelectionModal } from '@/components/dossiers/OptionSelectionModal';
 import { VendeurAssignDropdown } from '@/components/vendeur/VendeurAssignDropdown';
 import { StatsManualEntryModal } from '@/components/statistiques/StatsManualEntryModal';
+import { extractDossier } from '@/lib/ai-extract-api';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useDossierPermissions } from '@/hooks/useDossierPermissions';
 import type { ValidatedOptionSelection } from '@/store/useDossierStore';
@@ -139,6 +140,7 @@ export default function DossierDetailPage() {
   const addDossierPrixLigne    = useDossierStore(s => s.addDossierPrixLigne);
   const removeDossierPrixLigne = useDossierStore(s => s.removeDossierPrixLigne);
   const updateDossierPrixLigne = useDossierStore(s => s.updateDossierPrixLigne);
+  const addDossierPrixLignesBulk = useDossierStore(s => s.addDossierPrixLignesBulk);
   const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
   const toggleDossierTermine = useDossierStore(s => s.toggleDossierTermine);
   const profession = useAuthStore(s => s.profession);
@@ -280,6 +282,79 @@ export default function DossierDetailPage() {
   const [notes,         setNotesLocal]    = useState(dossier?.notes ?? '');
   // Modale d'édition des prix achat/vente (26/05/2026) — retour sur saisie.
   const [showPrixModal, setShowPrixModal] = useState(false);
+  // Extraction IA des prix depuis la fiche dossier (21/06/2026).
+  //  - achat : factures du/des sous-dossier(s) Commandes / Confirmations fournisseurs
+  //  - vente : devis du DERNIER OPTION / PROJET / APD
+  // Fusion non destructive dans prixLignes (jamais d'ecrasement d'une valeur saisie).
+  const [aiPrixBusy, setAiPrixBusy] = useState<null | 'achat' | 'vente'>(null);
+  const [aiPrixMsg, setAiPrixMsg] = useState<null | { tone: 'ok' | 'info' | 'err'; text: string }>(null);
+  const runAiPrixExtract = async (scope: 'achat' | 'vente') => {
+    if (aiPrixBusy || !dossier) return;
+    setAiPrixBusy(scope);
+    setAiPrixMsg(null);
+    try {
+      const result = await extractDossier(dossier.id, scope);
+      const norm = (s?: string) => (s ?? '').trim().toLowerCase();
+      const keyOf = (l: { fournisseur: string; produit?: string }) =>
+        `${norm(l.fournisseur)}::${norm(l.produit)}`;
+      const existing = new Map<string, DossierPrixLigne>();
+      (dossier.prixLignes ?? []).forEach((l) => {
+        if (!existing.has(keyOf(l))) existing.set(keyOf(l), l);
+      });
+      let created = 0;
+      let merged = 0;
+      const toCreate: Omit<DossierPrixLigne, 'id'>[] = [];
+      (result.commandes ?? []).forEach((c) => {
+        const montant =
+          scope === 'achat'
+            ? (typeof c.montantHT === 'number' && c.montantHT > 0 ? c.montantHT : 0)
+            : (typeof c.montantVenteHT === 'number' && c.montantVenteHT > 0 ? c.montantVenteHT : 0);
+        if (!c.fournisseur || montant <= 0) return;
+        const k = keyOf({ fournisseur: c.fournisseur, produit: c.produit ?? undefined });
+        const ex = existing.get(k);
+        if (ex) {
+          if (scope === 'achat' && !(ex.prixAchatHT > 0)) {
+            updateDossierPrixLigne(dossier.id, ex.id, { prixAchatHT: montant });
+            merged++;
+          } else if (scope === 'vente' && !(ex.prixVenteHT > 0)) {
+            updateDossierPrixLigne(dossier.id, ex.id, { prixVenteHT: montant });
+            merged++;
+          }
+        } else {
+          const ligne = {
+            fournisseur: c.fournisseur,
+            produit: c.produit ?? undefined,
+            prixAchatHT: scope === 'achat' ? montant : 0,
+            prixVenteHT: scope === 'vente' ? montant : 0,
+          };
+          toCreate.push(ligne);
+          existing.set(k, { id: '__pending__', ...ligne } as DossierPrixLigne);
+          created++;
+        }
+      });
+      if (toCreate.length > 0) addDossierPrixLignesBulk(dossier.id, toCreate);
+      const conf = Math.round((result.confiance ?? 0) * 100);
+      if (created === 0 && merged === 0) {
+        setAiPrixMsg({
+          tone: 'info',
+          text: `IA : aucun ${scope === 'achat' ? "montant d'achat" : 'montant de vente'} detecte.`,
+        });
+      } else {
+        const parts: string[] = [];
+        if (created) parts.push(`${created} ligne${created > 1 ? 's' : ''} creee${created > 1 ? 's' : ''}`);
+        if (merged) parts.push(`${merged} completee${merged > 1 ? 's' : ''}`);
+        setAiPrixMsg({
+          tone: 'ok',
+          text: `${scope === 'achat' ? 'Achat' : 'Vente'} : ${parts.join(' + ')} (confiance ${conf}%)`,
+        });
+      }
+    } catch (err: any) {
+      const m = (err?.message ?? '').toString();
+      setAiPrixMsg({ tone: 'err', text: m || 'Echec extraction IA' });
+    } finally {
+      setAiPrixBusy(null);
+    }
+  };
   const [editingNotes,  setEditingNotes]  = useState(false);
   const setNotes = (v: string) => {
     setNotesLocal(v);
@@ -393,11 +468,13 @@ export default function DossierDetailPage() {
         </div>
       )}
       <style>{`
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
           .dos-detail-grid { grid-template-columns: 1fr !important; }
           .dos-detail-grid > .col-span-2,
           .dos-detail-grid > .col-span-1 { grid-column: span 1 !important; }
           .dos-sub-grid-2 { grid-template-columns: 1fr !important; }
+          /* Sous-dossiers : indentation réduite sur mobile (gagne de la largeur au pouce) */
+          .subfolder-row.pl-12 { padding-left: 1.25rem !important; }
         }
       `}</style>
 
@@ -1110,6 +1187,40 @@ export default function DossierDetailPage() {
                   </button>
                   )}
                 </div>
+                {canEditThis && (
+                  <div className="px-5 pt-3 pb-1 border-b border-[#304035]/5">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => runAiPrixExtract('achat')}
+                        disabled={aiPrixBusy !== null}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold border"
+                        style={{ borderColor: '#d97706', background: 'linear-gradient(135deg,#fffbeb,#fde68a)', color: '#92400e', opacity: aiPrixBusy ? 0.6 : 1, cursor: aiPrixBusy ? 'wait' : 'pointer' }}
+                        title="L'IA lit les factures du sous-dossier Commandes fournisseurs et remplit le prix d'achat."
+                      >
+                        <Wand2 className="h-3.5 w-3.5" />
+                        {aiPrixBusy === 'achat' ? 'Analyse…' : "🪄 IA achat (factures)"}
+                      </button>
+                      <button
+                        onClick={() => runAiPrixExtract('vente')}
+                        disabled={aiPrixBusy !== null}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold border"
+                        style={{ borderColor: '#6366f1', background: 'linear-gradient(135deg,#eef2ff,#c7d2fe)', color: '#4338ca', opacity: aiPrixBusy ? 0.6 : 1, cursor: aiPrixBusy ? 'wait' : 'pointer' }}
+                        title="L'IA lit le devis du dernier OPTION / PROJET / APD et remplit le prix de vente."
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        {aiPrixBusy === 'vente' ? 'Analyse…' : '🪄 IA vente (devis)'}
+                      </button>
+                    </div>
+                    {aiPrixMsg && (
+                      <p
+                        className="mt-2 text-[10px] leading-snug"
+                        style={{ color: aiPrixMsg.tone === 'err' ? '#b91c1c' : aiPrixMsg.tone === 'ok' ? '#047857' : '#6b7280' }}
+                      >
+                        {aiPrixMsg.text}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {lignes.length === 0 ? (
                   <div className="px-5 py-4 text-xs text-[#304035]/45 italic">
                     Aucun prix renseigné. Cliquez sur « + Renseigner » pour saisir les prix achat &amp; vente HT par fournisseur — utile pour les statistiques de marge.

@@ -59,6 +59,7 @@ export class ExtractionService {
   async extractFromDossier(
     workspaceId: string,
     dossierId: string,
+    scope: 'achat' | 'vente' | 'all' = 'all',
   ): Promise<ExtractionResult> {
     if (!isOpenAIConfigured()) {
       throw new ServiceUnavailableException(
@@ -72,8 +73,37 @@ export class ExtractionService {
     });
     if (!project) throw new NotFoundException('Dossier introuvable');
 
-    const docs = await this.dossierDocs.listInternalForProject(workspaceId, dossierId);
+    let docs = await this.dossierDocs.listInternalForProject(workspaceId, dossierId);
     if (!docs.length) throw new BadRequestException('Aucun document analysable dans ce dossier');
+
+    // Restriction par scope (21/06/2026) : permet aux boutons de la fiche dossier
+    // de cibler precisement les bons sous-dossiers.
+    //  - achat : factures des sous-dossiers d'approvisionnement
+    //  - vente : devis du DERNIER OPTION / PROJET / APD
+    if (scope === 'achat') {
+      docs = docs.filter((d) =>
+        /commande|facture|achat|fournisseur/i.test(d.subfolderLabel || ''),
+      );
+      if (!docs.length) {
+        throw new BadRequestException(
+          "Aucune facture d'achat trouvee dans les sous-dossiers Commandes / Confirmations fournisseurs",
+        );
+      }
+    } else if (scope === 'vente') {
+      const devisRe = /option|projet|apd/i;
+      const candidates = docs.filter((d) => devisRe.test(d.subfolderLabel || ''));
+      if (!candidates.length) {
+        throw new BadRequestException(
+          'Aucun devis trouve dans un sous-dossier OPTION / PROJET / APD',
+        );
+      }
+      const numOf = (s: string) => {
+        const m = (s || '').match(/\d+/g);
+        return m ? Math.max(...m.map(Number)) : 0;
+      };
+      const bestNum = Math.max(...candidates.map((d) => numOf(d.subfolderLabel)));
+      docs = candidates.filter((d) => numOf(d.subfolderLabel) === bestNum);
+    }
 
     const { textPayload, imagePayload, stats } = await this.buildPayload(
       workspaceId,

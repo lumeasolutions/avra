@@ -510,6 +510,6 @@ Preserve proportions and layout, modify only colors and finishes. Photorealistic
     @CurrentUser() user: JwtPayload,
     @Body() body: ExtractDossierDto,
   ) {
-    return this.extraction.extractFromDossier(user.workspaceId, body.dossierId);
+    return this.extraction.extractFromDossier(user.workspaceId, body.dossierId, body.scope ?? 'all');
   }
 }
