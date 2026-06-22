@@ -67,26 +67,24 @@ function mapPaymentType(type: string): 'Facture' | "Facture d'acompte" | 'Avoir'
   }
 }
 
-function mapEventType(event: any) {
-  // Convertit un event Prisma en PlanningEvent frontend
-  const startDate = new Date(event.startAt);
-  // day 0=dimanche, on veut 1=lundi ... 5=vendredi
-  const dayOfWeek = startDate.getDay() === 0 ? 7 : startDate.getDay();
-  const startHour = startDate.getHours();
+// Restauration fidèle d'un event serveur -> créneau planning (semaine + champs
+// riches stockés en JSON dans description). Remplace l'ancien mapEventType (à perte).
+function _wkMon(d: Date): Date {
+  const x = new Date(d); x.setHours(0, 0, 0, 0);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+function restoreEvent(event: any) {
+  const start = new Date(event.startAt);
+  const day = start.getDay() === 0 ? 7 : start.getDay();
+  const startHour = start.getHours();
+  const startMinute = start.getMinutes();
+  const weekOffset = Math.round((_wkMon(start).getTime() - _wkMon(new Date()).getTime()) / (7 * 86400000));
   const endDate = new Date(event.endAt || event.startAt);
-  const durationMs = endDate.getTime() - startDate.getTime();
-  const duration = Math.max(1, Math.round(durationMs / (1000 * 60 * 60)));
-
-  return {
-    id: event.id,
-    day: dayOfWeek,
-    startHour,
-    duration,
-    title: event.title,
-    color: event.calendarType === 'GESTION' ? '#e8b86d' : '#5b9bd5',
-    type: event.type,
-    weekOffset: 0,
-  };
+  const durationMinutes = Math.max(15, Math.round((endDate.getTime() - start.getTime()) / 60000));
+  let extra: any = {};
+  try { if (event.description) extra = JSON.parse(event.description); } catch { /* description libre non-JSON */ }
+  return { day, startHour, startMinute, weekOffset, durationMinutes, extra };
 }
 
 export function useDataSync() {
@@ -365,17 +363,30 @@ export function useDataSync() {
       const personalEvents = data.filter((e) => e.calendarType === 'PERSONAL');
       const gestEvents = data.filter((e) => e.calendarType === 'GESTION');
 
-      const mappedPersonal = personalEvents.map(mapEventType);
-      const mappedGest = gestEvents.map((event) => {
-        const base = mapEventType(event);
+      const mappedPersonal = personalEvents.map((event) => {
+        const r = restoreEvent(event);
         return {
-          id: base.id,
-          day: base.day,
-          startHour: base.startHour,
-          duration: base.duration,
-          type: event.type || 'AUTRE',
-          client: event.title || '',
-          weekOffset: 0,
+          id: event.id, day: r.day, startHour: r.startHour, startMinute: r.startMinute,
+          duration: r.extra.duration ?? Math.max(1, Math.round(r.durationMinutes / 60)),
+          durationMinutes: r.extra.durationMinutes ?? r.durationMinutes,
+          title: r.extra.title || event.title || '',
+          color: r.extra.color || (event.calendarType === 'GESTION' ? '#e8b86d' : '#5b9bd5'),
+          type: r.extra.type || event.type || 'AUTRE',
+          weekOffset: r.weekOffset,
+        };
+      });
+      const mappedGest = gestEvents.map((event) => {
+        const r = restoreEvent(event);
+        return {
+          id: event.id, day: r.day, startHour: r.startHour, startMinute: r.startMinute,
+          duration: r.extra.duration ?? Math.max(1, Math.round(r.durationMinutes / 60)),
+          durationMinutes: r.extra.durationMinutes ?? r.durationMinutes,
+          type: r.extra.type || event.type || 'AUTRE',
+          client: r.extra.client || event.title || '',
+          weekOffset: r.weekOffset,
+          intervenantId: r.extra.intervenantId,
+          intervenantName: r.extra.intervenantName,
+          intervenantType: r.extra.intervenantType,
         };
       });
 

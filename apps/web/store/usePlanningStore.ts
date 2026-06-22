@@ -73,6 +73,55 @@ const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 8);
 const USERS = ['Cassandra', 'Sylvie', 'Christian'];
 const randomUser = () => USERS[Math.floor(Math.random() * USERS.length)];
 
+// ── Persistance serveur des créneaux (sinon ils disparaissent au resync) ──
+function _weekMonday(d = new Date()): Date {
+  const x = new Date(d); x.setHours(0, 0, 0, 0);
+  const dow = (x.getDay() + 6) % 7; // 0 = lundi
+  x.setDate(x.getDate() - dow);
+  return x;
+}
+function _eventDates(e: { day: number; startHour: number; startMinute?: number; weekOffset?: number; duration: number; durationMinutes?: number }): { startAt: string; endAt: string } {
+  const mon = _weekMonday();
+  const day = Math.min(7, Math.max(1, e.day || 1));
+  const start = new Date(mon);
+  start.setDate(mon.getDate() + (e.weekOffset || 0) * 7 + (day - 1));
+  start.setHours(e.startHour || 0, e.startMinute || 0, 0, 0);
+  const mins = e.durationMinutes ?? Math.round((e.duration || 1) * 60);
+  const end = new Date(start.getTime() + Math.max(15, mins) * 60000);
+  return { startAt: start.toISOString(), endAt: end.toISOString() };
+}
+function _planningTypeToEventType(t?: string): string {
+  const s = (t || '').toUpperCase();
+  if (s.includes('LIVR')) return 'LIVRAISON';
+  if (s.includes('POSE') || s.includes('INSTALL')) return 'INSTALLATION';
+  if (s.includes('CHANTIER') || s.includes('SUIVI') || s.includes('MESURE') || s.includes('RELEV')) return 'VISITE_CHANTIER';
+  if (s.includes('REUNION') || s.includes('RÉUNION')) return 'REUNION';
+  if (s.includes('RDV') || s.includes('CLIENT')) return 'RDV_CLIENT';
+  return 'AUTRE';
+}
+const _isLocalId = (id: string) => id.startsWith('gev') || id.startsWith('ev');
+async function _persistEvent(calendarType: 'GESTION' | 'PERSONAL', e: any, payload: Record<string, unknown>): Promise<string | null> {
+  try {
+    const { api } = await import('@/lib/api');
+    const { startAt, endAt } = _eventDates(e);
+    const created: any = await api('/events', {
+      method: 'POST',
+      body: JSON.stringify({
+        calendarType,
+        type: _planningTypeToEventType(e.type),
+        title: (e.client || e.title || e.type || 'Intervention').toString().slice(0, 200),
+        startAt, endAt,
+        description: JSON.stringify({ k: calendarType === 'GESTION' ? 'gest' : 'perso', ...payload }),
+      }),
+    });
+    return created?.id ?? null;
+  } catch { return null; }
+}
+async function _deleteEvent(id: string): Promise<void> {
+  if (_isLocalId(id)) return;
+  try { const { api } = await import('@/lib/api'); await api(`/events/${id}`, { method: 'DELETE' }); } catch { /* noop */ }
+}
+
 interface PlanningState {
   // Data
   planningEvents: PlanningEvent[];
@@ -108,8 +157,15 @@ export const usePlanningStore = create<PlanningState>()(
       customInterventionTypes: [],
 
       addPlanningEvent: (event) => {
-        const newEvent = { ...event, id: 'ev' + uid() };
+        const tempId = 'ev' + uid();
+        const newEvent = { ...event, id: tempId };
         set(s => ({ planningEvents: [...s.planningEvents, newEvent] }));
+        void _persistEvent('PERSONAL', newEvent, {
+          title: event.title, color: event.color, type: event.type,
+          duration: event.duration, durationMinutes: event.durationMinutes, startMinute: event.startMinute,
+        }).then((realId) => {
+          if (realId) set(s => ({ planningEvents: s.planningEvents.map(e => e.id === tempId ? { ...e, id: realId } : e) }));
+        });
       },
 
       updatePlanningEvent: (id, patch) => {
@@ -122,11 +178,20 @@ export const usePlanningStore = create<PlanningState>()(
 
       deletePlanningEvent: (id) => {
         set(s => ({ planningEvents: s.planningEvents.filter(e => e.id !== id) }));
+        void _deleteEvent(id);
       },
 
       addGestEvent: (event) => {
-        const newEvent = { ...event, id: 'gev' + uid() };
+        const tempId = 'gev' + uid();
+        const newEvent = { ...event, id: tempId };
         set(s => ({ gestEvents: [...s.gestEvents, newEvent] }));
+        void _persistEvent('GESTION', newEvent, {
+          type: event.type, client: event.client, duration: event.duration,
+          durationMinutes: event.durationMinutes, startMinute: event.startMinute,
+          intervenantId: event.intervenantId, intervenantName: event.intervenantName, intervenantType: event.intervenantType,
+        }).then((realId) => {
+          if (realId) set(s => ({ gestEvents: s.gestEvents.map(e => e.id === tempId ? { ...e, id: realId } : e) }));
+        });
       },
 
       updateGestEvent: (id, patch) => {
@@ -139,6 +204,7 @@ export const usePlanningStore = create<PlanningState>()(
 
       deleteGestEvent: (id) => {
         set(s => ({ gestEvents: s.gestEvents.filter(e => e.id !== id) }));
+        void _deleteEvent(id);
       },
 
       // ── Métiers custom (planning gestion) ───────────────────────────────
