@@ -493,78 +493,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
           {/* ── STEP COMPOSE ───────────────────────────────────────── */}
           {step === 'compose' && selectedIntervenant && (
             <>
-              {/* Statut compte intervenant */}
-              {!intervenantHasAccount && !intervenantHasPendingInvite && (
-                <div style={{
-                  padding: '12px 14px',
-                  background: '#fff7ed',
-                  border: '1px solid #fed7aa',
-                  borderRadius: 10,
-                  marginBottom: 14,
-                  fontSize: 12,
-                  color: '#7c2d12',
-                  display: 'flex', alignItems: 'flex-start', gap: 10,
-                }}>
-                  <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, marginBottom: 2 }}>
-                      Cet intervenant n'a pas encore de compte AVRA
-                    </div>
-                    <div>
-                      Vous pouvez quand même envoyer la demande, mais il devra accepter
-                      une invitation pour la consulter.
-                    </div>
-                    <button
-                      onClick={() => setShowInviteForm(!showInviteForm)}
-                      style={{
-                        marginTop: 8,
-                        background: '#1a2a1e', color: '#cbb98a',
-                        border: 'none', borderRadius: 8,
-                        padding: '6px 12px',
-                        fontSize: 12, fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'inline-flex', alignItems: 'center', gap: 6,
-                      }}
-                    >
-                      <UserPlus size={13} /> Envoyer une invitation
-                    </button>
-                  </div>
-                </div>
-              )}
 
-              {showInviteForm && (
-                <div style={{
-                  padding: 14,
-                  background: '#fafaf8',
-                  borderRadius: 12,
-                  marginBottom: 14,
-                  border: '1px solid #ece7df',
-                }}>
-                  <Label>Email d'invitation</Label>
-                  <input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder={selectedIntervenant.email ?? 'exemple@email.com'}
-                    style={inputStyle()}
-                  />
-                  <Label style={{ marginTop: 10 }}>Message personnalisé (optionnel)</Label>
-                  <textarea
-                    value={inviteMessage}
-                    onChange={(e) => setInviteMessage(e.target.value)}
-                    rows={2}
-                    style={{ ...inputStyle(), resize: 'vertical' }}
-                  />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <button onClick={handleInvite} style={btnStyle('primary')}>
-                      <Mail size={13} /> Envoyer l'invitation
-                    </button>
-                    <button onClick={() => setShowInviteForm(false)} style={btnStyle('secondary')}>
-                      Annuler
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {intervenantHasPendingInvite && (
                 <div style={{
