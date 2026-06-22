@@ -16,7 +16,7 @@
  *    global — l'utilisateur ferme quand il a fini)
  */
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { X, Plus, Trash2, FolderOpen, Euro, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Dossier, DossierPerdu, DossierPrixLigne } from '@/store/useDossierStore';
 
@@ -49,7 +49,15 @@ export function StatsManualEntryModal({
   title, accentColor, dossiers, onAddLigne, onRemoveLigne, onUpdateLigne, onClose,
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(dossiers[0]?.id ?? null);
-  const [draftByDossier, setDraftByDossier] = useState<Record<string, Draft>>({});
+  const [draftByDossier, setDraftByDossier] = useState<Record<string, Draft>>(() => {
+    // Brouillon persistant : on restaure les lignes en cours de saisie (non
+    // encore ajoutées) pour qu'elles survivent à la fermeture de la modale.
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = window.localStorage.getItem('avra_prix_draft_v1');
+      return raw ? (JSON.parse(raw) as Record<string, Draft>) : {};
+    } catch { return {}; }
+  });
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const getDraft = useCallback(
@@ -59,6 +67,23 @@ export function StatsManualEntryModal({
   const setDraft = useCallback((id: string, patch: Partial<Draft>) => {
     setDraftByDossier((prev) => ({ ...prev, [id]: { ...getDraft(id), ...patch } }));
   }, [getDraft]);
+
+  // Persiste les brouillons (lignes en cours, non validées) -> survivent à la
+  // fermeture/réouverture de la modale. Effacés dès qu'ils redeviennent vides.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const nonEmpty: Record<string, Draft> = {};
+      for (const [id, d] of Object.entries(draftByDossier)) {
+        if (d && (d.fournisseur.trim() || d.achat.trim() || d.vente.trim())) nonEmpty[id] = d;
+      }
+      if (Object.keys(nonEmpty).length > 0) {
+        window.localStorage.setItem('avra_prix_draft_v1', JSON.stringify(nonEmpty));
+      } else {
+        window.localStorage.removeItem('avra_prix_draft_v1');
+      }
+    } catch { /* quota / mode privé : on ignore */ }
+  }, [draftByDossier]);
 
   const handleAdd = useCallback((dossierId: string) => {
     const d = getDraft(dossierId);
