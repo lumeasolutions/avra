@@ -75,11 +75,14 @@ export class DemandesEmailService {
     notes?: string | null;
     scheduledFor?: Date | null;
     hasAccount: boolean;
+    /** Jeton public (lien sans login). Si présent, on affiche les boutons d'action. */
+    publicToken?: string;
   }): Promise<void> {
-    const link = params.hasAccount
-      ? `${this.webUrl}/intervenant/demandes/${params.demandeId}`
-      : `${this.webUrl}/login`;
-    const cta = params.hasAccount ? 'Voir la demande' : 'Se connecter pour repondre';
+    const base = params.publicToken
+      ? `${this.webUrl}/intervention/${params.publicToken}`
+      : (params.hasAccount ? `${this.webUrl}/intervenant/demandes/${params.demandeId}` : `${this.webUrl}/login`);
+    const link = base;
+    const cta = 'Voir la demande et répondre';
 
     const scheduledStr = params.scheduledFor
       ? `<p style="margin:12px 0;color:#7c4f1d"><strong>Date prevue :</strong> ${formatDateFR(params.scheduledFor)}</p>`
@@ -103,11 +106,14 @@ export class DemandesEmailService {
         </div>
         ${scheduledStr}
         ${notesStr}
-        ${ctaButton(link, cta)}
-        ${params.hasAccount
-          ? '<p style="font-size:12px;color:#7c6c58;margin-top:18px">Vous pouvez accepter, refuser ou demander des precisions directement depuis votre espace.</p>'
-          : '<p style="font-size:12px;color:#7c6c58;margin-top:18px">Si c\'est votre premiere fois, verifiez votre boite mail pour le lien d\'invitation a votre espace.</p>'
-        }
+        ${params.publicToken ? `
+          <div style="margin:18px 0">
+            <a href="${base}?do=accept" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;margin:0 8px 8px 0">Accepter</a>
+            <a href="${base}?do=refuse" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;margin:0 8px 8px 0">Refuser</a>
+            <a href="${base}" style="display:inline-block;background:#1a2a1e;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;margin:0 8px 8px 0">Voir &amp; répondre</a>
+          </div>
+          <p style="font-size:12px;color:#7c6c58;margin-top:8px">Aucun compte n'est nécessaire : cliquez simplement sur un bouton ci-dessus.</p>
+        ` : ctaButton(link, cta)}
       `,
     });
     return this.send({ to: params.to, subject: `[AVRA] ${params.proName} : ${params.title}`, html });

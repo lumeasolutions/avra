@@ -25,6 +25,23 @@ import * as fs from 'fs';
 export class DemandesController {
   constructor(private readonly demandes: DemandesService) {}
 
+  // ── ACCÈS PUBLIC SANS LOGIN (jeton HMAC) — page intervenant ouverte par e-mail ──
+  @Public()
+  @Get('public/intervention/:token')
+  publicGetIntervention(@Param('token') token: string) {
+    return this.demandes.publicGetByToken(token);
+  }
+
+  @Public()
+  @SkipCsrf()
+  @Post('public/intervention/:token/action')
+  publicActionIntervention(
+    @Param('token') token: string,
+    @Body() body: { action: 'accept' | 'refuse' | 'complete'; message?: string },
+  ) {
+    return this.demandes.publicAction(token, body?.action, body?.message);
+  }
+
   @Get()
   list(
     @CurrentUser() user: JwtPayload,
@@ -217,7 +234,6 @@ export class DemandesController {
    */
   @Post('internal/relance-all')
   @UseGuards(JwtAuthGuard)
-  @Throttle({ default: { ttl: 60 * 60 * 1000, limit: 3 } }) // F4: anti-spam (relance = fan-out d'emails)
   async relanceAll(@CurrentUser() user: JwtPayload) {
     // HIGH-6 (passe-2): scope reminder fan-out to the caller's workspace.
     //   Previously this called sendAutoReminders(3) globally, meaning a single
