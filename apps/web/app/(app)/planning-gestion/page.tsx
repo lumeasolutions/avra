@@ -10,6 +10,7 @@ import {
 import { useDossierStore, usePlanningStore } from '@/store';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { createDemande } from '@/lib/demandes-api';
+import { api } from '@/lib/api';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CustomInterventionTypeModal } from '@/components/planning/CustomInterventionTypeModal';
 
@@ -204,6 +205,11 @@ export default function PlanningGestionPage() {
   // Modale création métier custom (19/05/2026, demande asso)
   const [showCustomTypeModal, setShowCustomTypeModal] = useState(false);
   const [newEvent,   setNewEvent]     = useState<{ type: string; client: string; duration: number; intervenantId: string | null }>({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null });
+  // Pieces du dossier client a joindre a la demande (optionnel) lors de l'assignation d'un intervenant.
+  type PgDoc = { id: string; subfolderLabel: string; originalName: string; mimeType: string | null };
+  const [pgDocs, setPgDocs] = useState<PgDoc[] | null>(null);
+  const [pgDocsLoading, setPgDocsLoading] = useState(false);
+  const [pgSelectedDocIds, setPgSelectedDocIds] = useState<string[]>([]);
   const [modalDate,  setModalDate]    = useState('');
   const [modalHour,  setModalHour]    = useState(9);
   const [modalMinute, setModalMinute] = useState(0); // 0 / 15 / 30 / 45
@@ -399,6 +405,27 @@ export default function PlanningGestionPage() {
     };
   }, [popoverEventId]);
 
+  // Dossier correspondant au client saisi (texte libre -> dossier connu).
+  const pgMatchedDossier = useMemo(
+    () => [...dossiers, ...dossiersSignes].find((d: any) => d.name === newEvent.client),
+    [dossiers, dossiersSignes, newEvent.client],
+  );
+  const pgProjectId: string | undefined = (pgMatchedDossier as any)?.id;
+
+  // Charge les pieces du dossier quand un intervenant est assigne + dossier connu.
+  useEffect(() => {
+    if (!showAdd || !newEvent.intervenantId || !pgProjectId) { setPgDocs(null); return; }
+    let cancelled = false;
+    setPgDocsLoading(true);
+    api<any>(`/dossiers/${encodeURIComponent(pgProjectId)}/documents`)
+      .then((raw) => { if (!cancelled) setPgDocs(Array.isArray(raw) ? raw : []); })
+      .catch(() => { if (!cancelled) setPgDocs([]); })
+      .finally(() => { if (!cancelled) setPgDocsLoading(false); });
+    return () => { cancelled = true; };
+  }, [showAdd, newEvent.intervenantId, pgProjectId]);
+  // Reset de la selection a la fermeture de la modale.
+  useEffect(() => { if (!showAdd) setPgSelectedDocIds([]); }, [showAdd]);
+
   const handleAdd = () => {
     if (!newEvent.client.trim() || !modalDate) return;
     const chosen  = new Date(modalDate + 'T00:00:00');
@@ -437,6 +464,9 @@ export default function PlanningGestionPage() {
         type: planningTypeToDemandeType(newEvent.type) as any,
         title: `${formatTypeLabel(newEvent.type)} — ${newEvent.client}`.trim(),
         scheduledFor: when.toISOString(),
+        attachments: (pgSelectedDocIds.length && pgDocs)
+          ? pgDocs.filter((d) => pgSelectedDocIds.includes(d.id)).map((d) => ({ dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined }))
+          : undefined,
       })
         .then(() => { setIntervSent(assignedIntervenant.name ?? 'L’intervenant'); setTimeout(() => setIntervSent(null), 6000); })
         .catch(() => { setIntervSent('__error__'); setTimeout(() => setIntervSent(null), 6000); });
@@ -1378,6 +1408,75 @@ export default function PlanningGestionPage() {
                   </select>
                 )}
               </div>
+              {/* Documents a joindre (optionnel) : visible si un intervenant est
+                  assigne ET le client correspond a un dossier connu. */}
+              {newEvent.intervenantId && pgProjectId && (
+                <div>
+                  <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2 mt-4">
+                    Documents à joindre <span className="text-[#304035]/40 font-normal normal-case">(optionnel)</span>
+                  </label>
+                  {pgDocsLoading ? (
+                    <div className="text-[11px] text-[#304035]/45 italic">Chargement des documents…</div>
+                  ) : !pgDocs || pgDocs.length === 0 ? (
+                    <div className="text-[11px] text-[#304035]/45 italic rounded-xl border border-dashed border-[#304035]/20 px-3 py-2">
+                      Aucun document dans ce dossier.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-auto rounded-xl border border-[#304035]/15 p-2 bg-white">
+                      {Object.entries(
+                        pgDocs.reduce((acc: Record<string, PgDoc[]>, d) => {
+                          const k = d.subfolderLabel || 'Autres';
+                          if (!acc[k]) acc[k] = [];
+                          acc[k].push(d);
+                          return acc;
+                        }, {}),
+                      ).map(([folder, docs]) => {
+                        const ids = docs.map((d) => d.id);
+                        const allSel = ids.every((id) => pgSelectedDocIds.includes(id));
+                        return (
+                          <div key={folder} className="rounded-lg border border-[#f0eae0] p-2">
+                            <label className="flex items-center gap-2 text-[11px] font-bold text-[#304035] cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={allSel}
+                                onChange={(e) =>
+                                  setPgSelectedDocIds((prev) =>
+                                    e.target.checked
+                                      ? Array.from(new Set([...prev, ...ids]))
+                                      : prev.filter((id) => !ids.includes(id)),
+                                  )
+                                }
+                              />
+                              {folder} <span className="font-normal text-[#304035]/40">({docs.length})</span>
+                            </label>
+                            <div className="mt-1 pl-5 space-y-1">
+                              {docs.map((d) => (
+                                <label key={d.id} className="flex items-center gap-2 text-[11px] text-[#304035]/80 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={pgSelectedDocIds.includes(d.id)}
+                                    onChange={(e) =>
+                                      setPgSelectedDocIds((prev) =>
+                                        e.target.checked ? [...prev, d.id] : prev.filter((id) => id !== d.id),
+                                      )
+                                    }
+                                  />
+                                  <span className="truncate">{d.originalName}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {pgSelectedDocIds.length > 0 && (
+                        <div className="text-[11px] text-[#a67749] font-semibold pt-1">
+                          {pgSelectedDocIds.length} document(s) seront envoyés à l'intervenant.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mt-6 flex gap-3">
