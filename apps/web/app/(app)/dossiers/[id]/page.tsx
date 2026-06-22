@@ -272,6 +272,20 @@ export default function DossierDetailPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const openPreview = async (doc: DocumentFile) => {
+    const isPdf = doc.type === 'application/pdf' || /\.pdf$/i.test(doc.name);
+    if (isPdf) {
+      // Les PDF s'ouvrent de façon bien plus fiable dans un nouvel onglet
+      // (lecteur PDF natif du navigateur) que dans une iframe intégrée, qui
+      // restait parfois blanche. On ouvre la fenêtre AVANT l'await (sinon le
+      // bloqueur de pop-ups l'empêche), puis on la redirige vers l'URL signée.
+      const win = window.open('about:blank', '_blank');
+      const url = await resolveDocUrl(id, doc);
+      if (win) {
+        if (url) win.location.href = url; else win.close();
+        return;
+      }
+      // pop-up bloqué → on retombe sur la modale iframe ci-dessous
+    }
     setPreviewDoc(doc);
     setPreviewUrl(null);
     const url = await resolveDocUrl(id, doc);
