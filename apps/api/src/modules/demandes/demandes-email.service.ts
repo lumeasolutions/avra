@@ -27,6 +27,14 @@ export class DemandesEmailService {
   }
 
   /** Envoie via l'API Resend (fire-and-forget). */
+  /** Adresse de réponse à jeton : <token>@INBOUND_REPLY_DOMAIN. Permet à la réponse
+   *  de l'intervenant de revenir DANS AVRA (webhook), rangée dans la bonne demande.
+   *  Si non configuré -> undefined (fallback sur l'e-mail direct). */
+  private inboundReplyTo(token?: string): string | undefined {
+    const d = process.env.INBOUND_REPLY_DOMAIN;
+    return d && token ? `${token}@${d}` : undefined;
+  }
+
   /** Expéditeur : garde l'adresse du domaine vérifié mais AFFICHE le nom fourni
    *  (ex. le nom de l'utilisateur AVRA), pour que l'intervenant voie qui écrit. */
   private buildFrom(fromName?: string): string {
@@ -129,7 +137,7 @@ export class DemandesEmailService {
         ` : ctaButton(link, cta)}
       `,
     });
-    return this.send({ to: params.to, subject: `[AVRA] ${params.proName} : ${params.title}`, html, fromName: params.proName, replyTo: params.proEmail });
+    return this.send({ to: params.to, subject: `[AVRA] ${params.proName} : ${params.title}`, html, fromName: params.proName, replyTo: this.inboundReplyTo(params.publicToken) ?? params.proEmail });
   }
 
   /**
@@ -189,6 +197,8 @@ export class DemandesEmailService {
     messageBody: string;
     /** E-mail de l'expéditeur (pour Reply-To : le destinataire lui répond directement). */
     senderEmail?: string;
+    /** Jeton de la demande : si message pro -> intervenant, la réponse revient dans AVRA. */
+    replyToToken?: string;
   }): Promise<void> {
     // Tronque le message en preview (preview uniquement dans le mail)
     const preview = params.messageBody.length > 280
@@ -216,7 +226,7 @@ export class DemandesEmailService {
         ${ctaButton(link, 'Voir et repondre')}
       `,
     });
-    return this.send({ to: params.to, subject: `[AVRA] Message de ${params.senderName} — ${params.demandeTitle}`, html, fromName: params.senderName, replyTo: params.senderEmail });
+    return this.send({ to: params.to, subject: `[AVRA] Message de ${params.senderName} — ${params.demandeTitle}`, html, fromName: params.senderName, replyTo: params.senderRole === 'pro' ? (this.inboundReplyTo(params.replyToToken) ?? params.senderEmail) : params.senderEmail });
   }
 
   /**
