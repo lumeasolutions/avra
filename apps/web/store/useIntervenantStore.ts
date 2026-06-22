@@ -80,6 +80,8 @@ interface IntervenantState {
 
   // Actions intervenants
   addIntervenant: (data: { type: string; name: string; phone: string; email: string; notes?: string }) => void;
+  /** Ajoute un intervenant déjà persisté côté serveur (avec son id réel) — survit au resync. */
+  addServerIntervenant: (rec: { id: string; type: string; name: string; phone: string; email: string; notes?: string }) => void;
   removeIntervenant: (id: string) => void;
   updateIntervenant: (id: string, data: Partial<Omit<Intervenant, 'id' | 'dossiers'>>) => void;
 
@@ -106,6 +108,11 @@ export const useIntervenantStore = create<IntervenantState>()(
       addIntervenant: (data) => {
         const newIntervenant: Intervenant = { id: 'i' + uid(), ...data, dossiers: [] };
         set(s => ({ intervenants: [newIntervenant, ...s.intervenants] }));
+      },
+
+      addServerIntervenant: (rec) => {
+        const it: Intervenant = { ...rec, notes: rec.notes ?? '', dossiers: [] };
+        set(s => ({ intervenants: [it, ...s.intervenants.filter(i => i.id !== rec.id)] }));
       },
 
       removeIntervenant: (id) => {

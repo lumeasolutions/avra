@@ -127,6 +127,7 @@ export default function IntervenantsHubPage() {
   // Store annuaire intervenants (sync via useDataSync)
   const intervenants = useIntervenantStore(s => s.intervenants);
   const addLocalIntervenant = useIntervenantStore(s => s.addIntervenant);
+  const addServerIntervenant = useIntervenantStore(s => s.addServerIntervenant);
   const removeLocalIntervenant = useIntervenantStore(s => s.removeIntervenant);
 
   // Store dossiers/items (sync backend)
@@ -415,9 +416,34 @@ export default function IntervenantsHubPage() {
           <AddIntervenantModal
             defaultType={filterType}
             onClose={() => setShowAddForm(false)}
-            onCreate={(data) => {
-              addLocalIntervenant(data);
+            onCreate={async (data) => {
               setShowAddForm(false);
+              // Enregistrement SERVEUR (sinon l'intervenant disparait au rechargement).
+              const VALID_TYPES = new Set(['POSEUR','ELECTRICIEN','MACON','PEINTRE','PLOMBIER','CARRELEUR','MENUISIER','CHAUFFAGISTE','SERRURIER','GEOMETRE','AUTRE']);
+              const backendType = VALID_TYPES.has(data.type) ? data.type : 'AUTRE';
+              try {
+                const created: any = await api('/intervenants', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    type: backendType,
+                    companyName: data.name,
+                    email: data.email || undefined,
+                    phone: data.phone || undefined,
+                    notes: data.notes || undefined,
+                  }),
+                });
+                addServerIntervenant({
+                  id: created.id,
+                  type: created.type || backendType,
+                  name: created.companyName || data.name,
+                  phone: created.phone || data.phone || '',
+                  email: created.email || data.email || '',
+                  notes: created.notes || data.notes || '',
+                });
+              } catch (err) {
+                console.warn('[intervenant] creation serveur echouee, garde en local', err);
+                addLocalIntervenant(data);
+              }
             }}
           />
         )}
