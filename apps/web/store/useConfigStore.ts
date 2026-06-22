@@ -67,6 +67,50 @@ export interface RelanceConfig {
   messageRetard: string;
 }
 
+/** Tous les seuils (en jours) et interrupteurs on/off du système d'alerte. */
+export interface AlertesConfig {
+  // Dossiers
+  echeanceProche: number;
+  dossierInactif: number;
+  rappelJ1: number;
+  rappelJ2: number;
+  rappelJ3: number;
+  rappelFenetre: number;
+  onButoirDepassee: boolean;
+  onDossierInactif: boolean;
+  onNouveauDossier: boolean;
+  onDossierUrgent: boolean;
+  // Facturation
+  acompteNonRecu: number;
+  acompteFacture: number;
+  onFactureEcheance: boolean;
+  onFactureRetard: boolean;
+  onPaiementRecu: boolean;
+  onAcompteNonRecu: boolean;
+  // Devis
+  devisSignature: number;
+  devisSansReponse: number;
+  onDevisExpire: boolean;
+  onDevisRefuse: boolean;
+  // Commandes
+  commandeAttente: number;
+  confirmationFournisseur: number;
+  onLivraisonRetard: boolean;
+  onCommandeAnnulee: boolean;
+  onCommandeAttente: boolean;
+  onConfirmationFournisseur: boolean;
+  // Planning
+  onRappelRdv: boolean;
+  onVisiteNonFaite: boolean;
+  onConflitPlanning: boolean;
+  // Stock
+  onStockCritique: boolean;
+  onRupture: boolean;
+  // Intervenants
+  onDossiersAClasser: boolean;
+  onCoordonneesIncompletes: boolean;
+}
+
 export interface UserMember {
   id: string;
   name: string;
@@ -170,6 +214,19 @@ const INITIAL_RELANCE: RelanceConfig = {
   messageRetard: 'Bonjour {client}, nous constatons que votre règlement de {montant}€ est en retard. Merci de régulariser rapidement.',
 };
 
+const INITIAL_ALERTES: AlertesConfig = {
+  echeanceProche: 7, dossierInactif: 30, rappelJ1: 14, rappelJ2: 7, rappelJ3: 3, rappelFenetre: 21,
+  onButoirDepassee: true, onDossierInactif: true, onNouveauDossier: false, onDossierUrgent: true,
+  acompteNonRecu: 7, acompteFacture: 7,
+  onFactureEcheance: true, onFactureRetard: true, onPaiementRecu: true, onAcompteNonRecu: true,
+  devisSignature: 5, devisSansReponse: 14, onDevisExpire: true, onDevisRefuse: true,
+  commandeAttente: 3, confirmationFournisseur: 7,
+  onLivraisonRetard: true, onCommandeAnnulee: true, onCommandeAttente: true, onConfirmationFournisseur: true,
+  onRappelRdv: true, onVisiteNonFaite: true, onConflitPlanning: true,
+  onStockCritique: true, onRupture: true,
+  onDossiersAClasser: true, onCoordonneesIncompletes: true,
+};
+
 const INITIAL_IA: IAConfig = {
   assistantActif: true,
   personnalite: 'professionnel',
@@ -215,12 +272,14 @@ interface ConfigState {
   notifConfig: NotifConfig;
   societe: Societe;
   relanceConfig: RelanceConfig;
+  alertesConfig: AlertesConfig;
   members: UserMember[];
   iaConfig: IAConfig;
 
   // Actions
   updateSociete: (data: Partial<Societe>) => void;
   updateRelanceConfig: (data: Partial<RelanceConfig>) => void;
+  updateAlertesConfig: (data: Partial<AlertesConfig>) => void;
   updatePreferences: (data: Partial<PreferencesConfig>) => void;
   updateNumerotation: (data: Partial<NumerotationConfig>) => void;
   updateFacturationConfig: (data: Partial<FacturationConfig>) => void;
@@ -246,6 +305,7 @@ export const useConfigStore = create<ConfigState>()(
       notifConfig: INITIAL_NOTIF_CFG,
       societe: INITIAL_SOCIETE,
       relanceConfig: INITIAL_RELANCE,
+      alertesConfig: INITIAL_ALERTES,
       members: INITIAL_MEMBERS,
       iaConfig: INITIAL_IA,
 
@@ -255,6 +315,10 @@ export const useConfigStore = create<ConfigState>()(
 
       updateRelanceConfig: (data) => {
         set(s => ({ relanceConfig: { ...s.relanceConfig, ...data } }));
+      },
+
+      updateAlertesConfig: (data) => {
+        set(s => ({ alertesConfig: { ...(s.alertesConfig ?? INITIAL_ALERTES), ...data } }));
       },
 
       updatePreferences: (data) => {

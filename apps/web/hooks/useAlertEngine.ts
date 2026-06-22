@@ -81,7 +81,8 @@ function computeAlerts(): RawAlert[] {
   const { stockItems, commandes } = useStockStore.getState();
   const { intervenants } = useIntervenantStore.getState();
   const { relances } = useHistoryStore.getState();
-  const { relanceConfig, notifConfig } = useConfigStore.getState();
+  const { relanceConfig, notifConfig, alertesConfig } = useConfigStore.getState();
+  const ac: any = alertesConfig ?? {};
 
   // P4 — exclure les dossiers signés terminés / archivés (réduit le bruit).
   const activeSignes = dossiersSignes.filter((ds) => !ds.terminated && !ds.archivedAt);
@@ -117,7 +118,7 @@ function computeAlerts(): RawAlert[] {
       if (!date) continue;
       const daysUntil = -daysSince(date, now); // positif = dans le futur
       const daysLate = daysSince(date, now);
-      if (daysLate > 0) {
+      if (daysLate > 0 && ac.onButoirDepassee !== false) {
         alerts.push({
           severity: 'error',
           category: 'dossier',
@@ -130,7 +131,7 @@ function computeAlerts(): RawAlert[] {
             { label: 'Relancer client', action: 'relance_client' },
           ],
         });
-      } else if (daysUntil <= 7) {
+      } else if (daysUntil <= (ac.echeanceProche ?? 7)) {
         alerts.push({
           severity: 'warning',
           category: 'dossier',
@@ -146,7 +147,7 @@ function computeAlerts(): RawAlert[] {
     // Système legacy
     for (const [label, dateStr] of Object.entries(legacyDates)) {
       const date = parseFR(dateStr);
-      if (date && date < now) {
+      if (date && date < now && ac.onButoirDepassee !== false) {
         const days = daysSince(date, now);
         alerts.push({
           severity: 'error',
@@ -168,7 +169,8 @@ function computeAlerts(): RawAlert[] {
   for (const ds of activeSignes) {
     const signedDate = parseFR(ds.signedDate);
     if (!signedDate) continue;
-    const delai = relanceConfig.delaiAcompte || 7;
+    const delai = ac.acompteNonRecu ?? relanceConfig.delaiAcompte ?? 7;
+    if (ac.onAcompteNonRecu === false) continue;
     if (daysSince(signedDate, now) < delai) continue;
     // Vérifier s'il existe un paiement acompte pour ce dossier
     const hasAcompte = payments.some(
@@ -196,7 +198,7 @@ function computeAlerts(): RawAlert[] {
     for (const conf of ds.confirmations) {
       if (conf.validee) continue;
       const dateButoir = parseFR(conf.dateButoir);
-      if (dateButoir && daysSince(dateButoir, now) > 7) {
+      if (ac.onConfirmationFournisseur !== false && dateButoir && daysSince(dateButoir, now) > (ac.confirmationFournisseur ?? 7)) {
         alerts.push({
           severity: 'warning',
           category: 'commande',
@@ -216,7 +218,7 @@ function computeAlerts(): RawAlert[] {
   // #4 — Dossier inactif > 30 jours
   for (const d of dossiers) {
     const created = parseFR(d.createdAt);
-    if (created && daysSince(created, now) > 30) {
+    if (ac.onDossierInactif !== false && created && daysSince(created, now) > (ac.dossierInactif ?? 30)) {
       alerts.push({
         severity: 'info',
         category: 'dossier',
@@ -233,7 +235,7 @@ function computeAlerts(): RawAlert[] {
   }
 
   // #5 — Nouveau dossier créé (dans les 24 dernières heures)
-  if (notifConfig.nouveauDossier) {
+  if (ac.onNouveauDossier ?? notifConfig.nouveauDossier) {
     for (const d of dossiers) {
       const created = parseFR(d.createdAt);
       if (created && daysSince(created, now) === 0) {
@@ -252,7 +254,7 @@ function computeAlerts(): RawAlert[] {
 
   // #6 — Dossier marqué URGENT
   for (const d of dossiers) {
-    if (d.status === 'URGENT') {
+    if (ac.onDossierUrgent !== false && d.status === 'URGENT') {
       alerts.push({
         severity: 'error',
         category: 'dossier',
@@ -270,7 +272,7 @@ function computeAlerts(): RawAlert[] {
   // ═══════════════════════════════════════════════════════════════════════════
 
   // #7 — Facture en retard (dateEcheance dépassée)
-  if (notifConfig.factureRetard) {
+  if (ac.onFactureEcheance ?? notifConfig.factureRetard) {
     for (const inv of invoices) {
       if (inv.statut === 'PAYÉE' || inv.statut === 'AVOIR' || inv.statut === 'RETARD') continue;
       const detail = invoiceDetails[inv.id];
@@ -293,7 +295,7 @@ function computeAlerts(): RawAlert[] {
   }
 
   // #8 — Facture avec statut RETARD
-  if (notifConfig.factureRetard) {
+  if (ac.onFactureRetard ?? notifConfig.factureRetard) {
     for (const inv of invoices) {
       if (inv.statut !== 'RETARD') continue;
       const dateInv = parseFR(inv.date);
@@ -318,8 +320,8 @@ function computeAlerts(): RawAlert[] {
   for (const inv of invoices) {
     if (inv.type !== "Facture d'acompte" || inv.statut !== 'EN ATTENTE') continue;
     const dateInv = parseFR(inv.date);
-    const delai = relanceConfig.delaiAcompte || 7;
-    if (dateInv && daysSince(dateInv, now) > delai) {
+    const delai = ac.acompteFacture ?? relanceConfig.delaiAcompte ?? 7;
+    if (ac.onAcompteNonRecu !== false && dateInv && daysSince(dateInv, now) > delai) {
       alerts.push({
         severity: 'warning',
         category: 'facturation',
@@ -336,7 +338,7 @@ function computeAlerts(): RawAlert[] {
   }
 
   // #10 — Paiement reçu (dans les 24h)
-  if (notifConfig.paiementRecu) {
+  if (ac.onPaiementRecu ?? notifConfig.paiementRecu) {
     for (const p of payments) {
       if (p.statut !== 'ENCAISSÉ') continue;
       const datePay = parseFR(p.date);
@@ -359,7 +361,7 @@ function computeAlerts(): RawAlert[] {
   // ═══════════════════════════════════════════════════════════════════════════
 
   // #11 — Devis expiré
-  if (notifConfig.devisExpire) {
+  if (ac.onDevisExpire ?? notifConfig.devisExpire) {
     for (const d of devis) {
       if (d.statut === 'ACCEPTÉ' || d.statut === 'REFUSÉ' || d.statut === 'EXPIRÉ') continue;
       const validite = parseFR(d.dateValidite);
@@ -385,7 +387,7 @@ function computeAlerts(): RawAlert[] {
   for (const d of devis) {
     if (d.signatureStatus !== 'EN_ATTENTE_SIGNATURE') continue;
     const dateCreation = parseFR(d.dateCreation);
-    if (dateCreation && daysSince(dateCreation, now) > 5) {
+    if (dateCreation && daysSince(dateCreation, now) > (ac.devisSignature ?? 5)) {
       alerts.push({
         severity: 'warning',
         category: 'devis',
@@ -403,7 +405,7 @@ function computeAlerts(): RawAlert[] {
 
   // #13 — Devis refusé
   for (const d of devis) {
-    if (d.statut !== 'REFUSÉ') continue;
+    if (d.statut !== 'REFUSÉ' || ac.onDevisRefuse === false) continue;
     alerts.push({
       severity: 'info',
       category: 'devis',
@@ -422,7 +424,7 @@ function computeAlerts(): RawAlert[] {
   for (const d of devis) {
     if (d.statut !== 'ENVOYÉ') continue;
     const dateCreation = parseFR(d.dateCreation);
-    if (dateCreation && daysSince(dateCreation, now) >= 14) {
+    if (dateCreation && daysSince(dateCreation, now) >= (ac.devisSansReponse ?? 14)) {
       const days = daysSince(dateCreation, now);
       alerts.push({
         severity: 'warning',
@@ -443,14 +445,14 @@ function computeAlerts(): RawAlert[] {
   // 4. PLANNING
   // ═══════════════════════════════════════════════════════════════════════════
 
-  if (notifConfig.planningRappel) {
+  {
     const todayDay = now.getDay(); // 0=dim, 1=lun, ...
     const tomorrowDay = (todayDay + 1) % 7;
 
     // #14 — Intervention demain (planningEvents)
     for (const ev of planningEvents) {
       const evOffset = ev.weekOffset ?? 0;
-      if (evOffset === 0 && ev.day === tomorrowDay) {
+      if ((ac.onRappelRdv ?? notifConfig.planningRappel) && evOffset === 0 && ev.day === tomorrowDay) {
         alerts.push({
           severity: 'clock',
           category: 'planning',
@@ -466,7 +468,7 @@ function computeAlerts(): RawAlert[] {
 
     // #15 — Intervention demain (gestEvents — livraisons, visites)
     for (const ev of gestEvents) {
-      if (ev.weekOffset === 0 && ev.day === tomorrowDay) {
+      if ((ac.onRappelRdv ?? notifConfig.planningRappel) && ev.weekOffset === 0 && ev.day === tomorrowDay) {
         const typeLabel = ev.type === 'LIVRAISON' ? 'Livraison' :
                           ev.type === 'VISITE_CHANTIER' ? 'Visite chantier' :
                           ev.type === 'INSTALLATION' ? 'Installation' : ev.type;
@@ -487,7 +489,7 @@ function computeAlerts(): RawAlert[] {
     // #16 — Visite chantier passée non faite (semaine précédente)
     for (const ev of gestEvents) {
       if (ev.type !== 'VISITE_CHANTIER') continue;
-      if (ev.weekOffset === -1 || (ev.weekOffset === 0 && ev.day < todayDay)) {
+      if ((ac.onVisiteNonFaite !== false) && (ev.weekOffset === -1 || (ev.weekOffset === 0 && ev.day < todayDay))) {
         alerts.push({
           severity: 'warning',
           category: 'planning',
@@ -513,7 +515,7 @@ function computeAlerts(): RawAlert[] {
       }
     }
     for (const [slot, titles] of slots.entries()) {
-      if (titles.length >= 2) {
+      if ((ac.onConflitPlanning !== false) && titles.length >= 2) {
         const [day, hour] = slot.split('-');
         alerts.push({
           severity: 'warning',
@@ -533,7 +535,7 @@ function computeAlerts(): RawAlert[] {
 
   // #18 — Stock critique (orange)
   for (const item of stockItems) {
-    if (item.quantity != null && item.minQuantity != null && item.quantity > 0 && item.quantity <= item.minQuantity) {
+    if (ac.onStockCritique !== false && item.quantity != null && item.minQuantity != null && item.quantity > 0 && item.quantity <= item.minQuantity) {
       alerts.push({
         severity: 'warning',
         category: 'stock',
@@ -550,7 +552,7 @@ function computeAlerts(): RawAlert[] {
 
   // #19 — Rupture de stock (rouge)
   for (const item of stockItems) {
-    if (item.dot === 'red' || (item.quantity != null && item.quantity === 0)) {
+    if ((ac.onRupture !== false) && (item.dot === 'red' || (item.quantity != null && item.quantity === 0))) {
       alerts.push({
         severity: 'error',
         category: 'stock',
@@ -566,11 +568,11 @@ function computeAlerts(): RawAlert[] {
   }
 
   // #20 — Commande en attente > 3 jours
-  if (notifConfig.commandeAttente) {
+  if (ac.onCommandeAttente ?? notifConfig.commandeAttente) {
     for (const cmd of commandes) {
       if (cmd.statut !== 'EN ATTENTE') continue;
       const dateCmd = parseFR(cmd.dateCommande);
-      if (dateCmd && daysSince(dateCmd, now) > 3) {
+      if (dateCmd && daysSince(dateCmd, now) > (ac.commandeAttente ?? 3)) {
         alerts.push({
           severity: 'warning',
           category: 'commande',
@@ -589,7 +591,7 @@ function computeAlerts(): RawAlert[] {
 
   // #21 — Livraison en retard
   for (const cmd of commandes) {
-    if (cmd.statut === 'LIVRÉE' || cmd.statut === 'ANNULÉE') continue;
+    if (cmd.statut === 'LIVRÉE' || cmd.statut === 'ANNULÉE' || ac.onLivraisonRetard === false) continue;
     const dateLiv = parseFR(cmd.dateLivraison);
     if (dateLiv && dateLiv < now) {
       alerts.push({
@@ -610,7 +612,7 @@ function computeAlerts(): RawAlert[] {
   for (const cmd of commandes) {
     if (cmd.statut !== 'ANNULÉE') continue;
     const dateCmd = parseFR(cmd.dateCommande);
-    if (dateCmd && daysSince(dateCmd, now) < 7) {
+    if (ac.onCommandeAnnulee !== false && dateCmd && daysSince(dateCmd, now) < 7) {
       alerts.push({
         severity: 'info',
         category: 'commande',
@@ -632,7 +634,7 @@ function computeAlerts(): RawAlert[] {
   // #23 — Intervenant avec dossier(s) "A CLASSER" depuis longtemps
   for (const interv of intervenants) {
     const aClasser = interv.dossiers.filter(d => d.statut === 'A CLASSER');
-    if (aClasser.length > 0) {
+    if (ac.onDossiersAClasser !== false && aClasser.length > 0) {
       alerts.push({
         severity: 'warning',
         category: 'intervenant',
@@ -648,7 +650,7 @@ function computeAlerts(): RawAlert[] {
 
   // #24 — Intervenant sans email/phone (données incomplètes)
   for (const interv of intervenants) {
-    if (!interv.email && !interv.phone) {
+    if ((ac.onCoordonneesIncompletes !== false) && !interv.email && !interv.phone) {
       alerts.push({
         severity: 'info',
         category: 'intervenant',
@@ -675,7 +677,7 @@ function computeAlerts(): RawAlert[] {
       if (!date) continue;
       const daysUntil = -daysSince(date, now);
       // Rappel si dans 14j, 7j ou 3j (niveaux de relance)
-      if (daysUntil === 14) {
+      if (daysUntil === (ac.rappelJ1 ?? 14)) {
         alerts.push({
           severity: 'info',
           category: 'relance',
@@ -685,7 +687,7 @@ function computeAlerts(): RawAlert[] {
           autoGenerated: true,
           actions: [{ label: 'Voir dossier', href: `/dossiers/${ds.id}` }],
         });
-      } else if (daysUntil === 7) {
+      } else if (daysUntil === (ac.rappelJ2 ?? 7)) {
         alerts.push({
           severity: 'warning',
           category: 'relance',
@@ -698,7 +700,7 @@ function computeAlerts(): RawAlert[] {
             { label: 'Voir dossier', href: `/dossiers/${ds.id}` },
           ],
         });
-      } else if (daysUntil === 3) {
+      } else if (daysUntil === (ac.rappelJ3 ?? 3)) {
         alerts.push({
           severity: 'error',
           category: 'relance',

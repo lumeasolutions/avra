@@ -41,6 +41,7 @@ const SECTIONS = [
   { id: 'equipe',         icon: Shield,             label: 'Équipe & Accès',           desc: 'Membres, rôles, invitations' },
   { id: 'relances',       icon: Bell,               label: 'Relances automatiques',    desc: 'Délais, fréquences et modèles SMS/email' },
   { id: 'notifications',  icon: Bell,               label: 'Notifications',            desc: 'Activer/désactiver chaque alerte' },
+  { id: 'alertes',        icon: AlertTriangle,      label: 'Délais & seuils d\'alerte', desc: 'Personnaliser chaque délai et activer/désactiver chaque alerte' },
   { id: 'trames',         icon: FileText,           label: 'Trames & Documents',       desc: 'Modèles de documents personnalisés' },
   { id: 'produits',       icon: Package,            label: 'Catalogue Produits',       desc: 'Aperçu du catalogue (gérer dans Stock)' },
   { id: 'perdus',         icon: FolderX,            label: 'Dossiers perdus',          desc: 'Archive des dossiers non signés' },
@@ -154,6 +155,8 @@ export default function ParametresPage() {
   const updateFacturationConfig = useConfigStore(s => s.updateFacturationConfig);
   const notifConfig         = useConfigStore(s => s.notifConfig) ?? { factureRetard: true, devisExpire: true, commandeAttente: true, planningRappel: true, nouveauDossier: false, paiementRecu: true, emailNotif: true, smsNotif: false };
   const updateNotifConfig   = useConfigStore(s => s.updateNotifConfig);
+  const alertesConfig       = useConfigStore(s => s.alertesConfig);
+  const updateAlertesConfig = useConfigStore(s => s.updateAlertesConfig);
   const iaConfig            = useConfigStore(s => s.iaConfig);
   const updateIAConfig      = useConfigStore(s => s.updateIAConfig);
   const apporteurs          = useFacturationStore(s => s.apporteurs) ?? [];
@@ -183,6 +186,7 @@ export default function ParametresPage() {
   }, []);
   const [societeForm, setSocieteForm] = useState(societe);
   const [relanceForm, setRelanceForm] = useState(relanceConfig);
+  const [alertesForm, setAlertesForm] = useState(alertesConfig);
   const [prefForm, setPrefForm] = useState(preferences);
   const [numForm, setNumForm] = useState(numerotation);
   const [factForm, setFactForm] = useState(facturationConfig);
@@ -956,6 +960,129 @@ export default function ParametresPage() {
           </div>
 
           <SaveButton saved={!!savedMap['relances']} onClick={() => { updateRelanceConfig(relanceForm); flash('relances'); }} />
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          PANEL : DÉLAIS & SEUILS D'ALERTE
+      ══════════════════════════════════════════════════════════════════════ */}
+      {active === 'alertes' && (
+        <div className="rounded-2xl bg-white shadow-md border border-[#304035]/8 p-6 space-y-6">
+          <h3 className="font-bold text-[#304035] text-base flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" /> Délais &amp; seuils d'alerte
+          </h3>
+          <p className="text-xs text-[#304035]/55 -mt-3">
+            Personnalise quand chaque alerte se déclenche (en jours) et active/désactive chacune. Les valeurs par défaut sont pré-remplies — change-les et enregistre.
+          </p>
+
+          {([
+            { title: 'Dossiers',
+              nums: [
+                { label: 'Alerte avant échéance (date butoir)', key: 'echeanceProche', def: 7 },
+                { label: 'Dossier inactif depuis', key: 'dossierInactif', def: 30 },
+              ],
+              toggles: [
+                { label: 'Date butoir dépassée', key: 'onButoirDepassee' },
+                { label: 'Dossier marqué urgent', key: 'onDossierUrgent' },
+                { label: 'Nouveau dossier créé', key: 'onNouveauDossier' },
+                { label: 'Dossier inactif', key: 'onDossierInactif' },
+              ] },
+            { title: 'Rappels automatiques avant date butoir',
+              nums: [
+                { label: '1er rappel (jours avant)', key: 'rappelJ1', def: 14 },
+                { label: '2e rappel', key: 'rappelJ2', def: 7 },
+                { label: '3e rappel', key: 'rappelJ3', def: 3 },
+              ],
+              toggles: [] },
+            { title: 'Facturation',
+              nums: [
+                { label: 'Acompte non reçu après signature', key: 'acompteNonRecu', def: 7 },
+                { label: 'Acompte facturé impayé', key: 'acompteFacture', def: 7 },
+              ],
+              toggles: [
+                { label: 'Facture échéance dépassée', key: 'onFactureEcheance' },
+                { label: 'Facture en retard', key: 'onFactureRetard' },
+                { label: 'Acompte non reçu', key: 'onAcompteNonRecu' },
+                { label: 'Paiement reçu', key: 'onPaiementRecu' },
+              ] },
+            { title: 'Devis',
+              nums: [
+                { label: 'Devis en attente de signature', key: 'devisSignature', def: 5 },
+                { label: 'Devis envoyé sans réponse', key: 'devisSansReponse', def: 14 },
+              ],
+              toggles: [
+                { label: 'Devis expiré', key: 'onDevisExpire' },
+                { label: 'Devis refusé', key: 'onDevisRefuse' },
+              ] },
+            { title: 'Commandes & fournisseurs',
+              nums: [
+                { label: 'Commande non confirmée', key: 'commandeAttente', def: 3 },
+                { label: 'Confirmation fournisseur en attente', key: 'confirmationFournisseur', def: 7 },
+              ],
+              toggles: [
+                { label: 'Livraison en retard', key: 'onLivraisonRetard' },
+                { label: 'Commande en attente', key: 'onCommandeAttente' },
+                { label: 'Confirmation fournisseur', key: 'onConfirmationFournisseur' },
+                { label: 'Commande annulée', key: 'onCommandeAnnulee' },
+              ] },
+            { title: 'Planning',
+              nums: [],
+              toggles: [
+                { label: 'Rappel intervention (J-1)', key: 'onRappelRdv' },
+                { label: 'Visite chantier non effectuée', key: 'onVisiteNonFaite' },
+                { label: 'Conflit de planning', key: 'onConflitPlanning' },
+              ] },
+            { title: 'Stock',
+              nums: [],
+              toggles: [
+                { label: 'Stock critique', key: 'onStockCritique' },
+                { label: 'Rupture de stock', key: 'onRupture' },
+              ] },
+            { title: 'Intervenants',
+              nums: [],
+              toggles: [
+                { label: 'Dossiers à classer', key: 'onDossiersAClasser' },
+                { label: 'Coordonnées incomplètes', key: 'onCoordonneesIncompletes' },
+              ] },
+          ] as Array<{ title: string; nums: Array<{ label: string; key: string; def: number }>; toggles: Array<{ label: string; key: string }> }>).map((grp) => (
+            <div key={grp.title} className="border-t border-[#304035]/8 pt-5">
+              <p className="text-[11px] font-bold text-[#304035] uppercase tracking-widest mb-3">{grp.title}</p>
+              {grp.nums.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-3">
+                  {grp.nums.map((f) => (
+                    <div key={f.key}>
+                      <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">{f.label}</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          value={(alertesForm as any)?.[f.key] ?? f.def}
+                          onChange={(e) => setAlertesForm((p: any) => ({ ...(p ?? {}), [f.key]: parseInt(e.target.value) || 0 }))}
+                          className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-3 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
+                        />
+                        <span className="text-xs text-[#304035]/50 shrink-0">j</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {grp.toggles.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-1">
+                  {grp.toggles.map((t) => (
+                    <div key={t.key} className="flex items-center justify-between py-1.5">
+                      <span className="text-sm text-[#304035]/80">{t.label}</span>
+                      <Toggle
+                        checked={(alertesForm as any)?.[t.key] !== false}
+                        onChange={(v) => setAlertesForm((p: any) => ({ ...(p ?? {}), [t.key]: v }))}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+
+          <SaveButton saved={!!savedMap['alertes']} onClick={() => { updateAlertesConfig(alertesForm as any); flash('alertes'); }} />
         </div>
       )}
 
