@@ -55,6 +55,7 @@ function planningTypeToDemandeType(t: string): string {
   if (s.includes('SAV')) return 'SAV';
   if (s.includes('MESURE') || s.includes('RELEV')) return 'MESURE';
   if (s.includes('DEVIS')) return 'DEVIS';
+  if (s.includes('COMPL')) return 'COMPLEMENT';
   return 'AUTRE';
 }
 
@@ -98,6 +99,8 @@ const INTERVENTION_TYPES = [
   { key: 'POSE CUISINE',      label: 'Pose Cuisine',        color: '#5b9bd5', icon: '🍳' },
   { key: 'POSE GRANITE',      label: 'Pose Granite',        color: '#8B4513', icon: '🪨' },
   { key: 'REUNION CHANTIER',  label: 'Réunion Chantier',    color: '#e07050', icon: '👷' },
+  { key: 'SAV',               label: 'SAV',                 color: '#dc2626', icon: '🛠' },
+  { key: 'COMPLEMENT',        label: 'Complément',          color: '#7c6cc2', icon: '➕' },
   // Corps de metier specialistes (intervenants courants en cuisine)
   { key: 'POSEUR',            label: 'Poseur',              color: '#0ea5e9', icon: '🔨' },
   { key: 'PLOMBIER',          label: 'Plombier',            color: '#2ecc71', icon: '🔧' },
