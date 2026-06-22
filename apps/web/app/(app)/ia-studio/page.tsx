@@ -1045,6 +1045,10 @@ export default function IaStudioPage() {
   }, [gallery]);
   const [dossierId,    setDossierId]    = useState(allDossiers[0]?.id ?? '');
   const dossierName = allDossiers.find(d=>d.id===dossierId)?.name ?? 'Sans dossier';
+  // Sauvegarde IA → dossier : sélection du dossier + des sous-dossiers (multi-choix).
+  const [saveTarget, setSaveTarget] = useState<{ item: Item; action: string; icon: string; onDone: () => void } | null>(null);
+  const [saveDossierId, setSaveDossierId] = useState('');
+  const [saveSubfolders, setSaveSubfolders] = useState<string[]>([]);
 
   /* ── COLORISTE — état */
   const [photoFile,    setPhotoFile]    = useState<File|null>(null);
@@ -1387,12 +1391,38 @@ export default function IaStudioPage() {
     });
   };
 
+  /** Ouvre la modale de sauvegarde : choix du dossier + sous-dossier(s). */
+  const openSaveModal = (item: Item, action: string, icon: string, onDone: () => void) => {
+    if (!item.imageUrl) return;
+    setSaveTarget({ item, action, icon, onDone });
+    setSaveDossierId(dossierId || allDossiers[0]?.id || '');
+    setSaveSubfolders([IA_SUBFOLDER_LABEL]);
+  };
+  /** Confirme : enregistre le visuel dans CHAQUE sous-dossier coché. */
+  const confirmSave = () => {
+    if (!saveTarget || !saveDossierId || saveSubfolders.length === 0) return;
+    const { item, action, icon, onDone } = saveTarget;
+    const dossier = allDossiers.find(d => d.id === saveDossierId);
+    const dName = dossier?.name ?? 'Sans dossier';
+    for (const label of saveSubfolders) {
+      const exists = (dossier?.subfolders ?? []).some(sf => sf.label === label);
+      if (!exists) addSubfolder(saveDossierId, label);
+      addDocumentToSubfolder(saveDossierId, label, {
+        name: `${action} — ${item.prompt.slice(0, 60)} (${item.ts}).jpg`,
+        type: 'image/jpeg',
+        url: item.imageUrl!,
+        addedAt: new Date().toLocaleDateString('fr-FR'),
+      });
+    }
+    setGallery(p => [item, ...p]);
+    addLog({ user: userName, action, target: `${dName} — "${item.prompt.slice(0, 40)}"`, icon });
+    onDone();
+    setSaveTarget(null);
+  };
+
   const saveColor = () => {
     if (!colorResult) return;
-    attachToDossier(colorResult, 'Coloriste IA');
-    setGallery(p => [colorResult, ...p]);
-    addLog({ user:userName, action:'Coloriste IA', target:`${dossierName} — "${colorResult.prompt.slice(0,40)}"`, icon:'🎨' });
-    setColorResult(null);
+    openSaveModal(colorResult, 'Coloriste IA', '🎨', () => setColorResult(null));
   };
 
   /* ── Coloriste MyArchitectAI : lancer (même couleurs, moteur MyArchitectAI) */
@@ -1435,10 +1465,7 @@ export default function IaStudioPage() {
 
   const saveColoristeArchi = () => {
     if (!colorArchResult) return;
-    attachToDossier(colorArchResult, 'Coloriste IA');
-    setGallery(p => [colorArchResult, ...p]);
-    addLog({ user:userName, action:'Coloriste IA', target:`${dossierName} — "${colorArchResult.prompt.slice(0,40)}"`, icon:'🎨' });
-    setColorArchResult(null);
+    openSaveModal(colorArchResult, 'Coloriste IA', '🎨', () => setColorArchResult(null));
   };
 
   /* ── Rendu : lancer */
@@ -1527,10 +1554,7 @@ export default function IaStudioPage() {
 
   const saveRendu = () => {
     if (!rendResult) return;
-    attachToDossier(rendResult, 'Rendu IA');
-    setGallery(p => [rendResult, ...p]);
-    addLog({ user:userName, action:'Rendu Réaliste', target:`${dossierName} — "${rendResult.prompt.slice(0,40)}"`, icon:'✨' });
-    setRendResult(null);
+    openSaveModal(rendResult, 'Rendu Réaliste', '✨', () => setRendResult(null));
   };
 
   /* ── IA Architect (MyArchitectAI) : lancer */
@@ -1585,10 +1609,7 @@ export default function IaStudioPage() {
 
   const saveArchitect = () => {
     if (!archResult) return;
-    attachToDossier(archResult, 'Rendu Réaliste');
-    setGallery(p => [archResult, ...p]);
-    addLog({ user:userName, action:'Rendu Réaliste', target:`${dossierName} — "${archResult.prompt.slice(0,40)}"`, icon:'🏛️' });
-    setArchResult(null);
+    openSaveModal(archResult, 'Rendu Réaliste', '🏛️', () => setArchResult(null));
   };
 
   /* ── Sélecteur dossier */
@@ -2815,6 +2836,49 @@ export default function IaStudioPage() {
             via <GalleryCard/> — voir le bas des onglets Coloriste et Rendu. */}
 
       </div>
+
+      {/* ── Modale : sauvegarder le visuel dans le(s) sous-dossier(s) choisi(s) ── */}
+      {saveTarget && (() => {
+        const sd = allDossiers.find(d => d.id === saveDossierId);
+        const subs = (sd?.subfolders ?? []).map(sf => sf.label);
+        const options = Array.from(new Set([IA_SUBFOLDER_LABEL, ...subs]));
+        const toggle = (label: string) => setSaveSubfolders(prev => prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]);
+        return (
+          <div onClick={() => setSaveTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(26,42,30,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, background: '#fff', borderRadius: 18, padding: 22, boxShadow: '0 24px 60px rgba(0,0,0,0.3)', maxHeight: '88vh', overflow: 'auto' }}>
+              <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: '#1a2a1e' }}>Sauvegarder le visuel</h3>
+              <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#6b6256' }}>Choisis le dossier et le ou les sous-dossiers où enregistrer le rendu.</p>
+              {saveTarget.item.imageUrl && (
+                <img src={saveTarget.item.imageUrl} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 12, marginBottom: 16 }} />
+              )}
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(48,64,53,0.5)', marginBottom: 6 }}>Dossier</label>
+              <select value={saveDossierId} onChange={(e) => { setSaveDossierId(e.target.value); setSaveSubfolders([IA_SUBFOLDER_LABEL]); }}
+                style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(48,64,53,0.18)', padding: '9px 12px', fontSize: 13.5, color: '#1a2a1e', background: '#fff', marginBottom: 16 }}>
+                {allDossiers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(48,64,53,0.5)', marginBottom: 6 }}>Sous-dossier(s) — coche un ou plusieurs</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 220, overflow: 'auto', border: '1px solid rgba(48,64,53,0.1)', borderRadius: 10, padding: 8, marginBottom: 18 }}>
+                {options.map(label => (
+                  <label key={label} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 8, cursor: 'pointer', background: saveSubfolders.includes(label) ? 'rgba(166,119,73,0.10)' : 'transparent' }}>
+                    <input type="checkbox" checked={saveSubfolders.includes(label)} onChange={() => toggle(label)} />
+                    <span style={{ fontSize: 13, color: '#22281f' }}>{label}{label === IA_SUBFOLDER_LABEL ? ' (par défaut)' : ''}</span>
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={confirmSave} disabled={saveSubfolders.length === 0}
+                  style={{ flex: 1, borderRadius: 11, border: 'none', padding: '11px', fontWeight: 800, fontSize: 13.5, color: '#fff', cursor: saveSubfolders.length ? 'pointer' : 'not-allowed', background: saveSubfolders.length ? 'linear-gradient(135deg,#1a2a1e,#3D5449)' : 'rgba(48,64,53,0.3)' }}>
+                  Sauvegarder{saveSubfolders.length > 1 ? ` (${saveSubfolders.length})` : ''}
+                </button>
+                <button onClick={() => setSaveTarget(null)}
+                  style={{ flex: 1, borderRadius: 11, border: '1px solid rgba(48,64,53,0.2)', padding: '11px', fontWeight: 700, fontSize: 13.5, color: '#1a2a1e', background: '#fff', cursor: 'pointer' }}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </>
   );
 }
