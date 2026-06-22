@@ -27,7 +27,17 @@ export class DemandesEmailService {
   }
 
   /** Envoie via l'API Resend (fire-and-forget). */
-  private async send(opts: { to: string; subject: string; html: string }): Promise<void> {
+  /** Expéditeur : garde l'adresse du domaine vérifié mais AFFICHE le nom fourni
+   *  (ex. le nom de l'utilisateur AVRA), pour que l'intervenant voie qui écrit. */
+  private buildFrom(fromName?: string): string {
+    if (!fromName) return this.from;
+    const m = this.from.match(/<([^>]+)>/);
+    const addr = m ? m[1] : this.from;
+    const clean = fromName.replace(/["<>\r\n]/g, '').trim().slice(0, 80);
+    return clean ? `${clean} <${addr}>` : this.from;
+  }
+
+  private async send(opts: { to: string; subject: string; html: string; fromName?: string; replyTo?: string }): Promise<void> {
     if (!this.enabled) {
       this.logger.warn(`[email] RESEND_API_KEY manquante — envoi ignore : "${opts.subject}"`);
       return;
@@ -40,10 +50,11 @@ export class DemandesEmailService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: this.from,
+          from: this.buildFrom(opts.fromName),
           to: opts.to,
           subject: opts.subject,
           html: opts.html,
+          ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
         }),
       });
       if (!res.ok) {
@@ -77,6 +88,8 @@ export class DemandesEmailService {
     hasAccount: boolean;
     /** Jeton public (lien sans login). Si présent, on affiche les boutons d'action. */
     publicToken?: string;
+    /** E-mail de l'utilisateur AVRA (pour Reply-To : l'intervenant lui répond directement). */
+    proEmail?: string;
   }): Promise<void> {
     const base = params.publicToken
       ? `${this.webUrl}/intervention/${params.publicToken}`
@@ -116,7 +129,7 @@ export class DemandesEmailService {
         ` : ctaButton(link, cta)}
       `,
     });
-    return this.send({ to: params.to, subject: `[AVRA] ${params.proName} : ${params.title}`, html });
+    return this.send({ to: params.to, subject: `[AVRA] ${params.proName} : ${params.title}`, html, fromName: params.proName, replyTo: params.proEmail });
   }
 
   /**
@@ -174,6 +187,8 @@ export class DemandesEmailService {
     demandeId: string;
     demandeTitle: string;
     messageBody: string;
+    /** E-mail de l'expéditeur (pour Reply-To : le destinataire lui répond directement). */
+    senderEmail?: string;
   }): Promise<void> {
     // Tronque le message en preview (preview uniquement dans le mail)
     const preview = params.messageBody.length > 280
@@ -201,7 +216,7 @@ export class DemandesEmailService {
         ${ctaButton(link, 'Voir et repondre')}
       `,
     });
-    return this.send({ to: params.to, subject: `[AVRA] Message de ${params.senderName} — ${params.demandeTitle}`, html });
+    return this.send({ to: params.to, subject: `[AVRA] Message de ${params.senderName} — ${params.demandeTitle}`, html, fromName: params.senderName, replyTo: params.senderEmail });
   }
 
   /**
