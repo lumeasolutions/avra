@@ -1406,13 +1406,14 @@ export function StatsGateModal({
                     </p>
                   </div>
                   <button
-                    onClick={goToNextDossier}
+                    onClick={() => { if (draftIsValid) handleAddLigne({ goNext: true }); else goToNextDossier(); }}
+                    title={draftIsValid ? "Ajoute la ligne en cours puis passe au dossier suivant" : "Passe au dossier suivant"}
                     style={{
                       padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700,
                       border: 'none', background: '#16a34a', color: '#fff', cursor: 'pointer',
                     }}
                   >
-                    Suivant →
+                    {draftIsValid ? 'Ajouter + suivant →' : 'Suivant →'}
                   </button>
                 </div>
               )}
