@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useDossierStore, usePlanningStore } from '@/store';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
+import { createDemande } from '@/lib/demandes-api';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CustomInterventionTypeModal } from '@/components/planning/CustomInterventionTypeModal';
 
@@ -43,6 +44,17 @@ function nameToInitials(name: string): string {
 function formatTypeLabel(type: string | null | undefined): string {
   if (!type) return '';
   return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+}
+
+/** Mappe un type de créneau planning vers un type de demande backend. */
+function planningTypeToDemandeType(t: string): string {
+  const s = (t || '').toUpperCase();
+  if (s.includes('POSE')) return 'POSE';
+  if (s.includes('LIVR')) return 'LIVRAISON';
+  if (s.includes('SAV')) return 'SAV';
+  if (s.includes('MESURE') || s.includes('RELEV')) return 'MESURE';
+  if (s.includes('DEVIS')) return 'DEVIS';
+  return 'AUTRE';
 }
 
 /* ── CONSTANTES ── */
@@ -175,6 +187,8 @@ export default function PlanningGestionPage() {
   const deleteCustomInterventionType = usePlanningStore(s => s.deleteCustomInterventionType);
   // Liste des intervenants du workspace (la vraie liste creee dans /intervenants)
   const intervenantsList = useIntervenantStore(s => s.intervenants);
+  // Toast : confirmation d'envoi e-mail auto à l'intervenant assigné.
+  const [intervSent, setIntervSent] = useState<string | null>(null);
 
   // Liste finale tous types = prédéfinis + customs utilisateur. Utilisée pour
   // résoudre les labels/couleurs/icônes d'un GestEvent.type donné.
@@ -413,6 +427,20 @@ export default function PlanningGestionPage() {
       intervenantName: assignedIntervenant?.name,
       intervenantType: assignedIntervenant?.type,
     });
+    // Agenda -> e-mail automatique : si un intervenant est assigné, on crée une
+    // demande, ce qui lui envoie un e-mail (avec lien d'action sans login).
+    if (assignedIntervenant?.id) {
+      const when = new Date(modalDate + 'T00:00:00');
+      when.setHours(modalHour, modalMinute, 0, 0);
+      createDemande({
+        intervenantId: assignedIntervenant.id,
+        type: planningTypeToDemandeType(newEvent.type) as any,
+        title: `${formatTypeLabel(newEvent.type)} — ${newEvent.client}`.trim(),
+        scheduledFor: when.toISOString(),
+      })
+        .then(() => { setIntervSent(assignedIntervenant.name ?? 'L’intervenant'); setTimeout(() => setIntervSent(null), 6000); })
+        .catch(() => { setIntervSent('__error__'); setTimeout(() => setIntervSent(null), 6000); });
+    }
     setWeekOffset(diffWeeks);
     setShowAdd(false);
   };
@@ -457,6 +485,13 @@ export default function PlanningGestionPage() {
 
   return (
     <div className="space-y-6">
+      {intervSent && (
+        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9999, background: intervSent === '__error__' ? '#dc2626' : '#16a34a', color: '#fff', padding: '12px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', maxWidth: 340 }}>
+          {intervSent === '__error__'
+            ? "Créneau créé, mais l'e-mail à l'intervenant n'a pas pu partir (vérifiez son e-mail)."
+            : `📧 ${intervSent} a été prévenu(e) par e-mail.`}
+        </div>
+      )}
       <style>{`
         @media (max-width: 768px) {
           .pg-kpi-extra { grid-template-columns: repeat(2, 1fr) !important; }
