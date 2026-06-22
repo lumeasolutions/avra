@@ -15,6 +15,7 @@ interface DemandeView {
   intervenantName: string;
   workspaceName: string;
   projectName?: string | null;
+  messages?: Array<{ authorRole: string; authorName: string; body: string; createdAt: string }>;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -45,6 +46,8 @@ export default function InterventionPublicPage() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -80,6 +83,24 @@ export default function InterventionPublicPage() {
       setBusy(false);
     }
   }, [busy, token, message, load]);
+
+  const sendReply = useCallback(async () => {
+    if (sending || !reply.trim()) return;
+    setSending(true); setError(null);
+    try {
+      const r = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/message`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: reply.trim() }),
+      });
+      if (!r.ok) throw new Error('Envoi impossible');
+      setReply('');
+      await load();
+    } catch (e: any) {
+      setError(e?.message || 'Envoi impossible');
+    } finally {
+      setSending(false);
+    }
+  }, [sending, reply, token, load]);
 
   useEffect(() => { load(); }, [load]);
   // Auto-action si le lien e-mail contient ?do=accept|refuse|complete
@@ -150,6 +171,28 @@ export default function InterventionPublicPage() {
               {canComplete && <button style={btn('#1a2a1e')} disabled={busy} onClick={() => act('complete')}>Marquer terminé</button>}
             </div>
           </>
+        )}
+
+        {data.messages && data.messages.length > 0 && (
+          <div style={{ marginTop: 18, borderTop: '1px solid rgba(48,64,53,0.1)', paddingTop: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#7c6c58', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Échanges</div>
+            {data.messages.map((m, i) => (
+              <div key={i} style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 11, color: '#9a8c7a' }}>{m.authorRole === 'intervenant' ? 'Vous' : m.authorName} · {fmtDate(m.createdAt)}</div>
+                <div style={{ fontSize: 14, color: '#3D3328', whiteSpace: 'pre-wrap' }}>{m.body.replace(/^\[IMG:[^\]]*\]/, '📎 ')}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!terminal && (
+          <div style={{ marginTop: 14 }}>
+            <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Écrire un message au professionnel…" rows={2}
+              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid rgba(48,64,53,0.15)', borderRadius: 10, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', marginBottom: 8 }} />
+            <button onClick={sendReply} disabled={sending || !reply.trim()}
+              style={{ background: '#a67749', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontWeight: 700, fontSize: 14, cursor: sending ? 'wait' : 'pointer', opacity: (sending || !reply.trim()) ? 0.5 : 1 }}>
+              Envoyer le message
+            </button>
+          </div>
         )}
       </div>
       <p style={{ textAlign: 'center', color: '#9a8c7a', fontSize: 12, marginTop: 16 }}>

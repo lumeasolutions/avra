@@ -42,6 +42,16 @@ export class DemandesController {
     return this.demandes.publicAction(token, body?.action, body?.message);
   }
 
+  @Public()
+  @SkipCsrf()
+  @Post('public/intervention/:token/message')
+  publicMessageIntervention(
+    @Param('token') token: string,
+    @Body() body: { message: string },
+  ) {
+    return this.demandes.publicAddMessage(token, body?.message);
+  }
+
   @Get()
   list(
     @CurrentUser() user: JwtPayload,
