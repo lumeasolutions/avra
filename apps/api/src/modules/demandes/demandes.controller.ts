@@ -225,6 +225,25 @@ export class DemandesController {
     return streamOrRedirect(res, r);
   }
 
+  /** Classe (range) une piece jointe recue dans un sous-dossier du dossier client. */
+  @Patch('attachments/:attachmentId/classify')
+  classifyAttachment(
+    @CurrentUser() user: JwtPayload,
+    @Param('attachmentId') attachmentId: string,
+    @Body() body: { subfolderLabel: string },
+  ) {
+    return this.demandes.classifyAttachment(user.workspaceId, attachmentId, body?.subfolderLabel);
+  }
+
+  /** Liste les sous-dossiers existants d'un dossier (pour le selecteur de classement). */
+  @Get('projects/:projectId/subfolders')
+  listSubfolders(
+    @CurrentUser() user: JwtPayload,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.demandes.listSubfolders(user.workspaceId, projectId);
+  }
+
   /** Stats + historique d'un intervenant (fiche enrichie). */
   @Get('intervenants/:intervenantId/stats')
   intervenantStats(

@@ -278,6 +278,22 @@ export async function postMessagePro(id: string, body: string): Promise<DemandeM
   });
 }
 
+/** Classe une piece jointe recue dans un sous-dossier du dossier client. */
+export async function classifyAttachmentPro(
+  attachmentId: string,
+  subfolderLabel: string,
+): Promise<{ ok: boolean; subfolderLabel: string }> {
+  return api(`/demandes/attachments/${encodeURIComponent(attachmentId)}/classify`, {
+    method: 'PATCH',
+    body: JSON.stringify({ subfolderLabel }),
+  });
+}
+
+/** Liste les sous-dossiers existants d'un dossier (pour le selecteur de classement). */
+export async function listDossierSubfoldersPro(projectId: string): Promise<string[]> {
+  return api<string[]>(`/demandes/projects/${encodeURIComponent(projectId)}/subfolders`);
+}
+
 // ─── Cote PRO — Invitations ─────────────────────────────────────────────────
 
 export async function listInvitations(): Promise<IntervenantInvitation[]> {
