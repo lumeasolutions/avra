@@ -16,6 +16,7 @@ interface DemandeView {
   workspaceName: string;
   projectName?: string | null;
   messages?: Array<{ authorRole: string; authorName: string; body: string; createdAt: string }>;
+  attachments?: Array<{ id: string; displayName: string; mimeType?: string | null; createdAt: string }>;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -143,6 +144,27 @@ export default function InterventionPublicPage() {
         )}
         {data.notes && (
           <p style={{ margin: '0 0 16px', whiteSpace: 'pre-wrap', background: '#fafaf8', padding: '12px 14px', borderRadius: 10, color: '#3D3328' }}>{data.notes}</p>
+        )}
+        {data.attachments && data.attachments.length > 0 && (
+          <div style={{ margin: '0 0 16px' }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#7c6c58', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+              Pièces jointes ({data.attachments.length})
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {data.attachments.map((att) => (
+                <a
+                  key={att.id}
+                  href={`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/attachments/${encodeURIComponent(att.id)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 13px', background: '#fff', border: '1px solid #ece7df', borderRadius: 10, textDecoration: 'none', color: '#1a2a1e', fontSize: 14 }}
+                >
+                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>📎 {att.displayName}</span>
+                  <span style={{ color: '#a67749', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>Télécharger</span>
+                </a>
+              ))}
+            </div>
+          </div>
         )}
         {data.responseMessage && (
           <p style={{ margin: '0 0 16px', color: '#5b5045', fontStyle: 'italic' }}>Votre réponse : « {data.responseMessage} »</p>

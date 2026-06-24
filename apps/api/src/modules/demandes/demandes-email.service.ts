@@ -93,6 +93,8 @@ export class DemandesEmailService {
     title: string;
     notes?: string | null;
     scheduledFor?: Date | null;
+    /** Nom du dossier / projet concerne (affiche dans l'email). */
+    projectName?: string | null;
     hasAccount: boolean;
     /** Jeton public (lien sans login). Si présent, on affiche les boutons d'action. */
     publicToken?: string;
@@ -111,6 +113,9 @@ export class DemandesEmailService {
     const notesStr = params.notes
       ? `<p style="margin:12px 0;color:#3D3328;background:#fafaf8;padding:12px 14px;border-radius:8px;white-space:pre-wrap">${escapeHtml(params.notes)}</p>`
       : '';
+    const dossierStr = params.projectName
+      ? `<p style="margin:12px 0;color:#1a2a1e"><strong>Dossier :</strong> ${escapeHtml(params.projectName)}</p>`
+      : '';
 
     const html = baseLayout({
       title: 'Nouvelle demande',
@@ -125,6 +130,7 @@ export class DemandesEmailService {
           <div style="font-size:11px;color:#7c6c58;letter-spacing:.08em;font-weight:700;text-transform:uppercase;margin-bottom:4px">${escapeHtml(params.type)}</div>
           <div style="font-size:17px;font-weight:700;color:#1a2a1e">${escapeHtml(params.title)}</div>
         </div>
+        ${dossierStr}
         ${scheduledStr}
         ${notesStr}
         ${params.publicToken ? `

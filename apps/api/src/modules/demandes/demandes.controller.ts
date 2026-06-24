@@ -52,6 +52,18 @@ export class DemandesController {
     return this.demandes.publicAddMessage(token, body?.message);
   }
 
+  /** Telechargement d'une piece jointe depuis le lien public (sans compte). */
+  @Public()
+  @Get('public/intervention/:token/attachments/:attachmentId')
+  async publicDownloadAttachment(
+    @Param('token') token: string,
+    @Param('attachmentId') attachmentId: string,
+    @Res() res: Response,
+  ) {
+    const r = await this.demandes.publicGetAttachmentForDownload(token, attachmentId);
+    return streamOrRedirect(res, r);
+  }
+
   @Get()
   list(
     @CurrentUser() user: JwtPayload,
