@@ -11,7 +11,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
   Mail, Phone, Plus, Trash2, Search,
-  X, Send, Link2, Clock,
+  X, Send, Link2, Clock, Pencil,
   ChevronRight, AlertTriangle, FolderOpen, ArrowLeft, Folder,
   CheckCircle2, AlertCircle, Hourglass, RefreshCw, HardHat, Star,
 } from 'lucide-react';
@@ -86,6 +86,14 @@ function typeColor(t: string) {
   return TYPE_COLORS[t] ?? TYPE_COLORS.AUTRE;
 }
 
+/** Types reellement supportes par l'enum backend IntervenantType.
+ *  Les autres types d'affichage retombent sur AUTRE (comme a la creation). */
+const BACKEND_TYPES = new Set([
+  'POSEUR', 'ELECTRICIEN', 'MACON', 'PEINTRE', 'PLOMBIER', 'CARRELEUR',
+  'MENUISIER', 'CHAUFFAGISTE', 'SERRURIER', 'GEOMETRE', 'AUTRE',
+]);
+const toBackendType = (t: string) => (BACKEND_TYPES.has(t) ? t : 'AUTRE');
+
 // ─── Quick demandes ──────────────────────────────────────────────────────────
 
 interface QuickDemandeDef {
@@ -129,6 +137,7 @@ export default function IntervenantsHubPage() {
   const addLocalIntervenant = useIntervenantStore(s => s.addIntervenant);
   const addServerIntervenant = useIntervenantStore(s => s.addServerIntervenant);
   const removeLocalIntervenant = useIntervenantStore(s => s.removeIntervenant);
+  const updateLocalIntervenant = useIntervenantStore(s => s.updateIntervenant);
 
   // Store dossiers/items (sync backend)
   const dossiers = useIntervenantDossiersStore(s => s.dossiers);
@@ -158,6 +167,8 @@ export default function IntervenantsHubPage() {
   const [invitingFor, setInvitingFor] = useState<{ id: string; name: string; email?: string } | null>(null);
   const [confirmDeleteIntervenant, setConfirmDeleteIntervenant] = useState<string | null>(null);
   const [editingRating, setEditingRating] = useState<string | null>(null);
+  const [editingIntervenant, setEditingIntervenant] = useState<Intervenant | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Backend state
   const [invitations, setInvitations] = useState<Record<string, IntervenantInvitation>>({});
@@ -304,6 +315,45 @@ export default function IntervenantsHubPage() {
 
   const handleAddDossier = async (intervenantId: string, name: string) => {
     await addDossier(intervenantId, name, new Date().toLocaleDateString('fr-FR'));
+  };
+
+  /** Sauvegarde l'edition de la fiche intervenant (PUT backend + maj optimiste). */
+  const handleSaveIntervenant = async (
+    id: string,
+    data: { type: string; nom: string; prenom: string; phone: string; email: string; notes: string },
+  ) => {
+    const nom = data.nom.trim();
+    const prenom = data.prenom.trim();
+    const fullName = [nom, prenom].filter(Boolean).join(' ');
+    const backendType = toBackendType(data.type);
+    setSavingEdit(true);
+    try {
+      await api(`/intervenants/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          type: backendType,
+          companyName: fullName,
+          lastName: nom,
+          firstName: prenom,
+          email: data.email.trim(),
+          phone: data.phone.trim(),
+          notes: data.notes.trim(),
+        }),
+      });
+      // Maj optimiste du store local (survit au resync car le backend est a jour).
+      updateLocalIntervenant(id, {
+        type: backendType,
+        name: fullName,
+        email: data.email.trim(),
+        phone: data.phone.trim(),
+        notes: data.notes.trim(),
+      });
+      setEditingIntervenant(null);
+    } catch (err: any) {
+      alert(`Impossible d'enregistrer la fiche : ${err?.message ?? 'erreur inconnue'}`);
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const handleOpenDossier = async (d: ApiDossier) => {
@@ -540,6 +590,7 @@ export default function IntervenantsHubPage() {
           onInvite={() => setInvitingFor({ id: selectedIntervenant.id, name: selectedIntervenant.name, email: selectedIntervenant.email })}
           onDelete={() => setConfirmDeleteIntervenant(selectedIntervenant.id)}
           onEditRating={() => setEditingRating(selectedIntervenant.id)}
+          onEdit={() => setEditingIntervenant(selectedIntervenant)}
         />
 
         {selectedDossier ? (
@@ -611,6 +662,15 @@ export default function IntervenantsHubPage() {
                 ),
               }));
             }}
+          />
+        )}
+
+        {editingIntervenant && editingIntervenant.id === selectedIntervenant.id && (
+          <EditIntervenantModal
+            intervenant={editingIntervenant}
+            saving={savingEdit}
+            onClose={() => setEditingIntervenant(null)}
+            onSave={(data) => handleSaveIntervenant(editingIntervenant.id, data)}
           />
         )}
 
@@ -969,7 +1029,7 @@ function TicketsDrilldown({
 // ─── Détail intervenant ──────────────────────────────────────────────────────
 
 function IntervenantDetailHeader({
-  intervenant, alerts, onSendDemande, onInvite, onDelete, onEditRating,
+  intervenant, alerts, onSendDemande, onInvite, onDelete, onEditRating, onEdit,
 }: {
   intervenant: Intervenant;
   alerts: IntervenantAlert[];
@@ -977,6 +1037,7 @@ function IntervenantDetailHeader({
   onInvite: () => void;
   onDelete: () => void;
   onEditRating: () => void;
+  onEdit: () => void;
 }) {
   const c = typeColor(intervenant.type);
   const tags = (intervenant.tagsCsv ?? '').split(',').map(t => t.trim()).filter(Boolean);
@@ -1031,6 +1092,9 @@ function IntervenantDetailHeader({
           </button>
           <button onClick={onInvite} className="text-xs font-bold rounded-lg px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200">
             <Mail className="inline h-3.5 w-3.5 mr-1" /> Donner accès
+          </button>
+          <button onClick={onEdit} className="text-xs font-bold rounded-lg px-3 py-2 bg-[#a67749]/10 text-[#a67749] hover:bg-[#a67749]/20 border border-[#a67749]/20">
+            <Pencil className="inline h-3.5 w-3.5 mr-1" /> Modifier
           </button>
           <button onClick={onEditRating} className="text-xs font-bold rounded-lg px-3 py-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200">
             ★ Évaluer
@@ -1274,6 +1338,68 @@ function AddIntervenantModal({
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60">Annuler</button>
           <button onClick={() => form.name.trim() && onCreate(form)} disabled={!form.name.trim()} className="flex-1 rounded-lg bg-[#10b981] text-white px-4 py-2 text-sm font-bold disabled:opacity-50">Créer</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditIntervenantModal({
+  intervenant, saving, onClose, onSave,
+}: {
+  intervenant: Intervenant;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (data: { type: string; nom: string; prenom: string; phone: string; email: string; notes: string }) => void;
+}) {
+  const [form, setForm] = useState({
+    type: intervenant.type || 'AUTRE',
+    nom: intervenant.name || '',
+    prenom: '',
+    phone: intervenant.phone || '',
+    email: intervenant.email || '',
+    notes: intervenant.notes || '',
+  });
+  const canSave = form.nom.trim().length > 0 && !saving;
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-90 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+        <h2 className="text-lg font-bold text-[#304035] mb-4">Modifier la fiche</h2>
+        <div className="space-y-3">
+          <label className="block">
+            <span className="text-xs font-bold text-[#304035]/60">Métier</span>
+            <select value={form.type} onChange={(e) => setForm(f => ({ ...f, type: e.target.value }))} className="mt-1 w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm">
+              {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-xs font-bold text-[#304035]/60">Nom *</span>
+              <input value={form.nom} onChange={(e) => setForm(f => ({ ...f, nom: e.target.value }))} placeholder="Nom" className="mt-1 w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm" autoFocus />
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold text-[#304035]/60">Prénom</span>
+              <input value={form.prenom} onChange={(e) => setForm(f => ({ ...f, prenom: e.target.value }))} placeholder="Prénom" className="mt-1 w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm" />
+            </label>
+          </div>
+          <label className="block">
+            <span className="text-xs font-bold text-[#304035]/60">Téléphone</span>
+            <input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="Téléphone" className="mt-1 w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm" />
+          </label>
+          <label className="block">
+            <span className="text-xs font-bold text-[#304035]/60">Email</span>
+            <input type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className="mt-1 w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm" />
+          </label>
+          <label className="block">
+            <span className="text-xs font-bold text-[#304035]/60">Notes / spécialité</span>
+            <textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes" rows={2} className="mt-1 w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm" />
+          </label>
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} disabled={saving} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60 disabled:opacity-50">Annuler</button>
+          <button onClick={() => canSave && onSave(form)} disabled={!canSave} className="flex-1 rounded-lg bg-[#10b981] text-white px-4 py-2 text-sm font-bold disabled:opacity-50">
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
         </div>
       </div>
     </div>
