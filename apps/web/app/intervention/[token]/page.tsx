@@ -207,12 +207,19 @@ export default function InterventionPublicPage() {
           </div>
         )}
         {!terminal && (
-          <div style={{ marginTop: 14 }}>
-            <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Écrire un message au professionnel…" rows={2}
-              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid rgba(48,64,53,0.15)', borderRadius: 10, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', marginBottom: 8 }} />
+          <div style={{ marginTop: 18, background: '#fbf7f0', border: '1px solid #e7dcc8', borderRadius: 14, padding: '16px 16px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 18 }}>💬</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: '#1a2a1e' }}>Écrire un message</span>
+            </div>
+            <p style={{ margin: '0 0 10px', fontSize: 13, color: '#7c6c58' }}>
+              Une question, une précision, une date à proposer ? Écrivez directement au professionnel.
+            </p>
+            <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Votre message…" rows={4}
+              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid rgba(48,64,53,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 15, fontFamily: 'inherit', marginBottom: 10, background: '#fff' }} />
             <button onClick={sendReply} disabled={sending || !reply.trim()}
-              style={{ background: '#a67749', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontWeight: 700, fontSize: 14, cursor: sending ? 'wait' : 'pointer', opacity: (sending || !reply.trim()) ? 0.5 : 1 }}>
-              Envoyer le message
+              style={{ width: '100%', background: '#a67749', color: '#fff', border: 'none', borderRadius: 10, padding: '13px 18px', fontWeight: 800, fontSize: 15, cursor: sending ? 'wait' : 'pointer', opacity: (sending || !reply.trim()) ? 0.5 : 1 }}>
+              {sending ? 'Envoi…' : 'Envoyer le message'}
             </button>
           </div>
         )}
