@@ -49,6 +49,7 @@ export default function InterventionPublicPage() {
   const [message, setMessage] = useState('');
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -102,6 +103,29 @@ export default function InterventionPublicPage() {
       setSending(false);
     }
   }, [sending, reply, token, load]);
+
+  const uploadFiles = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true); setError(null);
+    try {
+      for (const f of Array.from(files)) {
+        const fd = new FormData();
+        fd.append('file', f);
+        const r = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/attachments`, {
+          method: 'POST', body: fd,
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(j?.message || 'Envoi du fichier impossible');
+        }
+      }
+      await load();
+    } catch (e: any) {
+      setError(e?.message || 'Envoi impossible');
+    } finally {
+      setUploading(false);
+    }
+  }, [token, load]);
 
   useEffect(() => { load(); }, [load]);
   // Auto-action si le lien e-mail contient ?do=accept|refuse|complete
@@ -204,6 +228,17 @@ export default function InterventionPublicPage() {
                 <div style={{ fontSize: 14, color: '#3D3328', whiteSpace: 'pre-wrap' }}>{m.body.replace(/^\[IMG:[^\]]*\]/, '📎 ')}</div>
               </div>
             ))}
+          </div>
+        )}
+        {!terminal && (
+          <div style={{ marginTop: 14 }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: uploading ? 'wait' : 'pointer', background: '#1a2a1e', color: '#cbb98a', borderRadius: 10, padding: '12px 18px', fontWeight: 800, fontSize: 14 }}>
+              {uploading ? 'Envoi en cours…' : '📎 Joindre un document'}
+              <input type="file" multiple disabled={uploading} onChange={(e) => uploadFiles(e.target.files)} style={{ display: 'none' }} />
+            </label>
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: '#7c6c58' }}>
+              PDF, photos, plans… (max 25 Mo par fichier). Le document est reçu directement dans le dossier.
+            </p>
           </div>
         )}
         {!terminal && (

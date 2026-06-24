@@ -64,6 +64,18 @@ export class DemandesController {
     return streamOrRedirect(res, r);
   }
 
+  /** Upload d'un document par l'intervenant depuis le lien public (sans compte). */
+  @Public()
+  @SkipCsrf()
+  @Post('public/intervention/:token/attachments')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024 } }))
+  async publicUploadAttachment(
+    @Param('token') token: string,
+    @UploadedFile() file: { originalname: string; mimetype: string; size: number; buffer: Buffer },
+  ) {
+    return this.demandes.publicUploadAttachment(token, file);
+  }
+
   @Get()
   list(
     @CurrentUser() user: JwtPayload,
