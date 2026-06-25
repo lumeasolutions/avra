@@ -84,6 +84,49 @@ function htmlToText(html: string): string {
     .trim();
 }
 
+/**
+ * Récupère les pièces jointes d'un e-mail entrant via l'API Resend et les
+ * réinjecte dans AVRA via l'endpoint public d'upload (mêmes briques que la
+ * page web : DossierDocument "Reçu de l'intervenant" + DemandeAttachment +
+ * notification -> visible dans Messages intervenants + classable). Renvoie le
+ * nombre de fichiers réellement importés.
+ */
+async function uploadInboundAttachments(emailId: string, token: string): Promise<number> {
+  let count = 0;
+  try {
+    const r = await fetch(`https://api.resend.com/emails/receiving/${emailId}/attachments`, {
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}` },
+    });
+    if (!r.ok) return 0;
+    const list: any = await r.json();
+    const items: any[] = Array.isArray(list?.data) ? list.data : [];
+    for (const att of items) {
+      try {
+        const ct = String(att?.content_type || 'application/octet-stream');
+        const disp = String(att?.content_disposition || '');
+        // On ignore les images "inline" (logos / signatures intégrés au corps du mail).
+        if (disp === 'inline' && ct.startsWith('image/')) continue;
+        if (!att?.download_url) continue;
+        // Limite ~4,5 Mo sur l'upload multipart Vercel -> on saute au-delà.
+        if (typeof att.size === 'number' && att.size > 4_300_000) continue;
+        const dl = await fetch(String(att.download_url));
+        if (!dl.ok) continue;
+        const ab = await dl.arrayBuffer();
+        if (ab.byteLength > 4_300_000) continue;
+        const filename = String(att.filename || `piece-jointe-${count + 1}`);
+        const fd = new FormData();
+        fd.append('file', new Blob([ab], { type: ct }), filename);
+        const up = await fetch(
+          `${WEB_URL}/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/attachments`,
+          { method: 'POST', body: fd },
+        );
+        if (up.ok) count++;
+      } catch { /* une pièce jointe en échec ne bloque pas les autres */ }
+    }
+  } catch { /* ignore */ }
+  return count;
+}
+
 export async function POST(request: NextRequest) {
   const raw = await request.text();
 
@@ -111,9 +154,12 @@ export async function POST(request: NextRequest) {
     }
     if (!token) return NextResponse.json({ ok: true });
 
+    const emailId: string = data.email_id ? String(data.email_id) : '';
+
+    // 1) Corps texte de la réponse.
     let body = '';
-    if (data.email_id && RESEND_API_KEY) {
-      const r = await fetch(`https://api.resend.com/emails/receiving/${data.email_id}`, {
+    if (emailId && RESEND_API_KEY) {
+      const r = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
         headers: { Authorization: `Bearer ${RESEND_API_KEY}` },
       });
       if (r.ok) {
@@ -122,13 +168,24 @@ export async function POST(request: NextRequest) {
       }
     }
     body = stripQuoted(body);
-    if (!body) body = '(réponse vide)';
     if (body.length > 5000) body = body.slice(0, 5000);
+
+    // 2) Pièces jointes : si le mail en contient, on les importe dans le dossier.
+    let uploaded = 0;
+    const metaAtt: any[] = Array.isArray(data.attachments) ? data.attachments : [];
+    if (emailId && RESEND_API_KEY && metaAtt.length > 0) {
+      uploaded = await uploadInboundAttachments(emailId, token);
+    }
+
+    // 3) Message dans la conversation : le texte s'il existe, sinon une note
+    //    si des documents sont arrivés (pour ne pas afficher un message vide).
+    let message = body;
+    if (!message) message = uploaded > 0 ? '(documents envoyés en pièce jointe)' : '(réponse vide)';
 
     await fetch(`${WEB_URL}/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: body }),
+      body: JSON.stringify({ message }),
     });
   } catch {
     return NextResponse.json({ ok: true });
