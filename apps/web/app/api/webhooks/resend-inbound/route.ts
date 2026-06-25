@@ -91,28 +91,30 @@ function htmlToText(html: string): string {
  * notification -> visible dans Messages intervenants + classable). Renvoie le
  * nombre de fichiers réellement importés.
  */
-async function uploadInboundAttachments(emailId: string, token: string): Promise<number> {
+async function uploadInboundAttachments(emailId: string, token: string): Promise<{ uploaded: number; skipped: string[] }> {
   let count = 0;
+  const skipped: string[] = [];
   try {
     const r = await fetch(`https://api.resend.com/emails/receiving/${emailId}/attachments`, {
       headers: { Authorization: `Bearer ${RESEND_API_KEY}` },
     });
-    if (!r.ok) return 0;
+    if (!r.ok) return { uploaded: 0, skipped };
     const list: any = await r.json();
     const items: any[] = Array.isArray(list?.data) ? list.data : [];
     for (const att of items) {
       try {
         const ct = String(att?.content_type || 'application/octet-stream');
         const disp = String(att?.content_disposition || '');
+        const fname = String(att?.filename || 'document');
         // On ignore les images "inline" (logos / signatures intégrés au corps du mail).
         if (disp === 'inline' && ct.startsWith('image/')) continue;
         if (!att?.download_url) continue;
-        // Limite ~4,5 Mo sur l'upload multipart Vercel -> on saute au-delà.
-        if (typeof att.size === 'number' && att.size > 4_300_000) continue;
+        // Limite ~4,5 Mo sur l'upload multipart Vercel -> on saute au-delà (et on le signale).
+        if (typeof att.size === 'number' && att.size > 4_300_000) { skipped.push(fname); continue; }
         const dl = await fetch(String(att.download_url));
         if (!dl.ok) continue;
         const ab = await dl.arrayBuffer();
-        if (ab.byteLength > 4_300_000) continue;
+        if (ab.byteLength > 4_300_000) { skipped.push(fname); continue; }
         const filename = String(att.filename || `piece-jointe-${count + 1}`);
         const fd = new FormData();
         fd.append('file', new Blob([ab], { type: ct }), filename);
@@ -124,7 +126,7 @@ async function uploadInboundAttachments(emailId: string, token: string): Promise
       } catch { /* une pièce jointe en échec ne bloque pas les autres */ }
     }
   } catch { /* ignore */ }
-  return count;
+  return { uploaded: count, skipped };
 }
 
 export async function POST(request: NextRequest) {
@@ -172,15 +174,22 @@ export async function POST(request: NextRequest) {
 
     // 2) Pièces jointes : si le mail en contient, on les importe dans le dossier.
     let uploaded = 0;
+    let skipped: string[] = [];
     const metaAtt: any[] = Array.isArray(data.attachments) ? data.attachments : [];
     if (emailId && RESEND_API_KEY && metaAtt.length > 0) {
-      uploaded = await uploadInboundAttachments(emailId, token);
+      const res = await uploadInboundAttachments(emailId, token);
+      uploaded = res.uploaded;
+      skipped = res.skipped;
     }
 
     // 3) Message dans la conversation : le texte s'il existe, sinon une note
     //    si des documents sont arrivés (pour ne pas afficher un message vide).
     let message = body;
     if (!message) message = uploaded > 0 ? '(documents envoyés en pièce jointe)' : '(réponse vide)';
+    // Signale les pièces jointes trop volumineuses non importées (limite ~4 Mo).
+    if (skipped.length > 0) {
+      message += `\n\n⚠️ ${skipped.length} pièce(s) jointe(s) trop volumineuse(s) (> 4 Mo) non importée(s) : ${skipped.join(', ')}. À demander autrement.`;
+    }
 
     await fetch(`${WEB_URL}/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/message`, {
       method: 'POST',
