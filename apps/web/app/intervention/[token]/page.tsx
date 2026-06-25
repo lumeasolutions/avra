@@ -35,6 +35,10 @@ function fmtDate(s?: string | null): string {
   catch { return ''; }
 }
 
+// Vercel coupe les envois multipart au-dela de ~4,5 Mo AVANT le serveur.
+// On valide donc cote client a 4 Mo avec un message clair.
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
 export default function InterventionPublicPage() {
   const params = useParams();
   const search = useSearchParams();
@@ -87,7 +91,7 @@ export default function InterventionPublicPage() {
   }, [busy, token, message, load]);
 
   const sendReply = useCallback(async () => {
-    if (sending || !reply.trim()) return;
+    if (sending || uploading || !reply.trim()) return;
     setSending(true); setError(null);
     try {
       const r = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/message`, {
@@ -102,13 +106,19 @@ export default function InterventionPublicPage() {
     } finally {
       setSending(false);
     }
-  }, [sending, reply, token, load]);
+  }, [sending, uploading, reply, token, load]);
 
-  const uploadFiles = useCallback(async (files: FileList | null) => {
+  const uploadFiles = useCallback(async (files: File[]) => {
     if (!files || files.length === 0) return;
+    if (sending) return; // pas d'upload pendant l'envoi d'un message
+    const tooBig = files.find((f) => f.size > MAX_UPLOAD_BYTES);
+    if (tooBig) {
+      setError(`« ${tooBig.name} » est trop lourd (max 4 Mo via ce lien). Compressez-le ou envoyez-le par e-mail en répondant à la demande.`);
+      return;
+    }
     setUploading(true); setError(null);
     try {
-      for (const f of Array.from(files)) {
+      for (const f of files) {
         const fd = new FormData();
         fd.append('file', f);
         const r = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/attachments`, {
@@ -116,7 +126,7 @@ export default function InterventionPublicPage() {
         });
         if (!r.ok) {
           const j = await r.json().catch(() => ({}));
-          throw new Error(j?.message || 'Envoi du fichier impossible');
+          throw new Error(j?.message || `Envoi de « ${f.name} » impossible`);
         }
       }
       await load();
@@ -125,7 +135,7 @@ export default function InterventionPublicPage() {
     } finally {
       setUploading(false);
     }
-  }, [token, load]);
+  }, [token, load, sending]);
 
   useEffect(() => { load(); }, [load]);
   // Auto-action si le lien e-mail contient ?do=accept|refuse|complete
@@ -234,10 +244,10 @@ export default function InterventionPublicPage() {
           <div style={{ marginTop: 14 }}>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: uploading ? 'wait' : 'pointer', background: '#1a2a1e', color: '#cbb98a', borderRadius: 10, padding: '12px 18px', fontWeight: 800, fontSize: 14 }}>
               {uploading ? 'Envoi en cours…' : '📎 Joindre un document'}
-              <input type="file" multiple disabled={uploading} onChange={(e) => uploadFiles(e.target.files)} style={{ display: 'none' }} />
+              <input type="file" multiple disabled={uploading || sending} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ''; uploadFiles(files); }} style={{ display: 'none' }} />
             </label>
             <p style={{ margin: '8px 0 0', fontSize: 12, color: '#7c6c58' }}>
-              PDF, photos, plans… (max 25 Mo par fichier). Le document est reçu directement dans le dossier.
+              PDF, photos, plans… (max 4 Mo par fichier via ce lien). Le document est reçu directement dans le dossier.
             </p>
           </div>
         )}
@@ -252,9 +262,9 @@ export default function InterventionPublicPage() {
             </p>
             <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Votre message…" rows={4}
               style={{ width: '100%', boxSizing: 'border-box', border: '1px solid rgba(48,64,53,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 15, fontFamily: 'inherit', marginBottom: 10, background: '#fff' }} />
-            <button onClick={sendReply} disabled={sending || !reply.trim()}
-              style={{ width: '100%', background: '#a67749', color: '#fff', border: 'none', borderRadius: 10, padding: '13px 18px', fontWeight: 800, fontSize: 15, cursor: sending ? 'wait' : 'pointer', opacity: (sending || !reply.trim()) ? 0.5 : 1 }}>
-              {sending ? 'Envoi…' : 'Envoyer le message'}
+            <button onClick={sendReply} disabled={sending || uploading || !reply.trim()}
+              style={{ width: '100%', background: '#a67749', color: '#fff', border: 'none', borderRadius: 10, padding: '13px 18px', fontWeight: 800, fontSize: 15, cursor: (sending || uploading) ? 'wait' : 'pointer', opacity: (sending || uploading || !reply.trim()) ? 0.5 : 1 }}>
+              {sending ? 'Envoi…' : uploading ? 'Patientez…' : 'Envoyer le message'}
             </button>
           </div>
         )}

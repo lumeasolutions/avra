@@ -127,9 +127,24 @@ export default function MessagesIntervenantsPage() {
   const [sending, setSending] = useState(false);
   const [seen, setSeen] = useState<Record<string, string>>({});
   const [classifyAtt, setClassifyAtt] = useState<DemandeAttachment | null>(null);
+  const [classifiedIds, setClassifiedIds] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const lastScrollId = useRef<string | null>(null);
+  const seenInitRef = useRef(false);
 
   useEffect(() => { setSeen(loadSeen()); }, []);
+
+  // Premier passage (localStorage vide) : on considère tout déjà lu pour éviter
+  // d'afficher toutes les conversations en "non lu".
+  useEffect(() => {
+    if (seenInitRef.current || convos.length === 0) return;
+    if (Object.keys(loadSeen()).length === 0) {
+      const init: Record<string, string> = {};
+      for (const d of convos) init[d.id] = d.updatedAt;
+      saveSeen(init); setSeen(init);
+    }
+    seenInitRef.current = true;
+  }, [convos]);
 
   const refreshConvos = useCallback(async () => {
     try {
@@ -154,10 +169,25 @@ export default function MessagesIntervenantsPage() {
     setSeen(prev => { const next = { ...prev, [d.id]: d.updatedAt }; saveSeen(next); return next; });
   }, []);
 
-  // Scroll en bas quand le fil change.
+  // Scroll en bas seulement à l'ouverture d'une conversation (pas à chaque
+  // rafraîchissement de fond, sinon on "tire" l'utilisateur vers le bas).
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (!thread) return;
+    if (lastScrollId.current !== thread.id) {
+      lastScrollId.current = thread.id;
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   }, [thread]);
+
+  // Recharge silencieusement le fil actif (nouveaux messages/docs de l'intervenant).
+  const reloadActiveThread = useCallback(async () => {
+    if (!activeId) return;
+    try {
+      const full = await getDemandePro(activeId);
+      setThread(prev => (prev && prev.id === full.id ? full : prev));
+      setSeen(prev => { const n = { ...prev, [full.id]: full.updatedAt }; saveSeen(n); return n; });
+    } catch { /* noop */ }
+  }, [activeId]);
 
   // La conversation ouverte est considérée lue dès qu'elle bouge (pas de pastille sur soi-même).
   useEffect(() => {
@@ -169,11 +199,12 @@ export default function MessagesIntervenantsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convos, activeId]);
 
-  // Rafraîchissement léger (effet "notification") : nouvelles activités -> pastilles non lu.
+  // Rafraîchissement léger (effet "notification") : nouvelles activités -> pastilles
+  // non lu, ET rechargement du fil ouvert pour voir les messages/docs entrants.
   useEffect(() => {
-    const t = setInterval(() => { refreshConvos(); }, 20000);
+    const t = setInterval(() => { refreshConvos(); reloadActiveThread(); }, 20000);
     return () => clearInterval(t);
-  }, [refreshConvos]);
+  }, [refreshConvos, reloadActiveThread]);
 
   const timeline = useMemo(() => buildTimeline(thread), [thread]);
 
@@ -201,15 +232,19 @@ export default function MessagesIntervenantsPage() {
       const msg = await postMessagePro(activeId, body);
       setDraft('');
       setThread(prev => prev ? { ...prev, messages: [...(prev.messages ?? []), msg] } : prev);
+      setTimeout(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, 50);
       refreshConvos();
     } catch { /* noop */ }
     finally { setSending(false); }
   }, [draft, activeId, sending, refreshConvos]);
 
   const onClassified = useCallback(() => {
+    const id = classifyAtt?.id;
     setClassifyAtt(null);
+    if (id) setClassifiedIds(prev => { const n = new Set(prev); n.add(id); return n; });
     refreshConvos();
-  }, [refreshConvos]);
+    reloadActiveThread();
+  }, [classifyAtt, refreshConvos, reloadActiveThread]);
 
   const active = thread ?? convos.find(c => c.id === activeId) ?? null;
 
@@ -311,7 +346,7 @@ export default function MessagesIntervenantsPage() {
                           )}
                           {it.kind === 'message'
                             ? <Bubble mine={it.role === 'pro'} name={it.name} time={fmtTime(it.at)} body={it.body} />
-                            : <DocBubble mine={it.role === 'pro'} att={it.att} time={fmtTime(it.at)} onClassify={() => setClassifyAtt(it.att)} />}
+                            : <DocBubble mine={it.role === 'pro'} att={it.att} time={fmtTime(it.at)} classified={classifiedIds.has(it.att.id)} onClassify={() => setClassifyAtt(it.att)} />}
                         </div>
                       );
                     })}
@@ -409,8 +444,8 @@ function Bubble({ mine, name, time, body }: { mine: boolean; name: string; time:
   );
 }
 
-function DocBubble({ mine, att, time, onClassify }: { mine: boolean; att: DemandeAttachment; time: string; onClassify: () => void }) {
-  const canClassify = !!att.dossierDocumentId && att.uploadedByRole === 'intervenant';
+function DocBubble({ mine, att, time, classified, onClassify }: { mine: boolean; att: DemandeAttachment; time: string; classified?: boolean; onClassify: () => void }) {
+  const canClassify = !!att.dossierDocumentId && att.uploadedByRole === 'intervenant' && !classified;
   return (
     <div className={`flex mb-2 ${mine ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[78%] flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
@@ -431,11 +466,13 @@ function DocBubble({ mine, att, time, onClassify }: { mine: boolean; att: Demand
             >
               ⬇︎ Télécharger
             </a>
-            {canClassify && (
+            {canClassify ? (
               <button onClick={onClassify} className="flex-1 text-center text-[12px] font-bold text-[#a67749] py-2 hover:bg-[#a67749]/10 border-l border-[#304035]/8">
                 🗂 Classer
               </button>
-            )}
+            ) : classified ? (
+              <span className="flex-1 text-center text-[12px] font-bold text-emerald-600 py-2 border-l border-[#304035]/8">✓ Classé</span>
+            ) : null}
           </div>
         </div>
         <span className="text-[10px] text-[#304035]/35 mt-0.5 mx-1">{time}</span>
