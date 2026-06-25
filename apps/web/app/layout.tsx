@@ -148,19 +148,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 var SW_FLAG='avra_sw_purged_at';
 var CHUNK_FLAG='avra_chunk_reloaded_at';
 var COOLDOWN=600000;
+var ATTEMPT_FLAG='avra_chunk_attempt';
+var MAX_ATTEMPTS=4;
 function killAndReload(reason){
-  try{var last=sessionStorage.getItem(CHUNK_FLAG);if(last&&Date.now()-parseInt(last,10)<60000)return;sessionStorage.setItem(CHUNK_FLAG,String(Date.now()));}catch(e){}
+  var n=0;try{n=parseInt(sessionStorage.getItem(ATTEMPT_FLAG)||'0',10)||0;}catch(e){}
+  if(n>=MAX_ATTEMPTS)return;
+  try{sessionStorage.setItem(ATTEMPT_FLAG,String(n+1));}catch(e){}
+  var delay=Math.min(400*Math.pow(2,n),4000);
   Promise.resolve().then(function(){
     var p=[];
     if('serviceWorker' in navigator){p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister().catch(function(){return false});}));}).catch(function(){}));}
     if('caches' in window){p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k).catch(function(){return false});}));}).catch(function(){}));}
     return Promise.all(p);
   }).then(function(){
-    var u=new URL(window.location.href);
-    u.searchParams.set('_cb',String(Date.now()));
-    window.location.replace(u.toString());
+    setTimeout(function(){
+      var u=new URL(window.location.href);
+      u.searchParams.set('_cb',String(Date.now()));
+      window.location.replace(u.toString());
+    },delay);
   });
 }
+window.addEventListener('load',function(){setTimeout(function(){try{sessionStorage.removeItem(ATTEMPT_FLAG);}catch(e){}try{if(window.history&&window.history.replaceState){var u2=new URL(window.location.href);if(u2.searchParams.has('_cb')){u2.searchParams.delete('_cb');window.history.replaceState(null,'',u2.toString());}}}catch(e){}},6000);});
 // Kill-switch proactif : si on détecte un SW enregistré OU des caches encore présents,
 // on les supprime UNE fois (cooldown 10 min) sans reload pour préparer la prochaine
 // navigation propre. Cela limite la persistence des anciens SW.
