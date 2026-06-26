@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
+import { splitPath, joinPath, displayName as folderDisplayName, childFolders, sanitizeFolderName } from '@/lib/folderTree';
 import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
@@ -392,7 +393,7 @@ export default function DossierDetailPage() {
   };
   const SUBFOLDER_SEP = ' ▸ ';
   const handleAddFolder = () => {
-    const name = newFolderLabel.trim();
+    const name = sanitizeFolderName(newFolderLabel);
     if (!name) return;
     // imbrication par chemin : "Parent ▸ Enfant"
     const label = addFolderParent ? `${addFolderParent}${SUBFOLDER_SEP}${name}` : name;
@@ -799,7 +800,10 @@ export default function DossierDetailPage() {
                 };
                 withDepth.filter((it) => !it.sf.label.includes(SEP)).forEach(pushTree);
                 withDepth.forEach((it) => { if (!seen.has(it.sf.label)) ordered.push(it); });
-                return ordered;
+                // Navigation imbriquée : la liste de gauche ne montre QUE les
+                // dossiers de 1er niveau. Les sous-dossiers (label contenant ▸)
+                // s'ouvrent en descendant dans un dossier (drill-down dans la modale).
+                return ordered.filter((it) => !it.sf.label.includes(SEP));
               })().map(({ sf, depth }, i) => {
                 // Alerte dynamique : uniquement si le sous-dossier est vide
                 // (aucun document présent). Dès qu'un document est ajouté,
@@ -1356,6 +1360,7 @@ export default function DossierDetailPage() {
         const sf = dossier.subfolders.find(s => s.label === openedSubfolder);
         if (!sf) return null;
         const docs = (sf.documents ?? []).map(normalizeDoc);
+        const childPaths = childFolders(dossier.subfolders.map(s => s.label), openedSubfolder);
 
         // Ajout "manuel" par nom seul — placeholder local, sans upload.
         // Utile pour noter qu'un document physique est attendu mais pas encore reçu.
@@ -1463,9 +1468,24 @@ export default function DossierDetailPage() {
             <div className={`w-full ${docsViewMode === 'grid' ? 'max-w-3xl' : 'max-w-lg'} rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10 transition-all`} onClick={e => e.stopPropagation()}>
               <div className="flex items-start justify-between mb-5 gap-3">
                 <div className="min-w-0">
-                  <h3 className="text-xl font-bold text-[#304035] truncate">{sf.label}</h3>
+                  <div className="flex items-center gap-1 text-[11px] text-[#304035]/45 mb-1 flex-wrap">
+                    <button onClick={() => setOpenedSubfolder(null)} className="hover:text-[#a67749] font-semibold">📁 {dossier.name}</button>
+                    {splitPath(openedSubfolder).map((seg, i, arr) => {
+                      const p = joinPath(arr.slice(0, i + 1));
+                      const isLast = i === arr.length - 1;
+                      return (
+                        <span key={p} className="flex items-center gap-1">
+                          <span className="text-[#304035]/30">›</span>
+                          {isLast
+                            ? <span className="text-[#304035]/70 font-bold">{seg}</span>
+                            : <button onClick={() => setOpenedSubfolder(p)} className="hover:text-[#a67749]">{seg}</button>}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <h3 className="text-xl font-bold text-[#304035] truncate">{folderDisplayName(sf.label)}</h3>
                   <p className="text-xs text-[#304035]/50 mt-1">
-                    {docs.length} document{docs.length > 1 ? 's' : ''}{sf.date ? ` · Modifié le ${sf.date}` : ''}
+                    {childPaths.length > 0 ? `${childPaths.length} sous-dossier${childPaths.length > 1 ? 's' : ''} · ` : ''}{docs.length} document{docs.length > 1 ? 's' : ''}{sf.date ? ` · Modifié le ${sf.date}` : ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -1497,6 +1517,40 @@ export default function DossierDetailPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Sous-dossiers (navigation imbriquée — drill-down) */}
+              {(childPaths.length > 0 || canEditThis) && (
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#7c6c58]">Sous-dossiers</span>
+                    {canEditThis && (
+                      <button
+                        onClick={() => { setAddFolderParent(openedSubfolder); setShowAddFolder(true); }}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#a67749] hover:underline"
+                      >
+                        <FolderPlus className="h-3.5 w-3.5" /> Nouveau sous-dossier
+                      </button>
+                    )}
+                  </div>
+                  {childPaths.length === 0 ? (
+                    <div className="text-[12px] text-[#304035]/40 italic px-1 py-2">Aucun sous-dossier ici. Créez-en un, ou ajoutez des documents ci-dessous.</div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                      {childPaths.map((cp) => (
+                        <button
+                          key={cp}
+                          onClick={() => setOpenedSubfolder(cp)}
+                          className="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-[#304035]/10 hover:border-[#a67749]/45 hover:bg-[#a67749]/5 transition-all text-center"
+                          title={folderDisplayName(cp)}
+                        >
+                          <span className="text-3xl leading-none">📁</span>
+                          <span className="text-[12px] font-semibold text-[#304035] truncate w-full">{folderDisplayName(cp)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Vue LISTE */}
               {docsViewMode === 'list' && (
