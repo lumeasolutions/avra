@@ -76,6 +76,28 @@ export class DemandesController {
     return this.demandes.publicUploadAttachment(token, file);
   }
 
+  /** Upload DIRECT gros fichiers (>4 Mo) — etape 1 : signed URL Supabase. */
+  @Public()
+  @SkipCsrf()
+  @Post('public/intervention/:token/upload-url')
+  async publicInitDirectUpload(
+    @Param('token') token: string,
+    @Body() body: { fileName: string; fileSize: number; mimeType: string },
+  ) {
+    return this.demandes.publicInitDirectUpload(token, body.fileName, body.fileSize, body.mimeType);
+  }
+
+  /** Upload DIRECT gros fichiers — etape 2 : finalise apres le PUT Supabase. */
+  @Public()
+  @SkipCsrf()
+  @Post('public/intervention/:token/finalize-upload')
+  async publicFinalizeDirectUpload(
+    @Param('token') token: string,
+    @Body() body: { storagePath: string; fileName: string; fileSize: number; mimeType: string },
+  ) {
+    return this.demandes.publicFinalizeDirectUpload(token, body.storagePath, body.fileName, body.fileSize, body.mimeType);
+  }
+
   @Get()
   list(
     @CurrentUser() user: JwtPayload,

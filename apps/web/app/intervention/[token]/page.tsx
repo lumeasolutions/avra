@@ -35,9 +35,9 @@ function fmtDate(s?: string | null): string {
   catch { return ''; }
 }
 
-// Vercel coupe les envois multipart au-dela de ~4,5 Mo AVANT le serveur.
-// On valide donc cote client a 4 Mo avec un message clair.
-const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+// Upload DIRECT vers Supabase (signed URL) -> contourne la limite ~4,5 Mo de
+// Vercel. La limite reelle est celle du service dossier-documents (25 Mo).
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 export default function InterventionPublicPage() {
   const params = useParams();
@@ -113,20 +113,36 @@ export default function InterventionPublicPage() {
     if (sending) return; // pas d'upload pendant l'envoi d'un message
     const tooBig = files.find((f) => f.size > MAX_UPLOAD_BYTES);
     if (tooBig) {
-      setError(`« ${tooBig.name} » est trop lourd (max 4 Mo via ce lien). Compressez-le ou envoyez-le par e-mail en répondant à la demande.`);
+      setError(`« ${tooBig.name} » dépasse la taille maximale (25 Mo).`);
       return;
     }
     setUploading(true); setError(null);
     try {
       for (const f of files) {
-        const fd = new FormData();
-        fd.append('file', f);
-        const r = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/attachments`, {
-          method: 'POST', body: fd,
+        const mimeType = f.type || 'application/octet-stream';
+        // 1) Demande une URL d'upload signée (Supabase) au serveur.
+        const initRes = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/upload-url`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: f.name, fileSize: f.size, mimeType }),
         });
-        if (!r.ok) {
-          const j = await r.json().catch(() => ({}));
-          throw new Error(j?.message || `Envoi de « ${f.name} » impossible`);
+        if (!initRes.ok) {
+          const j = await initRes.json().catch(() => ({}));
+          throw new Error(j?.message || `Préparation de l'envoi de « ${f.name} » impossible`);
+        }
+        const init = await initRes.json();
+        // 2) Envoie le fichier DIRECTEMENT vers Supabase (pas de limite Vercel).
+        const put = await fetch(init.uploadUrl, {
+          method: 'PUT', headers: { 'Content-Type': mimeType }, body: f,
+        });
+        if (!put.ok) throw new Error(`Envoi de « ${f.name} » vers le stockage échoué`);
+        // 3) Finalise : crée le document dans le dossier + rattache à la demande.
+        const fin = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/finalize-upload`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ storagePath: init.storagePath, fileName: f.name, fileSize: f.size, mimeType }),
+        });
+        if (!fin.ok) {
+          const j = await fin.json().catch(() => ({}));
+          throw new Error(j?.message || `Enregistrement de « ${f.name} » impossible`);
         }
       }
       await load();
@@ -247,7 +263,7 @@ export default function InterventionPublicPage() {
               <input type="file" multiple disabled={uploading || sending} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ''; uploadFiles(files); }} style={{ display: 'none' }} />
             </label>
             <p style={{ margin: '8px 0 0', fontSize: 12, color: '#7c6c58' }}>
-              PDF, photos, plans… (max 4 Mo par fichier via ce lien). Le document est reçu directement dans le dossier.
+              PDF, photos, plans… (max 25 Mo par fichier). Le document est reçu directement dans le dossier.
             </p>
           </div>
         )}
