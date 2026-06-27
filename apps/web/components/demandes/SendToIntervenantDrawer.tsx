@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Mail, UserPlus, CheckCircle2, Paperclip, Trash2, Bookmark } from 'lucide-react';
 import { api, apiUpload } from '@/lib/api';
+import { displayName as folderDisplayName, depthOf, isDescendant } from '@/lib/folderTree';
 import { useDemandeTemplatesStore } from '@/store/useDemandeTemplatesStore';
 import {
   DEMANDE_TYPE_LABELS,
@@ -638,10 +639,26 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                       if (!acc[k]) acc[k] = [];
                       acc[k].push(d);
                       return acc;
-                    }, {})).map(([subfolder, docs]) => {
+                    }, {}))
+                      .sort((a, b) => {
+                        const da = depthOf(a[0]), db = depthOf(b[0]);
+                        return da !== db ? da - db : a[0].localeCompare(b[0], 'fr', { sensitivity: 'base' });
+                      })
+                      .map(([subfolder, docs]) => {
                       const allChecked = docs.every((d) => includedDocIds.has(d.id));
+                      // Tous les documents sous ce dossier, y compris ses sous-dossiers (récursif).
+                      const recursiveDocs = subfolder === 'Autres'
+                        ? docs
+                        : projectDocs.filter((d) => (d.subfolderLabel || 'Autres') === subfolder || isDescendant(d.subfolderLabel || '', subfolder));
+                      const hasNested = recursiveDocs.length > docs.length;
+                      const indent = depthOf(subfolder) > 1 ? (depthOf(subfolder) - 1) * 12 : 0;
+                      const selectRecursive = () => setUploads((u) => {
+                        const have = new Set(u.map((x) => x.dossierDocumentId));
+                        const toAdd = recursiveDocs.filter((d) => !have.has(d.id));
+                        return [...u, ...toAdd.map((d) => ({ dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined }))];
+                      });
                       return (
-                        <div key={subfolder} style={{ background: '#fff', borderRadius: 6, padding: 6, border: '1px solid #f0eae0' }}>
+                        <div key={subfolder} style={{ background: '#fff', borderRadius: 6, padding: 6, border: '1px solid #f0eae0', marginLeft: indent }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, paddingBottom: 4, borderBottom: '1px solid #f5f1ea' }}>
                             <input
                               type="checkbox"
@@ -672,10 +689,21 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                             />
                             <label
                               htmlFor={`sf-all-${subfolder}`}
-                              style={{ fontSize: 11, fontWeight: 700, color: '#3D5449', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', flex: 1 }}
+                              title={subfolder}
+                              style={{ fontSize: 11, fontWeight: 700, color: '#3D5449', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                             >
-                              {subfolder} <span style={{ color: '#7c6c58', fontWeight: 400 }}>({docs.length})</span>
+                              {depthOf(subfolder) > 1 ? '↳ ' : ''}{subfolder === 'Autres' ? 'Autres' : folderDisplayName(subfolder)} <span style={{ color: '#7c6c58', fontWeight: 400 }}>({docs.length})</span>
                             </label>
+                            {hasNested && (
+                              <button
+                                type="button"
+                                onClick={selectRecursive}
+                                title="Joindre tout ce dossier, y compris ses sous-dossiers"
+                                style={{ fontSize: 10, fontWeight: 700, color: '#a67749', background: '#fff8ef', border: '1px solid #e7dcc8', borderRadius: 6, padding: '2px 7px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                              >
+                                📁 Tout le dossier ({recursiveDocs.length})
+                              </button>
+                            )}
                           </div>
                           {docs.map((d) => (
                             <label
