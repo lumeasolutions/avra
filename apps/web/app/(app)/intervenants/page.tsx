@@ -14,6 +14,7 @@ import {
   X, Send, Link2, Clock, Pencil,
   ChevronRight, AlertTriangle, FolderOpen, ArrowLeft, Folder,
   CheckCircle2, AlertCircle, Hourglass, RefreshCw, HardHat, Star,
+  Filter, Sparkles,
 } from 'lucide-react';
 import { useIntervenantStore, type Intervenant } from '@/store';
 import { useIntervenantDossiersStore } from '@/store/useIntervenantDossiersStore';
@@ -372,6 +373,28 @@ export default function IntervenantsHubPage() {
           subtitle={`${filtered.length} ${filterType.toLowerCase()}${filtered.length > 1 ? 's' : ''}`}
         />
 
+        {(() => {
+          const total = intervenants.length;
+          const enAttente = intervenants.filter(i => (alertsByIntervenantId[i.id] ?? []).length > 0).length;
+          const dispo = Math.max(0, total - enAttente);
+          return (
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="bg-white border border-[#304035]/8 rounded-xl px-4 py-3 shadow-sm">
+                <div className="text-2xl font-bold leading-none text-[#1a2a1e]">{total}</div>
+                <div className="text-[11.5px] text-[#304035]/50 mt-1.5">Intervenants</div>
+              </div>
+              <div className="bg-white border border-[#304035]/8 rounded-xl px-4 py-3 shadow-sm">
+                <div className="text-2xl font-bold leading-none text-[#a67749]">{enAttente}</div>
+                <div className="text-[11.5px] text-[#304035]/50 mt-1.5">En attente</div>
+              </div>
+              <div className="bg-white border border-[#304035]/8 rounded-xl px-4 py-3 shadow-sm">
+                <div className="text-2xl font-bold leading-none text-[#3b6d4a]">{dispo}</div>
+                <div className="text-[11.5px] text-[#304035]/50 mt-1.5">Disponibles</div>
+              </div>
+            </div>
+          );
+        })()}
+
         <FiltersBar types={TYPES} activeType={filterType} onPick={setFilterType} />
 
         <QuickDemandesSection
@@ -438,25 +461,26 @@ export default function IntervenantsHubPage() {
           )}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
           <ActionButton
-            label="RAJOUTER UN ARTISAN"
-            icon={<Plus className="h-5 w-5" />}
+            primary
+            label="Ajouter un artisan"
+            icon={<Plus className="h-4 w-4" />}
             onClick={() => setShowAddForm(true)}
           />
           <ActionButton
-            label="DEMANDE SPÉCIALE"
-            icon={<Send className="h-5 w-5" />}
+            label="Demande spéciale"
+            icon={<Sparkles className="h-4 w-4" />}
             onClick={handleDemandeSpeciale}
           />
           <ActionButton
-            label="DONNER ACCÈS"
-            icon={<Mail className="h-5 w-5" />}
+            label="Donner accès"
+            icon={<Mail className="h-4 w-4" />}
             onClick={() => setShowDonnerAcces(true)}
           />
           <ActionButton
-            label={relanceLoading ? 'RELANCE…' : 'RELANCE'}
-            icon={<RefreshCw className={`h-5 w-5 ${relanceLoading ? 'animate-spin' : ''}`} />}
+            label={relanceLoading ? 'Relance…' : 'Relancer'}
+            icon={<RefreshCw className={`h-4 w-4 ${relanceLoading ? 'animate-spin' : ''}`} />}
             onClick={handleRelanceAll}
             disabled={relanceLoading}
           />
@@ -699,38 +723,41 @@ interface IntervenantAlert {
 function FiltersBar({ types, activeType, onPick }: { types: string[]; activeType: string; onPick: (t: string) => void }) {
   const isAlertes = activeType === FILTER_ALERTES;
   return (
-    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm px-5 py-3">
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs font-bold text-[#304035] underline mr-2">FILTRES :</span>
-        {types.map(t => {
-          const active = t === activeType;
-          return (
-            <button
-              key={t}
-              onClick={() => onPick(t)}
-              className={cn(
-                'text-xs font-bold uppercase tracking-wider px-1.5 py-1 transition-colors underline-offset-4',
-                active
-                  ? 'text-[#304035] font-extrabold underline decoration-2'
-                  : 'text-[#304035]/55 hover:text-[#304035] underline'
-              )}
-            >
-              {t}
-            </button>
-          );
-        })}
-        <span className="mx-1 text-[#304035]/20">|</span>
-        <button
-          onClick={() => onPick(FILTER_ALERTES)}
-          className={cn(
-            'text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full transition-all',
-            isAlertes
-              ? 'bg-red-500 text-white shadow-sm'
-              : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
-          )}
-        >
-          {FILTER_ALERTES}
-        </button>
+    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm px-4 py-3">
+      <div className="flex items-start gap-2.5">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#304035]/50 shrink-0 mt-1.5">
+          <Filter className="h-3.5 w-3.5" /> Métier
+        </span>
+        <div className="flex items-center gap-1.5 flex-wrap flex-1">
+          {types.map(t => {
+            const active = t === activeType;
+            return (
+              <button
+                key={t}
+                onClick={() => onPick(t)}
+                className={cn(
+                  'text-[12px] font-medium px-3 py-1.5 rounded-full transition-all whitespace-nowrap border',
+                  active
+                    ? 'bg-[#304035] text-[#f3ecd9] border-[#304035]'
+                    : 'bg-white text-[#304035] border-[#304035]/15 hover:border-[#304035]/35'
+                )}
+              >
+                {t.charAt(0) + t.slice(1).toLowerCase()}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => onPick(FILTER_ALERTES)}
+            className={cn(
+              'inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-full transition-all whitespace-nowrap border ml-0.5',
+              isAlertes
+                ? 'bg-[#b91c1c] text-white border-[#b91c1c]'
+                : 'bg-[#fbecec] text-[#b91c1c] border-[#e7c9c9] hover:bg-[#f6e0e0]'
+            )}
+          >
+            <AlertTriangle className="h-3.5 w-3.5" /> Alertes
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -744,23 +771,17 @@ function QuickDemandesSection({
   onDemandeSpeciale: () => void;
 }) {
   return (
-    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm overflow-hidden">
-      <div className="p-5 space-y-3">
-        <button
-          onClick={onDemandeSpeciale}
-          className="group w-full rounded-2xl px-6 py-4 text-base font-bold text-white transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
-          style={{
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            boxShadow: '0 4px 16px rgba(16,185,129,0.35)',
-          }}
-        >
-          <span className="flex items-center justify-center gap-2.5">
-            <span className="text-xl">✨</span>
-            <span className="tracking-wide">DEMANDE SPÉCIALE</span>
-          </span>
-        </button>
+    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm p-5 space-y-4">
+      <button
+        onClick={onDemandeSpeciale}
+        className="w-full rounded-xl px-5 py-3 text-sm font-semibold text-white bg-[#a67749] hover:bg-[#92653b] transition-colors flex items-center justify-center gap-2"
+      >
+        <Sparkles className="h-4 w-4" /> Demande spéciale
+      </button>
 
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-[#7c6c58] mb-2.5">Demande rapide</p>
+        <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           {QUICK_DEMANDES.map(a => {
             const active = activeChip === a.key;
             return (
@@ -768,19 +789,12 @@ function QuickDemandesSection({
                 key={a.key}
                 onClick={() => onPickChip(a.key)}
                 className={cn(
-                  'flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left transition-all hover:shadow-md hover:-translate-y-0.5 group border-2',
-                  active ? 'border-[#15803d]' : 'border-transparent'
+                  'flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-left bg-white transition-all hover:border-[#a67749]/40 hover:shadow-sm border',
+                  active ? 'border-[#a67749] ring-1 ring-[#a67749]/30' : 'border-[#304035]/10'
                 )}
-                style={{
-                  background: 'linear-gradient(135deg, #fde68a 0%, #fbbf24 100%)',
-                  color: '#78350f',
-                }}
               >
-                <ChevronRight className="h-4 w-4 shrink-0 text-[#78350f]/70 group-hover:translate-x-0.5 transition-transform" />
-                <span className="text-base">{a.icon}</span>
-                <span className="text-xs font-bold uppercase tracking-wide flex-1 truncate">
-                  {a.label}
-                </span>
+                <span className="h-8 w-8 rounded-lg bg-[#e8efe6] text-base flex items-center justify-center shrink-0">{a.icon}</span>
+                <span className="text-[12.5px] font-medium text-[#1a2a1e] truncate flex-1">{a.label}</span>
               </button>
             );
           })}
@@ -805,11 +819,11 @@ function IntervenantRow({
       onClick={onClick}
       className="flex items-center gap-4 px-5 py-4 hover:bg-[#f5eee8]/40 transition-colors group cursor-pointer"
     >
-      <div className={cn('h-11 w-11 rounded-2xl flex items-center justify-center text-base font-bold shrink-0 ring-2', c.avatar, c.ring)}>
+      <div className={cn('h-11 w-11 rounded-full flex items-center justify-center text-base font-bold shrink-0', c.avatar)}>
         {(intervenant.name[0] ?? '?').toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-[#304035] group-hover:text-[#a67749] transition-colors text-[15px] underline underline-offset-2">
+        <p className="font-semibold text-[#304035] group-hover:text-[#a67749] transition-colors text-[15px]">
           {intervenant.name}
           {showType && (
             <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-[#304035]/55 no-underline">
@@ -852,22 +866,21 @@ function AlertBadge({ label, tone }: { label: string; tone: 'red' | 'orange' | '
 }
 
 function ActionButton({
-  label, icon, onClick, disabled,
-}: { label: string; icon: React.ReactNode; onClick: () => void; disabled?: boolean }) {
+  label, icon, onClick, disabled, primary,
+}: { label: string; icon: React.ReactNode; onClick: () => void; disabled?: boolean; primary?: boolean }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="rounded-2xl px-6 py-4 text-base font-bold text-white transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
-      style={{
-        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-        boxShadow: '0 4px 16px rgba(16,185,129,0.35)',
-      }}
+      className={cn(
+        'rounded-xl px-5 py-3 text-[13px] font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2',
+        primary
+          ? 'bg-[#304035] text-[#f3ecd9] hover:bg-[#3D5449]'
+          : 'bg-white text-[#304035] border border-[#304035]/15 hover:border-[#304035]/35'
+      )}
     >
-      <span className="flex items-center justify-center gap-2.5">
-        {icon}
-        <span className="tracking-wide">{label}</span>
-      </span>
+      {icon}
+      <span>{label}</span>
     </button>
   );
 }
@@ -958,7 +971,7 @@ function ChipDrilldown({
             {chip.uiMode === 'form' && (
               <button
                 onClick={() => onSendDemande({ type: chip.type, title: chip.titlePrefix, notes: chip.notesTemplate, intervenantId: selectedIntervenant.id })}
-                className="w-full py-3 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white font-bold text-sm transition-colors"
+                className="w-full py-3 rounded-xl bg-[#304035] hover:bg-[#3D5449] text-white font-semibold text-sm transition-colors"
               >
                 <Send className="inline h-4 w-4 mr-2" />
                 Composer la demande {chip.label}
@@ -1337,7 +1350,7 @@ function AddIntervenantModal({
         </div>
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60">Annuler</button>
-          <button onClick={() => form.name.trim() && onCreate(form)} disabled={!form.name.trim()} className="flex-1 rounded-lg bg-[#10b981] text-white px-4 py-2 text-sm font-bold disabled:opacity-50">Créer</button>
+          <button onClick={() => form.name.trim() && onCreate(form)} disabled={!form.name.trim()} className="flex-1 rounded-lg bg-[#304035] hover:bg-[#3D5449] text-white px-4 py-2 text-sm font-bold disabled:opacity-50">Créer</button>
         </div>
       </div>
     </div>
@@ -1397,7 +1410,7 @@ function EditIntervenantModal({
         </div>
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} disabled={saving} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60 disabled:opacity-50">Annuler</button>
-          <button onClick={() => canSave && onSave(form)} disabled={!canSave} className="flex-1 rounded-lg bg-[#10b981] text-white px-4 py-2 text-sm font-bold disabled:opacity-50">
+          <button onClick={() => canSave && onSave(form)} disabled={!canSave} className="flex-1 rounded-lg bg-[#304035] hover:bg-[#3D5449] text-white px-4 py-2 text-sm font-bold disabled:opacity-50">
             {saving ? 'Enregistrement…' : 'Enregistrer'}
           </button>
         </div>
