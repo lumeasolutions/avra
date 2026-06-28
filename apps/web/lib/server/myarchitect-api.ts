@@ -88,11 +88,19 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
 
   const ambiance = params.ambiance?.trim() ? params.ambiance.trim() : '';
 
+  // Fidélité maximale aux éléments existants de l'image source. MyArchitectAI
+  // n'expose pas de paramètre de "structure strength" : on force donc la
+  // préservation des matériaux/couleurs/équipements directement dans le prompt.
+  // Tout élément explicitement redéfini dans `materials` (Façades/Plan/Sol/Murs)
+  // prime ; le reste doit rester strictement fidèle à la source.
+  const fidelity =
+    'faithfully reproduce the source image: keep the exact same wood tones and wood grain, the exact colors and finishes, the cabinet handles, the floor, the backsplash, the sink, the range hood, the faucet, the worktop and the wall colors exactly as they appear in the original, except for any material explicitly requested above; do not recolor, do not change or invent materials, do not swap or move the fixtures, do not alter the wood species or its tone';
+
   // Contraintes anti-dérive baked-in (faute de negativePrompt sur ces endpoints).
   const guard =
     'preserve the original layout and camera angle, no extra furniture, no added objects, no warped or deformed shapes, no distorted lines, no text, crisp clean image, sharp focus, fine high detail, high resolution, smooth surfaces, no grain, no noise, no blur, no compression artifacts';
 
-  return [base, materials.length ? materials.join(', ') : '', ambiance, guard]
+  return [base, materials.length ? materials.join(', ') : '', ambiance, fidelity, guard]
     .filter(Boolean)
     .join('. ');
 }
