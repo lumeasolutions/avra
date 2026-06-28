@@ -119,11 +119,16 @@ export async function countWorkspaceData(workspaceId: string): Promise<Record<st
  */
 export async function deleteWorkspaceData(workspaceId: string): Promise<Record<string, number>> {
   const counts = await countWorkspaceData(workspaceId);
+  // Forme interactive : exécute les DELETE séquentiellement dans l'ordre FK sûr,
+  // dans UNE transaction. `timeout` n'est supporté QUE par cette forme (pas la
+  // forme tableau) — marge pour les gros workspaces (défaut Prisma = 5 s).
   await prisma.$transaction(
-    DELETE_ORDER.map((table) =>
-      prisma.$executeRawUnsafe(`DELETE FROM "${table}" WHERE "workspaceId" = $1`, workspaceId),
-    ),
-    { timeout: 30_000 }, // marge pour les gros workspaces (défaut Prisma = 5 s)
+    async (tx) => {
+      for (const table of DELETE_ORDER) {
+        await tx.$executeRawUnsafe(`DELETE FROM "${table}" WHERE "workspaceId" = $1`, workspaceId);
+      }
+    },
+    { timeout: 30_000 },
   );
   return counts;
 }
