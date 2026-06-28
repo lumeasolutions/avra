@@ -936,7 +936,8 @@ export default function DossierDetailPage() {
                     <SendToIntervenantButton
                       variant="icon"
                       prefill={{
-                        type: isArchitecte || isCuisiniste ? 'POSE' : 'POSE',
+                        type: 'DEVIS',
+                        dossierSigned: isSigned,
                         title: `${sf.label} — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
                         projectId: dossier.id,
                         notes: docsCount > 0
@@ -1132,6 +1133,8 @@ export default function DossierDetailPage() {
                 variant="compact"
                 label="Nouvelle"
                 prefill={{
+                  type: 'DEVIS',
+                  dossierSigned: isSigned,
                   projectId: dossier.id,
                   title: `Intervention — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
                 }}
@@ -1811,7 +1814,8 @@ export default function DossierDetailPage() {
                     variant="compact"
                     label="Envoyer à intervenant"
                     prefill={{
-                      type: 'POSE',
+                      type: 'DEVIS',
+                      dossierSigned: isSigned,
                       title: `Document — ${previewDoc.name}`,
                       projectId: id,
                       attachments: [{

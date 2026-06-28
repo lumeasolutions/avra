@@ -57,6 +57,13 @@ export interface SendToIntervenantPrefill {
   }>;
   /** Pre-selectionne un intervenant (skippe l'etape choix). */
   intervenantId?: string;
+  /**
+   * Contexte dossier : restreint les types de demande proposes.
+   * - false (dossier en cours)  → seulement « Devis »
+   * - true  (dossier signe)     → « Devis », « Compte rendu chantier », « Confirmation de commande »
+   * - undefined (hors dossier)  → tous les types
+   */
+  dossierSigned?: boolean;
 }
 
 interface Props {
@@ -84,7 +91,21 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sentCount, setSentCount] = useState(0);
 
-  const [type, setType] = useState<DemandeType>(prefill?.type ?? 'POSE');
+  const [type, setType] = useState<DemandeType>(
+    prefill?.type ?? (prefill?.dossierSigned !== undefined ? 'DEVIS' : 'POSE'),
+  );
+
+  // Types de demande proposes selon le contexte du dossier.
+  const typeOptions: Array<{ type: DemandeType; label: string; titlePrefix?: string }> =
+    prefill?.dossierSigned === false
+      ? [{ type: 'DEVIS', label: DEMANDE_TYPE_LABELS.DEVIS }]
+      : prefill?.dossierSigned === true
+      ? [
+          { type: 'DEVIS', label: DEMANDE_TYPE_LABELS.DEVIS },
+          { type: 'AUTRE', label: 'Compte rendu chantier', titlePrefix: 'Compte rendu chantier — ' },
+          { type: 'CONFIRMATION_COMMANDE', label: DEMANDE_TYPE_LABELS.CONFIRMATION_COMMANDE },
+        ]
+      : TYPE_OPTIONS.map((t) => ({ type: t, label: DEMANDE_TYPE_LABELS[t] }));
   const [title, setTitle] = useState(prefill?.title ?? '');
   const [notes, setNotes] = useState(prefill?.notes ?? '');
   const [scheduledFor, setScheduledFor] = useState(prefill?.scheduledFor ?? '');
@@ -531,24 +552,27 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                 gap: 6,
                 marginBottom: 14,
               }}>
-                {TYPE_OPTIONS.map((t) => (
+                {typeOptions.map((opt) => {
+                  const active = type === opt.type;
+                  return (
                   <button
-                    key={t}
-                    onClick={() => setType(t)}
+                    key={opt.label}
+                    onClick={() => { setType(opt.type); if (opt.titlePrefix) setTitle(opt.titlePrefix); }}
                     style={{
                       padding: '8px 10px',
-                      border: type === t ? '2px solid #1a2a1e' : '1px solid #ddd5c7',
+                      border: active ? '2px solid #1a2a1e' : '1px solid #ddd5c7',
                       borderRadius: 10,
-                      background: type === t ? '#1a2a1e' : '#fff',
-                      color: type === t ? '#cbb98a' : '#1a2a1e',
+                      background: active ? '#1a2a1e' : '#fff',
+                      color: active ? '#cbb98a' : '#1a2a1e',
                       fontSize: 12, fontWeight: 600,
                       cursor: 'pointer',
                       transition: 'all 0.12s',
                     }}
                   >
-                    {DEMANDE_TYPE_LABELS[t]}
+                    {opt.label}
                   </button>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Title */}
