@@ -28,6 +28,11 @@ export function Sidebar() {
   const role = useAuthStore(s => s.user?.role);
   const isAdmin = role === 'ADMIN' || role === 'OWNER';
   const logout = useAuthStore(s => s.logout);
+  // Portail support : visible UNIQUEMENT pour les 2 comptes fondateurs.
+  // (le vrai verrou est côté serveur dans /api/support/* ; ceci n'est que l'affichage)
+  const email = useAuthStore(s => s.user?.email);
+  const SUPPORT_EMAILS = ['lumeasolutions@outlook.fr', 'cgdesignplan@gmail.com'];
+  const isSupport = !!email && SUPPORT_EMAILS.includes(email.toLowerCase());
   const router = useRouter();
   const handleLogout = () => {
     logout();
@@ -391,6 +396,12 @@ export function Sidebar() {
             <span className="badge" title="Demandes en attente de réponse intervenant">{demandesActionCount}</span>
           )}
         </Link>
+        {isSupport && (
+        <Link href="/support" className={`menu-item ${pathname === '/support' ? 'active' : ''}`} onClick={close}>
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>
+          Support
+        </Link>
+        )}
       </nav>
     </div>
   );
