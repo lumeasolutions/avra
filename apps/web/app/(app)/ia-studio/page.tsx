@@ -1,9 +1,5 @@
 'use client';
 
-// Force le rendu dynamique : evite le cache de route Vercel.
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
@@ -21,28 +17,28 @@ import { useDossierStore, useHistoryStore, useAuthStore } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
 import HistoryPanel, { type IaJobRow } from './HistoryPanel';
 
-/* â”€â”€â”€ Types front-end uniquement (pas d'import depuis lib/server) â”€â”€â”€ */
-type FinishType   = 'mat' | 'satinÃ©' | 'brillant' | 'brossÃ©' | 'bois' | 'miroir' | 'verre-mat';
+/* ─── Types front-end uniquement (pas d'import depuis lib/server) ─── */
+type FinishType   = 'mat' | 'satiné' | 'brillant' | 'brossé' | 'bois' | 'miroir' | 'verre-mat';
 type LightingType = 'naturelle' | 'spots' | 'mixte';
 type RoomSizeType = 'petite' | 'moyenne' | 'grande' | 'ouverte';
 type StyleType    = 'contemporain' | 'classique' | 'industriel' | 'scandinave' | 'haussmannien';
 
-/* â”€â”€â”€ Appels API routes (prompt + Flux restent cÃ´tÃ© serveur) â”€â”€â”€ */
+/* ─── Appels API routes (prompt + Flux restent côté serveur) ─── */
 async function callColoristAPI(params: {
   facadeHex: string; poigneeHex: string; planHex: string;
   facadeFinish: FinishType; lightingStyle: LightingType;
   poigneeFinish?: FinishType; planFinish?: FinishType;
   handleMaterial?: string; countertopMaterial?: string;
   sourceImageDataUrl?: string;
-  /** Texture data URL ACTIVE (utilisÃ©e en hint matiÃ¨re cÃ´tÃ© serveur). */
+  /** Texture data URL ACTIVE (utilisée en hint matière côté serveur). */
   facadeTextureDataUrl?: string;
   poigneeTextureDataUrl?: string;
   planTextureDataUrl?: string;
-  /** Mode de rendu par Ã©lÃ©ment (19/05/2026, demande asso) :
-   *   - 'color'   : couleur seule (texture ignorÃ©e)
-   *   - 'texture' : texture seule (couleur ignorÃ©e pour la matiÃ¨re)
+  /** Mode de rendu par élément (19/05/2026, demande asso) :
+   *   - 'color'   : couleur seule (texture ignorée)
+   *   - 'texture' : texture seule (couleur ignorée pour la matière)
    *   - 'mix'     : combinaison couleur + texture (couleur teinte la texture)
-   *   Si absent : mode dÃ©duit (texture prÃ©sente â†’ 'mix' par dÃ©faut). */
+   *   Si absent : mode déduit (texture présente → 'mix' par défaut). */
   facadeColorMode?:  'color' | 'texture' | 'mix';
   poigneeColorMode?: 'color' | 'texture' | 'mix';
   planColorMode?:    'color' | 'texture' | 'mix';
@@ -53,15 +49,15 @@ async function callColoristAPI(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  // MÃªme protection que callRenduAPI : fallback gracieux sur rÃ©ponses non-JSON
+  // Même protection que callRenduAPI : fallback gracieux sur réponses non-JSON
   // (timeout Vercel, plain text "An error occurred", HTML error page).
   const text = await res.text();
   let parsed: { imageUrl?: string | null; imageUrls?: string[]; error?: unknown; message?: unknown; code?: unknown; steps?: PipelineStep[] | null } | null = null;
   try { parsed = JSON.parse(text); } catch { parsed = null; }
 
-  // Coercion dÃ©fensive (BUG 18/05/2026 : Vercel renvoie parfois une enveloppe
+  // Coercion défensive (BUG 18/05/2026 : Vercel renvoie parfois une enveloppe
   // {code, id, message} qu'on stockait tel quel dans colorError, ce qui faisait
-  // crasher React au render â€” "Objects are not valid as a React child" #31).
+  // crasher React au render — "Objects are not valid as a React child" #31).
   const coerceError = (e: unknown): string | undefined => {
     if (e == null) return undefined;
     if (typeof e === 'string') return e;
@@ -88,30 +84,30 @@ async function callColoristAPI(params: {
     };
   }
 
-  // Fallback : rÃ©ponse non-JSON, on dÃ©duit du statut HTTP
-  let message = 'Le serveur n\'a pas pu gÃ©nÃ©rer la colorisation.';
+  // Fallback : réponse non-JSON, on déduit du statut HTTP
+  let message = 'Le serveur n\'a pas pu générer la colorisation.';
   if (res.status === 504) {
-    message = 'La colorisation a pris trop de temps (timeout). RÃ©essayez ou simplifiez la demande.';
+    message = 'La colorisation a pris trop de temps (timeout). Réessayez ou simplifiez la demande.';
   } else if (res.status === 502) {
-    message = 'Service IA momentanÃ©ment indisponible (upload images). RÃ©essayez dans une minute.';
+    message = 'Service IA momentanément indisponible (upload images). Réessayez dans une minute.';
   } else if (res.status === 413) {
     message = 'Image fournie trop volumineuse pour le serveur.';
   } else if (res.status === 429) {
-    message = 'Trop de gÃ©nÃ©rations dans la derniÃ¨re heure. Patientez un peu.';
+    message = 'Trop de générations dans la dernière heure. Patientez un peu.';
   } else if (res.status === 401) {
-    message = 'Session expirÃ©e â€” reconnectez-vous.';
+    message = 'Session expirée — reconnectez-vous.';
   } else if (res.status === 400) {
-    message = 'Photo ou paramÃ¨tres invalides. VÃ©rifiez le format de l\'image.';
+    message = 'Photo ou paramètres invalides. Vérifiez le format de l\'image.';
   } else if (text.toLowerCase().includes('an error occurred')) {
-    message = 'Erreur serveur (probablement timeout fal.ai). RÃ©essayez dans 30s.';
+    message = 'Erreur serveur (probablement timeout fal.ai). Réessayez dans 30s.';
   }
   return { imageUrl: null, error: message };
 }
 
 /**
- * Petit bouton Â« Importer ma texture Â» sous une catÃ©gorie matÃ©riau (Rendu).
- * Convertit l'image en data URL compressÃ©e. Quand une texture est posÃ©e, le
- * moteur la rÃ©plique fidÃ¨lement (Kontext multi). 100 % optionnel.
+ * Petit bouton « Importer ma texture » sous une catégorie matériau (Rendu).
+ * Convertit l'image en data URL compressée. Quand une texture est posée, le
+ * moteur la réplique fidèlement (Kontext multi). 100 % optionnel.
  */
 function TextureUpload({ value, onPick, onClear }: { value: string | null; onPick: (d: string) => void; onClear: () => void }) {
   return (
@@ -119,8 +115,8 @@ function TextureUpload({ value, onPick, onClear }: { value: string | null; onPic
       {value ? (
         <div className="inline-flex items-center gap-2 rounded-lg border border-[#5b9bd5]/30 bg-[#5b9bd5]/5 px-2 py-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="texture importÃ©e" className="h-8 w-8 rounded object-cover border border-[#304035]/15" />
-          <span className="text-[10px] font-semibold text-[#304035]/70">Texture importÃ©e</span>
+          <img src={value} alt="texture importée" className="h-8 w-8 rounded object-cover border border-[#304035]/15" />
+          <span className="text-[10px] font-semibold text-[#304035]/70">Texture importée</span>
           <button type="button" onClick={onClear} className="text-[10px] font-bold text-[#b91c1c] hover:underline">Retirer</button>
         </div>
       ) : (
@@ -146,29 +142,29 @@ function TextureUpload({ value, onPick, onClear }: { value: string | null; onPic
 async function callRenduAPI(params: {
   facades: string; planTravail: string; style: StyleType;
   lightingStyle: LightingType; roomSize: RoomSizeType;
-  /** Optionnel : description du sol (parquet, carrelage, bÃ©ton cirÃ©...) */
+  /** Optionnel : description du sol (parquet, carrelage, béton ciré...) */
   sol?: string;
   /** Optionnel : description des murs (peinture, papier peint, lambris...) */
   murs?: string;
-  /** Image de rÃ©fÃ©rence OBLIGATOIRE (plan WinnerFlex, render 3D, sketch, inspi). */
+  /** Image de référence OBLIGATOIRE (plan WinnerFlex, render 3D, sketch, inspi). */
   referenceImageDataUrl: string;
-  /** Dimensions natives de l'image source (avant compression) â€” utilisÃ©es
-   * comme anchor numÃ©rique dans le prompt Kontext pour forcer le respect
+  /** Dimensions natives de l'image source (avant compression) — utilisées
+   * comme anchor numérique dans le prompt Kontext pour forcer le respect
    * du ratio et des proportions exactes. */
   sourceWidth?: number;
   sourceHeight?: number;
-  /** Phase 2 â€” active le refinement SAM+Inpaint aprÃ¨s ControlNet/Kontext.
-   * +20-30s de latence, +1% de fidÃ©litÃ© matÃ©riaux. */
+  /** Phase 2 — active le refinement SAM+Inpaint après ControlNet/Kontext.
+   * +20-30s de latence, +1% de fidélité matériaux. */
   maxPrecision?: boolean;
-  /** Phase 5 â€” nombre de fois oÃ¹ l'utilisateur a cliquÃ© "RÃ©gÃ©nÃ©rer" pour
-   * cette image source (>0 = non satisfait du prÃ©cÃ©dent rendu). */
+  /** Phase 5 — nombre de fois où l'utilisateur a cliqué "Régénérer" pour
+   * cette image source (>0 = non satisfait du précédent rendu). */
   userRetryCount?: number;
-  /** Curseur Â« RÃ©alisme â†” FidÃ©litÃ© Â» 0-100 (dÃ©faut 60). */
+  /** Curseur « Réalisme ↔ Fidélité » 0-100 (défaut 60). */
   realism?: number;
-  /** Option Â« Haute rÃ©solution Â» : agrandit le rendu final (~4K). */
+  /** Option « Haute résolution » : agrandit le rendu final (~4K). */
   highRes?: boolean;
   numImages?: number;
-  /** Textures importÃ©es par l'utilisateur (data URLs) â€” optionnelles. */
+  /** Textures importées par l'utilisateur (data URLs) — optionnelles. */
   facadeTextureDataUrl?: string;
   planTextureDataUrl?: string;
   solTextureDataUrl?: string;
@@ -179,9 +175,9 @@ async function callRenduAPI(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  // FIX 05/05/2026 + 18/05/2026 : on parse dÃ©fensivement et on coerce tout
+  // FIX 05/05/2026 + 18/05/2026 : on parse défensivement et on coerce tout
   // `error` qui ne serait pas une string (Vercel envelope {code, id, message}
-  // sur uncaught throws) â†’ Ã©vite React #31 au render.
+  // sur uncaught throws) → évite React #31 au render.
   const text = await res.text();
   let parsed: { imageUrl?: string | null; imageUrls?: string[]; error?: unknown; message?: unknown } | null = null;
   try { parsed = JSON.parse(text); } catch { parsed = null; }
@@ -210,22 +206,22 @@ async function callRenduAPI(params: {
   }
 
   // Fallback : pas du tout JSON
-  let message = 'Le serveur n\'a pas pu gÃ©nÃ©rer le rendu.';
+  let message = 'Le serveur n\'a pas pu générer le rendu.';
   if (res.status === 504 || res.status === 502) {
-    message = 'Le rendu a pris trop de temps (timeout serveur). RÃ©essayez ou simplifiez votre demande.';
+    message = 'Le rendu a pris trop de temps (timeout serveur). Réessayez ou simplifiez votre demande.';
   } else if (res.status === 413) {
     message = 'Image fournie trop volumineuse pour le serveur.';
   } else if (res.status === 429) {
-    message = 'Trop de gÃ©nÃ©rations dans la derniÃ¨re heure. Patientez un peu.';
+    message = 'Trop de générations dans la dernière heure. Patientez un peu.';
   } else if (res.status === 401) {
-    message = 'Session expirÃ©e â€” reconnectez-vous.';
+    message = 'Session expirée — reconnectez-vous.';
   } else if (text.toLowerCase().includes('an error occurred')) {
-    message = 'Erreur serveur (probablement timeout fal.ai). RÃ©essayez dans 30s.';
+    message = 'Erreur serveur (probablement timeout fal.ai). Réessayez dans 30s.';
   }
   return { imageUrl: null, error: message };
 }
 
-/* â”€â”€â”€ IA Architect (MyArchitectAI) : appel de la route /api/ia/architect â”€â”€â”€ */
+/* ─── IA Architect (MyArchitectAI) : appel de la route /api/ia/architect ─── */
 async function callArchitectAPI(params: {
   mode: 'interior' | 'exterior';
   facades?: string; planTravail?: string; sol?: string; murs?: string;
@@ -238,8 +234,8 @@ async function callArchitectAPI(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  // MÃªme protection dÃ©fensive que callRenduAPI/callColoristAPI : on parse
-  // prudemment et on coerce tout `error` non-string (enveloppe Vercel) â†’ Ã©vite
+  // Même protection défensive que callRenduAPI/callColoristAPI : on parse
+  // prudemment et on coerce tout `error` non-string (enveloppe Vercel) → évite
   // le crash React #31 "Objects are not valid as a React child".
   const text = await res.text();
   let parsed: { imageUrl?: string | null; imageUrls?: string[]; error?: unknown; message?: unknown; engine?: string } | null = null;
@@ -267,16 +263,16 @@ async function callArchitectAPI(params: {
     };
   }
 
-  let message = 'Le serveur n\'a pas pu gÃ©nÃ©rer le rendu.';
-  if (res.status === 504)       message = 'Le rendu a pris trop de temps (timeout). RÃ©essayez.';
-  else if (res.status === 502)  message = 'Service de rendu momentanÃ©ment indisponible. RÃ©essayez dans une minute.';
-  else if (res.status === 429)  message = 'Trop de gÃ©nÃ©rations dans la derniÃ¨re heure. Patientez un peu.';
-  else if (res.status === 401)  message = 'Session expirÃ©e â€” reconnectez-vous.';
-  else if (res.status === 400)  message = 'Image ou paramÃ¨tres invalides. VÃ©rifiez le format de l\'image.';
+  let message = 'Le serveur n\'a pas pu générer le rendu.';
+  if (res.status === 504)       message = 'Le rendu a pris trop de temps (timeout). Réessayez.';
+  else if (res.status === 502)  message = 'Service de rendu momentanément indisponible. Réessayez dans une minute.';
+  else if (res.status === 429)  message = 'Trop de générations dans la dernière heure. Patientez un peu.';
+  else if (res.status === 401)  message = 'Session expirée — reconnectez-vous.';
+  else if (res.status === 400)  message = 'Image ou paramètres invalides. Vérifiez le format de l\'image.';
   return { imageUrl: null, error: message };
 }
 
-/* â”€â”€â”€ Coloriste MyArchitectAI : appel de /api/ia/coloriste-architect â”€â”€â”€ */
+/* ─── Coloriste MyArchitectAI : appel de /api/ia/coloriste-architect ─── */
 async function callColoristeArchitectAPI(params: {
   facadeHex: string; poigneeHex: string; planHex: string;
   facadeFinish: FinishType; lightingStyle: LightingType;
@@ -304,15 +300,15 @@ async function callColoristeArchitectAPI(params: {
     };
   }
   let message = 'Le serveur n\'a pas pu coloriser.';
-  if (res.status === 504) message = 'La colorisation a pris trop de temps. RÃ©essayez.';
-  else if (res.status === 502) message = 'Service de rendu momentanÃ©ment indisponible. RÃ©essayez.';
-  else if (res.status === 429) message = 'Trop de gÃ©nÃ©rations dans la derniÃ¨re heure. Patientez un peu.';
-  else if (res.status === 401) message = 'Session expirÃ©e â€” reconnectez-vous.';
-  else if (res.status === 400) message = 'Photo ou paramÃ¨tres invalides.';
+  if (res.status === 504) message = 'La colorisation a pris trop de temps. Réessayez.';
+  else if (res.status === 502) message = 'Service de rendu momentanément indisponible. Réessayez.';
+  else if (res.status === 429) message = 'Trop de générations dans la dernière heure. Patientez un peu.';
+  else if (res.status === 401) message = 'Session expirée — reconnectez-vous.';
+  else if (res.status === 400) message = 'Photo ou paramètres invalides.';
   return { imageUrl: null, error: message };
 }
 
-/* â”€â”€â”€ Helper : convertit un File en data URL pour transmission JSON â”€â”€â”€ */
+/* ─── Helper : convertit un File en data URL pour transmission JSON ─── */
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -322,13 +318,13 @@ async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-/* â”€â”€â”€ Helper : dÃ©clenche le tÃ©lÃ©chargement local de l'image gÃ©nÃ©rÃ©e.
+/* ─── Helper : déclenche le téléchargement local de l'image générée.
  *  On passe par le proxy SAME-ORIGIN /api/ia/download : le navigateur ne peut
- *  pas rÃ©cupÃ©rer l'image distante directement (CSP `connect-src` n'autorise
+ *  pas récupérer l'image distante directement (CSP `connect-src` n'autorise
  *  pas *.supabase.co, et un <a download> cross-origin ignore le nom de
- *  fichier). Le proxy va chercher l'image cÃ´tÃ© serveur et la renvoie en
- *  piÃ¨ce jointe. Comme la route est same-origin, l'attribut `download` est
- *  respectÃ© et le clic synchrone Ã©vite toute popup bloquÃ©e. â”€â”€â”€ */
+ *  fichier). Le proxy va chercher l'image côté serveur et la renvoie en
+ *  pièce jointe. Comme la route est same-origin, l'attribut `download` est
+ *  respecté et le clic synchrone évite toute popup bloquée. ─── */
 function downloadImageFromUrl(url: string, filename: string): void {
   const href = `/api/ia/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(filename)}`;
   const a = document.createElement('a');
@@ -341,21 +337,21 @@ function downloadImageFromUrl(url: string, filename: string): void {
 }
 
 /**
- * Compresse une image cÃ´tÃ© navigateur : la redimensionne pour que son cÃ´tÃ© le
- * plus long fasse `maxSide` px, puis l'exporte en JPEG qualitÃ© 0.85.
- * UtilisÃ© pour rester sous la limite Vercel (4,5 Mo par requÃªte) quand on
- * envoie photo cuisine + 3 textures dans le mÃªme POST.
+ * Compresse une image côté navigateur : la redimensionne pour que son côté le
+ * plus long fasse `maxSide` px, puis l'exporte en JPEG qualité 0.85.
+ * Utilisé pour rester sous la limite Vercel (4,5 Mo par requête) quand on
+ * envoie photo cuisine + 3 textures dans le même POST.
  *
- * Si le fichier dÃ©passe `maxSide` Ã— `maxSide`, on resize. Sinon on garde tel
- * quel (compression JPEG quand mÃªme pour normaliser le format).
+ * Si le fichier dépasse `maxSide` × `maxSide`, on resize. Sinon on garde tel
+ * quel (compression JPEG quand même pour normaliser le format).
  *
  * Fallback : si le canvas plante (HEIC iPhone, SVG, fichier corrompu), on
  * renvoie le data URL brut. Mieux qu'un crash.
  */
-/** Phase 3 â€” analyse rapide de la qualitÃ© d'une image source (cÃ´tÃ© browser)
+/** Phase 3 — analyse rapide de la qualité d'une image source (côté browser)
  *  avant envoi au serveur. Permet d'avertir l'utilisateur si l'image risque
- *  de faire dÃ©river Kontext/ControlNet (basse rÃ©solution, contraste trÃ¨s
- *  faible, ratio aberrant). N'empÃªche pas l'envoi â€” l'utilisateur dÃ©cide. */
+ *  de faire dériver Kontext/ControlNet (basse résolution, contraste très
+ *  faible, ratio aberrant). N'empêche pas l'envoi — l'utilisateur décide. */
 interface SourceQualityCheck {
   okToSend:    boolean;
   warnings:    string[];
@@ -375,21 +371,21 @@ async function analyzeSourceImageQuality(file: File): Promise<SourceQualityCheck
     out.width  = img.naturalWidth;
     out.height = img.naturalHeight;
 
-    // RÃ©solution minimale recommandÃ©e : 800 px sur le cÃ´tÃ© long.
+    // Résolution minimale recommandée : 800 px sur le côté long.
     const longest = Math.max(out.width, out.height);
     if (longest < 800) {
-      out.warnings.push(`Image basse rÃ©solution (${out.width}Ã—${out.height}). Pour un rÃ©sultat fidÃ¨le, importez une image d'au moins 800 px de cÃ´tÃ©.`);
+      out.warnings.push(`Image basse résolution (${out.width}×${out.height}). Pour un résultat fidèle, importez une image d'au moins 800 px de côté.`);
     }
 
-    // Ratio aberrant : panoramique extrÃªme ou bandeau trÃ¨s Ã©troit.
+    // Ratio aberrant : panoramique extrême ou bandeau très étroit.
     const ratio = out.width / out.height;
     if (ratio > 3 || ratio < 0.33) {
       out.warnings.push(`Format atypique (ratio ${ratio.toFixed(2)}). L'IA risque de mal cadrer.`);
     }
 
-    // Contraste : on Ã©chantillonne sur un canvas 64Ã—64 et on calcule la
-    // variance de luminance. Variance < 400 â‰ˆ image trÃ¨s peu contrastÃ©e
-    // (sketch flou, photo trÃ¨s brumeuse) â†’ Kontext interprÃ¨te librement.
+    // Contraste : on échantillonne sur un canvas 64×64 et on calcule la
+    // variance de luminance. Variance < 400 ≈ image très peu contrastée
+    // (sketch flou, photo très brumeuse) → Kontext interprète librement.
     try {
       const c = document.createElement('canvas');
       c.width = 64; c.height = 64;
@@ -406,14 +402,14 @@ async function analyzeSourceImageQuality(file: File): Promise<SourceQualityCheck
         const mean = sum / n;
         const variance = sumSq / n - mean * mean;
         if (variance < 400) {
-          out.warnings.push(`Image peu contrastÃ©e (variance ${Math.round(variance)}). PrÃ©fÃ©rez un plan ou un rendu 3D net.`);
+          out.warnings.push(`Image peu contrastée (variance ${Math.round(variance)}). Préférez un plan ou un rendu 3D net.`);
         }
       }
-    } catch { /* canvas peut Ã©chouer sur certains navigateurs anciens â€” non bloquant */ }
+    } catch { /* canvas peut échouer sur certains navigateurs anciens — non bloquant */ }
 
     URL.revokeObjectURL(objUrl);
   } catch {
-    out.warnings.push('Impossible d\'analyser l\'image (format non supportÃ© ?).');
+    out.warnings.push('Impossible d\'analyser l\'image (format non supporté ?).');
     out.okToSend = false;
   }
   return out;
@@ -425,22 +421,22 @@ async function compressImageToDataUrl(file: File, maxSide: number = 2048): Promi
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const i = new window.Image();
       i.onload  = () => resolve(i);
-      i.onerror = () => reject(new Error('Image illisible (format non supportÃ© ?)'));
+      i.onerror = () => reject(new Error('Image illisible (format non supporté ?)'));
       i.src = objectUrl;
     });
 
     const longest = Math.max(img.naturalWidth, img.naturalHeight);
 
-    // BYPASS COMPRESSION si l'image est dÃ©jÃ  sous maxSide ET pÃ¨se <3 Mo â€”
-    // recompresser en JPEG quand pas nÃ©cessaire Ã©crase des dÃ©tails fins
+    // BYPASS COMPRESSION si l'image est déjà sous maxSide ET pèse <3 Mo —
+    // recompresser en JPEG quand pas nécessaire écrase des détails fins
     // (lignes de plans WinnerFlex, contours de meubles), ce qui faisait
-    // dÃ©river Kontext. La limite Vercel body est 4.5 Mo â†’ 3 Mo = marge sÃ»re.
+    // dériver Kontext. La limite Vercel body est 4.5 Mo → 3 Mo = marge sûre.
     if (longest <= maxSide && file.size <= 3 * 1024 * 1024) {
       URL.revokeObjectURL(objectUrl);
       return fileToDataUrl(file);
     }
 
-    // Sinon redimensionnement uniquement si nÃ©cessaire (longest > maxSide).
+    // Sinon redimensionnement uniquement si nécessaire (longest > maxSide).
     const scale = longest > maxSide ? maxSide / longest : 1;
     const w = Math.round(img.naturalWidth  * scale);
     const h = Math.round(img.naturalHeight * scale);
@@ -449,13 +445,13 @@ async function compressImageToDataUrl(file: File, maxSide: number = 2048): Promi
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D indisponible');
-    // imageSmoothing high quality pour prÃ©server les contours fins (Canny-friendly).
+    // imageSmoothing high quality pour préserver les contours fins (Canny-friendly).
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, 0, 0, w, h);
     URL.revokeObjectURL(objectUrl);
 
-    // JPEG q=0.92 (au lieu de 0.85) : prÃ©serve les contours fins indispensables
+    // JPEG q=0.92 (au lieu de 0.85) : préserve les contours fins indispensables
     // au pipeline Canny/ControlNet et au respect strict des proportions par Kontext.
     return canvas.toDataURL('image/jpeg', 0.92);
   } catch (err) {
@@ -465,7 +461,7 @@ async function compressImageToDataUrl(file: File, maxSide: number = 2048): Promi
   }
 }
 
-/* â”€â”€â”€ Reporting transparent du pipeline SAM (par rÃ©gion) â”€â”€â”€ */
+/* ─── Reporting transparent du pipeline SAM (par région) ─── */
 interface PipelineStep {
   region:     'facade' | 'poignee' | 'plan';
   maskFound:  boolean;
@@ -473,18 +469,18 @@ interface PipelineStep {
   durationMs: number;
 }
 
-/* â”€â”€â”€ Estimations affichÃ©es (donnÃ©es statiques, pas besoin du serveur) â”€â”€â”€ */
+/* ─── Estimations affichées (données statiques, pas besoin du serveur) ─── */
 function estimateCost(module: 'coloriste' | 'rendu'): string {
-  // Coloriste utilise dÃ©sormais flux-pro/kontext (single) ou /kontext/multi
-  // (multi-image) selon le nombre d'inputs â€” plus rapide que /max/multi et
+  // Coloriste utilise désormais flux-pro/kontext (single) ou /kontext/multi
+  // (multi-image) selon le nombre d'inputs — plus rapide que /max/multi et
   // moins cher (~$0.04-0.06 / image vs $0.10).
-  return module === 'coloriste' ? '~0,05 â‚¬' : '~0,06 â‚¬';
+  return module === 'coloriste' ? '~0,05 €' : '~0,06 €';
 }
 function estimateDuration(module: 'coloriste' | 'rendu'): string {
-  return module === 'coloriste' ? '10â€“20 sec' : '10â€“20 sec';
+  return module === 'coloriste' ? '10–20 sec' : '10–20 sec';
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ ANIMATIONS */
+/* ─────────────────────────────────────────── ANIMATIONS */
 const CSS = `
 @keyframes fadeUp   { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
@@ -506,51 +502,51 @@ const CSS = `
 .d4  { animation-delay:.24s } .d5 { animation-delay:.30s }
 `;
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ TYPES */
+/* ─────────────────────────────────────────── TYPES */
 type Module = 'coloriste' | 'rendu' | 'architect' | 'coloriste-archi';
 interface Preset { name:string; facade:string; poignee:string; plan:string; desc:string; mood:string; finish:FinishType; handleMaterial:string; countertopMaterial:string }
 interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:string; color:string; imageUrl?:string; imageUrls?:string[]; steps?: PipelineStep[] | null }
 
 const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 8);
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ DONNÃ‰ES */
+/* ─────────────────────────────────────────── DONNÉES */
 const PRESETS: Preset[] = [
-  { name:'Noir Absolu',    facade:'#111111', poignee:'#C0C0C0', plan:'#F2EBE0', desc:'Inox brossÃ© Â· Marbre blanc',      mood:'Luxe contemporain',      finish:'mat',     handleMaterial:'brushed stainless steel handles',     countertopMaterial:'white Calacatta marble countertop' },
-  { name:'Blanc SatinÃ©',   facade:'#F5F3EF', poignee:'#C8A050', plan:'#1A1A1A', desc:'Or poli Â· Ardoise noire',          mood:'Ã‰lÃ©gance classique',     finish:'satinÃ©',  handleMaterial:'polished gold handles',               countertopMaterial:'black slate countertop' },
-  { name:'ChÃªne FumÃ©',     facade:'#7A5C3A', poignee:'#6A5040', plan:'#E8E0D0', desc:'Cuir Â· Quartz crÃ¨me',              mood:'Chaleur naturelle',      finish:'bois',    handleMaterial:'dark leather pull handles',           countertopMaterial:'cream quartz countertop' },
-  { name:'Gris Ardoise',   facade:'#3D3D3D', poignee:'#909090', plan:'#FAFAFA', desc:'Inox mat Â· Blanc neige',           mood:'Sobre & moderne',        finish:'mat',     handleMaterial:'matte nickel bar handles',            countertopMaterial:'bright white quartz countertop' },
-  { name:'Sauge Premium',  facade:'#6B8F71', poignee:'#B07848', plan:'#D4C9A8', desc:'Cuivre Â· Pierre calcaire',         mood:'Nature raffinÃ©e',        finish:'satinÃ©',  handleMaterial:'antique copper handles',              countertopMaterial:'limestone beige countertop' },
-  { name:'Bleu Nuit',      facade:'#1B3254', poignee:'#D4A855', plan:'#EDE8DC', desc:'Laiton Â· Travertin clair',         mood:'Prestige & profondeur',  finish:'mat',     handleMaterial:'warm brass bar handles',              countertopMaterial:'travertine ivory countertop' },
-  { name:'Terracotta',     facade:'#C4602A', poignee:'#2C2C2C', plan:'#F0EAD8', desc:'Noir mat Â· Bois clair',            mood:'Soleil mÃ©diterranÃ©en',   finish:'mat',     handleMaterial:'matte graphite black handles',        countertopMaterial:'light oak wood countertop' },
-  { name:'BÃ©ton CirÃ©',     facade:'#8A8A82', poignee:'#5A5A5A', plan:'#2A2A2A', desc:'Graphite Â· Ardoise noire',         mood:'Industriel chic',        finish:'brossÃ©',  handleMaterial:'dark pewter grey bar handles',        countertopMaterial:'charcoal anthracite countertop' },
+  { name:'Noir Absolu',    facade:'#111111', poignee:'#C0C0C0', plan:'#F2EBE0', desc:'Inox brossé · Marbre blanc',      mood:'Luxe contemporain',      finish:'mat',     handleMaterial:'brushed stainless steel handles',     countertopMaterial:'white Calacatta marble countertop' },
+  { name:'Blanc Satiné',   facade:'#F5F3EF', poignee:'#C8A050', plan:'#1A1A1A', desc:'Or poli · Ardoise noire',          mood:'Élégance classique',     finish:'satiné',  handleMaterial:'polished gold handles',               countertopMaterial:'black slate countertop' },
+  { name:'Chêne Fumé',     facade:'#7A5C3A', poignee:'#6A5040', plan:'#E8E0D0', desc:'Cuir · Quartz crème',              mood:'Chaleur naturelle',      finish:'bois',    handleMaterial:'dark leather pull handles',           countertopMaterial:'cream quartz countertop' },
+  { name:'Gris Ardoise',   facade:'#3D3D3D', poignee:'#909090', plan:'#FAFAFA', desc:'Inox mat · Blanc neige',           mood:'Sobre & moderne',        finish:'mat',     handleMaterial:'matte nickel bar handles',            countertopMaterial:'bright white quartz countertop' },
+  { name:'Sauge Premium',  facade:'#6B8F71', poignee:'#B07848', plan:'#D4C9A8', desc:'Cuivre · Pierre calcaire',         mood:'Nature raffinée',        finish:'satiné',  handleMaterial:'antique copper handles',              countertopMaterial:'limestone beige countertop' },
+  { name:'Bleu Nuit',      facade:'#1B3254', poignee:'#D4A855', plan:'#EDE8DC', desc:'Laiton · Travertin clair',         mood:'Prestige & profondeur',  finish:'mat',     handleMaterial:'warm brass bar handles',              countertopMaterial:'travertine ivory countertop' },
+  { name:'Terracotta',     facade:'#C4602A', poignee:'#2C2C2C', plan:'#F0EAD8', desc:'Noir mat · Bois clair',            mood:'Soleil méditerranéen',   finish:'mat',     handleMaterial:'matte graphite black handles',        countertopMaterial:'light oak wood countertop' },
+  { name:'Béton Ciré',     facade:'#8A8A82', poignee:'#5A5A5A', plan:'#2A2A2A', desc:'Graphite · Ardoise noire',         mood:'Industriel chic',        finish:'brossé',  handleMaterial:'dark pewter grey bar handles',        countertopMaterial:'charcoal anthracite countertop' },
 ];
 
-// Pipeline Kontext (mai 2026 v4) : Ã©dition image guidÃ©e par instruction.
-// 3 vraies Ã©tapes cÃ´tÃ© serveur, on les surface ici pour l'UI.
+// Pipeline Kontext (mai 2026 v4) : édition image guidée par instruction.
+// 3 vraies étapes côté serveur, on les surface ici pour l'UI.
 const LOADING_STEPS_COLOR = [
   'Upload de votre photo vers fal-cdn',
-  'Construction du prompt impÃ©ratif',
-  'Ã‰dition guidÃ©e par Flux Kontext',
-  'Sauvegarde du rÃ©sultat',
+  'Construction du prompt impératif',
+  'Édition guidée par Flux Kontext',
+  'Sauvegarde du résultat',
 ];
-// Ã‰tapes rÃ©elles du pipeline rendu (19/05/2026, mode Flux Pro Ultra premium)
+// Étapes réelles du pipeline rendu (19/05/2026, mode Flux Pro Ultra premium)
 const LOADING_STEPS_RENDU = [
-  'Analyse de vos paramÃ¨tres',
-  'Construction du prompt premium photorÃ©aliste',
-  'GÃ©nÃ©ration Flux Pro Ultra (Hasselblad Ã©mulation)',
+  'Analyse de vos paramètres',
+  'Construction du prompt premium photoréaliste',
+  'Génération Flux Pro Ultra (Hasselblad émulation)',
   'Optimisation finale et sauvegarde',
 ];
-// Ã‰tapes rÃ©elles du pipeline IA Architect (moteur MyArchitectAI)
+// Étapes réelles du pipeline IA Architect (moteur MyArchitectAI)
 const LOADING_STEPS_ARCHITECT = [
-  'PrÃ©paration de votre image source',
-  'Construction du prompt fidÃ©litÃ©',
-  'Rendu photorÃ©aliste',
+  'Préparation de votre image source',
+  'Construction du prompt fidélité',
+  'Rendu photoréaliste',
   'Optimisation finale et sauvegarde',
 ];
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ COMPOSANTS */
+/* ─────────────────────────────────────────── COMPOSANTS */
 
-/** Barre de progression animÃ©e */
+/** Barre de progression animée */
 function ProgressBar({ steps, color }: { steps:string[]; color:string }) {
   const [active, setActive] = useState(0);
   useEffect(() => {
@@ -580,9 +576,9 @@ function ProgressBar({ steps, color }: { steps:string[]; color:string }) {
   );
 }
 
-/** Compteur de temps Ã©coulÃ© (mm:ss) â€” affichÃ© pendant une gÃ©nÃ©ration pour
- *  montrer que Ã§a AVANCE vraiment (le Rendu prend 1 Ã  3 min ; sans repÃ¨re
- *  l'utilisateur croit que c'est figÃ© et ferme la page avant la fin). */
+/** Compteur de temps écoulé (mm:ss) — affiché pendant une génération pour
+ *  montrer que ça AVANCE vraiment (le Rendu prend 1 à 3 min ; sans repère
+ *  l'utilisateur croit que c'est figé et ferme la page avant la fin). */
 function ElapsedTimer() {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
@@ -594,7 +590,7 @@ function ElapsedTimer() {
   return <>{mm}:{ss.toString().padStart(2, '0')}</>;
 }
 
-/** Zone de dÃ©pÃ´t de fichier */
+/** Zone de dépôt de fichier */
 function Drop({ label, sub, onFile, file, tips, accent }:{
   label:string; sub:string; onFile:(f:File)=>void; file:File|null; tips?:string[]; accent:string
 }) {
@@ -626,7 +622,7 @@ function Drop({ label, sub, onFile, file, tips, accent }:{
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold text-[#304035] truncate">{file.name}</p>
-              <p className="text-xs text-[#304035]/45 mt-0.5">{(file.size/1024).toFixed(0)} Ko Â· cliquez pour remplacer</p>
+              <p className="text-xs text-[#304035]/45 mt-0.5">{(file.size/1024).toFixed(0)} Ko · cliquez pour remplacer</p>
             </div>
           </div>
         ) : (
@@ -636,7 +632,7 @@ function Drop({ label, sub, onFile, file, tips, accent }:{
               <Upload className="h-6 w-6" style={{color:accent}} />
             </div>
             <p className="text-sm font-bold text-[#304035]/70">{sub}</p>
-            <p className="text-xs text-[#304035]/40 mt-1">Glissez ou cliquez Â· JPG PNG WEBP Â· max 20 Mo</p>
+            <p className="text-xs text-[#304035]/40 mt-1">Glissez ou cliquez · JPG PNG WEBP · max 20 Mo</p>
           </div>
         )}
         <input ref={ref} type="file" accept="image/*" className="hidden"
@@ -656,7 +652,7 @@ function Drop({ label, sub, onFile, file, tips, accent }:{
   );
 }
 
-/** Carte prÃ©set couleur */
+/** Carte préset couleur */
 function PresetCard({ p, active, onClick }:{ p:Preset; active:boolean; onClick:()=>void }) {
   return (
     <button onClick={onClick}
@@ -688,7 +684,7 @@ function PresetCard({ p, active, onClick }:{ p:Preset; active:boolean; onClick:(
   );
 }
 
-/** SÃ©lecteur de chip (boutons radio stylisÃ©s) */
+/** Sélecteur de chip (boutons radio stylisés) */
 function ChipSelector<T extends string>({
   label, options, value, onChange, accent = '#a67749'
 }: {
@@ -726,13 +722,13 @@ function ChipSelector<T extends string>({
   );
 }
 
-/** RÃ©sultat avec image rÃ©elle ou mock + miniatures variantes si plusieurs images. */
+/** Résultat avec image réelle ou mock + miniatures variantes si plusieurs images. */
 /**
- * Slider de comparaison avant/aprÃ¨s â€” drag horizontal pour rÃ©vÃ©ler progressivement
- * l'image AVANT en partant de la gauche. Indispensable pour vÃ©rifier d'un coup
- * d'Å“il que SAM+Inpaint n'a modifiÃ© QUE les faÃ§ades/poignÃ©es/plan (mode coloriste).
+ * Slider de comparaison avant/après — drag horizontal pour révéler progressivement
+ * l'image AVANT en partant de la gauche. Indispensable pour vérifier d'un coup
+ * d'œil que SAM+Inpaint n'a modifié QUE les façades/poignées/plan (mode coloriste).
  *
- * Pure CSS via `clip-path` : aucune dÃ©pendance externe, fluide mÃªme sur mobile.
+ * Pure CSS via `clip-path` : aucune dépendance externe, fluide même sur mobile.
  */
 function BeforeAfterSlider({ beforeUrl, afterUrl }: { beforeUrl: string; afterUrl: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -773,10 +769,10 @@ function BeforeAfterSlider({ beforeUrl, afterUrl }: { beforeUrl: string; afterUr
       onMouseDown={e => { setDragging(true); updatePosition(e.clientX); }}
       onTouchStart={e => { setDragging(true); updatePosition(e.touches[0].clientX); }}
     >
-      {/* Image APRÃˆS (en fond, pleine taille) */}
-      <Image src={afterUrl} alt="AprÃ¨s" fill className="object-cover pointer-events-none" sizes="600px" unoptimized />
+      {/* Image APRÈS (en fond, pleine taille) */}
+      <Image src={afterUrl} alt="Après" fill className="object-cover pointer-events-none" sizes="600px" unoptimized />
 
-      {/* Image AVANT (clippÃ©e selon la position du curseur) */}
+      {/* Image AVANT (clippée selon la position du curseur) */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
@@ -800,7 +796,7 @@ function BeforeAfterSlider({ beforeUrl, afterUrl }: { beforeUrl: string; afterUr
         Avant
       </div>
       <div className="absolute top-2 right-2 rounded-full bg-[#a67749]/85 backdrop-blur-sm text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 pointer-events-none">
-        AprÃ¨s
+        Après
       </div>
     </div>
   );
@@ -810,7 +806,7 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
   item: Item; accentColor: string;
   onSave: () => void; onRegenerate: () => void;
   icon: React.ElementType;
-  /** Si fourni (cas coloriste), affiche un slider avant/aprÃ¨s au lieu de l'image seule */
+  /** Si fourni (cas coloriste), affiche un slider avant/après au lieu de l'image seule */
   beforeUrl?: string | null;
 }) {
   const allUrls = (item.imageUrls && item.imageUrls.length > 0) ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : []);
@@ -818,7 +814,7 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
   const mainUrl = allUrls[selectedIdx] ?? item.imageUrl;
   const isMock = !mainUrl || mainUrl.includes('placehold');
 
-  // TÃ©lÃ©chargement local du visuel (â‰  Â« Sauvegarder Â» qui l'attache au dossier).
+  // Téléchargement local du visuel (≠ « Sauvegarder » qui l'attache au dossier).
   const [zoom, setZoom] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const safeTs   = item.ts.replace(/\D/g, '') || '0';
@@ -830,7 +826,7 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
     setDownloading(false);
   };
 
-  // Lightbox : Ã‰chap pour fermer + blocage du scroll de fond pendant l'ouverture.
+  // Lightbox : Échap pour fermer + blocage du scroll de fond pendant l'ouverture.
   useEffect(() => {
     if (!zoom) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoom(false); };
@@ -846,12 +842,12 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-[#10b981]" />
-          <p className="font-black text-[#304035]">{allUrls.length > 1 ? `${allUrls.length} variantes prÃªtes !` : 'RÃ©sultat prÃªt !'}</p>
+          <p className="font-black text-[#304035]">{allUrls.length > 1 ? `${allUrls.length} variantes prêtes !` : 'Résultat prêt !'}</p>
         </div>
       </div>
 
-      {/* Grand aperÃ§u â€” slider avant/aprÃ¨s (coloriste) ou image plein cadre.
-          Cliquable pour agrandir en plein Ã©cran (lightbox). */}
+      {/* Grand aperçu — slider avant/après (coloriste) ou image plein cadre.
+          Cliquable pour agrandir en plein écran (lightbox). */}
       <div className="group relative overflow-hidden rounded-2xl bg-[#f5eee8]/50" style={{border:`1.5px solid ${accentColor}28`}}>
         {!isMock ? (
           beforeUrl ? (
@@ -861,14 +857,14 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
                 onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}
                 onClick={() => setZoom(true)}
                 className="absolute bottom-2 right-2 z-20 flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm px-3 py-1.5 text-[11px] font-bold text-white hover:bg-black/70 transition-colors"
-                title="Voir le rÃ©sultat en grand">
+                title="Voir le résultat en grand">
                 <Maximize2 className="h-3.5 w-3.5" />Agrandir
               </button>
             </div>
           ) : (
             <button type="button" onClick={() => setZoom(true)}
-              className="block w-full cursor-zoom-in" title="Cliquez pour agrandir le rÃ©sultat">
-              <Image src={mainUrl!} alt="RÃ©sultat IA" width={1200} height={800} unoptimized
+              className="block w-full cursor-zoom-in" title="Cliquez pour agrandir le résultat">
+              <Image src={mainUrl!} alt="Résultat IA" width={1200} height={800} unoptimized
                 className="w-full h-auto max-h-[62vh] object-contain" />
               <span className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm px-3 py-1.5 text-[11px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity">
                 <Maximize2 className="h-3.5 w-3.5" />Agrandir
@@ -889,7 +885,7 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
               <Icon className="h-8 w-8 text-white" />
             </div>
             <p className="relative text-base font-bold" style={{color:accentColor}}>Simulation visuelle</p>
-            <p className="relative text-xs text-[#304035]/50 mt-1">Connectez FAL_KEY pour l'image rÃ©elle</p>
+            <p className="relative text-xs text-[#304035]/50 mt-1">Connectez FAL_KEY pour l'image réelle</p>
             <div className="relative mt-4 max-w-[260px] rounded-xl bg-white/60 border border-white/80 px-3 py-2 backdrop-blur-sm">
               <p className="text-xs text-[#304035]/60 italic line-clamp-2">"{item.prompt}"</p>
             </div>
@@ -897,14 +893,14 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
         )}
       </div>
 
-      {/* Badges rÃ©gions â€” transparence sur ce qui a rÃ©ellement Ã©tÃ© modifiÃ©.
-          AffichÃ© uniquement si on a des steps (mode coloriste SAM+Inpaint). */}
+      {/* Badges régions — transparence sur ce qui a réellement été modifié.
+          Affiché uniquement si on a des steps (mode coloriste SAM+Inpaint). */}
       {item.steps && item.steps.length > 0 && (
         <div className="flex gap-2 flex-wrap">
           {item.steps.map(s => {
             const isOk    = s.maskFound && s.inpaintOk;
-            const label   = s.region === 'facade' ? 'FaÃ§ades' : s.region === 'poignee' ? 'PoignÃ©es' : 'Plan de travail';
-            const tooltip = !s.maskFound ? 'Zone non dÃ©tectÃ©e par l\'IA' : !s.inpaintOk ? 'Coloration Ã©chouÃ©e' : `ModifiÃ© en ${(s.durationMs/1000).toFixed(1)}s`;
+            const label   = s.region === 'facade' ? 'Façades' : s.region === 'poignee' ? 'Poignées' : 'Plan de travail';
+            const tooltip = !s.maskFound ? 'Zone non détectée par l\'IA' : !s.inpaintOk ? 'Coloration échouée' : `Modifié en ${(s.durationMs/1000).toFixed(1)}s`;
             return (
               <span
                 key={s.region}
@@ -939,14 +935,14 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
         </div>
       )}
 
-      {/* Actions : TÃ©lÃ©charger (local) mis en avant, puis Sauvegarder (dossier) + RÃ©gÃ©nÃ©rer */}
+      {/* Actions : Télécharger (local) mis en avant, puis Sauvegarder (dossier) + Régénérer */}
       <div className="space-y-2.5">
         {!isMock && (
           <button onClick={handleDownload} disabled={downloading}
             className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow-md hover:shadow-lg active:scale-[.98] transition-all disabled:opacity-60 disabled:cursor-wait"
             style={{background:`linear-gradient(135deg,${accentColor},${accentColor}cc)`}}>
             {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            {downloading ? 'TÃ©lÃ©chargementâ€¦' : "TÃ©lÃ©charger l'image"}
+            {downloading ? 'Téléchargement…' : "Télécharger l'image"}
           </button>
         )}
         <div className="grid grid-cols-2 gap-2.5">
@@ -957,34 +953,34 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
           </button>
           <button onClick={onRegenerate}
             className="flex items-center justify-center gap-2 rounded-xl border-2 border-[#304035]/12 py-3 text-sm font-bold text-[#304035] hover:bg-[#f5eee8] transition-colors">
-            <RotateCcw className="h-4 w-4" />RÃ©gÃ©nÃ©rer
+            <RotateCcw className="h-4 w-4" />Régénérer
           </button>
         </div>
       </div>
     </div>
 
-    {/* Lightbox plein Ã©cran â€” rendu via un portal sur <body> pour Ã©chapper au
-        containing-block crÃ©Ã© par les ancÃªtres animÃ©s : la classe .fu applique
-        un transform rÃ©siduel (animation fadeUp + fill-mode:both), ce qui
-        Â« capturait Â» le position:fixed et le confinait Ã  la grille au lieu du
-        viewport (overlay dÃ©calÃ©, boutons cachÃ©s sous le panneau Assistant). */}
+    {/* Lightbox plein écran — rendu via un portal sur <body> pour échapper au
+        containing-block créé par les ancêtres animés : la classe .fu applique
+        un transform résiduel (animation fadeUp + fill-mode:both), ce qui
+        « capturait » le position:fixed et le confinait à la grille au lieu du
+        viewport (overlay décalé, boutons cachés sous le panneau Assistant). */}
     {zoom && !isMock && mainUrl && typeof document !== 'undefined' && createPortal(
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4 fi"
         onClick={() => setZoom(false)} role="dialog" aria-modal="true">
         <div className="relative max-h-[92vh] max-w-[92vw]" onClick={e => e.stopPropagation()}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={mainUrl} alt="RÃ©sultat agrandi"
+          <img src={mainUrl} alt="Résultat agrandi"
             className="max-h-[88vh] w-auto max-w-full rounded-xl object-contain shadow-2xl" />
           <div className="absolute top-3 right-3 flex gap-2">
             <button onClick={handleDownload} disabled={downloading}
               className="flex h-10 items-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-[#304035] shadow-lg hover:bg-[#f5eee8] transition-colors disabled:opacity-60"
-              title="TÃ©lÃ©charger l'image">
+              title="Télécharger l'image">
               {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              TÃ©lÃ©charger
+              Télécharger
             </button>
             <button onClick={() => setZoom(false)}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#304035] shadow-lg hover:bg-[#f5eee8] transition-colors"
-              title="Fermer (Ã‰chap)" aria-label="Fermer">
+              title="Fermer (Échap)" aria-label="Fermer">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -996,8 +992,8 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
   );
 }
 
-/** Galerie des visuels sauvegardÃ©s (coloriste + rendu) â€” rÃ©utilisÃ©e dans
- *  chaque module, cÃ´te Ã  cÃ´te avec l'historique. */
+/** Galerie des visuels sauvegardés (coloriste + rendu) — réutilisée dans
+ *  chaque module, côte à côte avec l'historique. */
 function GalleryCard({ gallery }: { gallery: Item[] }) {
   if (gallery.length === 0) return null;
   return (
@@ -1048,13 +1044,13 @@ function GalleryCard({ gallery }: { gallery: Item[] }) {
   );
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ PAGE */
+/* ─────────────────────────────────────────── PAGE */
 export default function IaStudioPage() {
   const dossiers       = useDossierStore(s => s.dossiers);
   const dossiersSignes = useDossierStore(s => s.dossiersSignes);
   const addLog         = useHistoryStore(s => s.addLog);
-  // 19/05/2026 : attache l'image gÃ©nÃ©rÃ©e au dossier sÃ©lectionnÃ© via le store
-  // Zustand (mÃ©moire client + persist localStorage). CrÃ©e un sous-dossier
+  // 19/05/2026 : attache l'image générée au dossier sélectionné via le store
+  // Zustand (mémoire client + persist localStorage). Crée un sous-dossier
   // "RENDUS IA" s'il n'existe pas, puis y ajoute le DocumentFile.
   const addSubfolder           = useDossierStore(s => s.addSubfolder);
   const addDocumentToSubfolder = useDossierStore(s => s.addDocumentToSubfolder);
@@ -1062,16 +1058,16 @@ export default function IaStudioPage() {
   const currentUser    = useAuthStore(s => s.user);
   const userName       = currentUser ? (currentUser.firstName ?? currentUser.email.split('@')[0]) : 'Utilisateur';
 
-  /* Ã‰tat global */
+  /* État global */
   const [tab,          setTab]          = useState<Module>('coloriste');
-  // Bump pour forcer le rafraÃ®chissement du HistoryPanel aprÃ¨s une gÃ©nÃ©ration
-  // rÃ©ussie. Le panneau Ã©coute ce nombre dans son useEffect.
+  // Bump pour forcer le rafraîchissement du HistoryPanel après une génération
+  // réussie. Le panneau écoute ce nombre dans son useEffect.
   const [iaHistoryRefresh, setIaHistoryRefresh] = useState(0);
 
-  // Handler partagÃ© : clic sur une vignette de l'historique â†’ ouvre l'image
-  // pleine taille dans un nouvel onglet (le plus simple pour tÃ©lÃ©charger /
+  // Handler partagé : clic sur une vignette de l'historique → ouvre l'image
+  // pleine taille dans un nouvel onglet (le plus simple pour télécharger /
   // partager / envoyer par email au client). Affiner plus tard avec une
-  // modale ou un mode "rÃ©-Ã©diter ce rendu".
+  // modale ou un mode "ré-éditer ce rendu".
   const openHistoryJob = (job: IaJobRow) => {
     const url = job.resultImageUrls?.signedUrls?.[0];
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
@@ -1089,12 +1085,12 @@ export default function IaStudioPage() {
   }, [gallery]);
   const [dossierId,    setDossierId]    = useState(allDossiers[0]?.id ?? '');
   const dossierName = allDossiers.find(d=>d.id===dossierId)?.name ?? 'Sans dossier';
-  // Sauvegarde IA â†’ dossier : sÃ©lection du dossier + des sous-dossiers (multi-choix).
+  // Sauvegarde IA → dossier : sélection du dossier + des sous-dossiers (multi-choix).
   const [saveTarget, setSaveTarget] = useState<{ item: Item; action: string; icon: string; onDone: () => void } | null>(null);
   const [saveDossierId, setSaveDossierId] = useState('');
   const [saveSubfolders, setSaveSubfolders] = useState<string[]>([]);
 
-  /* â”€â”€ COLORISTE â€” Ã©tat */
+  /* ── COLORISTE — état */
   const [photoFile,    setPhotoFile]    = useState<File|null>(null);
   const [photoURL,     setPhotoURL]     = useState<string|null>(null);
   const [preset,       setPreset]       = useState<Preset|null>(null);
@@ -1102,17 +1098,17 @@ export default function IaStudioPage() {
   const [poigneeCol,   setPoigneeCol]   = useState('#a67749');
   const [planCol,      setPlanCol]      = useState('#f5f0e8');
   const [facadeFinish, setFacadeFinish] = useState<FinishType>('mat');
-  // Finitions optionnelles par Ã©lÃ©ment (poignÃ©es + plan travail). Null = pas
-  // de finition spÃ©cifique (on garde le matÃ©riau standard du preset).
+  // Finitions optionnelles par élément (poignées + plan travail). Null = pas
+  // de finition spécifique (on garde le matériau standard du preset).
   const [poigneeFinish, setPoigneeFinish] = useState<FinishType | null>(null);
   const [planFinish,    setPlanFinish]    = useState<FinishType | null>(null);
-  // Textures importÃ©es par l'utilisateur (mode manuel uniquement) â€” data URL.
-  // 19/05/2026 (demande asso) : possibilitÃ© d'importer JUSQU'A 3 textures par
-  // Ã©lÃ©ment + choix du mode "Couleur / Texture / Mix" pour combiner.
-  //   - mode 'color'   â†’ utilise uniquement la couleur picker (texture ignorÃ©e)
-  //   - mode 'texture' â†’ utilise uniquement la texture active (couleur ignorÃ©e pour le rendu)
-  //   - mode 'mix'     â†’ texture active + couleur appliquÃ©e (teinte la texture)
-  // Backend reÃ§oit (colorMode, activeTextureDataUrl, colorHex) et adapte le prompt.
+  // Textures importées par l'utilisateur (mode manuel uniquement) — data URL.
+  // 19/05/2026 (demande asso) : possibilité d'importer JUSQU'A 3 textures par
+  // élément + choix du mode "Couleur / Texture / Mix" pour combiner.
+  //   - mode 'color'   → utilise uniquement la couleur picker (texture ignorée)
+  //   - mode 'texture' → utilise uniquement la texture active (couleur ignorée pour le rendu)
+  //   - mode 'mix'     → texture active + couleur appliquée (teinte la texture)
+  // Backend reçoit (colorMode, activeTextureDataUrl, colorHex) et adapte le prompt.
   const MAX_TEXTURES_PER_ELEMENT = 3;
   type ColorMode = 'color' | 'texture' | 'mix';
 
@@ -1126,7 +1122,7 @@ export default function IaStudioPage() {
   const [poigneeMode, setPoigneeMode] = useState<ColorMode>('color');
   const [planMode,    setPlanMode]    = useState<ColorMode>('color');
 
-  // Helpers : texture active (data URL) ou null si aucune importÃ©e
+  // Helpers : texture active (data URL) ou null si aucune importée
   const facadeTexture  = facadeTextures[facadeActiveTextureIdx]  ?? null;
   const poigneeTexture = poigneeTextures[poigneeActiveTextureIdx] ?? null;
   const planTexture    = planTextures[planActiveTextureIdx]      ?? null;
@@ -1135,35 +1131,35 @@ export default function IaStudioPage() {
   const [colorResult,  setColorResult]  = useState<Item|null>(null);
   const [colorError,   setColorError]   = useState<string|null>(null);
 
-  /* â”€â”€ COLORISTE MyArchitectAI â€” Ã©tat (rÃ©utilise photo + couleurs du coloriste) */
+  /* ── COLORISTE MyArchitectAI — état (réutilise photo + couleurs du coloriste) */
   const [colorArchLoading, setColorArchLoading] = useState(false);
   const [colorArchResult,  setColorArchResult]  = useState<Item|null>(null);
   const [colorArchError,   setColorArchError]   = useState<string|null>(null);
 
-  /* â”€â”€ RENDU â€” Ã©tat */
-  // Image de rÃ©fÃ©rence (plan WinnerFlex, photo d'inspiration, sketch).
-  // Flux Pro Ultra accepte `image_prompt` : la rÃ©fÃ©rence guide le style/
-  // l'intention sans imposer la transformation stricte (â‰  Kontext).
-  // Strength fixÃ©e Ã  0.3 cÃ´tÃ© serveur (default Ultra = 0.1, trop subtil ;
-  // > 0.5 Ã©trangle la crÃ©ativitÃ© du prompt texte).
+  /* ── RENDU — état */
+  // Image de référence (plan WinnerFlex, photo d'inspiration, sketch).
+  // Flux Pro Ultra accepte `image_prompt` : la référence guide le style/
+  // l'intention sans imposer la transformation stricte (≠ Kontext).
+  // Strength fixée à 0.3 côté serveur (default Ultra = 0.1, trop subtil ;
+  // > 0.5 étrangle la créativité du prompt texte).
   const [rendRefFile,  setRendRefFile]  = useState<File | null>(null);
   const [rendRefURL,   setRendRefURL]   = useState<string | null>(null);
-  // SÃ©lecteurs UI retirÃ©s 19/05/2026 â€” valeurs fixes par dÃ©faut (alimentent
-  // le prompt serveur de faÃ§on neutre, diluÃ© automatiquement par Kontext).
+  // Sélecteurs UI retirés 19/05/2026 — valeurs fixes par défaut (alimentent
+  // le prompt serveur de façon neutre, dilué automatiquement par Kontext).
   const [rendStyle]    = useState<StyleType>('contemporain');
   const [rendLight]    = useState<LightingType>('naturelle');
   // rendSize : valeur fixe en interne (le ChipSelector "Taille de la cuisine" a
-  // Ã©tÃ© retirÃ© â€” peu pertinent quand un plan WinnerFlex est uploadÃ©, qui dicte
-  // dÃ©jÃ  les proportions exactes). On garde 'moyenne' comme fallback cÃ´tÃ© prompt.
+  // été retiré — peu pertinent quand un plan WinnerFlex est uploadé, qui dicte
+  // déjà les proportions exactes). On garde 'moyenne' comme fallback côté prompt.
   const [rendSize]                      = useState<RoomSizeType>('moyenne');
   const [rendFacades,  setRendFacades]  = useState('');
   const [rendPlan,     setRendPlan]     = useState('');
-  // Nouveaux champs Sol + Murs â€” laissÃ©s optionnels, n'apparaissent dans le
+  // Nouveaux champs Sol + Murs — laissés optionnels, n'apparaissent dans le
   // prompt que si l'utilisateur les renseigne.
   const [rendSol,      setRendSol]      = useState('');
   const [rendMurs,     setRendMurs]     = useState('');
-  // Textures importÃ©es par l'utilisateur (data URLs) â€” optionnelles. Quand
-  // prÃ©sentes, le moteur rÃ©plique la matiÃ¨re rÃ©elle (Kontext multi).
+  // Textures importées par l'utilisateur (data URLs) — optionnelles. Quand
+  // présentes, le moteur réplique la matière réelle (Kontext multi).
   const [rendFacadeTex, setRendFacadeTex] = useState<string | null>(null);
   const [rendPlanTex,   setRendPlanTex]   = useState<string | null>(null);
   const [rendSolTex,    setRendSolTex]    = useState<string | null>(null);
@@ -1171,23 +1167,23 @@ export default function IaStudioPage() {
   const [rendLoading,  setRendLoading]  = useState(false);
   const [rendResult,   setRendResult]   = useState<Item|null>(null);
   const [rendError,    setRendError]    = useState<string|null>(null);
-  // Phase 3 â€” warnings de qualitÃ© de l'image source (rÃ©solution, contraste, ratio)
+  // Phase 3 — warnings de qualité de l'image source (résolution, contraste, ratio)
   const [rendRefWarnings, setRendRefWarnings] = useState<string[]>([]);
-  // Phase 2 â€” toggle "PrÃ©cision maximale" : active le refinement SAM+Inpaint
-  // aprÃ¨s ControlNet/Kontext (+20-30s, +0.04â‚¬, gain ~+1% fidÃ©litÃ© matÃ©riaux).
+  // Phase 2 — toggle "Précision maximale" : active le refinement SAM+Inpaint
+  // après ControlNet/Kontext (+20-30s, +0.04€, gain ~+1% fidélité matériaux).
   const [rendMaxPrecision, setRendMaxPrecision] = useState(false);
-  // Curseur Â« RÃ©alisme â†” FidÃ©litÃ© Â» (0-100, dÃ©faut 60) â€” pilote l'Ã©quilibre
-  // photorÃ©alisme vs prÃ©servation du plan dans le pipeline ControlNet Canny.
+  // Curseur « Réalisme ↔ Fidélité » (0-100, défaut 60) — pilote l'équilibre
+  // photoréalisme vs préservation du plan dans le pipeline ControlNet Canny.
   const [rendRealism, setRendRealism] = useState(60);
-  // Option Â« Haute rÃ©solution Â» : agrandit le rendu final (~4K). OFF par dÃ©faut
-  // (garde la vitesse en itÃ©ration ; Ã  activer pour le rendu final/client).
+  // Option « Haute résolution » : agrandit le rendu final (~4K). OFF par défaut
+  // (garde la vitesse en itération ; à activer pour le rendu final/client).
   const [rendHighRes, setRendHighRes] = useState(false);
-  // Phase 5 â€” compteur "RÃ©gÃ©nÃ©rer" : s'incrÃ©mente quand l'utilisateur clique
-  // sur "RÃ©gÃ©nÃ©rer" avec un rendu dÃ©jÃ  affichÃ©. Tracking cÃ´tÃ© serveur pour
-  // analyser quels paramÃ¨tres / images sources mÃ©contentent les utilisateurs.
+  // Phase 5 — compteur "Régénérer" : s'incrémente quand l'utilisateur clique
+  // sur "Régénérer" avec un rendu déjà affiché. Tracking côté serveur pour
+  // analyser quels paramètres / images sources mécontentent les utilisateurs.
   const [rendUserRetry, setRendUserRetry] = useState(0);
 
-  /* â”€â”€ IA ARCHITECT (MyArchitectAI) â€” Ã©tat */
+  /* ── IA ARCHITECT (MyArchitectAI) — état */
   const [archRefFile,  setArchRefFile]  = useState<File | null>(null);
   const [archRefURL,   setArchRefURL]   = useState<string | null>(null);
   const [archMode,     setArchMode]     = useState<'interior' | 'exterior'>('interior');
@@ -1201,13 +1197,13 @@ export default function IaStudioPage() {
   const [archResult,   setArchResult]   = useState<Item | null>(null);
   const [archError,    setArchError]    = useState<string | null>(null);
 
-  /* â”€â”€ Couleurs modifiÃ©es manuellement (pour dÃ©tecter si l'utilisateur a changÃ© qqch) */
+  /* ── Couleurs modifiées manuellement (pour détecter si l'utilisateur a changé qqch) */
   const [colorsModified, setColorsModified] = useState(false);
 
-  /* â”€â”€ Nombre de variantes : verrouillÃ© Ã  1 image (sÃ©lecteur retirÃ© 19/05/2026).
-     On garde le state pour le coÃ»t estimate et le call API, valeur fixe. */
+  /* ── Nombre de variantes : verrouillé à 1 image (sélecteur retiré 19/05/2026).
+     On garde le state pour le coût estimate et le call API, valeur fixe. */
   const [colorNumVariants] = useState<1|2|4>(1);
-  // Rendu rÃ©aliste verrouillÃ© Ã  1 image (cf. coloriste). On garde une constante
+  // Rendu réaliste verrouillé à 1 image (cf. coloriste). On garde une constante
   // pour rester compatible avec l'API qui accepte un numImages.
   const rendNumVariants = 1 as const;
 
@@ -1219,7 +1215,7 @@ export default function IaStudioPage() {
     return () => URL.revokeObjectURL(u);
   }, [photoFile]);
 
-  /* Preview image de rÃ©fÃ©rence rendu */
+  /* Preview image de référence rendu */
   useEffect(() => {
     if (!rendRefFile) { setRendRefURL(null); return; }
     const u = URL.createObjectURL(rendRefFile);
@@ -1227,7 +1223,7 @@ export default function IaStudioPage() {
     return () => URL.revokeObjectURL(u);
   }, [rendRefFile]);
 
-  /* Preview image de rÃ©fÃ©rence IA Architect */
+  /* Preview image de référence IA Architect */
   useEffect(() => {
     if (!archRefFile) { setArchRefURL(null); return; }
     const u = URL.createObjectURL(archRefFile);
@@ -1235,7 +1231,7 @@ export default function IaStudioPage() {
     return () => URL.revokeObjectURL(u);
   }, [archRefFile]);
 
-  /* Phase 3 â€” analyse qualitÃ© image source Ã  chaque nouvel upload */
+  /* Phase 3 — analyse qualité image source à chaque nouvel upload */
   useEffect(() => {
     if (!rendRefFile) { setRendRefWarnings([]); return; }
     let cancelled = false;
@@ -1245,10 +1241,10 @@ export default function IaStudioPage() {
     return () => { cancelled = true; };
   }, [rendRefFile]);
 
-  /* Phase 5 â€” reset du compteur "userRetry" quand l'image source change */
+  /* Phase 5 — reset du compteur "userRetry" quand l'image source change */
   useEffect(() => { setRendUserRetry(0); }, [rendRefFile]);
 
-  /* â”€â”€ Appliquer un preset */
+  /* ── Appliquer un preset */
   const applyPreset = (p: Preset) => {
     setPreset(p);
     setFacadeCol(p.facade);
@@ -1257,10 +1253,10 @@ export default function IaStudioPage() {
     setFacadeFinish(p.finish);
   };
 
-  /* â”€â”€ Coloriste : peut-on lancer ?
-   * Flux Kontext Ã©dite une photo existante â†’ la photo de cuisine est obligatoire.
+  /* ── Coloriste : peut-on lancer ?
+   * Flux Kontext édite une photo existante → la photo de cuisine est obligatoire.
    * Le reste (preset, couleurs, textures) est optionnel mais sans la photo
-   * source on ne peut rien Ã©diter. */
+   * source on ne peut rien éditer. */
   const canRunColor = !!photoFile && (
     !!preset || colorsModified
     || !!facadeTexture || !!poigneeTexture || !!planTexture
@@ -1268,39 +1264,39 @@ export default function IaStudioPage() {
 
   /**
    * Charge une image de texture depuis un <input type=file/>, la convertit en
-   * data URL et la stocke dans le state correspondant. Limite stricte Ã  1 Mo
-   * pour ne pas saturer la mÃ©moire React (et pour rester sous la limite Vercel
-   * de payload). Affiche une alerte simple si dÃ©passement.
+   * data URL et la stocke dans le state correspondant. Limite stricte à 1 Mo
+   * pour ne pas saturer la mémoire React (et pour rester sous la limite Vercel
+   * de payload). Affiche une alerte simple si dépassement.
    */
   const handleTextureUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     addToArray: (dataUrl: string) => void,
   ) => {
     const file = e.target.files?.[0];
-    // Reset le champ pour permettre de re-sÃ©lectionner le mÃªme fichier aprÃ¨s retrait.
+    // Reset le champ pour permettre de re-sélectionner le même fichier après retrait.
     e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      alert('Format invalide : sÃ©lectionnez une image (jpg, png, webp...).');
+      alert('Format invalide : sélectionnez une image (jpg, png, webp...).');
       return;
     }
-    // Upload tolÃ¨re jusqu'Ã  5 Mo : la compression suivante les ramÃ¨ne Ã  ~100-300 Ko.
+    // Upload tolère jusqu'à 5 Mo : la compression suivante les ramène à ~100-300 Ko.
     if (file.size > 5 * 1024 * 1024) {
       alert('Image trop lourde : maximum 5 Mo.');
       return;
     }
     try {
-      // Resize Ã  768px max pour les textures (swatch suffit largement) + JPEG 0.85.
+      // Resize à 768px max pour les textures (swatch suffit largement) + JPEG 0.85.
       const dataUrl = await compressImageToDataUrl(file, 768);
       addToArray(dataUrl);
       setPreset(null);
       setColorsModified(true);
     } catch {
-      alert('Impossible de lire le fichier. RÃ©essayez.');
+      alert('Impossible de lire le fichier. Réessayez.');
     }
   };
 
-  // Helper gÃ©nÃ©rique pour ajouter une texture Ã  un slot (avec limite MAX_TEXTURES)
+  // Helper générique pour ajouter une texture à un slot (avec limite MAX_TEXTURES)
   const makeTextureAdder = (
     textures: string[],
     setTextures: (v: string[]) => void,
@@ -1309,14 +1305,14 @@ export default function IaStudioPage() {
     currentMode: ColorMode,
   ) => (dataUrl: string) => {
     if (textures.length >= MAX_TEXTURES_PER_ELEMENT) {
-      alert(`Maximum ${MAX_TEXTURES_PER_ELEMENT} textures par Ã©lÃ©ment. Retirez-en une avant d'en ajouter.`);
+      alert(`Maximum ${MAX_TEXTURES_PER_ELEMENT} textures par élément. Retirez-en une avant d'en ajouter.`);
       return;
     }
     const next = [...textures, dataUrl];
     setTextures(next);
-    setActiveIdx(next.length - 1); // active = la derniÃ¨re importÃ©e
-    // Si on Ã©tait en mode couleur, on bascule auto en texture pour montrer
-    // immÃ©diatement le rÃ©sultat de l'import.
+    setActiveIdx(next.length - 1); // active = la dernière importée
+    // Si on était en mode couleur, on bascule auto en texture pour montrer
+    // immédiatement le résultat de l'import.
     if (currentMode === 'color') setMode('texture');
   };
 
@@ -1330,7 +1326,7 @@ export default function IaStudioPage() {
   ) => (idx: number) => {
     const next = textures.filter((_, i) => i !== idx);
     setTextures(next);
-    // Ajuste l'index actif : dÃ©cale si besoin, et bascule en mode couleur si vide
+    // Ajuste l'index actif : décale si besoin, et bascule en mode couleur si vide
     if (next.length === 0) {
       setActiveIdx(0);
       setMode('color');
@@ -1341,26 +1337,26 @@ export default function IaStudioPage() {
     }
   };
 
-  /* â”€â”€ Coloriste : lancer */
+  /* ── Coloriste : lancer */
   const runColor = async () => {
     if (!canRunColor) return;
     setColorLoading(true); setColorResult(null); setColorError(null);
 
     try {
-      // Photo de cuisine obligatoire pour Flux Kontext (Ã©dition multi-image).
-      // canRunColor garantit qu'elle est prÃ©sente, mais on garde le garde-fou.
+      // Photo de cuisine obligatoire pour Flux Kontext (édition multi-image).
+      // canRunColor garantit qu'elle est présente, mais on garde le garde-fou.
       if (!photoFile) {
         setColorError('Photo de la cuisine requise pour le coloriste IA.');
         setColorLoading(false); return;
       }
-      // Compression cÃ´tÃ© navigateur : resize Ã  1280px max cÃ´tÃ© long + JPEG 0.85.
-      // Photos iPhone Ã  3-5 Mo descendent Ã  ~250-400 Ko â†’ on reste largement sous
-      // la limite Vercel (4,5 Mo par requÃªte) mÃªme avec 3 textures en plus.
+      // Compression côté navigateur : resize à 1280px max côté long + JPEG 0.85.
+      // Photos iPhone à 3-5 Mo descendent à ~250-400 Ko → on reste largement sous
+      // la limite Vercel (4,5 Mo par requête) même avec 3 textures en plus.
       let sourceImageDataUrl: string;
       try {
         sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280);
       } catch {
-        setColorError('Impossible de lire la photo. RÃ©essayez avec un autre fichier.');
+        setColorError('Impossible de lire la photo. Réessayez avec un autre fichier.');
         setColorLoading(false); return;
       }
 
@@ -1375,9 +1371,9 @@ export default function IaStudioPage() {
         countertopMaterial: preset?.countertopMaterial,
         lightingStyle:      colorLight,
         sourceImageDataUrl,
-        // Textures importÃ©es (mode manuel uniquement â€” les presets gardent leurs couleurs).
-        // On envoie la texture ACTIVE (active idx) + le mode par Ã©lÃ©ment, pour
-        // que le prompt builder cÃ´tÃ© serveur sache si on veut "couleur seule",
+        // Textures importées (mode manuel uniquement — les presets gardent leurs couleurs).
+        // On envoie la texture ACTIVE (active idx) + le mode par élément, pour
+        // que le prompt builder côté serveur sache si on veut "couleur seule",
         // "texture seule" ou "mix" (couleur + texture).
         facadeTextureDataUrl:  preset || facadeMode === 'color'  ? undefined : (facadeTexture  ?? undefined),
         poigneeTextureDataUrl: preset || poigneeMode === 'color' ? undefined : (poigneeTexture ?? undefined),
@@ -1390,11 +1386,11 @@ export default function IaStudioPage() {
 
       if (result.error) { setColorError(result.error); setColorLoading(false); return; }
 
-      // GÃ©nÃ©ration OK â†’ rafraÃ®chir l'historique DB en parallÃ¨le (la route a dÃ©jÃ 
-      // persistÃ© l'IaJob avec status=DONE, on lit juste la nouvelle entrÃ©e).
+      // Génération OK → rafraîchir l'historique DB en parallèle (la route a déjà
+      // persisté l'IaJob avec status=DONE, on lit juste la nouvelle entrée).
       setIaHistoryRefresh(n => n + 1);
 
-      const desc = preset ? `${preset.name} â€” ${preset.desc}` : `FaÃ§ades ${facadeCol} ${facadeFinish}`;
+      const desc = preset ? `${preset.name} — ${preset.desc}` : `Façades ${facadeCol} ${facadeFinish}`;
       setColorResult({
         id: uid(), module: 'coloriste', prompt: desc, dossier: dossierName,
         ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
@@ -1410,31 +1406,31 @@ export default function IaStudioPage() {
       if (msg && !msg.includes('fetch')) {
         setColorError(msg);
       } else {
-        setColorError('La gÃ©nÃ©ration a pris trop de temps ou la connexion sâ€™est interrompue. RÃ©essayez dans quelques secondes.');
+        setColorError('La génération a pris trop de temps ou la connexion s’est interrompue. Réessayez dans quelques secondes.');
       }
     }
     setColorLoading(false);
   };
 
   /**
-   * Attache l'image IA gÃ©nÃ©rÃ©e au dossier sÃ©lectionnÃ© (sous-dossier "RENDUS IA").
-   * CrÃ©e le sous-dossier s'il n'existe pas. Le DocumentFile pointe vers l'URL
-   * signÃ©e Supabase (valable 30 jours â€” au-delÃ , on devra implÃ©menter une copie
+   * Attache l'image IA générée au dossier sélectionné (sous-dossier "RENDUS IA").
+   * Crée le sous-dossier s'il n'existe pas. Le DocumentFile pointe vers l'URL
+   * signée Supabase (valable 30 jours — au-delà, on devra implémenter une copie
    * vers le bucket dossier-documents pour la conservation long terme).
    *
-   * 19/05/2026 : feature critique demandÃ©e user "ca ne fonctionne pas".
+   * 19/05/2026 : feature critique demandée user "ca ne fonctionne pas".
    */
   const IA_SUBFOLDER_LABEL = 'RENDUS IA';
   const attachToDossier = (item: Item, moduleLabel: string) => {
     if (!dossierId || !item.imageUrl) return;
     const dossier = allDossiers.find(d => d.id === dossierId);
     if (!dossier) return;
-    // CrÃ©e le sous-dossier "RENDUS IA" si absent
+    // Crée le sous-dossier "RENDUS IA" si absent
     const hasIaFolder = (dossier.subfolders ?? []).some(sf => sf.label === IA_SUBFOLDER_LABEL);
     if (!hasIaFolder) addSubfolder(dossierId, IA_SUBFOLDER_LABEL);
-    // Pousse le document dans le sous-dossier (URL signÃ©e Supabase ia-renders)
+    // Pousse le document dans le sous-dossier (URL signée Supabase ia-renders)
     addDocumentToSubfolder(dossierId, IA_SUBFOLDER_LABEL, {
-      name:    `${moduleLabel} â€” ${item.prompt.slice(0, 60)} (${item.ts}).jpg`,
+      name:    `${moduleLabel} — ${item.prompt.slice(0, 60)} (${item.ts}).jpg`,
       type:    'image/jpeg',
       url:     item.imageUrl,
       addedAt: new Date().toLocaleDateString('fr-FR'),
@@ -1448,7 +1444,7 @@ export default function IaStudioPage() {
     setSaveDossierId(dossierId || allDossiers[0]?.id || '');
     setSaveSubfolders([IA_SUBFOLDER_LABEL]);
   };
-  /** Confirme : enregistre le visuel dans CHAQUE sous-dossier cochÃ©. */
+  /** Confirme : enregistre le visuel dans CHAQUE sous-dossier coché. */
   const confirmSave = () => {
     if (!saveTarget || !saveDossierId || saveSubfolders.length === 0) return;
     const { item, action, icon, onDone } = saveTarget;
@@ -1458,31 +1454,31 @@ export default function IaStudioPage() {
       const exists = (dossier?.subfolders ?? []).some(sf => sf.label === label);
       if (!exists) addSubfolder(saveDossierId, label);
       addDocumentToSubfolder(saveDossierId, label, {
-        name: `${action} â€” ${item.prompt.slice(0, 60)} (${item.ts}).jpg`,
+        name: `${action} — ${item.prompt.slice(0, 60)} (${item.ts}).jpg`,
         type: 'image/jpeg',
         url: item.imageUrl!,
         addedAt: new Date().toLocaleDateString('fr-FR'),
       });
     }
     setGallery(p => [item, ...p]);
-    addLog({ user: userName, action, target: `${dName} â€” "${item.prompt.slice(0, 40)}"`, icon });
+    addLog({ user: userName, action, target: `${dName} — "${item.prompt.slice(0, 40)}"`, icon });
     onDone();
     setSaveTarget(null);
   };
 
   const saveColor = () => {
     if (!colorResult) return;
-    openSaveModal(colorResult, 'Coloriste IA', 'ðŸŽ¨', () => setColorResult(null));
+    openSaveModal(colorResult, 'Coloriste IA', '🎨', () => setColorResult(null));
   };
 
-  /* â”€â”€ Coloriste MyArchitectAI : lancer (mÃªme couleurs, moteur MyArchitectAI) */
+  /* ── Coloriste MyArchitectAI : lancer (même couleurs, moteur MyArchitectAI) */
   const runColoristeArchi = async () => {
     if (!photoFile) { setColorArchError('Photo de la cuisine requise.'); return; }
     setColorArchLoading(true); setColorArchResult(null); setColorArchError(null);
     try {
       let sourceImageDataUrl: string;
       try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280); }
-      catch { setColorArchError('Impossible de lire la photo. RÃ©essayez avec un autre fichier.'); setColorArchLoading(false); return; }
+      catch { setColorArchError('Impossible de lire la photo. Réessayez avec un autre fichier.'); setColorArchLoading(false); return; }
       const result = await callColoristeArchitectAPI({
         facadeHex:          preset?.facade   ?? facadeCol,
         poigneeHex:         preset?.poignee  ?? poigneeCol,
@@ -1498,7 +1494,7 @@ export default function IaStudioPage() {
       });
       if (result.error) { setColorArchError(result.error); setColorArchLoading(false); return; }
       setIaHistoryRefresh(n => n + 1);
-      const desc = preset ? `${preset.name} â€” ${preset.desc}` : `FaÃ§ades ${facadeCol} ${facadeFinish}`;
+      const desc = preset ? `${preset.name} — ${preset.desc}` : `Façades ${facadeCol} ${facadeFinish}`;
       setColorArchResult({
         id: uid(), module: 'coloriste-archi', prompt: desc, dossier: dossierName,
         ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
@@ -1508,43 +1504,43 @@ export default function IaStudioPage() {
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
-      setColorArchError(msg && !msg.includes('fetch') ? msg : 'La gÃ©nÃ©ration a pris trop de temps ou la connexion s\'est interrompue. RÃ©essayez.');
+      setColorArchError(msg && !msg.includes('fetch') ? msg : 'La génération a pris trop de temps ou la connexion s\'est interrompue. Réessayez.');
     }
     setColorArchLoading(false);
   };
 
   const saveColoristeArchi = () => {
     if (!colorArchResult) return;
-    openSaveModal(colorArchResult, 'Coloriste IA', 'ðŸŽ¨', () => setColorArchResult(null));
+    openSaveModal(colorArchResult, 'Coloriste IA', '🎨', () => setColorArchResult(null));
   };
 
-  /* â”€â”€ Rendu : lancer */
+  /* ── Rendu : lancer */
   const runRendu = async () => {
-    // Image de rÃ©fÃ©rence OBLIGATOIRE (juin 2026) â€” le mode text-to-image pur
-    // a Ã©tÃ© supprimÃ© car sans source visuelle l'IA inventait sol/crÃ©dence
-    // /ouvertures de faÃ§on incohÃ©rente avec la piÃ¨ce rÃ©elle du client.
+    // Image de référence OBLIGATOIRE (juin 2026) — le mode text-to-image pur
+    // a été supprimé car sans source visuelle l'IA inventait sol/crédence
+    // /ouvertures de façon incohérente avec la pièce réelle du client.
     if (!rendRefFile) {
-      setRendError('Importez un plan, un rendu 3D, un sketch ou une photo d\'inspiration pour gÃ©nÃ©rer le rendu rÃ©aliste.');
+      setRendError('Importez un plan, un rendu 3D, un sketch ou une photo d\'inspiration pour générer le rendu réaliste.');
       return;
     }
-    // Phase 5 â€” si on relance avec un rendu dÃ©jÃ  prÃ©sent, l'utilisateur
-    // n'Ã©tait pas satisfait : on incrÃ©mente le compteur et on l'envoie au
-    // serveur pour analyse ultÃ©rieure (quelles images sources / paramÃ¨tres
-    // dÃ©Ã§oivent le plus les utilisateurs).
+    // Phase 5 — si on relance avec un rendu déjà présent, l'utilisateur
+    // n'était pas satisfait : on incrémente le compteur et on l'envoie au
+    // serveur pour analyse ultérieure (quelles images sources / paramètres
+    // déçoivent le plus les utilisateurs).
     const isUserRetry = rendResult !== null;
     const nextRetryCount = isUserRetry ? rendUserRetry + 1 : 0;
     setRendUserRetry(nextRetryCount);
     setRendLoading(true); setRendResult(null); setRendError(null);
 
     try {
-      // Compression cÃ´tÃ© navigateur (max 2048px, JPEG q=0.92 si redim) avec
-      // bypass complet si l'image est dÃ©jÃ  petite et lÃ©gÃ¨re (prÃ©serve les
+      // Compression côté navigateur (max 2048px, JPEG q=0.92 si redim) avec
+      // bypass complet si l'image est déjà petite et légère (préserve les
       // contours fins indispensables au pipeline Canny / ControlNet).
       let referenceImageDataUrl: string;
       let sourceWidth: number | undefined;
       let sourceHeight: number | undefined;
       try {
-        // RÃ©cupÃ¨re les dimensions natives AVANT compression (anchor prompt).
+        // Récupère les dimensions natives AVANT compression (anchor prompt).
         const dims = await new Promise<{w: number; h: number}>((resolve, reject) => {
           const objUrl = URL.createObjectURL(rendRefFile);
           const img = new window.Image();
@@ -1561,7 +1557,7 @@ export default function IaStudioPage() {
         return;
       }
       const result = await callRenduAPI({
-        facades:               rendFacades || 'FaÃ§ades modernes, finitions haut de gamme',
+        facades:               rendFacades || 'Façades modernes, finitions haut de gamme',
         planTravail:           rendPlan    || 'quartz blanc mat',
         sol:                   rendSol.trim() || undefined,
         murs:                  rendMurs.trim() || undefined,
@@ -1588,7 +1584,7 @@ export default function IaStudioPage() {
 
       setRendResult({
         id: uid(), module: 'rendu',
-        prompt: rendFacades || 'Rendu photorÃ©aliste',
+        prompt: rendFacades || 'Rendu photoréaliste',
         dossier: dossierName,
         ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
         color: '#5b9bd5',
@@ -1600,7 +1596,7 @@ export default function IaStudioPage() {
       if (msg && !msg.includes('fetch')) {
         setRendError(msg);
       } else {
-        setRendError('La gÃ©nÃ©ration a pris trop de temps ou la connexion sâ€™est interrompue. RÃ©essayez dans quelques secondes.');
+        setRendError('La génération a pris trop de temps ou la connexion s’est interrompue. Réessayez dans quelques secondes.');
       }
     }
     setRendLoading(false);
@@ -1608,13 +1604,13 @@ export default function IaStudioPage() {
 
   const saveRendu = () => {
     if (!rendResult) return;
-    openSaveModal(rendResult, 'Rendu RÃ©aliste', 'âœ¨', () => setRendResult(null));
+    openSaveModal(rendResult, 'Rendu Réaliste', '✨', () => setRendResult(null));
   };
 
-  /* â”€â”€ IA Architect (MyArchitectAI) : lancer */
+  /* ── IA Architect (MyArchitectAI) : lancer */
   const runArchitect = async () => {
     if (!archRefFile) {
-      setArchError('Importez un plan, un rendu 3D, un sketch ou une photo pour gÃ©nÃ©rer le rendu.');
+      setArchError('Importez un plan, un rendu 3D, un sketch ou une photo pour générer le rendu.');
       return;
     }
     setArchLoading(true); setArchResult(null); setArchError(null);
@@ -1645,7 +1641,7 @@ export default function IaStudioPage() {
 
       setArchResult({
         id: uid(), module: 'architect',
-        prompt: archAmbiance.trim() || archFacades.trim() || (archMode === 'exterior' ? 'Rendu extÃ©rieur' : 'Rendu intÃ©rieur'),
+        prompt: archAmbiance.trim() || archFacades.trim() || (archMode === 'exterior' ? 'Rendu extérieur' : 'Rendu intérieur'),
         dossier: dossierName,
         ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
         color: '#8a6cc2',
@@ -1656,17 +1652,17 @@ export default function IaStudioPage() {
       const msg = err instanceof Error ? err.message : '';
       setArchError(msg && !msg.includes('fetch')
         ? msg
-        : 'La gÃ©nÃ©ration a pris trop de temps ou la connexion s\'est interrompue. RÃ©essayez dans quelques secondes.');
+        : 'La génération a pris trop de temps ou la connexion s\'est interrompue. Réessayez dans quelques secondes.');
     }
     setArchLoading(false);
   };
 
   const saveArchitect = () => {
     if (!archResult) return;
-    openSaveModal(archResult, 'Rendu RÃ©aliste', 'ðŸ›ï¸', () => setArchResult(null));
+    openSaveModal(archResult, 'Rendu Réaliste', '🏛️', () => setArchResult(null));
   };
 
-  /* â”€â”€ SÃ©lecteur dossier */
+  /* ── Sélecteur dossier */
   const DossierPicker = () => (
     <div>
       <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-2">Associer au dossier</p>
@@ -1682,11 +1678,11 @@ export default function IaStudioPage() {
     <>
       <div className="space-y-7 pb-10">
 
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• HEADER */}
+        {/* ══════════════════════════ HEADER */}
         <PageHeader
           icon={<Sparkles className="h-7 w-7" />}
           title="IA Studio"
-          subtitle="Trois intelligences Â· Une cuisine parfaite"
+          subtitle="Trois intelligences · Une cuisine parfaite"
           actions={gallery.length > 0 && (
             <div className="flex items-center gap-2.5 rounded-full border border-white/20 bg-white/15 px-4 py-2 shadow-sm">
               <div className="flex -space-x-1">
@@ -1696,13 +1692,13 @@ export default function IaStudioPage() {
                 ))}
               </div>
               <span className="text-xs font-bold text-white/80">
-                {gallery.length} visuel{gallery.length>1?'s':''} sauvegardÃ©{gallery.length>1?'s':''}
+                {gallery.length} visuel{gallery.length>1?'s':''} sauvegardé{gallery.length>1?'s':''}
               </span>
             </div>
           )}
         />
 
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• TABS SÃ‰LECTEUR */}
+        {/* ══════════════════════════ TABS SÉLECTEUR */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
           {/* Coloriste */}
           <button onClick={() => setTab('coloriste')}
@@ -1729,19 +1725,19 @@ export default function IaStudioPage() {
                   <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#a67749]/12 text-[#a67749]">Sur chantier</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Changez faÃ§ades, poignÃ©es et plan de travail en quelques secondes â€” <span className="font-semibold text-[#304035]/80">idÃ©al devant le client</span>.
+                  Changez façades, poignées et plan de travail en quelques secondes — <span className="font-semibold text-[#304035]/80">idéal devant le client</span>.
                 </p>
                 {tab==='coloriste' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#a67749]">
                     <div className="h-2 w-2 rounded-full bg-[#a67749] dp" />
-                    Module actif â€” prÃªt Ã  l'emploi
+                    Module actif — prêt à l'emploi
                   </div>
                 )}
               </div>
             </div>
           </button>
 
-          {/* Rendu RÃ©aliste â€” masquÃ© (onglet dÃ©sactivÃ©) */}
+          {/* Rendu Réaliste — masqué (onglet désactivé) */}
           {false && (
           <button onClick={() => setTab('rendu')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
@@ -1763,16 +1759,16 @@ export default function IaStudioPage() {
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-black text-[#304035] text-lg">Rendu RÃ©aliste</p>
+                  <p className="font-black text-[#304035] text-lg">Rendu Réaliste</p>
                   <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#5b9bd5]/12 text-[#5b9bd5]">Post-conception</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Importez votre plan <span className="font-semibold text-[#304035]/80">WinnerFlex</span> et obtenez un rendu photorÃ©aliste professionnel.
+                  Importez votre plan <span className="font-semibold text-[#304035]/80">WinnerFlex</span> et obtenez un rendu photoréaliste professionnel.
                 </p>
                 {tab==='rendu' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#5b9bd5]">
                     <div className="h-2 w-2 rounded-full bg-[#5b9bd5] dp" />
-                    Module actif â€” prÃªt Ã  l'emploi
+                    Module actif — prêt à l'emploi
                   </div>
                 )}
               </div>
@@ -1780,7 +1776,7 @@ export default function IaStudioPage() {
           </button>
           )}
 
-          {/* Rendu RÃ©aliste */}
+          {/* Rendu Réaliste */}
           <button onClick={() => setTab('architect')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
               tab==='architect'
@@ -1801,23 +1797,23 @@ export default function IaStudioPage() {
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-black text-[#304035] text-lg">Rendu RÃ©aliste</p>
+                  <p className="font-black text-[#304035] text-lg">Rendu Réaliste</p>
                   <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#8a6cc2]/12 text-[#8a6cc2]">Post-conception</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Moteur photorÃ©aliste dÃ©diÃ© <span className="font-semibold text-[#304035]/80">architecture & intÃ©rieur</span> â€” intÃ©rieur ou extÃ©rieur.
+                  Moteur photoréaliste dédié <span className="font-semibold text-[#304035]/80">architecture & intérieur</span> — intérieur ou extérieur.
                 </p>
                 {tab==='architect' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#8a6cc2]">
                     <div className="h-2 w-2 rounded-full bg-[#8a6cc2] dp" />
-                    Module actif â€” prÃªt Ã  l'emploi
+                    Module actif — prêt à l'emploi
                   </div>
                 )}
               </div>
             </div>
           </button>
 
-          {/* Coloriste IA+ â€” masquÃ© (onglet dÃ©sactivÃ©) */}
+          {/* Coloriste IA+ — masqué (onglet désactivé) */}
           {false && (
           <button onClick={() => setTab('coloriste-archi')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
@@ -1843,12 +1839,12 @@ export default function IaStudioPage() {
                   <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#2f9e8f]/12 text-[#2f9e8f]">Post-conception</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  MÃªme principe que le Coloriste, <span className="font-semibold text-[#304035]/80">moteur IA</span> â€” photo + couleurs.
+                  Même principe que le Coloriste, <span className="font-semibold text-[#304035]/80">moteur IA</span> — photo + couleurs.
                 </p>
                 {tab==='coloriste-archi' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#2f9e8f]">
                     <div className="h-2 w-2 rounded-full bg-[#2f9e8f] dp" />
-                    Module actif â€” prÃªt Ã  l'emploi
+                    Module actif — prêt à l'emploi
                   </div>
                 )}
               </div>
@@ -1857,14 +1853,14 @@ export default function IaStudioPage() {
           )}
         </div>
 
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MODULE COLORISTE */}
+        {/* ══════════════════════════ MODULE COLORISTE */}
         {tab === 'coloriste' && (
           <div className="fu space-y-6">
 
-            {/* Ligne 1 : Photo (â…“) + Grand aperÃ§u (â…”) â€” sections un peu plus hautes */}
+            {/* Ligne 1 : Photo (⅓) + Grand aperçu (⅔) — sections un peu plus hautes */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
 
-              {/* Photo de la cuisine â€” un tiers */}
+              {/* Photo de la cuisine — un tiers */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 flex flex-col lg:min-h-[400px]">
                 <div className="flex items-center gap-2 mb-4">
                   <Camera className="h-4 w-4 text-[#a67749]" />
@@ -1872,7 +1868,7 @@ export default function IaStudioPage() {
                   <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-[#a67749]/70 bg-[#a67749]/8 px-2 py-0.5 rounded-full">Optionnel</span>
                 </div>
                 <div className="flex-1 flex flex-col justify-center">
-                  <Drop label="" sub="DÃ©posez une photo (chantier, showroom, catalogue)"
+                  <Drop label="" sub="Déposez une photo (chantier, showroom, catalogue)"
                     onFile={setPhotoFile} file={photoFile} accent="#a67749" />
                   {photoURL && (
                     <div className="mt-3 relative rounded-xl overflow-hidden">
@@ -1883,14 +1879,14 @@ export default function IaStudioPage() {
                         <X className="h-3.5 w-3.5" />
                       </button>
                       <div className="absolute bottom-2 left-3">
-                        <span className="rounded-full bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5">Photo chargÃ©e</span>
+                        <span className="rounded-full bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5">Photo chargée</span>
                       </div>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Grand aperÃ§u du rÃ©sultat â€” deux tiers */}
+              {/* Grand aperçu du résultat — deux tiers */}
               <div className="space-y-4 lg:col-span-2">
 
                 {/* Erreur coloriste */}
@@ -1898,7 +1894,7 @@ export default function IaStudioPage() {
                   <div className="fu rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-red-700">GÃ©nÃ©ration Ã©chouÃ©e</p>
+                      <p className="text-sm font-bold text-red-700">Génération échouée</p>
                       <p className="text-xs text-red-600/80 mt-0.5 leading-relaxed">{colorError}</p>
                     </div>
                     <button onClick={() => setColorError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0">
@@ -1919,20 +1915,20 @@ export default function IaStudioPage() {
                         <p className="font-black text-[#304035]">Coloriste IA en action</p>
                         <p className="text-xs text-[#304035]/50 mt-0.5">
                           {(facadeTexture || poigneeTexture || planTexture)
-                            ? 'Flux Kontext Â· Ã‰dition multi-image (textures)â€¦'
-                            : 'Flux Kontext Â· Ã‰dition guidÃ©e par instructionâ€¦'}
+                            ? 'Flux Kontext · Édition multi-image (textures)…'
+                            : 'Flux Kontext · Édition guidée par instruction…'}
                         </p>
                       </div>
                     </div>
                     <ProgressBar steps={LOADING_STEPS_COLOR} color="#a67749" />
                     <div className="flex items-center justify-between gap-3 rounded-xl bg-[#a67749]/8 border border-[#a67749]/15 px-3 py-2.5">
-                      <p className="text-[11px] leading-snug text-[#304035]/70">La colorisation prend en gÃ©nÃ©ral <b className="text-[#304035]">15 Ã  40 s</b>. <b className="text-[#304035]">Ne ferme pas la page</b>.</p>
+                      <p className="text-[11px] leading-snug text-[#304035]/70">La colorisation prend en général <b className="text-[#304035]">15 à 40 s</b>. <b className="text-[#304035]">Ne ferme pas la page</b>.</p>
                       <span className="shrink-0 font-mono text-base font-black tabular-nums" style={{color:'#a67749'}}><ElapsedTimer /></span>
                     </div>
                   </div>
                 )}
 
-                {/* RÃ©sultat â€” coloriste : avec slider avant/aprÃ¨s pour comparer */}
+                {/* Résultat — coloriste : avec slider avant/après pour comparer */}
                 {colorResult && !colorLoading && (
                   <ResultCard
                     item={colorResult}
@@ -1944,23 +1940,23 @@ export default function IaStudioPage() {
                   />
                 )}
 
-                {/* Ã‰tat vide inspirant (Conseils sur chantier retirÃ© â€” 06/06/2026) */}
+                {/* État vide inspirant (Conseils sur chantier retiré — 06/06/2026) */}
                 {!colorLoading && !colorResult && (
                   <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#a67749]/20 bg-gradient-to-br from-[#a67749]/5 to-white p-12 text-center lg:min-h-[400px]">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#a67749]/10">
                       <Eye className="h-7 w-7 text-[#a67749]/60" />
                     </div>
-                    <p className="font-bold text-[#304035] mb-1.5">AperÃ§u du rÃ©sultat</p>
+                    <p className="font-bold text-[#304035] mb-1.5">Aperçu du résultat</p>
                     <p className="text-xs text-[#304035]/50 leading-relaxed">
                       Choisissez une palette ou configurez vos couleurs, puis lancez le Coloriste IA.
                     </p>
                   </div>
                 )}
 
-              </div>{/* /grand aperÃ§u (deux tiers) */}
+              </div>{/* /grand aperçu (deux tiers) */}
             </div>{/* /ligne 1 */}
 
-            {/* Palettes (Â½) + ParamÃ¨tres du rendu (Â½) cÃ´te Ã  cÃ´te */}
+            {/* Palettes (½) + Paramètres du rendu (½) côte à côte */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
 
               {/* Palettes */}
@@ -1968,9 +1964,9 @@ export default function IaStudioPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Palette className="h-4 w-4 text-[#a67749]" />
-                    <p className="font-bold text-[#304035]">Palettes prÃªtes Ã  l'emploi</p>
+                    <p className="font-bold text-[#304035]">Palettes prêtes à l'emploi</p>
                   </div>
-                  <span className="text-[10px] text-[#304035]/40 font-medium">FaÃ§ade Â· PoignÃ©e Â· Plan</span>
+                  <span className="text-[10px] text-[#304035]/40 font-medium">Façade · Poignée · Plan</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                   {PRESETS.map(p => (
@@ -1979,21 +1975,21 @@ export default function IaStudioPage() {
                   ))}
                 </div>
 
-                {/* Color pickers manuels â€” chaque Ã©lÃ©ment accepte couleur ET/OU finition.
+                {/* Color pickers manuels — chaque élément accepte couleur ET/OU finition.
                     L'utilisateur peut ne changer que la couleur, ne changer que la finition,
-                    ou les deux. La finition pour les faÃ§ades est partagÃ©e avec le chip global
-                    "Finition faÃ§ades" ci-dessous (source de vÃ©ritÃ© unique). */}
+                    ou les deux. La finition pour les façades est partagée avec le chip global
+                    "Finition façades" ci-dessous (source de vérité unique). */}
                 <div className="mt-4 pt-4 border-t border-[#304035]/8">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/40 mb-3">Ou personnalisez manuellement</p>
                   <div className="flex flex-col sm:flex-row gap-4">
                     {([
-                      { key:'facade',  label:'FaÃ§ades',     val:facadeCol,  set:setFacadeCol,
+                      { key:'facade',  label:'Façades',     val:facadeCol,  set:setFacadeCol,
                         finishVal: facadeFinish, setFinish: (v: FinishType | null) => v && setFacadeFinish(v),
                         finishOptional: false /* la facade a tjrs une finition (chip global) */,
                         textures: facadeTextures, setTextures: setFacadeTextures,
                         activeIdx: facadeActiveTextureIdx, setActiveIdx: setFacadeActiveTextureIdx,
                         mode: facadeMode, setMode: setFacadeMode },
-                      { key:'poignee', label:'PoignÃ©es',    val:poigneeCol, set:setPoigneeCol,
+                      { key:'poignee', label:'Poignées',    val:poigneeCol, set:setPoigneeCol,
                         finishVal: poigneeFinish, setFinish: setPoigneeFinish,
                         finishOptional: true,
                         textures: poigneeTextures, setTextures: setPoigneeTextures,
@@ -2028,7 +2024,7 @@ export default function IaStudioPage() {
                       const swatchStyle: React.CSSProperties = (() => {
                         if (mode === 'color' || !activeTex) return { background: val };
                         if (mode === 'texture') return { background: `url(${activeTex}) center/cover` };
-                        // mix : couleur multipliÃ©e sur la texture
+                        // mix : couleur multipliée sur la texture
                         return {
                           backgroundImage: `url(${activeTex}), linear-gradient(${val}, ${val})`,
                           backgroundSize: 'cover, cover',
@@ -2067,8 +2063,8 @@ export default function IaStudioPage() {
                         </div>
 
                         <div className="relative mx-auto w-14 h-14">
-                          {/* Color picker invisible â€” cliquable sur le swatch mÃªme en mode texture
-                              pour mettre Ã  jour la couleur de fallback / d'overlay mix. */}
+                          {/* Color picker invisible — cliquable sur le swatch même en mode texture
+                              pour mettre à jour la couleur de fallback / d'overlay mix. */}
                           <input type="color" value={val}
                             onChange={e => { (set as (v:string)=>void)(e.target.value); setPreset(null); setColorsModified(true); }}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
@@ -2079,7 +2075,7 @@ export default function IaStudioPage() {
                           </div>
                         </div>
 
-                        {/* Miniatures des textures importÃ©es (jusqu'Ã  3) + bouton + */}
+                        {/* Miniatures des textures importées (jusqu'à 3) + bouton + */}
                         <div className="mt-2 flex items-center justify-center gap-1 flex-wrap">
                           {textures.map((tex, idx) => (
                             <div key={idx} className="relative group">
@@ -2129,8 +2125,8 @@ export default function IaStudioPage() {
                               ? `${val.toUpperCase()} + tex.`
                               : `Texture ${activeIdx + 1}`}
                         </p>
-                        {/* Finition par Ã©lÃ©ment â€” dropdown compact. Pour faÃ§ades on
-                            edit le chip global, pour poignÃ©es/plan c'est optionnel. */}
+                        {/* Finition par élément — dropdown compact. Pour façades on
+                            edit le chip global, pour poignées/plan c'est optionnel. */}
                         <select
                           value={finishVal ?? ''}
                           onChange={(e) => {
@@ -2143,11 +2139,11 @@ export default function IaStudioPage() {
                           aria-label={`Finition ${label}`}
                           title={`Finition ${label}`}
                         >
-                          {finishOptional && <option value="">â€” Standard â€”</option>}
+                          {finishOptional && <option value="">— Standard —</option>}
                           <option value="mat">Mat</option>
-                          <option value="satinÃ©">SatinÃ©</option>
+                          <option value="satiné">Satiné</option>
                           <option value="brillant">Brillant</option>
-                          <option value="brossÃ©">BrossÃ©</option>
+                          <option value="brossé">Brossé</option>
                           <option value="bois">Bois naturel</option>
                           <option value="miroir">Miroir</option>
                           <option value="verre-mat">Verre mat</option>
@@ -2159,24 +2155,24 @@ export default function IaStudioPage() {
                 </div>
               </div>
 
-              {/* ParamÃ¨tres prompt â€” NOUVEAUX SÃ‰LECTEURS STRUCTURÃ‰S */}
+              {/* Paramètres prompt — NOUVEAUX SÉLECTEURS STRUCTURÉS */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
                 <div className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-[#a67749]" />
-                  <p className="font-bold text-[#304035]">ParamÃ¨tres du rendu</p>
+                  <p className="font-bold text-[#304035]">Paramètres du rendu</p>
                   <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-[#10b981]/80 bg-[#10b981]/8 px-2 py-0.5 rounded-full">Prompt auto</span>
                 </div>
 
                 <ChipSelector<FinishType>
-                  label="Finition faÃ§ades"
+                  label="Finition façades"
                   value={facadeFinish}
                   onChange={v => { setFacadeFinish(v); setPreset(null); }}
                   accent="#a67749"
                   options={[
                     { value:'mat',       label:'Mat' },
-                    { value:'satinÃ©',    label:'SatinÃ©' },
+                    { value:'satiné',    label:'Satiné' },
                     { value:'brillant',  label:'Brillant' },
-                    { value:'brossÃ©',    label:'BrossÃ©' },
+                    { value:'brossé',    label:'Brossé' },
                     { value:'bois',      label:'Bois naturel' },
                     { value:'miroir',    label:'Miroir' },
                     { value:'verre-mat', label:'Verre mat' },
@@ -2184,7 +2180,7 @@ export default function IaStudioPage() {
                 />
 
                 <ChipSelector<LightingType>
-                  label="LumiÃ¨re"
+                  label="Lumière"
                   value={colorLight}
                   onChange={setColorLight}
                   accent="#a67749"
@@ -2199,22 +2195,22 @@ export default function IaStudioPage() {
                 <div className="flex items-start gap-2 rounded-xl bg-[#10b981]/8 border border-[#10b981]/20 p-3">
                   <CheckCircle2 className="h-4 w-4 text-[#10b981] shrink-0 mt-0.5" />
                   <p className="text-xs text-[#304035]/70 leading-relaxed">
-                    Le prompt est gÃ©nÃ©rÃ© automatiquement depuis vos sÃ©lections â€” pas de texte libre, zÃ©ro ratÃ©.
+                    Le prompt est généré automatiquement depuis vos sélections — pas de texte libre, zéro raté.
                   </p>
                 </div>
               </div>
-            </div>{/* /Palettes + ParamÃ¨tres */}
+            </div>{/* /Palettes + Paramètres */}
 
-            {/* Associer au dossier + Appliquer les couleurs â€” pleine largeur */}
+            {/* Associer au dossier + Appliquer les couleurs — pleine largeur */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
                 <DossierPicker />
 
-                {/* SÃ©lecteur variantes retirÃ© 19/05/2026 : le coloriste gÃ©nÃ¨re
-                    toujours UNE image. Le state `colorNumVariants` reste Ã  1
-                    par dÃ©faut (cf. useState initialiseur). */}
+                {/* Sélecteur variantes retiré 19/05/2026 : le coloriste génère
+                    toujours UNE image. Le state `colorNumVariants` reste à 1
+                    par défaut (cf. useState initialiseur). */}
 
-                {/* Bloc 'CoÃ»t estimÃ© Â· Flux Kontext' retirÃ© 19/05/2026 :
-                    les clients n'ont pas Ã  voir le moteur ni le coÃ»t IA. */}
+                {/* Bloc 'Coût estimé · Flux Kontext' retiré 19/05/2026 :
+                    les clients n'ont pas à voir le moteur ni le coût IA. */}
                 {!canRunColor && !colorLoading && (
                   <p className="text-[11px] text-[#304035]/55 text-center">
                     {!photoFile
@@ -2231,14 +2227,14 @@ export default function IaStudioPage() {
                   )}
                   <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
                     {colorLoading
-                      ? <><Loader2 className="h-4 w-4 animate-spin" />GÃ©nÃ©ration en coursâ€¦</>
+                      ? <><Loader2 className="h-4 w-4 animate-spin" />Génération en cours…</>
                       : <><Paintbrush className="h-4 w-4" />Appliquer les couleurs<ArrowRight className="h-4 w-4 ml-1" /></>
                     }
                   </span>
                 </button>
             </div>
 
-            {/* Historique (Â½) + Galerie (Â½) cÃ´te Ã  cÃ´te */}
+            {/* Historique (½) + Galerie (½) côte à côte */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
               <HistoryPanel
                 filterType="COLOR_VARIATION"
@@ -2252,40 +2248,40 @@ export default function IaStudioPage() {
           </div>
         )}
 
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MODULE RENDU RÃ‰ALISTE */}
+        {/* ══════════════════════════ MODULE RENDU RÉALISTE */}
         {tab === 'rendu' && (
           <div className="fu space-y-6">
 
-            {/* Ligne 1 : Image de rÃ©fÃ©rence (â…“) + Grand aperÃ§u (â…”) â€” sections un peu plus hautes */}
+            {/* Ligne 1 : Image de référence (⅓) + Grand aperçu (⅔) — sections un peu plus hautes */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
 
-              {/* Image de rÃ©fÃ©rence â€” un tiers (Kontext img2img : prÃ©serve le layout) */}
+              {/* Image de référence — un tiers (Kontext img2img : préserve le layout) */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 flex flex-col lg:min-h-[400px]">
                 <div className="flex items-center gap-2 mb-1">
                   <FileImage className="h-4 w-4 text-[#5b9bd5]" />
-                  <p className="font-bold text-[#304035]">Image de rÃ©fÃ©rence <span className="ml-1 rounded-full bg-[#5b9bd5]/10 text-[#5b9bd5] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
+                  <p className="font-bold text-[#304035]">Image de référence <span className="ml-1 rounded-full bg-[#5b9bd5]/10 text-[#5b9bd5] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
                 </div>
-                <p className="text-xs text-[#304035]/50 mb-2">Plan WinnerFlex, rendu 3D, sketch ou photo d'inspiration â€” l'IA transforme votre image en photo rÃ©aliste tout en prÃ©servant le layout</p>
+                <p className="text-xs text-[#304035]/50 mb-2">Plan WinnerFlex, rendu 3D, sketch ou photo d'inspiration — l'IA transforme votre image en photo réaliste tout en préservant le layout</p>
                 <div className="mb-4 rounded-lg bg-[#5b9bd5]/5 border border-[#5b9bd5]/15 px-3 py-2 text-[10px] leading-relaxed text-[#304035]/65">
-                  <span className="font-bold text-[#5b9bd5]">Conseil fidÃ©litÃ©&nbsp;:</span> un plan ou un rendu 3D haute rÃ©solution donne les meilleurs rÃ©sultats. Un sketch flou ou une photo Pinterest d'une autre cuisine peut faire dÃ©river l'IA (changement de sol, fenÃªtre dÃ©placÃ©e, crÃ©dence inventÃ©e).
+                  <span className="font-bold text-[#5b9bd5]">Conseil fidélité&nbsp;:</span> un plan ou un rendu 3D haute résolution donne les meilleurs résultats. Un sketch flou ou une photo Pinterest d'une autre cuisine peut faire dériver l'IA (changement de sol, fenêtre déplacée, crédence inventée).
                 </div>
-                <Drop label="" sub="DÃ©posez un plan, perspective 3D, ou photo d'inspiration"
+                <Drop label="" sub="Déposez un plan, perspective 3D, ou photo d'inspiration"
                   onFile={setRendRefFile} file={rendRefFile} accent="#5b9bd5"
                   tips={['Plan WinnerFlex export image', 'Photo Pinterest qui inspire', 'Sketch / croquis main', 'Photo cuisine ressemblante']} />
                 {rendRefFile && rendRefURL && (
                   <div className="mt-3 relative rounded-xl overflow-hidden">
-                    <Image src={rendRefURL} alt="RÃ©fÃ©rence" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
+                    <Image src={rendRefURL} alt="Référence" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                     <button onClick={() => setRendRefFile(null)}
                       className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm">
                       <X className="h-3.5 w-3.5" />
                     </button>
                     <div className="absolute bottom-2 left-3">
-                      <span className="rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5">RÃ©fÃ©rence active</span>
+                      <span className="rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5">Référence active</span>
                     </div>
                   </div>
                 )}
-                {/* Phase 3 â€” warnings de qualitÃ© de l'image source (n'empÃªchent pas l'envoi) */}
+                {/* Phase 3 — warnings de qualité de l'image source (n'empêchent pas l'envoi) */}
                 {rendRefWarnings.length > 0 && (
                   <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 space-y-1">
                     {rendRefWarnings.map((w, idx) => (
@@ -2298,7 +2294,7 @@ export default function IaStudioPage() {
                 )}
               </div>
 
-              {/* Grand aperÃ§u du rÃ©sultat â€” deux tiers */}
+              {/* Grand aperçu du résultat — deux tiers */}
               <div className="space-y-4 lg:col-span-2">
 
                 {/* Erreur rendu */}
@@ -2306,7 +2302,7 @@ export default function IaStudioPage() {
                   <div className="fu rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-red-700">GÃ©nÃ©ration Ã©chouÃ©e</p>
+                      <p className="text-sm font-bold text-red-700">Génération échouée</p>
                       <p className="text-xs text-red-600/80 mt-0.5 leading-relaxed">{rendError}</p>
                     </div>
                     <button onClick={() => setRendError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0">
@@ -2325,18 +2321,18 @@ export default function IaStudioPage() {
                       </div>
                       <div>
                         <p className="font-black text-[#304035]">IA Rendu en action</p>
-                        <p className="text-xs text-[#304035]/50 mt-0.5">Flux 1.1 Pro Ultra Â· Traitement avancÃ©â€¦</p>
+                        <p className="text-xs text-[#304035]/50 mt-0.5">Flux 1.1 Pro Ultra · Traitement avancé…</p>
                       </div>
                     </div>
                     <ProgressBar steps={LOADING_STEPS_RENDU} color="#5b9bd5" />
                     <div className="flex items-center justify-between gap-3 rounded-xl bg-[#5b9bd5]/8 border border-[#5b9bd5]/15 px-3 py-2.5">
-                      <p className="text-[11px] leading-snug text-[#304035]/70">Le rendu rÃ©aliste prend <b className="text-[#304035]">1 Ã  3 min</b>. C'est normal â€” <b className="text-[#304035]">ne ferme pas la page</b>.</p>
+                      <p className="text-[11px] leading-snug text-[#304035]/70">Le rendu réaliste prend <b className="text-[#304035]">1 à 3 min</b>. C'est normal — <b className="text-[#304035]">ne ferme pas la page</b>.</p>
                       <span className="shrink-0 font-mono text-base font-black tabular-nums" style={{color:'#5b9bd5'}}><ElapsedTimer /></span>
                     </div>
                   </div>
                 )}
 
-                {/* RÃ©sultat rendu */}
+                {/* Résultat rendu */}
                 {rendResult && !rendLoading && (
                   <ResultCard
                     item={rendResult}
@@ -2347,50 +2343,50 @@ export default function IaStudioPage() {
                   />
                 )}
 
-                {/* Ã‰tat vide rendu (tips retirÃ©s pour cohÃ©rence avec Coloriste) */}
+                {/* État vide rendu (tips retirés pour cohérence avec Coloriste) */}
                 {!rendLoading && !rendResult && (
                   <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#5b9bd5]/20 bg-gradient-to-br from-[#5b9bd5]/5 to-white p-12 text-center lg:min-h-[400px]">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#5b9bd5]/10">
                       <ImageIcon className="h-7 w-7 text-[#5b9bd5]/60" />
                     </div>
-                    <p className="font-bold text-[#304035] mb-1.5">Votre rendu apparaÃ®tra ici</p>
+                    <p className="font-bold text-[#304035] mb-1.5">Votre rendu apparaîtra ici</p>
                     <p className="text-xs text-[#304035]/50 leading-relaxed">
-                      Importez une image de rÃ©fÃ©rence et lancez le rendu photorÃ©aliste.
+                      Importez une image de référence et lancez le rendu photoréaliste.
                     </p>
                   </div>
                 )}
 
-              </div>{/* /grand aperÃ§u (deux tiers) */}
+              </div>{/* /grand aperçu (deux tiers) */}
             </div>{/* /ligne 1 */}
 
-            {/* MatÃ©riaux â€” pleine largeur */}
+            {/* Matériaux — pleine largeur */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
                 <div className="flex items-center gap-2">
                   <Palette className="h-4 w-4 text-[#5b9bd5]" />
-                  <p className="font-bold text-[#304035]">MatÃ©riaux</p>
+                  <p className="font-bold text-[#304035]">Matériaux</p>
                 </div>
 
-                {/* Curseur RÃ©alisme â†” FidÃ©litÃ© du plan (07/06/2026) */}
+                {/* Curseur Réalisme ↔ Fidélité du plan (07/06/2026) */}
                 <div className="rounded-xl bg-[#5b9bd5]/5 border border-[#5b9bd5]/15 p-3.5">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/55">Style de rendu</p>
                     <span className="text-[11px] font-bold text-[#5b9bd5]">
-                      {rendRealism <= 33 ? 'FidÃ©litÃ© du plan' : rendRealism >= 67 ? 'PhotorÃ©alisme max' : 'Ã‰quilibrÃ©'}
+                      {rendRealism <= 33 ? 'Fidélité du plan' : rendRealism >= 67 ? 'Photoréalisme max' : 'Équilibré'}
                     </span>
                   </div>
                   <input
                     type="range" min={0} max={100} step={5} value={rendRealism}
                     onChange={e => setRendRealism(Number(e.target.value))}
                     className="w-full cursor-pointer accent-[#5b9bd5]"
-                    aria-label="RÃ©alisme contre fidÃ©litÃ© du plan"
+                    aria-label="Réalisme contre fidélité du plan"
                   />
                   <div className="mt-1 flex justify-between text-[9px] text-[#304035]/45">
-                    <span>â† Plan exact (plus 3D)</span>
-                    <span>Vraie photo (lÃ©ger risque de dÃ©rive) â†’</span>
+                    <span>← Plan exact (plus 3D)</span>
+                    <span>Vraie photo (léger risque de dérive) →</span>
                   </div>
                 </div>
 
-                {/* Option Haute rÃ©solution (â‰ˆ4K) â€” agrandissement IA, +10-25s */}
+                {/* Option Haute résolution (≈4K) — agrandissement IA, +10-25s */}
                 <label className="flex items-center gap-2.5 cursor-pointer rounded-xl border border-[#5b9bd5]/15 bg-[#5b9bd5]/5 px-3.5 py-3 hover:bg-[#5b9bd5]/8 transition-colors">
                   <input
                     type="checkbox"
@@ -2399,21 +2395,21 @@ export default function IaStudioPage() {
                     className="h-4 w-4 shrink-0 rounded border-[#5b9bd5]/40 text-[#5b9bd5] focus:ring-2 focus:ring-[#5b9bd5]/30"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-[#304035]">Haute rÃ©solution <span className="ml-1 text-[9px] text-[#5b9bd5] font-semibold">â‰ˆ4K Â· +10-25s</span></p>
-                    <p className="text-[10px] text-[#304035]/55 leading-snug mt-0.5">Agrandit le rendu final pour une image nette haute rÃ©solution. Ã€ activer pour le rendu prÃ©sentÃ© au client.</p>
+                    <p className="text-xs font-bold text-[#304035]">Haute résolution <span className="ml-1 text-[9px] text-[#5b9bd5] font-semibold">≈4K · +10-25s</span></p>
+                    <p className="text-[10px] text-[#304035]/55 leading-snug mt-0.5">Agrandit le rendu final pour une image nette haute résolution. À activer pour le rendu présenté au client.</p>
                   </div>
                 </label>
 
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">FaÃ§ades & couleurs <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Façades & couleurs <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
                   <input
                     value={rendFacades}
                     onChange={e => setRendFacades(e.target.value)}
-                    placeholder="Ex : ChÃªne fumÃ© mat, poignÃ©es laiton brossÃ©"
+                    placeholder="Ex : Chêne fumé mat, poignées laiton brossé"
                     className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#5b9bd5]/25 transition-shadow"
                   />
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {['ChÃªne fumÃ© mat', 'Noir laquÃ© brillant', 'Blanc satinÃ©', 'Vert sauge mat', 'Bleu nuit laquÃ©'].map(s => (
+                    {['Chêne fumé mat', 'Noir laqué brillant', 'Blanc satiné', 'Vert sauge mat', 'Bleu nuit laqué'].map(s => (
                       <button key={s} onClick={() => setRendFacades(s)}
                         className="rounded-full border border-[#5b9bd5]/20 bg-[#5b9bd5]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#5b9bd5]/50 hover:bg-[#5b9bd5]/10 transition-all">
                         {s}
@@ -2442,17 +2438,17 @@ export default function IaStudioPage() {
                   <TextureUpload value={rendPlanTex} onPick={setRendPlanTex} onClear={() => setRendPlanTex(null)} />
                 </div>
 
-                {/* SOL â€” optionnel, n'est injectÃ© dans le prompt que si rempli */}
+                {/* SOL — optionnel, n'est injecté dans le prompt que si rempli */}
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Sol <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
                   <input
                     value={rendSol}
                     onChange={e => setRendSol(e.target.value)}
-                    placeholder="Ex : Parquet chÃªne contrecollÃ©, carrelage grand format gris"
+                    placeholder="Ex : Parquet chêne contrecollé, carrelage grand format gris"
                     className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#5b9bd5]/25 transition-shadow"
                   />
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {['Parquet chÃªne clair', 'Carrelage grand format gris', 'BÃ©ton cirÃ©', 'Travertin', 'Tomettes terre cuite'].map(s => (
+                    {['Parquet chêne clair', 'Carrelage grand format gris', 'Béton ciré', 'Travertin', 'Tomettes terre cuite'].map(s => (
                       <button key={s} onClick={() => setRendSol(s)}
                         className="rounded-full border border-[#5b9bd5]/20 bg-[#5b9bd5]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#5b9bd5]/50 hover:bg-[#5b9bd5]/10 transition-all">
                         {s}
@@ -2462,7 +2458,7 @@ export default function IaStudioPage() {
                   <TextureUpload value={rendSolTex} onPick={setRendSolTex} onClear={() => setRendSolTex(null)} />
                 </div>
 
-                {/* MURS â€” optionnel, n'est injectÃ© dans le prompt que si rempli */}
+                {/* MURS — optionnel, n'est injecté dans le prompt que si rempli */}
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Murs <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
                   <input
@@ -2472,7 +2468,7 @@ export default function IaStudioPage() {
                     className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#5b9bd5]/25 transition-shadow"
                   />
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {['Peinture mate blanche', 'CrÃ©dence cÃ©ramique blanche', 'Lambris bois clair', 'FaÃ¯ence mÃ©tro blanche', 'Pierre apparente'].map(s => (
+                    {['Peinture mate blanche', 'Crédence céramique blanche', 'Lambris bois clair', 'Faïence métro blanche', 'Pierre apparente'].map(s => (
                       <button key={s} onClick={() => setRendMurs(s)}
                         className="rounded-full border border-[#5b9bd5]/20 bg-[#5b9bd5]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#5b9bd5]/50 hover:bg-[#5b9bd5]/10 transition-all">
                         {s}
@@ -2488,21 +2484,21 @@ export default function IaStudioPage() {
                 <DossierPicker />
                 <button onClick={runRendu}
                   disabled={rendLoading || !rendRefFile}
-                  title={!rendRefFile ? 'Importez une image de rÃ©fÃ©rence (plan, rendu 3D, sketch ou inspiration)' : undefined}
+                  title={!rendRefFile ? 'Importez une image de référence (plan, rendu 3D, sketch ou inspiration)' : undefined}
                   className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                   style={{background:'linear-gradient(135deg,#5b9bd5 0%,#3a78b5 100%)'}}>
                   <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
                     {rendLoading
-                      ? <><Loader2 className="h-4 w-4 animate-spin" />GÃ©nÃ©ration du renduâ€¦</>
+                      ? <><Loader2 className="h-4 w-4 animate-spin" />Génération du rendu…</>
                       : !rendRefFile
-                        ? <><FileImage className="h-4 w-4" />Importez d'abord une image de rÃ©fÃ©rence</>
-                        : <><Wand2 className="h-4 w-4" />GÃ©nÃ©rer le rendu photorÃ©aliste<ArrowRight className="h-4 w-4 ml-1" /></>
+                        ? <><FileImage className="h-4 w-4" />Importez d'abord une image de référence</>
+                        : <><Wand2 className="h-4 w-4" />Générer le rendu photoréaliste<ArrowRight className="h-4 w-4 ml-1" /></>
                     }
                   </span>
                 </button>
               </div>
 
-            {/* Historique (Â½) + Galerie (Â½) cÃ´te Ã  cÃ´te */}
+            {/* Historique (½) + Galerie (½) côte à côte */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
               <HistoryPanel
                 filterType="PHOTOREALISM_ENHANCE"
@@ -2516,26 +2512,26 @@ export default function IaStudioPage() {
           </div>
         )}
 
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MODULE RENDU RÃ‰ALISTE */}
+        {/* ══════════════════════════ MODULE RENDU RÉALISTE */}
         {tab === 'architect' && (
           <div className="fu space-y-6">
 
-            {/* Ligne 1 : Image source (â…“) + Grand aperÃ§u (â…”) */}
+            {/* Ligne 1 : Image source (⅓) + Grand aperçu (⅔) */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
 
-              {/* Image source â€” un tiers */}
+              {/* Image source — un tiers */}
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 flex flex-col lg:min-h-[400px]">
                 <div className="flex items-center gap-2 mb-1">
                   <FileImage className="h-4 w-4 text-[#8a6cc2]" />
                   <p className="font-bold text-[#304035]">Image source <span className="ml-1 rounded-full bg-[#8a6cc2]/10 text-[#8a6cc2] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
                 </div>
-                <p className="text-xs text-[#304035]/50 mb-2">Plan, rendu 3D, sketch ou photo â€” l'IA le transforme en photo rÃ©aliste en prÃ©servant la gÃ©omÃ©trie.</p>
+                <p className="text-xs text-[#304035]/50 mb-2">Plan, rendu 3D, sketch ou photo — l'IA le transforme en photo réaliste en préservant la géométrie.</p>
                 <div className="mb-4 rounded-lg bg-[#8a6cc2]/5 border border-[#8a6cc2]/15 px-3 py-2 text-[10px] leading-relaxed text-[#304035]/65">
-                  <span className="font-bold text-[#8a6cc2]">Conseil&nbsp;:</span> une image nette et bien cadrÃ©e donne les meilleurs rÃ©sultats. PrÃ©cisez les matÃ©riaux ci-dessous pour rÃ©duire les erreurs de rendu.
+                  <span className="font-bold text-[#8a6cc2]">Conseil&nbsp;:</span> une image nette et bien cadrée donne les meilleurs résultats. Précisez les matériaux ci-dessous pour réduire les erreurs de rendu.
                 </div>
-                <Drop label="" sub="DÃ©posez un plan, perspective 3D, sketch ou photo"
+                <Drop label="" sub="Déposez un plan, perspective 3D, sketch ou photo"
                   onFile={setArchRefFile} file={archRefFile} accent="#8a6cc2"
-                  tips={['Export image WinnerFlex', 'Rendu 3D ou perspective', 'Sketch / croquis main', 'Photo de la piÃ¨ce']} />
+                  tips={['Export image WinnerFlex', 'Rendu 3D ou perspective', 'Sketch / croquis main', 'Photo de la pièce']} />
                 {archRefFile && archRefURL && (
                   <div className="mt-3 relative rounded-xl overflow-hidden">
                     <Image src={archRefURL} alt="Source" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
@@ -2551,7 +2547,7 @@ export default function IaStudioPage() {
                 )}
               </div>
 
-              {/* Grand aperÃ§u du rÃ©sultat â€” deux tiers */}
+              {/* Grand aperçu du résultat — deux tiers */}
               <div className="space-y-4 lg:col-span-2">
 
                 {/* Erreur */}
@@ -2559,7 +2555,7 @@ export default function IaStudioPage() {
                   <div className="fu rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-red-700">GÃ©nÃ©ration Ã©chouÃ©e</p>
+                      <p className="text-sm font-bold text-red-700">Génération échouée</p>
                       <p className="text-xs text-red-600/80 mt-0.5 leading-relaxed">{archError}</p>
                     </div>
                     <button onClick={() => setArchError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0">
@@ -2577,19 +2573,19 @@ export default function IaStudioPage() {
                         <Building2 className="h-6 w-6 text-white sh" />
                       </div>
                       <div>
-                        <p className="font-black text-[#304035]">Rendu RÃ©aliste en action</p>
-                        <p className="text-xs text-[#304035]/50 mt-0.5">Rendu photorÃ©alisteâ€¦</p>
+                        <p className="font-black text-[#304035]">Rendu Réaliste en action</p>
+                        <p className="text-xs text-[#304035]/50 mt-0.5">Rendu photoréaliste…</p>
                       </div>
                     </div>
                     <ProgressBar steps={LOADING_STEPS_ARCHITECT} color="#8a6cc2" />
                     <div className="flex items-center justify-between gap-3 rounded-xl bg-[#8a6cc2]/8 border border-[#8a6cc2]/15 px-3 py-2.5">
-                      <p className="text-[11px] leading-snug text-[#304035]/70">Le rendu prend en gÃ©nÃ©ral <b className="text-[#304035]">15 Ã  40 s</b>. <b className="text-[#304035]">Ne fermez pas la page</b>.</p>
+                      <p className="text-[11px] leading-snug text-[#304035]/70">Le rendu prend en général <b className="text-[#304035]">15 à 40 s</b>. <b className="text-[#304035]">Ne fermez pas la page</b>.</p>
                       <span className="shrink-0 font-mono text-base font-black tabular-nums" style={{color:'#8a6cc2'}}><ElapsedTimer /></span>
                     </div>
                   </div>
                 )}
 
-                {/* RÃ©sultat */}
+                {/* Résultat */}
                 {archResult && !archLoading && (
                   <ResultCard
                     item={archResult}
@@ -2600,38 +2596,38 @@ export default function IaStudioPage() {
                   />
                 )}
 
-                {/* Ã‰tat vide */}
+                {/* État vide */}
                 {!archLoading && !archResult && (
                   <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#8a6cc2]/20 bg-gradient-to-br from-[#8a6cc2]/5 to-white p-12 text-center lg:min-h-[400px]">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#8a6cc2]/10">
                       <Building2 className="h-7 w-7 text-[#8a6cc2]/60" />
                     </div>
-                    <p className="font-bold text-[#304035] mb-1.5">Votre rendu apparaÃ®tra ici</p>
+                    <p className="font-bold text-[#304035] mb-1.5">Votre rendu apparaîtra ici</p>
                     <p className="text-xs text-[#304035]/50 leading-relaxed">
                       Importez une image source et lancez le rendu.
                     </p>
                   </div>
                 )}
 
-              </div>{/* /grand aperÃ§u */}
+              </div>{/* /grand aperçu */}
             </div>{/* /ligne 1 */}
 
-            {/* ParamÃ¨tres â€” pleine largeur */}
+            {/* Paramètres — pleine largeur */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <Palette className="h-4 w-4 text-[#8a6cc2]" />
-                <p className="font-bold text-[#304035]">ParamÃ¨tres du rendu</p>
+                <p className="font-bold text-[#304035]">Paramètres du rendu</p>
               </div>
 
-              {/* Type de rendu : intÃ©rieur / extÃ©rieur */}
+              {/* Type de rendu : intérieur / extérieur */}
               <ChipSelector<'interior' | 'exterior'>
                 label="Type de rendu"
                 accent="#8a6cc2"
                 value={archMode}
                 onChange={setArchMode}
                 options={[
-                  { value: 'interior', label: 'IntÃ©rieur', icon: Home },
-                  { value: 'exterior', label: 'ExtÃ©rieur', icon: Building2 },
+                  { value: 'interior', label: 'Intérieur', icon: Home },
+                  { value: 'exterior', label: 'Extérieur', icon: Building2 },
                 ]}
               />
 
@@ -2641,13 +2637,13 @@ export default function IaStudioPage() {
                 <input
                   value={archAmbiance}
                   onChange={e => setArchAmbiance(e.target.value)}
-                  placeholder="Ex : lumiÃ¨re chaude du soir, ambiance cosy, photo professionnelle"
+                  placeholder="Ex : lumière chaude du soir, ambiance cosy, photo professionnelle"
                   className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
                 />
-                <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Astuce fidÃ©litÃ© : dÃ©crivez prÃ©cisÃ©ment les matÃ©riaux pour limiter les inventions de l'IA. Les contraintes anti-erreur (pas d'objets en trop, gÃ©omÃ©trie prÃ©servÃ©e) sont dÃ©jÃ  appliquÃ©es automatiquement.</p>
+                <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Astuce fidélité : décrivez précisément les matériaux pour limiter les inventions de l'IA. Les contraintes anti-erreur (pas d'objets en trop, géométrie préservée) sont déjà appliquées automatiquement.</p>
               </div>
 
-              {/* Option Haute rÃ©solution (4K) */}
+              {/* Option Haute résolution (4K) */}
               <label className="flex items-center gap-2.5 cursor-pointer rounded-xl border border-[#8a6cc2]/15 bg-[#8a6cc2]/5 px-3.5 py-3 hover:bg-[#8a6cc2]/8 transition-colors">
                 <input
                   type="checkbox"
@@ -2656,21 +2652,21 @@ export default function IaStudioPage() {
                   className="h-4 w-4 shrink-0 rounded border-[#8a6cc2]/40 text-[#8a6cc2] focus:ring-2 focus:ring-[#8a6cc2]/30"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-[#304035]">Haute rÃ©solution <span className="ml-1 text-[9px] text-[#8a6cc2] font-semibold">4K Â· +qq s</span></p>
-                  <p className="text-[10px] text-[#304035]/55 leading-snug mt-0.5">Agrandit le rendu final en 4K. Ã€ activer pour le rendu prÃ©sentÃ© au client.</p>
+                  <p className="text-xs font-bold text-[#304035]">Haute résolution <span className="ml-1 text-[9px] text-[#8a6cc2] font-semibold">4K · +qq s</span></p>
+                  <p className="text-[10px] text-[#304035]/55 leading-snug mt-0.5">Agrandit le rendu final en 4K. À activer pour le rendu présenté au client.</p>
                 </div>
               </label>
 
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">FaÃ§ades & couleurs <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Façades & couleurs <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
                 <input
                   value={archFacades}
                   onChange={e => setArchFacades(e.target.value)}
-                  placeholder="Ex : ChÃªne fumÃ© mat, poignÃ©es laiton brossÃ©"
+                  placeholder="Ex : Chêne fumé mat, poignées laiton brossé"
                   className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
                 />
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {['ChÃªne fumÃ© mat', 'Noir laquÃ© brillant', 'Blanc satinÃ©', 'Vert sauge mat', 'Bleu nuit laquÃ©'].map(s => (
+                  {['Chêne fumé mat', 'Noir laqué brillant', 'Blanc satiné', 'Vert sauge mat', 'Bleu nuit laqué'].map(s => (
                     <button key={s} onClick={() => setArchFacades(s)}
                       className="rounded-full border border-[#8a6cc2]/20 bg-[#8a6cc2]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#8a6cc2]/50 hover:bg-[#8a6cc2]/10 transition-all">
                       {s}
@@ -2702,7 +2698,7 @@ export default function IaStudioPage() {
                 <input
                   value={archSol}
                   onChange={e => setArchSol(e.target.value)}
-                  placeholder="Ex : Parquet chÃªne contrecollÃ©, carrelage grand format gris"
+                  placeholder="Ex : Parquet chêne contrecollé, carrelage grand format gris"
                   className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
                 />
               </div>
@@ -2712,7 +2708,7 @@ export default function IaStudioPage() {
                 <input
                   value={archMurs}
                   onChange={e => setArchMurs(e.target.value)}
-                  placeholder="Ex : Peinture mate blanche, lambris bois, crÃ©dence cÃ©ramique"
+                  placeholder="Ex : Peinture mate blanche, lambris bois, crédence céramique"
                   className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
                 />
               </div>
@@ -2728,16 +2724,16 @@ export default function IaStudioPage() {
                 style={{background:'linear-gradient(135deg,#8a6cc2 0%,#6f54a8 100%)'}}>
                 <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
                   {archLoading
-                    ? <><Loader2 className="h-4 w-4 animate-spin" />GÃ©nÃ©ration du renduâ€¦</>
+                    ? <><Loader2 className="h-4 w-4 animate-spin" />Génération du rendu…</>
                     : !archRefFile
                       ? <><FileImage className="h-4 w-4" />Importez d'abord une image source</>
-                      : <><Building2 className="h-4 w-4" />GÃ©nÃ©rer le rendu<ArrowRight className="h-4 w-4 ml-1" /></>
+                      : <><Building2 className="h-4 w-4" />Générer le rendu<ArrowRight className="h-4 w-4 ml-1" /></>
                   }
                 </span>
               </button>
             </div>
 
-            {/* Historique (Â½) + Galerie (Â½) cÃ´te Ã  cÃ´te */}
+            {/* Historique (½) + Galerie (½) côte à côte */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
               <HistoryPanel
                 filterType="EDIT"
@@ -2751,7 +2747,7 @@ export default function IaStudioPage() {
           </div>
         )}
 
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• MODULE COLORISTE IA+ */}
+        {/* ══════════════════════════ MODULE COLORISTE IA+ */}
         {tab === 'coloriste-archi' && (
           <div className="fu space-y-6">
 
@@ -2762,10 +2758,10 @@ export default function IaStudioPage() {
                   <Paintbrush className="h-4 w-4 text-[#2f9e8f]" />
                   <p className="font-bold text-[#304035]">Photo de la cuisine <span className="ml-1 rounded-full bg-[#2f9e8f]/10 text-[#2f9e8f] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
                 </div>
-                <p className="text-xs text-[#304035]/50 mb-2">Importez la photo, choisissez vos couleurs ci-dessous â€” l'IA recolorise la cuisine.</p>
-                <Drop label="" sub="DÃ©posez la photo de la cuisine"
+                <p className="text-xs text-[#304035]/50 mb-2">Importez la photo, choisissez vos couleurs ci-dessous — l'IA recolorise la cuisine.</p>
+                <Drop label="" sub="Déposez la photo de la cuisine"
                   onFile={setPhotoFile} file={photoFile} accent="#2f9e8f"
-                  tips={['Photo de la cuisine existante', 'Showroom / catalogue', 'Bien Ã©clairÃ©e et nette']} />
+                  tips={['Photo de la cuisine existante', 'Showroom / catalogue', 'Bien éclairée et nette']} />
                 {photoFile && photoURL && (
                   <div className="mt-3 relative rounded-xl overflow-hidden">
                     <Image src={photoURL} alt="Cuisine" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
@@ -2777,13 +2773,13 @@ export default function IaStudioPage() {
                 )}
               </div>
 
-              {/* AperÃ§u rÃ©sultat */}
+              {/* Aperçu résultat */}
               <div className="space-y-4 lg:col-span-2">
                 {colorArchError && !colorArchLoading && (
                   <div className="fu rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-red-700">Colorisation Ã©chouÃ©e</p>
+                      <p className="text-sm font-bold text-red-700">Colorisation échouée</p>
                       <p className="text-xs text-red-600/80 mt-0.5 leading-relaxed">{colorArchError}</p>
                     </div>
                     <button onClick={() => setColorArchError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0"><X className="h-4 w-4" /></button>
@@ -2797,12 +2793,12 @@ export default function IaStudioPage() {
                       </div>
                       <div>
                         <p className="font-black text-[#304035]">Coloriste IA+ en action</p>
-                        <p className="text-xs text-[#304035]/50 mt-0.5">Recolorisationâ€¦</p>
+                        <p className="text-xs text-[#304035]/50 mt-0.5">Recolorisation…</p>
                       </div>
                     </div>
                     <ProgressBar steps={LOADING_STEPS_COLOR} color="#2f9e8f" />
                     <div className="flex items-center justify-between gap-3 rounded-xl bg-[#2f9e8f]/8 border border-[#2f9e8f]/15 px-3 py-2.5">
-                      <p className="text-[11px] leading-snug text-[#304035]/70">Recolorisation en gÃ©nÃ©ral <b className="text-[#304035]">15 Ã  40 s</b>. <b className="text-[#304035]">Ne ferme pas la page</b>.</p>
+                      <p className="text-[11px] leading-snug text-[#304035]/70">Recolorisation en général <b className="text-[#304035]">15 à 40 s</b>. <b className="text-[#304035]">Ne ferme pas la page</b>.</p>
                       <span className="shrink-0 font-mono text-base font-black tabular-nums" style={{color:'#2f9e8f'}}><ElapsedTimer /></span>
                     </div>
                   </div>
@@ -2813,7 +2809,7 @@ export default function IaStudioPage() {
                 {!colorArchLoading && !colorArchResult && (
                   <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#2f9e8f]/20 bg-gradient-to-br from-[#2f9e8f]/5 to-white p-12 text-center lg:min-h-[400px]">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#2f9e8f]/10"><Paintbrush className="h-7 w-7 text-[#2f9e8f]/60" /></div>
-                    <p className="font-bold text-[#304035] mb-1.5">Votre colorisation apparaÃ®tra ici</p>
+                    <p className="font-bold text-[#304035] mb-1.5">Votre colorisation apparaîtra ici</p>
                     <p className="text-xs text-[#304035]/50 leading-relaxed">Importez une photo, choisissez les couleurs et lancez la colorisation.</p>
                   </div>
                 )}
@@ -2830,8 +2826,8 @@ export default function IaStudioPage() {
               </div>
               <div className="grid grid-cols-3 gap-3">
                 {([
-                  { label: 'FaÃ§ades',        val: facadeCol,  set: setFacadeCol },
-                  { label: 'PoignÃ©es',       val: poigneeCol, set: setPoigneeCol },
+                  { label: 'Façades',        val: facadeCol,  set: setFacadeCol },
+                  { label: 'Poignées',       val: poigneeCol, set: setPoigneeCol },
                   { label: 'Plan de travail',val: planCol,    set: setPlanCol },
                 ] as const).map(({ label, val, set }) => (
                   <label key={label} className="flex flex-col gap-1.5">
@@ -2844,16 +2840,16 @@ export default function IaStudioPage() {
                 ))}
               </div>
               <ChipSelector<FinishType>
-                label="Finition des faÃ§ades" accent="#2f9e8f"
+                label="Finition des façades" accent="#2f9e8f"
                 value={facadeFinish} onChange={(v) => { setFacadeFinish(v); }}
                 options={[
-                  { value: 'mat', label: 'Mat' }, { value: 'satinÃ©', label: 'SatinÃ©' },
-                  { value: 'brillant', label: 'Brillant' }, { value: 'brossÃ©', label: 'BrossÃ©' },
+                  { value: 'mat', label: 'Mat' }, { value: 'satiné', label: 'Satiné' },
+                  { value: 'brillant', label: 'Brillant' }, { value: 'brossé', label: 'Brossé' },
                   { value: 'bois', label: 'Bois' },
                 ]}
               />
               <ChipSelector<LightingType>
-                label="Ã‰clairage" accent="#2f9e8f"
+                label="Éclairage" accent="#2f9e8f"
                 value={colorLight} onChange={(v) => { setColorLight(v); }}
                 options={[
                   { value: 'naturelle', label: 'Naturelle', icon: Sun },
@@ -2873,7 +2869,7 @@ export default function IaStudioPage() {
                 style={{background:'linear-gradient(135deg,#2f9e8f 0%,#247a6f 100%)'}}>
                 <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
                   {colorArchLoading
-                    ? <><Loader2 className="h-4 w-4 animate-spin" />Colorisationâ€¦</>
+                    ? <><Loader2 className="h-4 w-4 animate-spin" />Colorisation…</>
                     : !photoFile
                       ? <><FileImage className="h-4 w-4" />Importez d'abord la photo</>
                       : <><Paintbrush className="h-4 w-4" />Coloriser<ArrowRight className="h-4 w-4 ml-1" /></>
@@ -2890,12 +2886,12 @@ export default function IaStudioPage() {
           </div>
         )}
 
-        {/* Galerie dÃ©placÃ©e dans chaque module (cÃ´te Ã  cÃ´te avec l'historique)
-            via <GalleryCard/> â€” voir le bas des onglets Coloriste et Rendu. */}
+        {/* Galerie déplacée dans chaque module (côte à côte avec l'historique)
+            via <GalleryCard/> — voir le bas des onglets Coloriste et Rendu. */}
 
       </div>
 
-      {/* â”€â”€ Modale : sauvegarder le visuel dans le(s) sous-dossier(s) choisi(s) â”€â”€ */}
+      {/* ── Modale : sauvegarder le visuel dans le(s) sous-dossier(s) choisi(s) ── */}
       {saveTarget && (() => {
         const sd = allDossiers.find(d => d.id === saveDossierId);
         const subs = (sd?.subfolders ?? []).map(sf => sf.label);
@@ -2905,7 +2901,7 @@ export default function IaStudioPage() {
           <div onClick={() => setSaveTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(26,42,30,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, background: '#fff', borderRadius: 18, padding: 22, boxShadow: '0 24px 60px rgba(0,0,0,0.3)', maxHeight: '88vh', overflow: 'auto' }}>
               <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: '#1a2a1e' }}>Sauvegarder le visuel</h3>
-              <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#6b6256' }}>Choisis le dossier et le ou les sous-dossiers oÃ¹ enregistrer le rendu.</p>
+              <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#6b6256' }}>Choisis le dossier et le ou les sous-dossiers où enregistrer le rendu.</p>
               {saveTarget.item.imageUrl && (
                 <img src={saveTarget.item.imageUrl} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 12, marginBottom: 16 }} />
               )}
@@ -2914,12 +2910,12 @@ export default function IaStudioPage() {
                 style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(48,64,53,0.18)', padding: '9px 12px', fontSize: 13.5, color: '#1a2a1e', background: '#fff', marginBottom: 16 }}>
                 {allDossiers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(48,64,53,0.5)', marginBottom: 6 }}>Sous-dossier(s) â€” coche un ou plusieurs</label>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(48,64,53,0.5)', marginBottom: 6 }}>Sous-dossier(s) — coche un ou plusieurs</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 220, overflow: 'auto', border: '1px solid rgba(48,64,53,0.1)', borderRadius: 10, padding: 8, marginBottom: 18 }}>
                 {options.map(label => (
                   <label key={label} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 8, cursor: 'pointer', background: saveSubfolders.includes(label) ? 'rgba(166,119,73,0.10)' : 'transparent' }}>
                     <input type="checkbox" checked={saveSubfolders.includes(label)} onChange={() => toggle(label)} />
-                    <span style={{ fontSize: 13, color: '#22281f' }}>{label}{label === IA_SUBFOLDER_LABEL ? ' (par dÃ©faut)' : ''}</span>
+                    <span style={{ fontSize: 13, color: '#22281f' }}>{label}{label === IA_SUBFOLDER_LABEL ? ' (par défaut)' : ''}</span>
                   </label>
                 ))}
               </div>
