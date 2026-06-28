@@ -186,7 +186,7 @@ export default function DashboardPage() {
             <span className="text-sm font-semibold text-[#304035]/70">En finition</span>
             <FolderCheck className="h-4 w-4 text-emerald-500" />
           </div>
-          <div className="text-2xl font-bold text-emerald-600">{finition.length}</div>
+          <div className="text-2xl font-bold text-emerald-600">{(stats as any)?.projectsReception ?? finition.length}</div>
           <div className="text-xs text-[#304035]/40 mt-1">Projets en RECEPTION</div>
         </div>
       </div>

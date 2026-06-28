@@ -104,6 +104,41 @@ async function callColoristAPI(params: {
   return { imageUrl: null, error: message };
 }
 
+/**
+ * Petit bouton « Importer ma texture » sous une catégorie matériau (Rendu).
+ * Convertit l'image en data URL compressée. Quand une texture est posée, le
+ * moteur la réplique fidèlement (Kontext multi). 100 % optionnel.
+ */
+function TextureUpload({ value, onPick, onClear }: { value: string | null; onPick: (d: string) => void; onClear: () => void }) {
+  return (
+    <div className="mt-2">
+      {value ? (
+        <div className="inline-flex items-center gap-2 rounded-lg border border-[#5b9bd5]/30 bg-[#5b9bd5]/5 px-2 py-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt="texture importée" className="h-8 w-8 rounded object-cover border border-[#304035]/15" />
+          <span className="text-[10px] font-semibold text-[#304035]/70">Texture importée</span>
+          <button type="button" onClick={onClear} className="text-[10px] font-bold text-[#b91c1c] hover:underline">Retirer</button>
+        </div>
+      ) : (
+        <label className="inline-flex items-center gap-1.5 cursor-pointer rounded-full border border-dashed border-[#5b9bd5]/40 bg-[#5b9bd5]/5 px-3 py-1 text-[10px] font-semibold text-[#304035]/65 hover:border-[#5b9bd5]/70 hover:bg-[#5b9bd5]/10 transition-all">
+          <Upload className="h-3 w-3" /> Importer ma texture
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.currentTarget.value = '';
+              if (!f) return;
+              try { onPick(await compressImageToDataUrl(f, 1024)); } catch { /* ignore */ }
+            }}
+          />
+        </label>
+      )}
+    </div>
+  );
+}
+
 async function callRenduAPI(params: {
   facades: string; planTravail: string; style: StyleType;
   lightingStyle: LightingType; roomSize: RoomSizeType;
@@ -129,6 +164,11 @@ async function callRenduAPI(params: {
   /** Option « Haute résolution » : agrandit le rendu final (~4K). */
   highRes?: boolean;
   numImages?: number;
+  /** Textures importées par l'utilisateur (data URLs) — optionnelles. */
+  facadeTextureDataUrl?: string;
+  planTextureDataUrl?: string;
+  solTextureDataUrl?: string;
+  murTextureDataUrl?: string;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/rendu', {
     method: 'POST',
@@ -1118,6 +1158,12 @@ export default function IaStudioPage() {
   // prompt que si l'utilisateur les renseigne.
   const [rendSol,      setRendSol]      = useState('');
   const [rendMurs,     setRendMurs]     = useState('');
+  // Textures importées par l'utilisateur (data URLs) — optionnelles. Quand
+  // présentes, le moteur réplique la matière réelle (Kontext multi).
+  const [rendFacadeTex, setRendFacadeTex] = useState<string | null>(null);
+  const [rendPlanTex,   setRendPlanTex]   = useState<string | null>(null);
+  const [rendSolTex,    setRendSolTex]    = useState<string | null>(null);
+  const [rendMurTex,    setRendMurTex]    = useState<string | null>(null);
   const [rendLoading,  setRendLoading]  = useState(false);
   const [rendResult,   setRendResult]   = useState<Item|null>(null);
   const [rendError,    setRendError]    = useState<string|null>(null);
@@ -1526,6 +1572,10 @@ export default function IaStudioPage() {
         highRes:               rendHighRes,
         userRetryCount:        nextRetryCount,
         numImages:             rendNumVariants,
+        facadeTextureDataUrl:  rendFacadeTex ?? undefined,
+        planTextureDataUrl:    rendPlanTex ?? undefined,
+        solTextureDataUrl:     rendSolTex ?? undefined,
+        murTextureDataUrl:     rendMurTex ?? undefined,
       });
 
       if (result.error) { setRendError(result.error); setRendLoading(false); return; }
@@ -2366,6 +2416,7 @@ export default function IaStudioPage() {
                       </button>
                     ))}
                   </div>
+                  <TextureUpload value={rendFacadeTex} onPick={setRendFacadeTex} onClear={() => setRendFacadeTex(null)} />
                 </div>
 
                 <div>
@@ -2384,6 +2435,7 @@ export default function IaStudioPage() {
                       </button>
                     ))}
                   </div>
+                  <TextureUpload value={rendPlanTex} onPick={setRendPlanTex} onClear={() => setRendPlanTex(null)} />
                 </div>
 
                 {/* SOL — optionnel, n'est injecté dans le prompt que si rempli */}
@@ -2403,6 +2455,7 @@ export default function IaStudioPage() {
                       </button>
                     ))}
                   </div>
+                  <TextureUpload value={rendSolTex} onPick={setRendSolTex} onClear={() => setRendSolTex(null)} />
                 </div>
 
                 {/* MURS — optionnel, n'est injecté dans le prompt que si rempli */}
@@ -2422,6 +2475,7 @@ export default function IaStudioPage() {
                       </button>
                     ))}
                   </div>
+                  <TextureUpload value={rendMurTex} onPick={setRendMurTex} onClear={() => setRendMurTex(null)} />
                 </div>
               </div>
 

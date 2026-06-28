@@ -726,6 +726,77 @@ export async function generateRenduFromReferenceKontext(
 }
 
 /**
+ * Rendu Réaliste avec TEXTURES importées par l'utilisateur — Kontext MULTI.
+ * image 1 = scène/plan source (géométrie à préserver), images 2..N = textures
+ * de référence (façade, plan de travail, sol, mur) que le moteur doit répliquer
+ * fidèlement. Même pattern éprouvé que le Coloriste. Appelé UNIQUEMENT quand au
+ * moins une texture est fournie ; sinon la route garde le chemin single.
+ */
+export async function generateRenduFromReferenceKontextMulti(
+  params: RenduParams,
+  referenceImageUrl: string,
+  textureUrls: { facade?: string; plan?: string; sol?: string; mur?: string },
+  numImages: number = 1,
+): Promise<GenerationResult> {
+  ensureConfigured();
+  const tStart = Date.now();
+  const built = buildRenduFromImageKontextPrompt(params);
+
+  const imageUrls: string[] = [referenceImageUrl];
+  const parts: string[] = [];
+  let idx = 2;
+  if (textureUrls.facade) { imageUrls.push(textureUrls.facade); parts.push(`the cabinet fronts / façades must replicate the exact material, color, pattern and finish shown in image ${idx}`); idx++; }
+  if (textureUrls.plan)   { imageUrls.push(textureUrls.plan);   parts.push(`the worktop / countertop must replicate the exact material, color, veining and finish shown in image ${idx}`); idx++; }
+  if (textureUrls.sol)    { imageUrls.push(textureUrls.sol);    parts.push(`the floor must replicate the exact material, color and pattern shown in image ${idx}`); idx++; }
+  if (textureUrls.mur)    { imageUrls.push(textureUrls.mur);    parts.push(`the walls must replicate the exact material, color and finish shown in image ${idx}`); idx++; }
+
+  const prompt = parts.length > 0
+    ? `${built.prompt}\n\nREFERENCE TEXTURES: image 1 is the scene to transform; ${parts.join('; ')}. Keep the geometry, layout, perspective and proportions of image 1 strictly unchanged — only apply the materials from the reference textures.`
+    : built.prompt;
+
+  try {
+    console.log(`[fal.subscribe] ${FLUX_MODEL_KONTEXT_MULTI} (rendu+textures) images=${imageUrls.length}`);
+    const realism = typeof params.realism === 'number' ? Math.min(Math.max(params.realism, 0), 100) : 60;
+    const guidanceVal = +(3.5 + (realism / 100) * 2.5).toFixed(2);
+    const result = await fal.subscribe(FLUX_MODEL_KONTEXT_MULTI, {
+      input: {
+        prompt:           prompt,
+        image_urls:       imageUrls,
+        num_images:       Math.min(Math.max(numImages, 1), 4),
+        seed:             built.seed,
+        output_format:    'jpeg',
+        safety_tolerance: '2',
+        guidance_scale:   guidanceVal,
+      } as never,
+      logs: false,
+    });
+    const urls = extractImageUrls(result.data);
+    console.log(`[fal.subscribe] ${FLUX_MODEL_KONTEXT_MULTI} (rendu+textures) OK en ${Date.now() - tStart}ms (${urls.length} URL)`);
+    return {
+      success:    urls.length > 0,
+      imageUrl:   urls[0] ?? null,
+      imageUrls:  urls,
+      prompt:     { ...built, prompt },
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[fal.subscribe] ${FLUX_MODEL_KONTEXT_MULTI} (rendu+textures) ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
+    return {
+      success:    false,
+      imageUrl:   null,
+      imageUrls:  [],
+      prompt:     { ...built, prompt },
+      attempts:   1,
+      durationMs: Date.now() - tStart,
+      error:      message,
+    };
+  }
+}
+
+/**
  * Agrandissement IA du rendu final vers une image haute résolution (~4K).
  * Option « Haute résolution » activée par l'utilisateur. NON bloquant pour
  * l'appelant : en cas d'échec (endpoint indisponible, params, etc.), renvoie

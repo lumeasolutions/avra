@@ -17,6 +17,7 @@ export class StatsService {
     let inVente = 0;
     let signes = 0;
     let perdus = 0;
+    let reception = 0;
     let caTotal = 0;
     let achatTotal = 0;
 
@@ -28,6 +29,8 @@ export class StatsService {
         signes += result._count;
       } else if (result.lifecycleStatus === 'PERDU') {
         perdus = result._count;
+      } else if (result.lifecycleStatus === 'RECEPTION') {
+        reception = result._count;
       }
 
       caTotal += Number(result._sum.saleAmount ?? 0);
@@ -40,6 +43,7 @@ export class StatsService {
       projectsInVente: inVente,
       projectsSignes: signes,
       projectsPerdus: perdus,
+      projectsReception: reception,
       caTotal,
       achatTotal,
       margeTotal: caTotal - achatTotal,

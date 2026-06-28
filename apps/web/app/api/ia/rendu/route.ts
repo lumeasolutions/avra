@@ -12,6 +12,7 @@ import { RenduParams } from '@/lib/server/prompt-builder';
 import {
   generateRenduFromReferenceKontext,
   generateRenduFromReferenceControlNet,
+  generateRenduFromReferenceKontextMulti,
   refineRenduMaterialsSAM,
   upscaleImageHighRes,
   ensureHttpsUrl,
@@ -112,6 +113,18 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+  // Textures importées par l'utilisateur (data URLs, optionnelles). Si au moins
+  // une est fournie, on bascule sur le moteur Kontext MULTI qui réplique la
+  // matière réelle ; sinon on garde le chemin single inchangé.
+  const pickTex = (v: unknown) => (typeof v === 'string' && v.startsWith('data:') && v.length > 64 ? v : undefined);
+  const textureDataUrls = {
+    facade: pickTex(body.facadeTextureDataUrl),
+    plan:   pickTex(body.planTextureDataUrl),
+    sol:    pickTex(body.solTextureDataUrl),
+    mur:    pickTex(body.murTextureDataUrl),
+  };
+  const hasAnyTexture = !!(textureDataUrls.facade || textureDataUrls.plan || textureDataUrls.sol || textureDataUrls.mur);
+
   const numImages = Math.min(Math.max(parseInt(String(body.numImages), 10) || 1, 1), 4);
   const projectId = typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
   // Phase 2 — toggle "Précision maximale" (SAM+Inpaint matériaux après génération).
@@ -229,7 +242,26 @@ export async function POST(req: NextRequest) {
     // rendu), et meilleur pour le photoréalisme 3D→photo. Piloté par le curseur
     // Réalisme↔Fidélité (mappé sur guidance_scale dans la fonction Kontext).
     pipelineUsed = 'kontext';
-    result = await generateRenduFromReferenceKontext(params, referenceHttpsUrl, numImages);
+    if (hasAnyTexture) {
+      // Mode TEXTURES : upload des textures vers fal-cdn puis Kontext multi.
+      // Best-effort : une texture qui échoue à uploader est simplement ignorée.
+      const upTex = async (d?: string) => {
+        if (!d) return undefined;
+        try { return await ensureHttpsUrl(d); } catch { return undefined; }
+      };
+      const [tFacade, tPlan, tSol, tMur] = await Promise.all([
+        upTex(textureDataUrls.facade), upTex(textureDataUrls.plan),
+        upTex(textureDataUrls.sol), upTex(textureDataUrls.mur),
+      ]);
+      const textureUrls = { facade: tFacade, plan: tPlan, sol: tSol, mur: tMur };
+      if (tFacade || tPlan || tSol || tMur) {
+        result = await generateRenduFromReferenceKontextMulti(params, referenceHttpsUrl, textureUrls, numImages);
+      } else {
+        result = await generateRenduFromReferenceKontext(params, referenceHttpsUrl, numImages);
+      }
+    } else {
+      result = await generateRenduFromReferenceKontext(params, referenceHttpsUrl, numImages);
+    }
     if (!result.success) {
       // SECOURS : ControlNet Canny (verrouillage géométrique strict) si Kontext rate.
       console.warn(`[API /ia/rendu] Kontext KO (${result.error ?? 'unknown'}) → fallback ControlNet Canny`);
