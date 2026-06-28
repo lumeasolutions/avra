@@ -34,6 +34,23 @@ const COUNT_LABELS: Array<[string, string]> = [
   ['demandes', 'Demandes'], ['intervenants', 'Intervenants'], ['agenda', 'Agenda'], ['documents', 'Documents'], ['rendus', 'Rendus IA'],
 ];
 
+/**
+ * fetch avec rejeu sur 401 : l'access_token JWT expire au bout de 15 min et la
+ * page /support (hors layout app) n'a pas de refresh proactif. Sur 401, on tente
+ * un refresh (POST /api/v1/auth/refresh, sans CSRF) puis on rejoue UNE fois.
+ * Un compte non autorisé restera en 401 même après refresh → « accès refusé ».
+ */
+async function supportFetch(url: string): Promise<Response> {
+  let res = await fetch(url, { credentials: 'include' });
+  if (res.status === 401) {
+    try {
+      const r = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' });
+      if (r.ok) res = await fetch(url, { credentials: 'include' });
+    } catch { /* refresh impossible : on garde le 401 */ }
+  }
+  return res;
+}
+
 export default function SupportClient() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchRow[]>([]);
@@ -48,7 +65,7 @@ export default function SupportClient() {
     if (q.length < 2) { setResults([]); return; }
     setSearching(true); setError(null);
     try {
-      const res = await fetch(`/api/support/search?q=${encodeURIComponent(q)}`, { credentials: 'include' });
+      const res = await supportFetch(`/api/support/search?q=${encodeURIComponent(q)}`);
       if (res.status === 401) { setDenied(true); return; }
       const data = await res.json();
       setResults(data.results ?? []);
@@ -63,7 +80,7 @@ export default function SupportClient() {
     if (!workspaceId) return;
     setLoadingAccount(true); setError(null); setAccount(null);
     try {
-      const res = await fetch(`/api/support/account?workspaceId=${encodeURIComponent(workspaceId)}`, { credentials: 'include' });
+      const res = await supportFetch(`/api/support/account?workspaceId=${encodeURIComponent(workspaceId)}`);
       if (res.status === 401) { setDenied(true); return; }
       if (!res.ok) { setError('Compte introuvable.'); return; }
       setAccount(await res.json());
