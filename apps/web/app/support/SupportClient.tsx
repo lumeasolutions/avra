@@ -100,6 +100,7 @@ export default function SupportClient() {
   const [resetOpen, setResetOpen] = useState(false);
   const [confirmName, setConfirmName] = useState('');
   const [backupReady, setBackupReady] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null); // message isolé de la modale reset
   // V3 — erreurs Sentry + inspection dossier
   const [errors, setErrors] = useState<SentryIssue[]>([]);
   const [errorsConfigured, setErrorsConfigured] = useState<boolean | null>(null);
@@ -160,7 +161,7 @@ export default function SupportClient() {
   /** Réinitialisation : télécharge la sauvegarde puis vide le compte. */
   const doReset = useCallback(async () => {
     if (!account) return;
-    setBusy(true); setActionMsg(null);
+    setBusy(true); setResetMsg(null);
     try {
       const res = await supportFetch('/api/support/reset', {
         method: 'POST',
@@ -169,15 +170,15 @@ export default function SupportClient() {
       });
       if (res.status === 401) { setDenied(true); return; }
       const data = await res.json().catch(() => null);
-      if (!res.ok) { setActionMsg(data?.error ?? 'Échec de la réinitialisation.'); return; }
+      if (!res.ok) { setResetMsg(data?.error ?? 'Échec de la réinitialisation.'); return; }
       if (data?.snapshot) {
         downloadJson(`avra-SAUVEGARDE-avant-reset-${account.workspace.name}-${new Date().toISOString().slice(0, 10)}.json`, data.snapshot);
       }
-      setResetOpen(false); setConfirmName(''); setBackupReady(false);
+      setResetOpen(false); setConfirmName(''); setBackupReady(false); setResetMsg(null);
       setActionMsg('Compte réinitialisé. Sauvegarde téléchargée.');
       openAccount(account.workspace.id);
     } catch {
-      setActionMsg('Erreur réseau pendant la réinitialisation.');
+      setResetMsg('Erreur réseau pendant la réinitialisation.');
     } finally {
       setBusy(false);
     }
@@ -393,7 +394,7 @@ export default function SupportClient() {
                   style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid #cfe0d6', background: '#eef7ef', color: '#2f6b4f', fontWeight: 700, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
                   ⬇ Exporter les données (RGPD)
                 </button>
-                <button onClick={() => { setConfirmName(''); setActionMsg(null); setBackupReady(false); setResetOpen(true); }} disabled={busy}
+                <button onClick={() => { setConfirmName(''); setActionMsg(null); setResetMsg(null); setBackupReady(false); setResetOpen(true); }} disabled={busy}
                   style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid #e6c3bd', background: '#fdeeec', color: '#C0392B', fontWeight: 700, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
                   Réinitialiser le compte…
                 </button>
@@ -446,7 +447,7 @@ export default function SupportClient() {
               </p>
               <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder="Nom du workspace" disabled={!backupReady}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd6cc', fontSize: 13, outline: 'none', boxSizing: 'border-box', background: backupReady ? 'white' : '#f5f2ed' }} />
-              {actionMsg && <div style={{ fontSize: 12, color: '#C0392B', marginTop: 8 }}>{actionMsg}</div>}
+              {resetMsg && <div style={{ fontSize: 12, color: '#C0392B', marginTop: 8 }}>{resetMsg}</div>}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
                 <button onClick={() => { setResetOpen(false); setConfirmName(''); }} disabled={busy}
                   style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid #ddd6cc', background: 'white', color: '#6b6158', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
