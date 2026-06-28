@@ -93,8 +93,13 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
   // préservation des matériaux/couleurs/équipements directement dans le prompt.
   // Tout élément explicitement redéfini dans `materials` (Façades/Plan/Sol/Murs)
   // prime ; le reste doit rester strictement fidèle à la source.
+  // IMPORTANT : ne PAS nommer d'objets potentiellement absents (évier, robinet,
+  // hotte…). Sur ces endpoints sans negativePrompt, citer "faucet/sink" dans le
+  // prompt positif pousse le modèle à EN AJOUTER même s'il n'y en a pas dans la
+  // source. On ne préserve donc que des SURFACES/matériaux, + une interdiction
+  // générique d'inventer quoi que ce soit qui n'est pas déjà visible.
   const fidelity =
-    'faithfully reproduce the source image: keep the exact same wood tones and wood grain, the exact colors and finishes, the cabinet handles, the floor, the backsplash, the sink, the range hood, the faucet, the worktop and the wall colors exactly as they appear in the original, except for any material explicitly requested above; do not recolor, do not change or invent materials, do not swap or move the fixtures, do not alter the wood species or its tone';
+    'render only the elements that are actually present in the source image; faithfully reproduce the existing wood tones and wood grain, the existing colors, finishes and materials, the cabinet handles, the floor, the backsplash, the worktop and the wall colors exactly as they appear in the original, except for any material explicitly requested above; do not recolor, do not change or invent materials, do not alter the wood species or its tone, do not add, invent or imagine any new object, fixture, appliance, plumbing or furniture that is not clearly visible in the source, and do not move or duplicate existing elements';
 
   // Contraintes anti-dérive baked-in (faute de negativePrompt sur ces endpoints).
   const guard =
