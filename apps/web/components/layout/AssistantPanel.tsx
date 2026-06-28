@@ -141,10 +141,18 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
   const [alertFilter, setAlertFilter] = useState<'all'|'urgent'|'retard'|'encours'>('all');
   const activeAlerts  = alerts.filter(a => !a.dismissed);
   // Classifieurs partagés (cartes KPI + filtre liste) — une seule source de vérité.
-  const isUrgentAlert = (a: any) => a.severity === 'error';
+  // IMPORTANT : urgent et retard sont MUTUELLEMENT EXCLUSIFS (sinon doublon, car
+  // les retards sont aussi en severity:'error'). On classe donc par sourceKey :
+  //   • RETARD  = déjà en retard (facture échéance/retard, livraison, butoir dépassé)
+  //   • URGENT  = à traiter en priorité mais PAS encore en retard
+  //               (dossier marqué urgent, rupture de stock, butoir imminent)
   const isRetardAlert = (a: any) => {
     const k = (a as any).sourceKey ?? '';
     return k.startsWith('facture-') || k.startsWith('cmd-livraison-') || (k.startsWith('butoir-') && !k.startsWith('butoir-soon-'));
+  };
+  const isUrgentAlert = (a: any) => {
+    const k = (a as any).sourceKey ?? '';
+    return k.startsWith('urgent-') || k.startsWith('stock-rupture-') || k.startsWith('butoir-soon-');
   };
   const displayedAlerts = activeAlerts.filter(a =>
     alertFilter === 'urgent'  ? isUrgentAlert(a)
