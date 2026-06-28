@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 
 /* ---------- Types ---------- */
 interface SearchRow {
@@ -21,6 +21,12 @@ interface AccountData {
   counts: Record<string, number>;
   dossiers: Array<{ id: string; name: string | null; reference: string | null; tradeType: string | null; lifecycleStatus: string | null; pipelineStatus: string | null; priority: string | null; saleAmount: number | null; createdAt: string | null; updatedAt: string | null }>;
   auditLog: Array<{ adminEmail: string; action: string; targetEmail: string | null; detail: unknown; createdAt: string }>;
+}
+
+interface SentryIssue {
+  id: string; title: string; culprit: string | null; level: string | null;
+  count: number; userCount: number; lastSeen: string | null; firstSeen: string | null;
+  status: string | null; permalink: string | null;
 }
 
 /* ---------- Helpers ---------- */
@@ -64,6 +70,22 @@ function downloadJson(filename: string, obj: unknown) {
   setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
+/** Section d'une fiche dossier : un titre + une liste de lignes (lecture seule). */
+function DetailSection({ title, lines }: { title: string; lines: string[] }) {
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: '#9A9590', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{title} ({lines.length})</div>
+      {lines.length === 0 ? (
+        <div style={{ fontSize: 12, color: '#c0bab2', marginTop: 2 }}>—</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+          {lines.map((l, i) => <div key={i} style={{ fontSize: 12, color: '#4a4a4a' }}>{l}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SupportClient() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchRow[]>([]);
@@ -78,6 +100,11 @@ export default function SupportClient() {
   const [resetOpen, setResetOpen] = useState(false);
   const [confirmName, setConfirmName] = useState('');
   const [backupReady, setBackupReady] = useState(false);
+  // V3 — erreurs Sentry + inspection dossier
+  const [errors, setErrors] = useState<SentryIssue[]>([]);
+  const [errorsConfigured, setErrorsConfigured] = useState<boolean | null>(null);
+  const [dossier, setDossier] = useState<Record<string, any> | null>(null);
+  const [dossierLoading, setDossierLoading] = useState(false);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
@@ -155,6 +182,42 @@ export default function SupportClient() {
       setBusy(false);
     }
   }, [account, confirmName, openAccount]);
+
+  /** Charge les erreurs Sentry du client dès qu'une fiche est ouverte. */
+  useEffect(() => {
+    if (!account) { setErrors([]); setErrorsConfigured(null); return; }
+    const email = account.members?.[0]?.email;
+    if (!email) { setErrorsConfigured(false); setErrors([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await supportFetch(`/api/support/errors?email=${encodeURIComponent(email)}`);
+        if (cancelled) return;
+        if (!res.ok) { setErrorsConfigured(false); setErrors([]); return; }
+        const data = await res.json();
+        setErrorsConfigured(Boolean(data.configured));
+        setErrors(Array.isArray(data.issues) ? data.issues : []);
+      } catch {
+        if (!cancelled) { setErrorsConfigured(false); setErrors([]); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [account]);
+
+  /** Ouvre le détail d'un dossier en lecture seule. */
+  const openDossier = useCallback(async (dossierId: string) => {
+    setDossierLoading(true); setDossier(null);
+    try {
+      const res = await supportFetch(`/api/support/dossier?dossierId=${encodeURIComponent(dossierId)}`);
+      if (res.status === 401) { setDenied(true); return; }
+      if (!res.ok) { setActionMsg('Dossier introuvable.'); return; }
+      setDossier(await res.json());
+    } catch {
+      setActionMsg('Erreur de chargement du dossier.');
+    } finally {
+      setDossierLoading(false);
+    }
+  }, []);
 
   if (denied) {
     return (
@@ -264,7 +327,7 @@ export default function SupportClient() {
 
             {/* Dossiers (lecture seule) */}
             <div style={{ background: 'white', borderRadius: 16, padding: '14px 16px', marginBottom: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#2C3529', marginBottom: 8 }}>Dossiers ({account.dossiers.length}) — lecture seule</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#2C3529', marginBottom: 8 }}>Dossiers ({account.dossiers.length}) — cliquer pour le détail</div>
               {account.dossiers.length === 0 ? (
                 <div style={{ fontSize: 13, color: '#9A9590', padding: '8px 0' }}>Aucun dossier.</div>
               ) : (
@@ -279,7 +342,8 @@ export default function SupportClient() {
                     </thead>
                     <tbody>
                       {account.dossiers.map((d) => (
-                        <tr key={d.id} style={{ borderBottom: '1px solid #f3efe9' }}>
+                        <tr key={d.id} onClick={() => openDossier(d.id)} title="Voir le détail (lecture seule)"
+                          style={{ borderBottom: '1px solid #f3efe9', cursor: 'pointer' }}>
                           <td style={{ padding: '6px 8px', fontWeight: 600, color: '#2C3529' }}>{d.name ?? '—'}</td>
                           <td style={{ padding: '6px 8px', color: '#8a8178' }}>{d.reference ?? '—'}</td>
                           <td style={{ padding: '6px 8px', color: '#8a8178' }}>{d.tradeType ?? '—'}</td>
@@ -290,6 +354,33 @@ export default function SupportClient() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+
+            {/* Erreurs techniques Sentry (V3) */}
+            <div style={{ background: 'white', borderRadius: 16, padding: '14px 16px', marginBottom: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#2C3529', marginBottom: 8 }}>Erreurs techniques (Sentry) — 90 derniers jours</div>
+              {errorsConfigured === null ? (
+                <div style={{ fontSize: 12, color: '#9A9590' }}>Chargement…</div>
+              ) : errorsConfigured === false ? (
+                <div style={{ fontSize: 11.5, color: '#9A9590', lineHeight: 1.5 }}>
+                  Filtrage Sentry par client non configuré. Pour l'activer : poser <code style={{ background: '#f3efe9', padding: '1px 5px', borderRadius: 4 }}>SENTRY_AUTH_TOKEN</code>, <code style={{ background: '#f3efe9', padding: '1px 5px', borderRadius: 4 }}>SENTRY_ORG</code> et <code style={{ background: '#f3efe9', padding: '1px 5px', borderRadius: 4 }}>SENTRY_PROJECT</code> sur Vercel. L'attribution des erreurs aux clients est déjà en place.
+                </div>
+              ) : errors.length === 0 ? (
+                <div style={{ fontSize: 13, color: '#388E3C', fontWeight: 600 }}>Aucune erreur remontée sur 90 jours 🎉</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {errors.map((e) => (
+                    <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#fbf7f4', borderRadius: 8 }}>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: (e.level === 'error' || e.level === 'fatal') ? '#C0392B' : '#E07B00', textTransform: 'uppercase', flexShrink: 0, width: 34 }}>{e.level ?? 'err'}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#2C3529', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.title}</div>
+                        <div style={{ fontSize: 10.5, color: '#9A9590' }}>{e.count} occurrence(s) · vue {fmtDateTime(e.lastSeen)}</div>
+                      </div>
+                      {e.permalink && <a href={e.permalink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#4A6358', fontWeight: 700, flexShrink: 0 }}>ouvrir →</a>}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -368,6 +459,37 @@ export default function SupportClient() {
                   {busy ? 'Réinitialisation…' : 'Réinitialiser définitivement'}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modale détail dossier (lecture seule) */}
+        {(dossier || dossierLoading) && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+            <div style={{ background: 'white', borderRadius: 18, padding: '20px 22px', maxWidth: 640, width: '100%', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 12px 44px rgba(0,0,0,0.28)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#2C3529' }}>{dossierLoading ? 'Chargement…' : (dossier?.project?.name ?? 'Dossier')}</div>
+                <button onClick={() => setDossier(null)} style={{ border: 'none', background: 'transparent', fontSize: 18, color: '#9A9590', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+              </div>
+              {dossier && (
+                <div>
+                  <div style={{ fontSize: 12, color: '#8a8178', marginTop: 4 }}>
+                    Réf {dossier.project?.reference ?? '—'} · {dossier.project?.lifecycleStatus ?? dossier.project?.pipelineStatus ?? '—'} · vente {fmtEUR(dossier.project?.saleAmount != null ? Number(dossier.project.saleAmount) : null)}
+                  </div>
+                  {dossier.client && (
+                    <div style={{ fontSize: 12, color: '#6b6158', marginTop: 4 }}>
+                      Client : <strong>{[dossier.client.firstName, dossier.client.lastName].filter(Boolean).join(' ') || dossier.client.name || dossier.client.companyName || '—'}</strong>
+                    </div>
+                  )}
+                  <DetailSection title="Devis" lines={(dossier.devis ?? []).map((q: any) => `${q.status ?? '—'} · ${fmtEUR(q.totalTTC)} · ${fmtDate(q.createdAt)}`)} />
+                  <DetailSection title="Factures" lines={(dossier.factures ?? []).map((f: any) => `${f.type ?? ''} ${f.status ?? ''} · ${fmtEUR(f.totalTTC)} · ${fmtDate(f.createdAt)}`)} />
+                  <DetailSection title="Demandes" lines={(dossier.demandes ?? []).map((d: any) => `${d.type ?? ''} · ${d.status ?? ''} · ${d.title ?? ''} · ${fmtDate(d.createdAt)}`)} />
+                  <DetailSection title="Documents" lines={(dossier.documents ?? []).map((doc: any) => `${doc.name ?? doc.filename ?? doc.fileName ?? doc.originalName ?? '(document)'} · ${fmtDate(doc.createdAt)}`)} />
+                  <DetailSection title="Rendus IA" lines={(dossier.rendus ?? []).map((r: any) => `${r.type ?? ''} · ${r.status ?? ''} · ${(r.prompt ?? '').slice(0, 40)} · ${fmtDate(r.createdAt)}`)} />
+                  <DetailSection title="Agenda" lines={(dossier.events ?? []).map((ev: any) => `${ev.type ?? ''} · ${ev.title ?? ''} · ${fmtDate(ev.createdAt)}`)} />
+                  <DetailSection title="Intervenants" lines={(dossier.intervenants ?? []).map((i: any) => `${i.type ?? ''} · ${i.name ?? ''} · ${i.email ?? ''}`)} />
+                </div>
+              )}
             </div>
           </div>
         )}

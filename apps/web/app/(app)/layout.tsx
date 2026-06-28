@@ -8,6 +8,7 @@ import { useDataSync } from '@/hooks/useDataSync';
 import { useAlertEngine } from '@/hooks/useAlertEngine';
 import { useTokenRefresh } from '@/hooks/useTokenRefresh';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { SentryUserProvider } from '@/components/SentryUserProvider';
 
 /* Dynamic import pour code splitting */
 const AssistantFAB = nextDynamic(() => import('@/components/layout/AssistantFAB').then(mod => mod.AssistantFAB), {
@@ -58,6 +59,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <RelanceEngineProvider />
       <AlertEngineProvider />
       <DataSyncProvider />
+      <SentryUserProvider />
       <div className="flex min-h-screen w-full bg-[#f5eee8]">
         {/* Sidebar gauche (inclut le bouton hamburger mobile) */}
         <Sidebar />
