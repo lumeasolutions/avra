@@ -105,7 +105,7 @@ async function callColoristAPI(params: {
 }
 
 /**
- * Petit bouton « Importer une texture perso » sous une catégorie matériau (Rendu).
+ * Petit bouton « Importer ma texture » sous une catégorie matériau (Rendu).
  * Convertit l'image en data URL compressée. Quand une texture est posée, le
  * moteur la réplique fidèlement (Kontext multi). 100 % optionnel.
  */
@@ -121,7 +121,7 @@ function TextureUpload({ value, onPick, onClear }: { value: string | null; onPic
         </div>
       ) : (
         <label className="inline-flex items-center gap-1.5 cursor-pointer rounded-full border border-dashed border-[#5b9bd5]/40 bg-[#5b9bd5]/5 px-3 py-1 text-[10px] font-semibold text-[#304035]/65 hover:border-[#5b9bd5]/70 hover:bg-[#5b9bd5]/10 transition-all">
-          <Upload className="h-3 w-3" /> Importer une texture perso
+          <Upload className="h-3 w-3" /> Importer ma texture
           <input
             type="file"
             accept="image/*"
@@ -2900,4 +2900,39 @@ export default function IaStudioPage() {
         return (
           <div onClick={() => setSaveTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(26,42,30,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, background: '#fff', borderRadius: 18, padding: 22, boxShadow: '0 24px 60px rgba(0,0,0,0.3)', maxHeight: '88vh', overflow: 'auto' }}>
-              <h3 style={{ margin: '0 0 4px', fontSize:
+              <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: '#1a2a1e' }}>Sauvegarder le visuel</h3>
+              <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#6b6256' }}>Choisis le dossier et le ou les sous-dossiers où enregistrer le rendu.</p>
+              {saveTarget.item.imageUrl && (
+                <img src={saveTarget.item.imageUrl} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 12, marginBottom: 16 }} />
+              )}
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(48,64,53,0.5)', marginBottom: 6 }}>Dossier</label>
+              <select value={saveDossierId} onChange={(e) => { setSaveDossierId(e.target.value); setSaveSubfolders([IA_SUBFOLDER_LABEL]); }}
+                style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(48,64,53,0.18)', padding: '9px 12px', fontSize: 13.5, color: '#1a2a1e', background: '#fff', marginBottom: 16 }}>
+                {allDossiers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(48,64,53,0.5)', marginBottom: 6 }}>Sous-dossier(s) — coche un ou plusieurs</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 220, overflow: 'auto', border: '1px solid rgba(48,64,53,0.1)', borderRadius: 10, padding: 8, marginBottom: 18 }}>
+                {options.map(label => (
+                  <label key={label} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 8, cursor: 'pointer', background: saveSubfolders.includes(label) ? 'rgba(166,119,73,0.10)' : 'transparent' }}>
+                    <input type="checkbox" checked={saveSubfolders.includes(label)} onChange={() => toggle(label)} />
+                    <span style={{ fontSize: 13, color: '#22281f' }}>{label}{label === IA_SUBFOLDER_LABEL ? ' (par défaut)' : ''}</span>
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={confirmSave} disabled={saveSubfolders.length === 0}
+                  style={{ flex: 1, borderRadius: 11, border: 'none', padding: '11px', fontWeight: 800, fontSize: 13.5, color: '#fff', cursor: saveSubfolders.length ? 'pointer' : 'not-allowed', background: saveSubfolders.length ? 'linear-gradient(135deg,#1a2a1e,#3D5449)' : 'rgba(48,64,53,0.3)' }}>
+                  Sauvegarder{saveSubfolders.length > 1 ? ` (${saveSubfolders.length})` : ''}
+                </button>
+                <button onClick={() => setSaveTarget(null)}
+                  style={{ flex: 1, borderRadius: 11, border: '1px solid rgba(48,64,53,0.2)', padding: '11px', fontWeight: 700, fontSize: 13.5, color: '#1a2a1e', background: '#fff', cursor: 'pointer' }}>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </>
+  );
+}
