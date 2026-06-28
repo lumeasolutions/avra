@@ -189,6 +189,16 @@ export default function InterventionPublicPage() {
   }, [token, load, sending]);
 
   useEffect(() => { load(); }, [load]);
+  // Rafraîchissement périodique : voir les réponses du pro / pièces reçues par e-mail
+  // sans recharger la page (symétrie avec la messagerie pro qui polle aussi).
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      if (busy || sending || uploading) return;
+      load();
+    }, 20000);
+    return () => clearInterval(id);
+  }, [load, busy, sending, uploading]);
   // Auto-action si le lien e-mail contient ?do=accept|refuse|complete
   useEffect(() => {
     if (!loading && data && autoDo && !done && !busy) {

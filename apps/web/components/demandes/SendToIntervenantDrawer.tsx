@@ -492,7 +492,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
           )}
 
           {/* ── STEP COMPOSE ───────────────────────────────────────── */}
-          {step === 'compose' && selectedIntervenant && (
+          {step === 'compose' && (selectedIntervenant || (broadcastMode && selectedIds.length > 0)) && (
             <>
 
 
@@ -827,7 +827,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                             const fd = new FormData();
                             fd.append('file', f);
                             fd.append('subfolderLabel', 'Demandes — pièces jointes');
-                            const doc = await apiUpload<any>(`/projects/${encodeURIComponent(prefill.projectId)}/dossier-documents`, fd);
+                            const doc = await apiUpload<any>(`/dossiers/${encodeURIComponent(prefill.projectId)}/documents`, fd);
                             setUploads(u => u.map((x) =>
                               x.displayName === f.name && x.uploading
                                 ? { displayName: f.name, mimeType: f.type, dossierDocumentId: doc.id }

@@ -14,8 +14,9 @@ import {
   X, Send, Link2, Clock, Pencil,
   ChevronRight, AlertTriangle, FolderOpen, ArrowLeft, Folder,
   CheckCircle2, AlertCircle, Hourglass, RefreshCw, HardHat, Star,
-  Filter, Sparkles,
+  Filter, Sparkles, Users, MessageSquare,
 } from 'lucide-react';
+import MessagesIntervenantsPage from '@/app/(app)/messages-intervenants/page';
 import { useIntervenantStore, type Intervenant } from '@/store';
 import { useIntervenantDossiersStore } from '@/store/useIntervenantDossiersStore';
 import type { IntervenantDossier as ApiDossier, DossierItemStatut as ApiItemStatut } from '@/lib/intervenant-dossiers-api';
@@ -160,6 +161,15 @@ export default function IntervenantsHubPage() {
   const [selectedChipKey, setSelectedChipKey] = useState<string | null>(null);
   const [selectedIntervenantId, setSelectedIntervenantId] = useState<string | null>(null);
   const [selectedDossierId, setSelectedDossierId] = useState<string | null>(null);
+
+  // Onglet de tête : liste des intervenants OU messagerie (fusion des 2 pages).
+  // Initialisé depuis ?tab=messages (lien direct / raccourci sidebar).
+  const [view, setView] = useState<'liste' | 'messages'>(() => {
+    if (typeof window !== 'undefined') {
+      try { if (new URLSearchParams(window.location.search).get('tab') === 'messages') return 'messages'; } catch {}
+    }
+    return 'liste';
+  });
 
   // Modals
   const [showAddForm, setShowAddForm] = useState(false);
@@ -362,6 +372,45 @@ export default function IntervenantsHubPage() {
     if (d.rajoute) await markDossierVu(d.id);
   };
 
+  // ─── Barre d'onglets de tête : Intervenants | Messagerie ──────────────
+  const tabBar = (
+    <div className="inline-flex items-center gap-1 rounded-full bg-white border border-[#304035]/10 p-1 shadow-sm">
+      <button
+        onClick={() => setView('liste')}
+        className={cn(
+          'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[13px] font-semibold transition-all',
+          view === 'liste'
+            ? 'bg-[#304035] text-[#f3ecd9]'
+            : 'text-[#304035]/60 hover:text-[#304035]'
+        )}
+      >
+        <Users className="h-4 w-4" /> Intervenants
+      </button>
+      <button
+        onClick={() => setView('messages')}
+        className={cn(
+          'inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[13px] font-semibold transition-all',
+          view === 'messages'
+            ? 'bg-[#304035] text-[#f3ecd9]'
+            : 'text-[#304035]/60 hover:text-[#304035]'
+        )}
+      >
+        <MessageSquare className="h-4 w-4" /> Messagerie
+      </button>
+    </div>
+  );
+
+  // ─── Vue MESSAGERIE : fusionnée dans la même page ─────────────────────
+  if (view === 'messages') {
+    return (
+      <div className="space-y-4">
+        <PageHeader icon={<HardHat className="h-7 w-7" />} title="Intervenants" />
+        {tabBar}
+        <MessagesIntervenantsPage />
+      </div>
+    );
+  }
+
   // ─── NIVEAU 0 : accueil ───────────────────────────────────────────────
 
   if (!selectedChipKey && !selectedIntervenantId) {
@@ -372,6 +421,8 @@ export default function IntervenantsHubPage() {
           title="Intervenants"
           subtitle={`${filtered.length} ${filterType.toLowerCase()}${filtered.length > 1 ? 's' : ''}`}
         />
+
+        {tabBar}
 
         {(() => {
           const total = intervenants.length;
@@ -514,9 +565,16 @@ export default function IntervenantsHubPage() {
                   email: created.email || data.email || '',
                   notes: created.notes || data.notes || '',
                 });
-              } catch (err) {
-                console.warn('[intervenant] creation serveur echouee, garde en local', err);
-                addLocalIntervenant(data);
+              } catch (err: any) {
+                console.warn('[intervenant] creation serveur echouee', err);
+                // On NE garde PAS en local : le store est ré-hydraté depuis le serveur
+                // au prochain sync et l'intervenant local serait effacé (faux succès).
+                // On prévient l'utilisateur pour qu'il réessaie.
+                alert(
+                  "L'ajout de l'intervenant a échoué côté serveur. Vérifiez votre connexion et réessayez.\n\n" +
+                  (err?.message || ''),
+                );
+                setShowAddForm(true);
               }
             }}
           />
@@ -659,8 +717,18 @@ export default function IntervenantsHubPage() {
           <ConfirmDeleteModal
             name={selectedIntervenant.name}
             onCancel={() => setConfirmDeleteIntervenant(null)}
-            onConfirm={() => {
-              removeLocalIntervenant(selectedIntervenant.id);
+            onConfirm={async () => {
+              const id = selectedIntervenant.id;
+              // Suppression SERVEUR d'abord (sinon l'intervenant réapparait au prochain sync).
+              try {
+                await api(`/intervenants/${encodeURIComponent(id)}`, { method: 'DELETE' });
+              } catch (err: any) {
+                alert(
+                  "La suppression a échoué côté serveur. Réessayez.\n\n" + (err?.message || ''),
+                );
+                return;
+              }
+              removeLocalIntervenant(id);
               setConfirmDeleteIntervenant(null);
               setSelectedIntervenantId(null);
             }}
@@ -1424,7 +1492,7 @@ function ConfirmDeleteModal({ name, onCancel, onConfirm }: { name: string; onCan
     <div onClick={onCancel} className="fixed inset-0 z-90 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-[#304035] mb-2">Supprimer {name} ?</h2>
-        <p className="text-sm text-[#304035]/60 mb-5">Cette action est irréversible (côté frontend local — le backend n'est pas touché).</p>
+        <p className="text-sm text-[#304035]/60 mb-5">Cette action est irréversible. L'intervenant est supprimé définitivement côté serveur (les demandes déjà envoyées sont conservées mais détachées).</p>
         <div className="flex gap-2">
           <button onClick={onCancel} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60">Annuler</button>
           <button onClick={onConfirm} className="flex-1 rounded-lg bg-red-600 text-white px-4 py-2 text-sm font-bold">Supprimer</button>

@@ -392,7 +392,7 @@ export function Sidebar() {
           )}
         </Link>
 
-        <Link href="/messages-intervenants" className={`menu-item ${pathname === '/messages-intervenants' ? 'active' : ''}`} onClick={close}>
+        <Link href="/intervenants?tab=messages" className={`menu-item ${pathname === '/messages-intervenants' ? 'active' : ''}`} onClick={close}>
           <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v12H5.17L4 17.17V4Z"/><path d="M8 9h8"/><path d="M8 12h5"/></svg>
           Messages intervenants
         </Link>
