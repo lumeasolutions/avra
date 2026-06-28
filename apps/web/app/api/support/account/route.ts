@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 
     const dossiers = await prisma.$queryRaw<Array<Record<string, unknown>>>`
       SELECT id, name, reference, "tradeType", "lifecycleStatus", "pipelineStatus",
-             priority, "saleAmount", "createdAt", "updatedAt"
+             priority, "saleAmount"::float8 AS "saleAmount", "createdAt", "updatedAt"
       FROM "Project"
       WHERE "workspaceId" = ${workspaceId}
       ORDER BY "updatedAt" DESC

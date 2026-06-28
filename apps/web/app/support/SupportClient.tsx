@@ -77,6 +77,7 @@ export default function SupportClient() {
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [confirmName, setConfirmName] = useState('');
+  const [backupReady, setBackupReady] = useState(false);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
@@ -109,19 +110,21 @@ export default function SupportClient() {
     }
   }, []);
 
-  /** Export RGPD : télécharge un JSON complet du compte. */
-  const exportAccount = useCallback(async () => {
-    if (!account) return;
+  /** Export RGPD : télécharge un JSON complet du compte. Retourne true si OK. */
+  const exportAccount = useCallback(async (): Promise<boolean> => {
+    if (!account) return false;
     setBusy(true); setActionMsg(null);
     try {
       const res = await supportFetch(`/api/support/export?workspaceId=${encodeURIComponent(account.workspace.id)}`);
-      if (res.status === 401) { setDenied(true); return; }
-      if (!res.ok) { setActionMsg("Échec de l'export."); return; }
+      if (res.status === 401) { setDenied(true); return false; }
+      if (!res.ok) { setActionMsg("Échec de l'export."); return false; }
       const data = await res.json();
       downloadJson(`avra-export-${account.workspace.name}-${new Date().toISOString().slice(0, 10)}.json`, data);
       setActionMsg('Export téléchargé.');
+      return true;
     } catch {
       setActionMsg("Erreur réseau pendant l'export.");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -143,7 +146,7 @@ export default function SupportClient() {
       if (data?.snapshot) {
         downloadJson(`avra-SAUVEGARDE-avant-reset-${account.workspace.name}-${new Date().toISOString().slice(0, 10)}.json`, data.snapshot);
       }
-      setResetOpen(false); setConfirmName('');
+      setResetOpen(false); setConfirmName(''); setBackupReady(false);
       setActionMsg('Compte réinitialisé. Sauvegarde téléchargée.');
       openAccount(account.workspace.id);
     } catch {
@@ -299,7 +302,7 @@ export default function SupportClient() {
                   style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid #cfe0d6', background: '#eef7ef', color: '#2f6b4f', fontWeight: 700, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
                   ⬇ Exporter les données (RGPD)
                 </button>
-                <button onClick={() => { setConfirmName(''); setActionMsg(null); setResetOpen(true); }} disabled={busy}
+                <button onClick={() => { setConfirmName(''); setActionMsg(null); setBackupReady(false); setResetOpen(true); }} disabled={busy}
                   style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid #e6c3bd', background: '#fdeeec', color: '#C0392B', fontWeight: 700, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
                   Réinitialiser le compte…
                 </button>
@@ -338,21 +341,30 @@ export default function SupportClient() {
               <p style={{ fontSize: 13, color: '#6b6158', marginTop: 8, lineHeight: 1.5 }}>
                 Cette action vide toutes les données métier de <strong>{account.workspace.name}</strong> (dossiers, clients, devis, factures, documents, rendus…). Le compte et la connexion sont <strong>conservés</strong>. Une sauvegarde JSON est téléchargée automatiquement avant suppression.
               </p>
-              <p style={{ fontSize: 12, color: '#8a8178', marginTop: 12, marginBottom: 6 }}>
-                Pour confirmer, tapez le nom exact du workspace : <code style={{ fontSize: 12, background: '#f3efe9', padding: '2px 6px', borderRadius: 5 }}>{account.workspace.name}</code>
+              {/* Étape 1 : sauvegarde obligatoire avant toute suppression */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, padding: '10px 12px', background: backupReady ? '#eef7ef' : '#faf7f2', borderRadius: 10, border: `1px solid ${backupReady ? '#cfe0d6' : '#ece7df'}` }}>
+                <button onClick={async () => { const ok = await exportAccount(); if (ok) setBackupReady(true); }} disabled={busy || backupReady}
+                  style={{ padding: '8px 14px', borderRadius: 9, border: 'none', background: backupReady ? '#cfe0d6' : 'linear-gradient(135deg,#4A6358,#334840)', color: backupReady ? '#2f6b4f' : 'white', fontWeight: 700, fontSize: 12.5, cursor: busy || backupReady ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+                  {backupReady ? '✓ Sauvegarde téléchargée' : '1. Télécharger la sauvegarde'}
+                </button>
+                <span style={{ fontSize: 11.5, color: '#8a8178' }}>{backupReady ? 'Vous pouvez réinitialiser.' : 'Obligatoire avant la réinitialisation.'}</span>
+              </div>
+
+              <p style={{ fontSize: 12, color: '#8a8178', marginTop: 14, marginBottom: 6 }}>
+                2. Pour confirmer, tapez le nom exact du workspace : <code style={{ fontSize: 12, background: '#f3efe9', padding: '2px 6px', borderRadius: 5 }}>{account.workspace.name}</code>
               </p>
-              <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder="Nom du workspace"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd6cc', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+              <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder="Nom du workspace" disabled={!backupReady}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd6cc', fontSize: 13, outline: 'none', boxSizing: 'border-box', background: backupReady ? 'white' : '#f5f2ed' }} />
               {actionMsg && <div style={{ fontSize: 12, color: '#C0392B', marginTop: 8 }}>{actionMsg}</div>}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
                 <button onClick={() => { setResetOpen(false); setConfirmName(''); }} disabled={busy}
                   style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid #ddd6cc', background: 'white', color: '#6b6158', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                   Annuler
                 </button>
-                <button onClick={doReset} disabled={busy || confirmName.trim() !== account.workspace.name}
+                <button onClick={doReset} disabled={busy || !backupReady || confirmName.trim() !== account.workspace.name}
                   style={{ padding: '9px 16px', borderRadius: 10, border: 'none', color: 'white', fontWeight: 700, fontSize: 13,
-                    background: (confirmName.trim() === account.workspace.name && !busy) ? '#C0392B' : '#e0b4ad',
-                    cursor: (confirmName.trim() === account.workspace.name && !busy) ? 'pointer' : 'not-allowed' }}>
+                    background: (backupReady && confirmName.trim() === account.workspace.name && !busy) ? '#C0392B' : '#e0b4ad',
+                    cursor: (backupReady && confirmName.trim() === account.workspace.name && !busy) ? 'pointer' : 'not-allowed' }}>
                   {busy ? 'Réinitialisation…' : 'Réinitialiser définitivement'}
                 </button>
               </div>
