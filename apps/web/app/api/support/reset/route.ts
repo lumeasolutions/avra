@@ -29,18 +29,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Accès réservé au support.' }, { status: 401 });
   }
 
-  // Défense en profondeur CSRF : le cookie d'auth est déjà SameSite=Strict
-  // (donc non envoyé en cross-site), mais on refuse en plus toute requête dont
-  // l'Origin ne correspond pas à l'hôte — gratuit et solide sur une action destructive.
+  // Défense en profondeur CSRF : le cookie d'auth est déjà SameSite=Strict.
+  // En plus, sur cette action DESTRUCTIVE, on EXIGE un header Origin présent ET
+  // correspondant à l'hôte (un Origin absent n'est pas un laissez-passer).
   const origin = req.headers.get('origin');
-  if (origin) {
-    try {
-      if (new URL(origin).host !== req.headers.get('host')) {
-        return NextResponse.json({ error: 'Origine non autorisée.' }, { status: 403 });
-      }
-    } catch {
-      return NextResponse.json({ error: 'Origine invalide.' }, { status: 403 });
-    }
+  const host = req.headers.get('host');
+  let originOk = false;
+  try {
+    originOk = !!origin && !!host && new URL(origin).host === host;
+  } catch {
+    originOk = false;
+  }
+  if (!originOk) {
+    return NextResponse.json({ error: 'Origine non autorisée pour cette action.' }, { status: 403 });
   }
 
   const body = await req.json().catch(() => null);

@@ -35,6 +35,30 @@ const DELETE_ORDER = [
   'IntervenantDossier', 'IntervenantInvitation',
 ] as const;
 
+/**
+ * Colonnes considérées sensibles : jamais exportées ni affichées au support.
+ * Couvre les jetons d'accès (portalToken, token de devis/facture), clés de
+ * stockage, hash, secrets. Filtrage par NOM de colonne → protège aussi des
+ * colonnes sensibles ajoutées plus tard au schéma (à condition d'être nommées
+ * de façon parlante), ce qui évite le piège du `SELECT *` non auditable.
+ */
+const SENSITIVE_COL_RE = /(token|secret|hash|password|apikey|api_key|storagekey|webhook|refresh)/i;
+
+/** Liste des colonnes « sûres » d'une table (catalogue Postgres, secrets exclus). */
+export async function safeColumnList(table: string): Promise<string[]> {
+  const rows = await prisma.$queryRaw<Array<{ column_name: string }>>`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = ${table}
+    ORDER BY ordinal_position;`;
+  return rows.map((r) => r.column_name).filter((c) => !SENSITIVE_COL_RE.test(c));
+}
+
+/** Construit un fragment `"col1", "col2", …` sûr (fallback `*` si table vide/inconnue). */
+export async function safeSelectColumns(table: string): Promise<string> {
+  const cols = await safeColumnList(table);
+  return cols.length ? cols.map((c) => `"${c}"`).join(', ') : '*';
+}
+
 export interface WorkspaceSnapshot {
   exportedAt: string;
   workspace: Record<string, unknown> | null;
@@ -46,8 +70,9 @@ export interface WorkspaceSnapshot {
 export async function collectWorkspaceSnapshot(workspaceId: string): Promise<WorkspaceSnapshot> {
   const data: Record<string, Array<Record<string, unknown>>> = {};
   for (const table of SNAPSHOT_TABLES) {
+    const colSql = await safeSelectColumns(table); // exclut jetons/secrets
     data[table] = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
-      `SELECT * FROM "${table}" WHERE "workspaceId" = $1`,
+      `SELECT ${colSql} FROM "${table}" WHERE "workspaceId" = $1`,
       workspaceId,
     );
   }
@@ -58,7 +83,8 @@ export async function collectWorkspaceSnapshot(workspaceId: string): Promise<Wor
   const members = await prisma.$queryRaw<Array<Record<string, unknown>>>`
     SELECT u.email, u."firstName", u."lastName", u."createdAt", uw.role
     FROM "UserWorkspace" uw JOIN "User" u ON u.id = uw."userId"
-    WHERE uw."workspaceId" = ${workspaceId};
+    WHERE uw."workspaceId" = ${workspaceId}
+    ORDER BY u."createdAt" ASC;
   `;
 
   return {
@@ -97,6 +123,7 @@ export async function deleteWorkspaceData(workspaceId: string): Promise<Record<s
     DELETE_ORDER.map((table) =>
       prisma.$executeRawUnsafe(`DELETE FROM "${table}" WHERE "workspaceId" = $1`, workspaceId),
     ),
+    { timeout: 30_000 }, // marge pour les gros workspaces (défaut Prisma = 5 s)
   );
   return counts;
 }

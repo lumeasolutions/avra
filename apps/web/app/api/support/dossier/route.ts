@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/server/prisma';
 import { isSupportEmail } from '@/lib/server/support-guard';
+import { safeSelectColumns } from '@/lib/server/support-data';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,9 +28,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const projectRows = await prisma.$queryRaw<Array<Record<string, unknown>>>`
-      SELECT * FROM "Project" WHERE id = ${dossierId} LIMIT 1;
-    `;
+    const projCols = await safeSelectColumns('Project'); // exclut jetons/secrets éventuels
+    const projectRows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+      `SELECT ${projCols} FROM "Project" WHERE id = $1 LIMIT 1`,
+      dossierId,
+    );
     if (projectRows.length === 0) {
       return NextResponse.json({ error: 'Dossier introuvable' }, { status: 404 });
     }
@@ -37,9 +40,14 @@ export async function GET(req: NextRequest) {
     const clientId = (project.clientId as string) ?? null;
     const workspaceId = (project.workspaceId as string) ?? null;
 
+    const [colsClient, colsDoc] = await Promise.all([
+      safeSelectColumns('Client'),
+      safeSelectColumns('DossierDocument'),
+    ]);
+
     const [client, devis, factures, demandes, documents, rendus, events, intervenants] = await Promise.all([
       clientId
-        ? prisma.$queryRaw<Array<Record<string, unknown>>>`SELECT * FROM "Client" WHERE id = ${clientId} LIMIT 1;`
+        ? prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(`SELECT ${colsClient} FROM "Client" WHERE id = $1 LIMIT 1`, clientId)
         : Promise.resolve([] as Array<Record<string, unknown>>),
       prisma.$queryRaw<Array<Record<string, unknown>>>`
         SELECT id, status, "totalTTC"::float8 AS "totalTTC", "createdAt" FROM "Quote" WHERE "projectId" = ${dossierId} ORDER BY "createdAt" DESC;`,
@@ -47,8 +55,7 @@ export async function GET(req: NextRequest) {
         SELECT id, type, status, "totalTTC"::float8 AS "totalTTC", "createdAt" FROM "Invoice" WHERE "projectId" = ${dossierId} ORDER BY "createdAt" DESC;`,
       prisma.$queryRaw<Array<Record<string, unknown>>>`
         SELECT id, type, status, title, "createdAt" FROM "Demande" WHERE "projectId" = ${dossierId} ORDER BY "createdAt" DESC;`,
-      prisma.$queryRaw<Array<Record<string, unknown>>>`
-        SELECT * FROM "DossierDocument" WHERE "projectId" = ${dossierId} ORDER BY "createdAt" DESC LIMIT 200;`,
+      prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(`SELECT ${colsDoc} FROM "DossierDocument" WHERE "projectId" = $1 ORDER BY "createdAt" DESC LIMIT 200`, dossierId),
       prisma.$queryRaw<Array<Record<string, unknown>>>`
         SELECT id, type, status, prompt, "createdAt" FROM "IaJob" WHERE "projectId" = ${dossierId} ORDER BY "createdAt" DESC LIMIT 50;`,
       prisma.$queryRaw<Array<Record<string, unknown>>>`
