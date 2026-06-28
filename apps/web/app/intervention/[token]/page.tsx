@@ -39,6 +39,41 @@ function fmtDate(s?: string | null): string {
 // Vercel. La limite reelle est celle du service dossier-documents (25 Mo).
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
+// --- Icones SVG inline (pas de dependance webfont sur cette page publique) ---
+type IcoName = 'check' | 'x' | 'download' | 'calendar' | 'clock' | 'paperclip' | 'message' | 'pdf' | 'photo' | 'file' | 'checkCircle';
+function Ico({ name, size = 16, color = 'currentColor', stroke = 2 }: { name: IcoName; size?: number; color?: string; stroke?: number }) {
+  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: stroke, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true, style: { flexShrink: 0 } };
+  switch (name) {
+    case 'check': return <svg {...p}><path d="M20 6 9 17l-5-5" /></svg>;
+    case 'x': return <svg {...p}><path d="M18 6 6 18M6 6l12 12" /></svg>;
+    case 'download': return <svg {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>;
+    case 'calendar': return <svg {...p}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>;
+    case 'clock': return <svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
+    case 'paperclip': return <svg {...p}><path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>;
+    case 'message': return <svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>;
+    case 'pdf': return <svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>;
+    case 'photo': return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-5-5L5 21" /></svg>;
+    case 'file': return <svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>;
+    case 'checkCircle': return <svg {...p}><circle cx="12" cy="12" r="9" /><path d="m9 12 2 2 4-4" /></svg>;
+    default: return null;
+  }
+}
+
+function fileKind(mime?: string | null, name?: string): IcoName {
+  const m = (mime || '').toLowerCase();
+  const n = (name || '').toLowerCase();
+  if (m.includes('pdf') || n.endsWith('.pdf')) return 'pdf';
+  if (m.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|bmp|tiff?)$/.test(n)) return 'photo';
+  return 'file';
+}
+const FILE_BADGE: Record<IcoName, { bg: string; fg: string }> = {
+  pdf: { bg: '#fbecec', fg: '#b91c1c' },
+  photo: { bg: '#e8efe6', fg: '#3b6d4a' },
+  file: { bg: '#f0ece2', fg: '#7c6c58' },
+  check: { bg: '', fg: '' }, x: { bg: '', fg: '' }, download: { bg: '', fg: '' }, calendar: { bg: '', fg: '' },
+  clock: { bg: '', fg: '' }, paperclip: { bg: '', fg: '' }, message: { bg: '', fg: '' }, checkCircle: { bg: '', fg: '' },
+};
+
 export default function InterventionPublicPage() {
   const params = useParams();
   const search = useSearchParams();
@@ -162,132 +197,170 @@ export default function InterventionPublicPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, data, autoDo]);
 
-  const wrap: React.CSSProperties = { maxWidth: 560, margin: '0 auto', padding: '32px 20px', fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif', color: '#1a2a1e' };
-  const card: React.CSSProperties = { background: '#fff', border: '1px solid rgba(48,64,53,0.1)', borderRadius: 16, padding: 24, boxShadow: '0 6px 24px rgba(48,64,53,0.06)' };
+  const page: React.CSSProperties = { minHeight: '100vh', background: '#f0ede4', fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif', color: '#1a2a1e' };
+  const wrap: React.CSSProperties = { maxWidth: 560, margin: '0 auto', padding: '28px 16px 40px' };
+  const card: React.CSSProperties = { background: '#fff', border: '1px solid rgba(48,64,53,0.1)', borderRadius: 16, boxShadow: '0 6px 24px rgba(48,64,53,0.06)', overflow: 'hidden' };
+  const brand = (
+    <div style={{ textAlign: 'center', marginBottom: 16, fontWeight: 800, letterSpacing: '0.22em', color: '#a67749', fontSize: 15 }}>AVRA</div>
+  );
 
-  if (loading) return <div style={wrap}><div style={card}>Chargement…</div></div>;
-  if (error && !data) return <div style={wrap}><div style={card}><h2 style={{ marginTop: 0 }}>Lien invalide</h2><p style={{ color: '#5b5045' }}>{error}</p></div></div>;
+  if (loading) return <div style={page}><div style={wrap}>{brand}<div style={{ ...card, padding: 24, color: '#5b5045' }}>Chargement…</div></div></div>;
+  if (error && !data) return <div style={page}><div style={wrap}>{brand}<div style={{ ...card, padding: 24 }}><h2 style={{ marginTop: 0, fontSize: 18 }}>Lien invalide</h2><p style={{ color: '#5b5045', margin: 0 }}>{error}</p></div></div></div>;
   if (!data) return null;
 
   const canAcceptRefuse = data.status === 'ENVOYEE' || data.status === 'VUE';
   const canComplete = data.status === 'ACCEPTEE' || data.status === 'EN_COURS';
   const terminal = ['REFUSEE', 'TERMINEE', 'ANNULEE'].includes(data.status);
 
-  const btn = (bg: string): React.CSSProperties => ({ flex: 1, minWidth: 120, background: bg, color: '#fff', border: 'none', borderRadius: 12, padding: '13px 16px', fontWeight: 700, fontSize: 15, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 });
+  const btnBase: React.CSSProperties = { flex: 1, borderRadius: 11, padding: '12px 14px', fontWeight: 700, fontSize: 15, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 };
+  const btnPrimary: React.CSSProperties = { ...btnBase, background: '#304035', color: '#f3ecd9', border: 'none' };
+  const btnOutline: React.CSSProperties = { ...btnBase, background: '#fff', color: '#304035', border: '1px solid rgba(48,64,53,0.25)' };
 
   return (
-    <div style={wrap}>
-      <div style={{ textAlign: 'center', marginBottom: 18, fontWeight: 800, letterSpacing: '0.15em', color: '#a67749' }}>AVRA</div>
-      <div style={card}>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', color: '#7c6c58', textTransform: 'uppercase' }}>{data.type}</div>
-        <h1 style={{ fontSize: 22, margin: '6px 0 4px' }}>{data.title}</h1>
-        <p style={{ color: '#5b5045', margin: '0 0 14px' }}>
-          De <strong>{data.proName}</strong> ({data.workspaceName}){data.projectName ? <> · dossier <strong>{data.projectName}</strong></> : null}
-        </p>
-
-        <div style={{ display: 'inline-block', fontSize: 13, fontWeight: 700, padding: '4px 12px', borderRadius: 999, background: 'rgba(166,119,73,0.12)', color: '#7c4f1d', marginBottom: 14 }}>
-          {STATUS_LABEL[data.status] ?? data.status}
-        </div>
-
-        {data.scheduledFor && (
-          <p style={{ margin: '0 0 12px', color: '#7c4f1d' }}><strong>Date prévue :</strong> {fmtDate(data.scheduledFor)}</p>
-        )}
-        {data.notes && (
-          <p style={{ margin: '0 0 16px', whiteSpace: 'pre-wrap', background: '#fafaf8', padding: '12px 14px', borderRadius: 10, color: '#3D3328' }}>{data.notes}</p>
-        )}
-        {data.attachments && data.attachments.length > 0 && (
-          <div style={{ margin: '0 0 16px' }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: '#7c6c58', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-              Pièces jointes ({data.attachments.length})
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {data.attachments.map((att) => (
-                <a
-                  key={att.id}
-                  href={`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/attachments/${encodeURIComponent(att.id)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 13px', background: '#fff', border: '1px solid #ece7df', borderRadius: 10, textDecoration: 'none', color: '#1a2a1e', fontSize: 14 }}
-                >
-                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>📎 {att.displayName}</span>
-                  <span style={{ color: '#a67749', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>Télécharger</span>
-                </a>
-              ))}
-            </div>
+    <div style={page}>
+      <div style={wrap}>
+        {brand}
+        <div style={card}>
+          {/* Bandeau vert : contexte de la demande */}
+          <div style={{ background: '#304035', padding: '18px 20px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.10em', color: '#cbb98a', textTransform: 'uppercase' }}>{data.type}</div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: '5px 0 0', lineHeight: 1.25 }}>{data.title}</h1>
+            <p style={{ fontSize: 13.5, color: '#d9e0d4', margin: '7px 0 0' }}>
+              De <strong style={{ color: '#fff' }}>{data.proName}</strong> · {data.workspaceName}{data.projectName ? <> · dossier <strong style={{ color: '#fff' }}>{data.projectName}</strong></> : null}
+            </p>
           </div>
-        )}
-        {data.responseMessage && (
-          <p style={{ margin: '0 0 16px', color: '#5b5045', fontStyle: 'italic' }}>Votre réponse : « {data.responseMessage} »</p>
-        )}
 
-        {error && <p style={{ color: '#dc2626', fontSize: 14 }}>{error}</p>}
+          {/* Corps */}
+          <div style={{ padding: '18px 20px 20px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, padding: '5px 12px', borderRadius: 999, background: 'rgba(166,119,73,0.12)', color: '#7c4f1d' }}>
+              <Ico name="clock" size={14} /> {STATUS_LABEL[data.status] ?? data.status}
+            </span>
 
-        {terminal ? (
-          <p style={{ color: '#16a34a', fontWeight: 700, marginTop: 8 }}>
-            {data.status === 'TERMINEE' ? '✓ Marqué comme terminé. Merci !' : data.status === 'REFUSEE' ? 'Vous avez refusé cette demande.' : 'Demande annulée.'}
-          </p>
-        ) : (
-          <>
-            {(canAcceptRefuse || canComplete) && (
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Message (facultatif) — précision, question…"
-                rows={3}
-                style={{ width: '100%', boxSizing: 'border-box', border: '1px solid rgba(48,64,53,0.15)', borderRadius: 10, padding: '10px 12px', fontSize: 14, marginBottom: 12, fontFamily: 'inherit' }}
-              />
-            )}
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {canAcceptRefuse && <button style={btn('#16a34a')} disabled={busy} onClick={() => act('accept')}>Accepter</button>}
-              {canAcceptRefuse && <button style={btn('#dc2626')} disabled={busy} onClick={() => act('refuse')}>Refuser</button>}
-              {canComplete && <button style={btn('#1a2a1e')} disabled={busy} onClick={() => act('complete')}>Marquer terminé</button>}
-            </div>
-          </>
-        )}
-
-        {data.messages && data.messages.length > 0 && (
-          <div style={{ marginTop: 18, borderTop: '1px solid rgba(48,64,53,0.1)', paddingTop: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: '#7c6c58', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Échanges</div>
-            {data.messages.map((m, i) => (
-              <div key={i} style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: '#9a8c7a' }}>{m.authorRole === 'intervenant' ? 'Vous' : m.authorName} · {fmtDate(m.createdAt)}</div>
-                <div style={{ fontSize: 14, color: '#3D3328', whiteSpace: 'pre-wrap' }}>{m.body.replace(/^\[IMG:[^\]]*\]/, '📎 ')}</div>
+            {data.scheduledFor && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '14px 0 0', fontSize: 13.5, color: '#3b6d4a' }}>
+                <Ico name="calendar" size={16} color="#3b6d4a" />
+                <span><strong style={{ color: '#1a2a1e' }}>Date prévue :</strong> {fmtDate(data.scheduledFor)}</span>
               </div>
-            ))}
+            )}
+
+            {data.notes && (
+              <div style={{ margin: '14px 0 0', whiteSpace: 'pre-wrap', background: '#f7f6f1', padding: '12px 14px', borderRadius: 10, color: '#3D3328', fontSize: 14, lineHeight: 1.55 }}>{data.notes}</div>
+            )}
+
+            {data.attachments && data.attachments.length > 0 && (
+              <div style={{ margin: '18px 0 0' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#7c6c58', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 9 }}>
+                  Pièces jointes · {data.attachments.length}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {data.attachments.map((att) => {
+                    const kind = fileKind(att.mimeType, att.displayName);
+                    const badge = FILE_BADGE[kind];
+                    return (
+                      <a
+                        key={att.id}
+                        href={`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/attachments/${encodeURIComponent(att.id)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', background: '#fff', border: '1px solid #ece7df', borderRadius: 10, textDecoration: 'none', color: '#1a2a1e' }}
+                      >
+                        <span style={{ width: 30, height: 30, borderRadius: 8, background: badge.bg, color: badge.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Ico name={kind} size={17} color={badge.fg} />
+                        </span>
+                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500, fontSize: 14 }}>{att.displayName}</span>
+                        <span style={{ color: '#a67749', flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><Ico name="download" size={17} color="#a67749" /></span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {data.responseMessage && (
+              <p style={{ margin: '16px 0 0', color: '#5b5045', fontStyle: 'italic', fontSize: 14 }}>Votre réponse : « {data.responseMessage} »</p>
+            )}
+
+            {error && (
+              <div style={{ margin: '14px 0 0', background: '#fbecec', border: '1px solid #e7c9c9', color: '#b91c1c', borderRadius: 10, padding: '10px 12px', fontSize: 13.5 }}>{error}</div>
+            )}
+
+            {terminal ? (
+              <div style={{ margin: '16px 0 0', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: data.status === 'TERMINEE' ? '#3b6d4a' : '#7c6c58' }}>
+                {data.status === 'TERMINEE' && <Ico name="checkCircle" size={18} color="#3b6d4a" />}
+                <span>{data.status === 'TERMINEE' ? 'Marqué comme terminé. Merci !' : data.status === 'REFUSEE' ? 'Vous avez refusé cette demande.' : 'Demande annulée.'}</span>
+              </div>
+            ) : (
+              <>
+                {(canAcceptRefuse || canComplete) && (
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Message (facultatif) — précision, question…"
+                    rows={2}
+                    style={{ width: '100%', boxSizing: 'border-box', border: '1px solid rgba(48,64,53,0.15)', borderRadius: 10, padding: '10px 12px', fontSize: 14, margin: '16px 0 11px', fontFamily: 'inherit', resize: 'vertical', background: '#fff', color: '#1a2a1e' }}
+                  />
+                )}
+                <div style={{ display: 'flex', gap: 9 }}>
+                  {canAcceptRefuse && <button style={btnPrimary} disabled={busy} onClick={() => act('accept')}><Ico name="check" size={17} color="#f3ecd9" /> Accepter</button>}
+                  {canAcceptRefuse && <button style={btnOutline} disabled={busy} onClick={() => act('refuse')}><Ico name="x" size={17} color="#304035" /> Refuser</button>}
+                  {canComplete && <button style={btnPrimary} disabled={busy} onClick={() => act('complete')}><Ico name="check" size={17} color="#f3ecd9" /> Marquer terminé</button>}
+                </div>
+              </>
+            )}
+
+            {!terminal && (
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: uploading ? 'wait' : 'pointer', marginTop: 9, background: '#fff', color: '#1a2a1e', border: '1px dashed rgba(48,64,53,0.30)', borderRadius: 11, padding: '12px', fontWeight: 600, fontSize: 14 }}>
+                <Ico name="paperclip" size={17} color="#1a2a1e" />
+                {uploading ? 'Envoi en cours…' : 'Joindre un document'}
+                <input type="file" multiple disabled={uploading || sending} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ''; uploadFiles(files); }} style={{ display: 'none' }} />
+              </label>
+            )}
+            {!terminal && (
+              <p style={{ margin: '8px 0 0', fontSize: 12, color: '#7c6c58', textAlign: 'center' }}>
+                PDF, photos, plans… (max 25 Mo / fichier). Reçu directement dans le dossier.
+              </p>
+            )}
+
+            {data.messages && data.messages.length > 0 && (
+              <div style={{ marginTop: 18, borderTop: '1px solid rgba(48,64,53,0.1)', paddingTop: 15 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#7c6c58', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Échanges</div>
+                {data.messages.map((m, i) => {
+                  const mine = m.authorRole === 'intervenant';
+                  return (
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start', marginBottom: 10 }}>
+                      <div style={{ fontSize: 11, color: '#9a8c7a', marginBottom: 3 }}>{mine ? 'Vous' : m.authorName} · {fmtDate(m.createdAt)}</div>
+                      <div style={{ maxWidth: '85%', fontSize: 14, color: mine ? '#fff' : '#3D3328', whiteSpace: 'pre-wrap', background: mine ? '#304035' : '#f7f6f1', borderRadius: 12, padding: '9px 12px', lineHeight: 1.5 }}>
+                        {m.body.replace(/^\[IMG:[^\]]*\]/, '📎 ')}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!terminal && (
+              <div style={{ marginTop: 16, borderTop: '1px solid rgba(48,64,53,0.1)', paddingTop: 15 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Ico name="message" size={18} color="#a67749" />
+                  <span style={{ fontSize: 14.5, fontWeight: 700, color: '#1a2a1e' }}>Écrire un message</span>
+                </div>
+                <p style={{ margin: '6px 0 9px', fontSize: 13, color: '#7c6c58' }}>
+                  Une question, une précision, une date à proposer ? Écrivez directement au professionnel.
+                </p>
+                <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Votre message…" rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box', border: '1px solid rgba(48,64,53,0.18)', borderRadius: 10, padding: '11px 13px', fontSize: 15, fontFamily: 'inherit', marginBottom: 9, background: '#fff', color: '#1a2a1e', resize: 'vertical' }} />
+                <button onClick={sendReply} disabled={sending || uploading || !reply.trim()}
+                  style={{ width: '100%', background: '#a67749', color: '#fff', border: 'none', borderRadius: 10, padding: '13px 18px', fontWeight: 700, fontSize: 15, cursor: (sending || uploading) ? 'wait' : 'pointer', opacity: (sending || uploading || !reply.trim()) ? 0.5 : 1 }}>
+                  {sending ? 'Envoi…' : uploading ? 'Patientez…' : 'Envoyer le message'}
+                </button>
+              </div>
+            )}
           </div>
-        )}
-        {!terminal && (
-          <div style={{ marginTop: 14 }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: uploading ? 'wait' : 'pointer', background: '#1a2a1e', color: '#cbb98a', borderRadius: 10, padding: '12px 18px', fontWeight: 800, fontSize: 14 }}>
-              {uploading ? 'Envoi en cours…' : '📎 Joindre un document'}
-              <input type="file" multiple disabled={uploading || sending} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ''; uploadFiles(files); }} style={{ display: 'none' }} />
-            </label>
-            <p style={{ margin: '8px 0 0', fontSize: 12, color: '#7c6c58' }}>
-              PDF, photos, plans… (max 25 Mo par fichier). Le document est reçu directement dans le dossier.
-            </p>
-          </div>
-        )}
-        {!terminal && (
-          <div style={{ marginTop: 18, background: '#fbf7f0', border: '1px solid #e7dcc8', borderRadius: 14, padding: '16px 16px 14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 18 }}>💬</span>
-              <span style={{ fontSize: 15, fontWeight: 800, color: '#1a2a1e' }}>Écrire un message</span>
-            </div>
-            <p style={{ margin: '0 0 10px', fontSize: 13, color: '#7c6c58' }}>
-              Une question, une précision, une date à proposer ? Écrivez directement au professionnel.
-            </p>
-            <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Votre message…" rows={4}
-              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid rgba(48,64,53,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 15, fontFamily: 'inherit', marginBottom: 10, background: '#fff' }} />
-            <button onClick={sendReply} disabled={sending || uploading || !reply.trim()}
-              style={{ width: '100%', background: '#a67749', color: '#fff', border: 'none', borderRadius: 10, padding: '13px 18px', fontWeight: 800, fontSize: 15, cursor: (sending || uploading) ? 'wait' : 'pointer', opacity: (sending || uploading || !reply.trim()) ? 0.5 : 1 }}>
-              {sending ? 'Envoi…' : uploading ? 'Patientez…' : 'Envoyer le message'}
-            </button>
-          </div>
-        )}
+        </div>
+        <p style={{ textAlign: 'center', color: '#9a8c7a', fontSize: 12, marginTop: 16 }}>
+          Aucun compte nécessaire — vous répondez directement depuis ce lien.
+        </p>
       </div>
-      <p style={{ textAlign: 'center', color: '#9a8c7a', fontSize: 12, marginTop: 16 }}>
-        Aucun compte nécessaire — vous répondez directement depuis ce lien.
-      </p>
     </div>
   );
 }
