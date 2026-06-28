@@ -77,8 +77,8 @@ export function isArchitectEnabled(): boolean {
 export function buildArchitectPrompt(params: ArchitectParams): string {
   const base =
     params.mode === 'exterior'
-      ? 'professional architectural exterior photograph, photorealistic, accurate proportions and geometry true to the source, realistic natural daylight, clean materials'
-      : 'professional architectural interior photograph, photorealistic, accurate proportions and geometry true to the source, realistic natural and artificial lighting, clean detailed materials';
+      ? 'professional architectural exterior photograph, photorealistic, accurate proportions and geometry true to the source, bright and luminous natural daylight, soft even lighting, airy well-lit atmosphere, clean materials'
+      : 'professional architectural interior photograph, photorealistic, accurate proportions and geometry true to the source, bright and luminous lighting, soft even natural and artificial light, airy well-lit atmosphere, clean detailed materials';
 
   const materials: string[] = [];
   if (params.facades?.trim()) materials.push(`cabinet fronts: ${params.facades.trim()}`);
@@ -90,7 +90,7 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
 
   // Contraintes anti-dérive baked-in (faute de negativePrompt sur ces endpoints).
   const guard =
-    'preserve the original layout and camera angle, no extra furniture, no added objects, no warped or deformed shapes, no distorted lines, no text, high detail, sharp focus';
+    'preserve the original layout and camera angle, no extra furniture, no added objects, no warped or deformed shapes, no distorted lines, no text, crisp clean image, sharp focus, fine high detail, high resolution, smooth surfaces, no grain, no noise, no blur, no compression artifacts';
 
   return [base, materials.length ? materials.join(', ') : '', ambiance, guard]
     .filter(Boolean)
