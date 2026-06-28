@@ -40,15 +40,28 @@ const COUNT_LABELS: Array<[string, string]> = [
  * un refresh (POST /api/v1/auth/refresh, sans CSRF) puis on rejoue UNE fois.
  * Un compte non autorisé restera en 401 même après refresh → « accès refusé ».
  */
-async function supportFetch(url: string): Promise<Response> {
-  let res = await fetch(url, { credentials: 'include' });
+async function supportFetch(url: string, init?: RequestInit): Promise<Response> {
+  let res = await fetch(url, { credentials: 'include', ...init });
   if (res.status === 401) {
     try {
       const r = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' });
-      if (r.ok) res = await fetch(url, { credentials: 'include' });
+      if (r.ok) res = await fetch(url, { credentials: 'include', ...init });
     } catch { /* refresh impossible : on garde le 401 */ }
   }
   return res;
+}
+
+/** Télécharge un objet en fichier JSON côté navigateur. */
+function downloadJson(filename: string, obj: unknown) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 export default function SupportClient() {
@@ -59,6 +72,11 @@ export default function SupportClient() {
   const [loadingAccount, setLoadingAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [denied, setDenied] = useState(false);
+  // V2 — actions
+  const [busy, setBusy] = useState(false);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [confirmName, setConfirmName] = useState('');
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
@@ -90,6 +108,50 @@ export default function SupportClient() {
       setLoadingAccount(false);
     }
   }, []);
+
+  /** Export RGPD : télécharge un JSON complet du compte. */
+  const exportAccount = useCallback(async () => {
+    if (!account) return;
+    setBusy(true); setActionMsg(null);
+    try {
+      const res = await supportFetch(`/api/support/export?workspaceId=${encodeURIComponent(account.workspace.id)}`);
+      if (res.status === 401) { setDenied(true); return; }
+      if (!res.ok) { setActionMsg("Échec de l'export."); return; }
+      const data = await res.json();
+      downloadJson(`avra-export-${account.workspace.name}-${new Date().toISOString().slice(0, 10)}.json`, data);
+      setActionMsg('Export téléchargé.');
+    } catch {
+      setActionMsg("Erreur réseau pendant l'export.");
+    } finally {
+      setBusy(false);
+    }
+  }, [account]);
+
+  /** Réinitialisation : télécharge la sauvegarde puis vide le compte. */
+  const doReset = useCallback(async () => {
+    if (!account) return;
+    setBusy(true); setActionMsg(null);
+    try {
+      const res = await supportFetch('/api/support/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId: account.workspace.id, confirmName }),
+      });
+      if (res.status === 401) { setDenied(true); return; }
+      const data = await res.json().catch(() => null);
+      if (!res.ok) { setActionMsg(data?.error ?? 'Échec de la réinitialisation.'); return; }
+      if (data?.snapshot) {
+        downloadJson(`avra-SAUVEGARDE-avant-reset-${account.workspace.name}-${new Date().toISOString().slice(0, 10)}.json`, data.snapshot);
+      }
+      setResetOpen(false); setConfirmName('');
+      setActionMsg('Compte réinitialisé. Sauvegarde téléchargée.');
+      openAccount(account.workspace.id);
+    } catch {
+      setActionMsg('Erreur réseau pendant la réinitialisation.');
+    } finally {
+      setBusy(false);
+    }
+  }, [account, confirmName, openAccount]);
 
   if (denied) {
     return (
@@ -229,6 +291,25 @@ export default function SupportClient() {
               )}
             </div>
 
+            {/* Actions (V2) */}
+            <div style={{ background: 'white', borderRadius: 16, padding: '14px 16px', marginBottom: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#2C3529', marginBottom: 10 }}>Actions</div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button onClick={exportAccount} disabled={busy}
+                  style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid #cfe0d6', background: '#eef7ef', color: '#2f6b4f', fontWeight: 700, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
+                  ⬇ Exporter les données (RGPD)
+                </button>
+                <button onClick={() => { setConfirmName(''); setActionMsg(null); setResetOpen(true); }} disabled={busy}
+                  style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid #e6c3bd', background: '#fdeeec', color: '#C0392B', fontWeight: 700, fontSize: 13, cursor: busy ? 'wait' : 'pointer' }}>
+                  Réinitialiser le compte…
+                </button>
+                {actionMsg && <span style={{ fontSize: 12, color: '#4A6358', fontWeight: 600 }}>{actionMsg}</span>}
+              </div>
+              <p style={{ fontSize: 11, color: '#9A9590', marginTop: 8 }}>
+                L'export génère un fichier JSON complet. La réinitialisation télécharge d'abord une sauvegarde, puis vide dossiers/clients/devis/factures/documents/rendus… — le compte et la connexion sont conservés.
+              </p>
+            </div>
+
             {/* Journal d'audit support */}
             <div style={{ background: 'white', borderRadius: 16, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#2C3529', marginBottom: 8 }}>Journal des actions support sur ce compte</div>
@@ -245,6 +326,36 @@ export default function SupportClient() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Modale de confirmation de réinitialisation */}
+        {resetOpen && account && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+            <div style={{ background: 'white', borderRadius: 18, padding: '22px 24px', maxWidth: 480, width: '100%', boxShadow: '0 12px 44px rgba(0,0,0,0.28)' }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: '#C0392B' }}>⚠️ Réinitialiser ce compte</div>
+              <p style={{ fontSize: 13, color: '#6b6158', marginTop: 8, lineHeight: 1.5 }}>
+                Cette action vide toutes les données métier de <strong>{account.workspace.name}</strong> (dossiers, clients, devis, factures, documents, rendus…). Le compte et la connexion sont <strong>conservés</strong>. Une sauvegarde JSON est téléchargée automatiquement avant suppression.
+              </p>
+              <p style={{ fontSize: 12, color: '#8a8178', marginTop: 12, marginBottom: 6 }}>
+                Pour confirmer, tapez le nom exact du workspace : <code style={{ fontSize: 12, background: '#f3efe9', padding: '2px 6px', borderRadius: 5 }}>{account.workspace.name}</code>
+              </p>
+              <input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} placeholder="Nom du workspace"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #ddd6cc', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+              {actionMsg && <div style={{ fontSize: 12, color: '#C0392B', marginTop: 8 }}>{actionMsg}</div>}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                <button onClick={() => { setResetOpen(false); setConfirmName(''); }} disabled={busy}
+                  style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid #ddd6cc', background: 'white', color: '#6b6158', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                  Annuler
+                </button>
+                <button onClick={doReset} disabled={busy || confirmName.trim() !== account.workspace.name}
+                  style={{ padding: '9px 16px', borderRadius: 10, border: 'none', color: 'white', fontWeight: 700, fontSize: 13,
+                    background: (confirmName.trim() === account.workspace.name && !busy) ? '#C0392B' : '#e0b4ad',
+                    cursor: (confirmName.trim() === account.workspace.name && !busy) ? 'pointer' : 'not-allowed' }}>
+                  {busy ? 'Réinitialisation…' : 'Réinitialiser définitivement'}
+                </button>
+              </div>
             </div>
           </div>
         )}
