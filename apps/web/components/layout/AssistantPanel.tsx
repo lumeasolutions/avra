@@ -137,7 +137,20 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
   const invoices      = useFacturationStore(s => s.invoices);
 
   const [tab, setTab] = useState<'alerts'|'chat'>('alerts');
+  // Filtre des alertes par catégorie (clic sur une carte KPI). 'all' = défaut.
+  const [alertFilter, setAlertFilter] = useState<'all'|'urgent'|'retard'|'encours'>('all');
   const activeAlerts  = alerts.filter(a => !a.dismissed);
+  // Classifieurs partagés (cartes KPI + filtre liste) — une seule source de vérité.
+  const isUrgentAlert = (a: any) => a.severity === 'error';
+  const isRetardAlert = (a: any) => {
+    const k = (a as any).sourceKey ?? '';
+    return k.startsWith('facture-') || k.startsWith('cmd-livraison-') || (k.startsWith('butoir-') && !k.startsWith('butoir-soon-'));
+  };
+  const displayedAlerts = activeAlerts.filter(a =>
+    alertFilter === 'urgent'  ? isUrgentAlert(a)
+    : alertFilter === 'retard'  ? isRetardAlert(a)
+    : alertFilter === 'encours' ? (!isUrgentAlert(a) && !isRetardAlert(a))
+    : true);
 
   if (!open) return null;
 
@@ -273,23 +286,31 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
             {/* KPIs */}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, padding:'10px 12px 6px' }}>
               {[
-                { val:activeAlerts.filter(a => a.severity==='error').length, label:'URGENTS', color:'#D32F2F', bg:'#FFF0F0' },
-                { val:dossiers.length,                                   label:'EN COURS', color:'#388E3C', bg:'#F0FFF2' },
-                { val:activeAlerts.filter(a => { const k = (a as any).sourceKey ?? ''; return k.startsWith('facture-') || k.startsWith('cmd-livraison-') || (k.startsWith('butoir-') && !k.startsWith('butoir-soon-')); }).length, label:'RETARDS', color:'#E07B00', bg:'#FFF8F0' },
-              ].map(({ val, label, color, bg }) => (
-                <div key={label} style={{ background:'white', borderRadius:14, padding:'9px 4px', textAlign:'center', boxShadow:'0 2px 8px rgba(0,0,0,0.07)' }}>
+                { fkey:'urgent'  as const, val:activeAlerts.filter(isUrgentAlert).length, label:'URGENTS', color:'#D32F2F', bg:'#FFF0F0' },
+                { fkey:'encours' as const, val:dossiers.length,                          label:'EN COURS', color:'#388E3C', bg:'#F0FFF2' },
+                { fkey:'retard'  as const, val:activeAlerts.filter(isRetardAlert).length, label:'RETARDS', color:'#E07B00', bg:'#FFF8F0' },
+              ].map(({ fkey, val, label, color, bg }) => {
+                const selected = alertFilter === fkey;
+                return (
+                <button key={label} onClick={() => setAlertFilter(selected ? 'all' : fkey)} title={selected ? 'Cliquer pour tout afficher' : `Voir seulement : ${label}`} style={{
+                  background: selected ? bg : 'white', borderRadius:14, padding:'9px 4px', textAlign:'center',
+                  boxShadow: selected ? `0 2px 10px ${color}33` : '0 2px 8px rgba(0,0,0,0.07)',
+                  border: selected ? `2px solid ${color}` : '2px solid transparent',
+                  cursor:'pointer', transition:'all .15s', outline:'none',
+                }}>
                   <div style={{ fontSize:22, fontWeight:800, color, lineHeight:1 }}>{val}</div>
-                  <div style={{ fontSize:8, fontWeight:700, color:'#9A9590', letterSpacing:'0.05em', marginTop:2 }}>{label}</div>
-                </div>
-              ))}
+                  <div style={{ fontSize:8, fontWeight:700, color: selected ? color : '#9A9590', letterSpacing:'0.05em', marginTop:2 }}>{label}</div>
+                </button>
+                );
+              })}
             </div>
             {/* Liste */}
             <div className="ap-scroll flex-1 overflow-y-auto" style={{ padding:'4px 12px 8px', display:'flex', flexDirection:'column', gap:7 }}>
-              {activeAlerts.length === 0 ? (
+              {displayedAlerts.length === 0 ? (
                 <div style={{ textAlign:'center', padding:'24px 0', color:'#388E3C', fontWeight:600, fontSize:13 }}>
-                  ✅ Tout est en ordre
+                  {alertFilter === 'all' ? '✅ Tout est en ordre' : '✅ Aucune alerte dans cette catégorie'}
                 </div>
-              ) : activeAlerts.map((alert, i) => (
+              ) : displayedAlerts.map((alert, i) => (
                 <div key={alert.id} className="ap-slide ap-card" style={{
                   background:'white', borderRadius:16,
                   padding:'10px 11px', display:'flex', flexDirection:'column', gap:6,
@@ -352,7 +373,14 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
             </div>
             {/* Pagination */}
             <div style={{ padding:'8px 12px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', borderTop:'1px solid rgba(0,0,0,0.05)' }}>
-              <span style={{ fontSize:11, color:'#B0AB9F', fontWeight:500 }}>{activeAlerts.length} / {alerts.length} alertes</span>
+              <span style={{ fontSize:11, color:'#B0AB9F', fontWeight:500 }}>
+                {displayedAlerts.length} / {activeAlerts.length} alertes
+                {alertFilter !== 'all' && (
+                  <button onClick={() => setAlertFilter('all')} style={{ marginLeft:8, border:'none', background:'transparent', color:'#4A6358', fontWeight:700, fontSize:11, cursor:'pointer', textDecoration:'underline', padding:0 }}>
+                    tout afficher
+                  </button>
+                )}
+              </span>
               <div style={{ display:'flex', gap:5 }}>
                 {['‹','›'].map(btn => (
                   <button key={btn} style={{ width:26, height:26, borderRadius:'50%', border:'1px solid #D8D3CB', background:'white', fontSize:14, color:'#4A6358', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>{btn}</button>
