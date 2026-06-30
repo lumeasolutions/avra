@@ -1,4 +1,4 @@
-import { IsString, IsUUID, IsNumber, IsOptional, IsArray, ValidateNested, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class OrderLineDto {
@@ -19,10 +19,11 @@ export class OrderLineDto {
 }
 
 export class CreateOrderDto {
-  @IsUUID()
+  // Les ids Prisma sont des cuid (pas des UUID) → @IsString, pas @IsUUID.
+  @IsString()
   projectId: string;
 
-  @IsUUID()
+  @IsString()
   @IsOptional()
   supplierId?: string;
 

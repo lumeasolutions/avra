@@ -23,6 +23,8 @@ export class OrdersService {
           project: { select: { id: true, name: true, reference: true } },
           supplier: { select: { id: true, name: true, email: true, phone: true } },
           _count: { select: { lines: true } },
+          // Lignes minimales pour calculer le total HT côté front.
+          lines: { select: { quantity: true, unitPrice: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
