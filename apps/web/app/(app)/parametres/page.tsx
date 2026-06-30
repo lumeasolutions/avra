@@ -2,6 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import {
+  getTeamOverview, inviteMember, revokeInvitation, resendInvitation,
+  updateTeamMember, removeTeamMember, teamDisplayName,
+  type TeamOverview,
+} from '@/lib/team-api';
+import {
   Settings, Building2, Package, FileText, FolderX, Bell,
   ChevronRight, Save, Plus, Trash2, X, Crown, Eye, EyeOff, Check,
   Hash, Banknote, SlidersHorizontal, RefreshCw, Download, Upload,
@@ -51,9 +56,17 @@ const SECTIONS = [
 ];
 
 const ROLE_COLORS: Record<string, string> = {
+  OWNER:   'bg-[#a67749] text-white',
   ADMIN:   'bg-[#304035] text-white',
+  MEMBER:  'bg-[#5b9bd5] text-white',
+  VIEWER:  'bg-[#304035]/40 text-white',
+  // Rôles UI hérités (apporteurs / anciens libellés)
   VENDEUR: 'bg-[#a67749] text-white',
   POSEUR:  'bg-[#5b9bd5] text-white',
+};
+
+const ROLE_LABEL: Record<string, string> = {
+  OWNER: 'Propriétaire', ADMIN: 'Admin', MEMBER: 'Membre', VIEWER: 'Lecture',
 };
 
 const fmt = (n: number) =>
@@ -140,11 +153,7 @@ export default function ParametresPage() {
   const updateSociete       = useConfigStore(s => s.updateSociete);
   const relanceConfig       = useConfigStore(s => s.relanceConfig);
   const updateRelanceConfig = useConfigStore(s => s.updateRelanceConfig);
-  const members             = useConfigStore(s => s.members);
-  const addMember           = useConfigStore(s => s.addMember);
-  const toggleMemberActive  = useConfigStore(s => s.toggleMemberActive);
-  const removeMember        = useConfigStore(s => s.removeMember);
-  const updateMemberRole    = useConfigStore(s => s.updateMemberRole);
+  // (Équipe & Accès : géré via le backend team — voir handlers reloadTeam/handleInvite…)
   const dossiersPerdus      = useDossierStore(s => s.dossiersPerdus);
   const stockItems          = useStockStore(s => s.stockItems);
   const preferences         = useConfigStore(s => s.preferences) ?? { langue: 'fr', devise: 'EUR', tvaDefaut: 20, formatDate: 'dd/mm/yyyy', fuseauHoraire: 'Europe/Paris', modeCompact: false };
@@ -194,6 +203,75 @@ export default function ParametresPage() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'VENDEUR' as 'ADMIN' | 'VENDEUR' | 'POSEUR', active: true });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // ── Équipe & Accès : données réelles depuis le backend (module team) ──────────
+  const [teamOverview, setTeamOverview] = useState<TeamOverview | null>(null);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamErr, setTeamErr] = useState<string | null>(null);
+  const [teamBusy, setTeamBusy] = useState(false);
+
+  async function reloadTeam() {
+    setTeamLoading(true); setTeamErr(null);
+    try { setTeamOverview(await getTeamOverview()); }
+    catch (e: any) { setTeamErr(e?.message || "Chargement de l'équipe impossible"); }
+    finally { setTeamLoading(false); }
+  }
+  useEffect(() => {
+    if (active === 'equipe') reloadTeam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  const handleInviteMember = async () => {
+    const email = newMember.email.trim();
+    if (!email) return;
+    const parts = newMember.name.trim().split(/\s+/).filter(Boolean);
+    const firstName = parts.shift();
+    const lastName = parts.join(' ');
+    setTeamBusy(true); setTeamErr(null);
+    try {
+      await inviteMember({
+        email,
+        role: newMember.role === 'ADMIN' ? 'ADMIN' : 'MEMBER',
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+      });
+      setNewMember({ name: '', email: '', role: 'VENDEUR', active: true });
+      setShowAddMember(false);
+      await reloadTeam();
+    } catch (e: any) { setTeamErr(e?.message || "Échec de l'invitation"); }
+    finally { setTeamBusy(false); }
+  };
+
+  const handleMemberRole = async (userId: string, role: 'MEMBER' | 'ADMIN') => {
+    setTeamBusy(true); setTeamErr(null);
+    try { await updateTeamMember(userId, { role }); await reloadTeam(); }
+    catch (e: any) { setTeamErr(e?.message || 'Modification impossible'); }
+    finally { setTeamBusy(false); }
+  };
+  const handleMemberStatus = async (userId: string, status: 'ACTIVE' | 'SUSPENDED') => {
+    setTeamBusy(true); setTeamErr(null);
+    try { await updateTeamMember(userId, { status }); await reloadTeam(); }
+    catch (e: any) { setTeamErr(e?.message || 'Modification impossible'); }
+    finally { setTeamBusy(false); }
+  };
+  const handleRemoveMember = async (userId: string) => {
+    setTeamBusy(true); setTeamErr(null);
+    try { await removeTeamMember(userId); setDeleteConfirm(null); await reloadTeam(); }
+    catch (e: any) { setTeamErr(e?.message || 'Suppression impossible'); }
+    finally { setTeamBusy(false); }
+  };
+  const handleRevokeInvite = async (id: string) => {
+    setTeamBusy(true); setTeamErr(null);
+    try { await revokeInvitation(id); await reloadTeam(); }
+    catch (e: any) { setTeamErr(e?.message || 'Annulation impossible'); }
+    finally { setTeamBusy(false); }
+  };
+  const handleResendInvite = async (id: string) => {
+    setTeamBusy(true); setTeamErr(null);
+    try { await resendInvitation(id); await reloadTeam(); }
+    catch (e: any) { setTeamErr(e?.message || 'Renvoi impossible'); }
+    finally { setTeamBusy(false); }
+  };
   // Commissions state
   const [showAddApporteur, setShowAddApporteur] = useState(false);
   const [newApporteur, setNewApporteur] = useState<Omit<Apporteur, 'id' | 'dateAjout'>>({ nom: '', email: '', phone: '', tauxCommission: 5, actif: true, notes: '' });
@@ -795,8 +873,12 @@ export default function ParametresPage() {
               ))}
             </div>
             <div className="mt-3 flex items-center justify-between text-[10px] text-white/45">
-              <span>{members.filter(m => m.active).length} utilisateur(s) actif(s) · max 10</span>
-              <span>Renouvellement le 01/04/2026</span>
+              <span>
+                {teamOverview
+                  ? `${teamOverview.seats.activeMembers} membre(s) actif(s)${teamOverview.seats.pendingInvitations ? ` · ${teamOverview.seats.pendingInvitations} invitation(s) en attente` : ''} · ${teamOverview.seats.includedSeats} inclus`
+                  : '—'}
+              </span>
+              <span>{teamOverview?.workspaceName || ''}</span>
             </div>
           </div>
 
@@ -811,59 +893,117 @@ export default function ParametresPage() {
                 <Plus className="h-3.5 w-3.5" /> Inviter un membre
               </button>
             </div>
+            {teamErr && (
+              <div className="mb-2 rounded-xl bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-700">{teamErr}</div>
+            )}
+            {teamLoading && !teamOverview && (
+              <div className="py-6 text-center text-sm text-[#304035]/50">Chargement de l'équipe…</div>
+            )}
             <div className="space-y-2">
-              {members.map(m => (
-                <div key={m.id} className={cn('flex items-center justify-between rounded-xl border px-4 py-3 transition-all', m.active ? 'bg-white border-[#304035]/10' : 'bg-[#304035]/4 border-[#304035]/5 opacity-60')}>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#304035]/10 font-bold text-sm text-[#304035]">
-                      {m.name.charAt(0).toUpperCase()}
+              {(teamOverview?.members ?? []).map(m => {
+                const name = teamDisplayName(m);
+                const isActive = m.status === 'ACTIVE';
+                const canManage = !m.isOwner && !m.isYou;
+                return (
+                  <div key={m.userWorkspaceId} className={cn('flex items-center justify-between rounded-xl border px-4 py-3 transition-all', isActive ? 'bg-white border-[#304035]/10' : 'bg-[#304035]/4 border-[#304035]/5 opacity-60')}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#304035]/10 font-bold text-sm text-[#304035]">
+                        {name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[#304035] text-sm">
+                          {name}{m.isYou && <span className="ml-1.5 text-[10px] font-normal text-[#304035]/40">(vous)</span>}
+                        </p>
+                        <p className="text-xs text-[#304035]/50">{m.email}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-[#304035] text-sm">{m.name}</p>
-                      <p className="text-xs text-[#304035]/50">{m.email}</p>
+                    <div className="flex items-center gap-2">
+                      {/* Rôle : OWNER non modifiable, sinon Membre/Admin */}
+                      {m.isOwner ? (
+                        <span className={cn('rounded-lg px-2 py-1 text-xs font-bold', ROLE_COLORS[m.role])}>{ROLE_LABEL[m.role] ?? m.role}</span>
+                      ) : (
+                        <select
+                          value={m.role === 'ADMIN' ? 'ADMIN' : 'MEMBER'}
+                          disabled={!canManage || teamBusy}
+                          onChange={e => handleMemberRole(m.userId, e.target.value as 'MEMBER' | 'ADMIN')}
+                          className={cn('rounded-lg px-2 py-1 text-xs font-bold border-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60', ROLE_COLORS[m.role] ?? ROLE_COLORS.MEMBER)}
+                        >
+                          <option value="MEMBER">Membre</option>
+                          <option value="ADMIN">Admin</option>
+                        </select>
+                      )}
+                      {/* Actif/suspendu */}
+                      {canManage && (
+                        <button
+                          onClick={() => handleMemberStatus(m.userId, isActive ? 'SUSPENDED' : 'ACTIVE')}
+                          disabled={teamBusy}
+                          title={isActive ? 'Suspendre' : 'Réactiver'}
+                          className={cn('rounded-lg p-1.5 transition-colors disabled:opacity-50', isActive ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-[#304035]/10 text-[#304035]/50 hover:bg-[#304035]/20')}
+                        >
+                          {isActive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
+                      {/* Retirer */}
+                      {canManage && (
+                        <button
+                          onClick={() => setDeleteConfirm(deleteConfirm === m.userId ? null : m.userId)}
+                          className="rounded-lg p-1.5 bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {/* Rôle éditable */}
-                    <select
-                      value={m.role}
-                      onChange={e => updateMemberRole(m.id, e.target.value as 'ADMIN' | 'VENDEUR' | 'POSEUR')}
-                      className={cn('rounded-lg px-2 py-1 text-xs font-bold border-none cursor-pointer', ROLE_COLORS[m.role])}
-                    >
-                      <option value="ADMIN">ADMIN</option>
-                      <option value="VENDEUR">VENDEUR</option>
-                      <option value="POSEUR">POSEUR</option>
-                    </select>
-                    {/* Actif/inactif */}
-                    <button
-                      onClick={() => toggleMemberActive(m.id)}
-                      title={m.active ? 'Désactiver' : 'Activer'}
-                      className={cn('rounded-lg p-1.5 transition-colors', m.active ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-[#304035]/10 text-[#304035]/50 hover:bg-[#304035]/20')}
-                    >
-                      {m.active ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                    </button>
-                    {/* Supprimer */}
-                    {m.role !== 'ADMIN' && (
-                      <button
-                        onClick={() => setDeleteConfirm(deleteConfirm === m.id ? null : m.id)}
-                        className="rounded-lg p-1.5 bg-red-50 text-red-400 hover:bg-red-100 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
+              {!teamLoading && teamOverview && teamOverview.members.length === 0 && (
+                <p className="py-4 text-center text-sm text-[#304035]/40">Aucun membre.</p>
+              )}
             </div>
-            {/* Confirmation suppression */}
+
+            {/* Confirmation suppression membre */}
             {deleteConfirm && (
               <div className="mt-2 rounded-xl bg-red-50 border border-red-200 p-4 flex items-center justify-between">
-                <p className="text-sm text-red-700 font-medium">Supprimer ce membre définitivement ?</p>
+                <p className="text-sm text-red-700 font-medium">Retirer ce membre de l'équipe ?</p>
                 <div className="flex gap-2">
-                  <button onClick={() => { removeMember(deleteConfirm); setDeleteConfirm(null); }}
-                    className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-600">Confirmer</button>
+                  <button onClick={() => handleRemoveMember(deleteConfirm)} disabled={teamBusy}
+                    className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50">Confirmer</button>
                   <button onClick={() => setDeleteConfirm(null)}
                     className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50">Annuler</button>
+                </div>
+              </div>
+            )}
+
+            {/* Invitations en attente */}
+            {teamOverview && teamOverview.invitations.length > 0 && (
+              <div className="mt-5">
+                <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-2">Invitations en attente</p>
+                <div className="space-y-2">
+                  {teamOverview.invitations.map(inv => (
+                    <div key={inv.id} className="flex items-center justify-between rounded-xl border border-dashed border-[#a67749]/40 bg-[#a67749]/5 px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#a67749]/15 text-[#a67749]">
+                          <Bell className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#304035] text-sm">{teamDisplayName(inv)}</p>
+                          <p className="text-xs text-[#304035]/50">{inv.email} · {ROLE_LABEL[inv.role] ?? inv.role} · en attente</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleResendInvite(inv.id)} disabled={teamBusy}
+                          title="Renvoyer l'e-mail"
+                          className="rounded-lg p-1.5 bg-[#304035]/8 text-[#304035]/70 hover:bg-[#304035]/15 transition-colors disabled:opacity-50">
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => handleRevokeInvite(inv.id)} disabled={teamBusy}
+                          title="Annuler l'invitation"
+                          className="rounded-lg p-1.5 bg-red-50 text-red-400 hover:bg-red-100 transition-colors disabled:opacity-50">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -886,16 +1026,19 @@ export default function ParametresPage() {
                     className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-3 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#304035]/20" />
                   <select value={newMember.role} onChange={e => setNewMember(p => ({ ...p, role: e.target.value as 'VENDEUR' | 'POSEUR' | 'ADMIN' }))}
                     className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-3 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20">
-                    <option value="VENDEUR">VENDEUR</option>
-                    <option value="POSEUR">POSEUR</option>
-                    <option value="ADMIN">ADMIN</option>
+                    <option value="VENDEUR">Membre</option>
+                    <option value="ADMIN">Administrateur</option>
                   </select>
+                  <p className="text-[11px] text-[#304035]/45 leading-snug">
+                    Un e-mail d'invitation sera envoyé. La personne crée son compte via le lien reçu.
+                  </p>
+                  {teamErr && <p className="text-xs text-red-600">{teamErr}</p>}
                 </div>
                 <div className="flex gap-3 mt-5">
-                  <button onClick={() => { if (newMember.name.trim() && newMember.email.trim()) { addMember(newMember); setNewMember({ name: '', email: '', role: 'VENDEUR', active: true }); setShowAddMember(false); } }}
-                    disabled={!newMember.name.trim() || !newMember.email.trim()}
+                  <button onClick={handleInviteMember}
+                    disabled={!newMember.email.trim() || teamBusy}
                     className="flex-1 rounded-xl bg-[#304035] py-2.5 font-bold text-sm text-white hover:bg-[#304035]/90 disabled:opacity-40">
-                    Inviter
+                    {teamBusy ? 'Envoi…' : "Envoyer l'invitation"}
                   </button>
                   <button onClick={() => setShowAddMember(false)} className="flex-1 rounded-xl border border-[#304035]/20 py-2.5 text-sm text-[#304035]">Annuler</button>
                 </div>
