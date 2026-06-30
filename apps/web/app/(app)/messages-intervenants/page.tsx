@@ -263,8 +263,9 @@ export default function MessagesIntervenantsPage() {
       </div>
 
       <div className="flex rounded-2xl border border-[#304035]/12 bg-white overflow-hidden shadow-sm" style={{ height: 'calc(100vh - 12rem)', minHeight: 520 }}>
-        {/* ── Colonne gauche : conversations ── */}
-        <div className="w-[340px] shrink-0 border-r border-[#304035]/10 flex flex-col bg-[#fbf9f6]">
+        {/* ── Colonne gauche : conversations ──
+            Mobile : pleine largeur, masquée quand une conversation est ouverte. */}
+        <div className={`w-full md:w-[340px] shrink-0 border-r border-[#304035]/10 flex-col bg-[#fbf9f6] ${active ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-3 border-b border-[#304035]/8">
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#304035]/35 text-sm">🔍</span>
@@ -317,8 +318,9 @@ export default function MessagesIntervenantsPage() {
           </div>
         </div>
 
-        {/* ── Colonne droite : fil ── */}
-        <div className="flex-1 flex flex-col min-w-0">
+        {/* ── Colonne droite : fil ──
+            Mobile : pleine largeur, masquée tant qu'aucune conversation n'est ouverte. */}
+        <div className={`flex-1 flex-col min-w-0 ${active ? 'flex' : 'hidden md:flex'}`}>
           {!active ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center px-8" style={{ background: 'linear-gradient(180deg,#fbf9f6,#f3ede5)' }}>
               <div className="text-6xl mb-4">💬</div>
@@ -327,6 +329,13 @@ export default function MessagesIntervenantsPage() {
             </div>
           ) : (
             <>
+              {/* Retour à la liste — mobile uniquement */}
+              <button
+                onClick={() => setActiveId(null)}
+                className="md:hidden flex items-center gap-1.5 px-3 py-2 border-b border-[#304035]/10 text-sm font-semibold text-[#304035] bg-white hover:bg-[#304035]/5"
+              >
+                ← Conversations
+              </button>
               <ThreadHeader d={active} />
               <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4" style={{ background: 'linear-gradient(180deg,#f7f2ec,#f3ede5)' }}>
                 {threadLoading && timeline.length === 0 ? (

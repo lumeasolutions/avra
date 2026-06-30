@@ -63,6 +63,10 @@ function LignesEditor({ lignes, onChange }: { lignes: LigneDocument[]; onChange:
 
   return (
     <div className="space-y-2">
+      {/* Lignes : défilement horizontal sur mobile (la grille fait ~560px de large)
+          plutôt que d'écraser les 7 colonnes. */}
+      <div className="overflow-x-auto -mx-1 px-1">
+      <div className="min-w-[560px] space-y-2">
       {/* Header */}
       <div className="grid grid-cols-[2fr_60px_80px_90px_60px_60px_32px] gap-1 px-2 text-[10px] font-semibold text-[#304035]/50 uppercase tracking-wider">
         <span>Description</span><span>Qté</span><span>Unité</span><span>PU HT</span><span>TVA</span><span>Remise</span><span></span>
@@ -121,6 +125,8 @@ function LignesEditor({ lignes, onChange }: { lignes: LigneDocument[]; onChange:
           </div>
         );
       })}
+      </div>
+      </div>
       <button
         onClick={addLigne}
         className="flex items-center gap-1.5 text-xs text-[#304035]/60 hover:text-[#304035] px-2 py-1.5 rounded-lg hover:bg-[#304035]/5 transition-colors"

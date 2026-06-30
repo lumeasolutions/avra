@@ -664,8 +664,9 @@ export function StatsGateModal({
             </button>
           </div>
 
-          {/* ─── Body 3-col (27/05/2026) : sidebar + consultation + saisie ── */}
-          <div style={{
+          {/* ─── Body 3-col (27/05/2026) : sidebar + consultation + saisie ──
+              Mobile (<900px) : empilé en 1 colonne via .statsgate-body (globals.css). */}
+          <div className="statsgate-body" style={{
             flex: 1, display: 'grid',
             gridTemplateColumns: 'minmax(220px, 250px) 1fr 1fr',
             minHeight: 0,

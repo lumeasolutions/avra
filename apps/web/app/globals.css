@@ -508,6 +508,14 @@ backdrop-filter: blur(2px);
     padding-top: 64px !important; /* room for hamburger */
   }
 
+  /* StatsGate (modale bloquante) : body 3 colonnes -> empilé sur mobile */
+  .statsgate-body {
+    grid-template-columns: 1fr !important;
+  }
+  .statsgate-body > div {
+    border-right: none !important;
+  }
+
 }
 
 .sidebar-bg {
