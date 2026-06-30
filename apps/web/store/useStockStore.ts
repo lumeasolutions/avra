@@ -3,6 +3,11 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+// Persistance backend du stock (write-through + hydratation via useDataSync).
+import {
+  createStockItemApi, updateStockItemApi, deleteStockItemApi,
+  stockItemFromApi, isBackendStockId,
+} from '@/lib/stock-api';
 
 // Types
 export interface StockItem {
@@ -55,6 +60,7 @@ interface StockState {
   updateStockDot: (id: string, dot: StockItem['dot']) => void;
   updateStockItem: (id: string, data: Partial<Omit<StockItem, 'id'>>) => void;
   deleteStockItem: (id: string) => void;
+  _syncStock: (id: string) => void;
 
   // Commandes actions
   addCommande: (cmd: Omit<Commande, 'id'>) => void;
@@ -72,20 +78,37 @@ export const useStockStore = create<StockState>()(
       commandes: INITIAL_COMMANDES,
 
       addStockItem: (item) => {
-        const newItem = { ...item, id: 'st' + uid() };
+        const localId = 'st' + uid();
+        const newItem = { ...item, id: localId } as StockItem;
         set(s => ({ stockItems: [newItem, ...s.stockItems] }));
+        // Write-through backend : persiste puis remplace l'id local par l'id backend.
+        createStockItemApi(newItem)
+          .then((a) => {
+            const mapped = stockItemFromApi(a);
+            set(s => ({ stockItems: s.stockItems.map(i => i.id === localId ? mapped : i) }));
+          })
+          .catch((e: any) => console.warn('[stock] createStockItem échec, gardé en local:', e?.message || e));
+      },
+
+      _syncStock: (id) => {
+        if (!isBackendStockId(id)) return;
+        const item = get().stockItems.find(i => i.id === id);
+        if (item) updateStockItemApi(id, item).catch((e: any) => console.warn('[stock] updateStockItem échec:', e?.message || e));
       },
 
       updateStockDot: (id, dot) => {
         set(s => ({ stockItems: s.stockItems.map(i => i.id === id ? { ...i, dot } : i) }));
+        get()._syncStock(id);
       },
 
       updateStockItem: (id, data) => {
         set(s => ({ stockItems: s.stockItems.map(i => i.id === id ? { ...i, ...data } : i) }));
+        get()._syncStock(id);
       },
 
       deleteStockItem: (id) => {
         set(s => ({ stockItems: s.stockItems.filter(i => i.id !== id) }));
+        if (isBackendStockId(id)) deleteStockItemApi(id).catch((e: any) => console.warn('[stock] deleteStockItem échec:', e?.message || e));
       },
 
       addCommande: (cmd) => {

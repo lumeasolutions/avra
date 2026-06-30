@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 import { StockCategory, StockItemStatus } from '../../../prisma-enums';
 
 export class CreateStockItemDto {
@@ -48,4 +48,9 @@ export class CreateStockItemDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // Champs UI front (fournisseur libre, pastille, seuil mini, image, catégorie libre).
+  @IsOptional()
+  @IsObject()
+  extra?: Record<string, unknown>;
 }

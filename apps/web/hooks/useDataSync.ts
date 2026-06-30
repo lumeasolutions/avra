@@ -21,6 +21,8 @@ import {
 import { usePlanningStore } from '@/store/usePlanningStore';
 import { useFacturationStore } from '@/store/useFacturationStore';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
+import { useStockStore } from '@/store/useStockStore';
+import { stockItemFromApi } from '@/lib/stock-api';
 import { useAuthStore, clearAllAppStoresHard } from '@/store/useAuthStore';
 import { createQuote, devisToPayload, quoteToDevis } from '@/lib/quotes-api';
 import { createInvoice, invoiceDetailToPayload, invoiceApiToDetail, invoiceApiToBase } from '@/lib/invoices-api';
@@ -140,6 +142,7 @@ export function useDataSync() {
         await Promise.allSettled([syncProjects(), syncIntervenants()]);
         await Promise.allSettled([syncEvents(), syncPayments()]);
         await Promise.allSettled([syncQuotes(), syncInvoices()]);
+        await Promise.allSettled([syncStock()]);
       } finally {
         setSynced(true);
         setSyncing(false);
@@ -340,6 +343,21 @@ export function useDataSync() {
     } catch (err) {
       // Silence — garder les données locales en cas d'erreur
       console.warn('[DataSync] Projects sync failed, keeping local data:', err);
+    }
+  }
+
+  async function syncStock() {
+    try {
+      const response = await api<any>('/stock?pageSize=200');
+      const data: any[] = Array.isArray(response) ? response : (response?.data ?? []);
+      // Backend vide → on vide aussi le stock local (compte remis à zéro).
+      if (!Array.isArray(data) || data.length === 0) {
+        useStockStore.setState({ stockItems: [] });
+        return;
+      }
+      useStockStore.setState({ stockItems: data.map(stockItemFromApi) });
+    } catch (err) {
+      console.warn('[DataSync] Stock sync failed, keeping local data:', err);
     }
   }
 

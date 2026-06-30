@@ -29,9 +29,11 @@ export class StockService {
           name: true,
           model: true,
           color: true,
+          material: true,
           purchasePrice: true,
           salePrice: true,
           quantity: true,
+          extra: true,
           createdAt: true,
           updatedAt: true,
           // Supplier avec select limité
@@ -65,6 +67,7 @@ export class StockService {
         purchasePrice: true,
         salePrice: true,
         quantity: true,
+        extra: true,
         createdAt: true,
         updatedAt: true,
         supplier: {
@@ -94,9 +97,16 @@ export class StockService {
         select: {
           id: true,
           name: true,
+          model: true,
+          material: true,
+          category: true,
+          sku: true,
+          purchasePrice: true,
+          salePrice: true,
           quantity: true,
           status: true,
-          salePrice: true,
+          extra: true,
+          createdAt: true,
           updatedAt: true,
         },
       });
