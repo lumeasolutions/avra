@@ -23,6 +23,8 @@ import { useFacturationStore } from '@/store/useFacturationStore';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { useStockStore } from '@/store/useStockStore';
 import { stockItemFromApi } from '@/lib/stock-api';
+import { useConfigStore } from '@/store/useConfigStore';
+import { getSettings } from '@/lib/settings-api';
 import { useAuthStore, clearAllAppStoresHard } from '@/store/useAuthStore';
 import { createQuote, devisToPayload, quoteToDevis } from '@/lib/quotes-api';
 import { createInvoice, invoiceDetailToPayload, invoiceApiToDetail, invoiceApiToBase } from '@/lib/invoices-api';
@@ -142,7 +144,7 @@ export function useDataSync() {
         await Promise.allSettled([syncProjects(), syncIntervenants()]);
         await Promise.allSettled([syncEvents(), syncPayments()]);
         await Promise.allSettled([syncQuotes(), syncInvoices()]);
-        await Promise.allSettled([syncStock()]);
+        await Promise.allSettled([syncStock(), syncSettings()]);
       } finally {
         setSynced(true);
         setSyncing(false);
@@ -358,6 +360,15 @@ export function useDataSync() {
       useStockStore.setState({ stockItems: data.map(stockItemFromApi) });
     } catch (err) {
       console.warn('[DataSync] Stock sync failed, keeping local data:', err);
+    }
+  }
+
+  async function syncSettings() {
+    try {
+      const res = await getSettings();
+      if (res?.config) useConfigStore.getState()._hydrateFromBackend(res.config as any);
+    } catch (err) {
+      console.warn('[DataSync] Settings sync failed, keeping local data:', err);
     }
   }
 

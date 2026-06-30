@@ -390,6 +390,9 @@ model WorkspaceSettings {
   logoUrl           String?
   address           String?
   siret             String?
+  /// Config UI front (société, facturation, numérotation, relances, alertes,
+  /// préférences, IA) persistée en bloc JSON — évite une migration par champ.
+  extra             Json?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

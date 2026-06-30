@@ -3,6 +3,8 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+// Persistance backend de la config (write-through debouncé + hydratation via useDataSync).
+import { saveSettings } from '@/lib/settings-api';
 
 // Types
 export interface PreferencesConfig {
@@ -264,6 +266,29 @@ const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 8);
 const USERS = ['Cassandra', 'Sylvie', 'Christian'];
 const randomUser = () => USERS[Math.floor(Math.random() * USERS.length)];
 
+// ── Write-through backend (debouncé) ────────────────────────────────────────
+// On regroupe les 8 blocs de config et on les pousse vers /settings (PUT) après
+// 800 ms d'inactivité — évite de spammer l'API à chaque frappe clavier.
+// `members` reste local ici (l'équipe a son propre backend, câblé séparément).
+let _persistTimer: ReturnType<typeof setTimeout> | null = null;
+function schedulePersist(snapshot: () => ConfigState) {
+  if (typeof window === 'undefined') return;
+  if (_persistTimer) clearTimeout(_persistTimer);
+  _persistTimer = setTimeout(() => {
+    const s = snapshot();
+    saveSettings({
+      preferences: s.preferences,
+      numerotation: s.numerotation,
+      facturationConfig: s.facturationConfig,
+      notifConfig: s.notifConfig,
+      societe: s.societe,
+      relanceConfig: s.relanceConfig,
+      alertesConfig: s.alertesConfig,
+      iaConfig: s.iaConfig,
+    }).catch((e: any) => console.warn('[config] saveSettings échec, gardé en local:', e?.message || e));
+  }, 800);
+}
+
 interface ConfigState {
   // Data
   preferences: PreferencesConfig;
@@ -285,6 +310,18 @@ interface ConfigState {
   updateFacturationConfig: (data: Partial<FacturationConfig>) => void;
   updateNotifConfig: (data: Partial<NotifConfig>) => void;
   updateIAConfig: (data: Partial<IAConfig>) => void;
+
+  // Hydratation depuis le backend (sans re-déclencher de write-through)
+  _hydrateFromBackend: (config: Partial<{
+    preferences: PreferencesConfig;
+    numerotation: NumerotationConfig;
+    facturationConfig: FacturationConfig;
+    notifConfig: NotifConfig;
+    societe: Societe;
+    relanceConfig: RelanceConfig;
+    alertesConfig: AlertesConfig;
+    iaConfig: IAConfig;
+  }>) => void;
 
   // Members actions
   addMember: (member: Omit<UserMember, 'id'>) => void;
@@ -311,34 +348,57 @@ export const useConfigStore = create<ConfigState>()(
 
       updateSociete: (data) => {
         set(s => ({ societe: { ...s.societe, ...data } }));
+        schedulePersist(get);
       },
 
       updateRelanceConfig: (data) => {
         set(s => ({ relanceConfig: { ...s.relanceConfig, ...data } }));
+        schedulePersist(get);
       },
 
       updateAlertesConfig: (data) => {
         set(s => ({ alertesConfig: { ...(s.alertesConfig ?? INITIAL_ALERTES), ...data } }));
+        schedulePersist(get);
       },
 
       updatePreferences: (data) => {
         set(s => ({ preferences: { ...s.preferences, ...data } }));
+        schedulePersist(get);
       },
 
       updateNumerotation: (data) => {
         set(s => ({ numerotation: { ...s.numerotation, ...data } }));
+        schedulePersist(get);
       },
 
       updateFacturationConfig: (data) => {
         set(s => ({ facturationConfig: { ...s.facturationConfig, ...data } }));
+        schedulePersist(get);
       },
 
       updateNotifConfig: (data) => {
         set(s => ({ notifConfig: { ...s.notifConfig, ...data } }));
+        schedulePersist(get);
       },
 
       updateIAConfig: (data) => {
         set(s => ({ iaConfig: { ...s.iaConfig, ...data } }));
+        schedulePersist(get);
+      },
+
+      // Applique la config venue du backend SANS re-pousser (pas de schedulePersist).
+      _hydrateFromBackend: (config) => {
+        if (!config) return;
+        set(s => ({
+          preferences:       config.preferences       ? { ...s.preferences, ...config.preferences } : s.preferences,
+          numerotation:      config.numerotation       ? { ...s.numerotation, ...config.numerotation } : s.numerotation,
+          facturationConfig: config.facturationConfig  ? { ...s.facturationConfig, ...config.facturationConfig } : s.facturationConfig,
+          notifConfig:       config.notifConfig         ? { ...s.notifConfig, ...config.notifConfig } : s.notifConfig,
+          societe:           config.societe             ? { ...s.societe, ...config.societe } : s.societe,
+          relanceConfig:     config.relanceConfig       ? { ...s.relanceConfig, ...config.relanceConfig } : s.relanceConfig,
+          alertesConfig:     config.alertesConfig       ? { ...(s.alertesConfig ?? INITIAL_ALERTES), ...config.alertesConfig } : s.alertesConfig,
+          iaConfig:          config.iaConfig            ? { ...s.iaConfig, ...config.iaConfig } : s.iaConfig,
+        }));
       },
 
       addMember: (member) => {

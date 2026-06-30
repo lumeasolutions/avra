@@ -29,6 +29,7 @@ import { QuotesModule } from './modules/quotes/quotes.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { PublicModule } from './modules/public/public.module';
 import { TeamModule } from './modules/team/team.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { TeamModule } from './modules/team/team.module';
     InvoicesModule,
     PublicModule,
     TeamModule,
+    SettingsModule,
   ],
   providers: [
     // ✅ Apply ThrottlerGuard globally
