@@ -101,7 +101,8 @@ export function StatsTableauFournisseur({ dossiersSignes }: Props) {
               : 'Aucun fournisseur ne correspond à votre recherche.'}
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: 460, borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'rgba(48,64,53,0.04)' }}>
                 <th style={thStyle}>Fournisseur</th>
@@ -123,6 +124,7 @@ export function StatsTableauFournisseur({ dossiersSignes }: Props) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

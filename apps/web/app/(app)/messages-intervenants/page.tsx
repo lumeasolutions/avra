@@ -459,7 +459,7 @@ function DocBubble({ mine, att, time, classified, onClassify }: { mine: boolean;
     <div className={`flex mb-2 ${mine ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[78%] flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
         {!mine && <span className="text-[10px] text-[#304035]/45 mb-0.5 ml-1">📎 a envoyé un document</span>}
-        <div className="rounded-2xl bg-white border border-[#a67749]/30 shadow-sm overflow-hidden w-64">
+        <div className="rounded-2xl bg-white border border-[#a67749]/30 shadow-sm overflow-hidden w-full max-w-[16rem]">
           <div className="flex items-center gap-2.5 px-3 py-2.5">
             <div className="h-9 w-9 rounded-lg flex items-center justify-center text-lg shrink-0" style={{ background: '#f5eee8' }}>{fileIcon(att.mimeType)}</div>
             <div className="min-w-0 flex-1">

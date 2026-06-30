@@ -422,6 +422,13 @@ export default function DossierDetailPage() {
           .dos-sub-grid-2 { grid-template-columns: 1fr !important; }
           /* Sous-dossiers : indentation réduite sur mobile (gagne de la largeur au pouce) */
           .subfolder-row.pl-12 { padding-left: 1.25rem !important; }
+          /* Header fiche : empilé (avatar / infos / actions) au lieu d'aligné en ligne */
+          .dossier-header-inner {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 14px !important;
+            padding: 18px !important;
+          }
         }
       `}</style>
 
@@ -454,7 +461,7 @@ export default function DossierDetailPage() {
         </svg>
 
         {/* Contenu du header */}
-        <div className="relative z-10 flex items-center gap-6 px-8 py-6">
+        <div className="dossier-header-inner relative z-10 flex items-center gap-6 px-8 py-6">
           {/* Avatar grand format */}
           <div className="dossier-avatar relative shrink-0">
             <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-white font-black text-3xl select-none shadow-2xl"

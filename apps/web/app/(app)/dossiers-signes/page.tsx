@@ -1454,7 +1454,7 @@ function SignesDashboardPanel({
             <DashKpi label="Confirmations en attente" value={allPendingConfirmations.length} icon={<Clock size={16} />} tone="amber" />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 16 }}>
             <DashSection
               title="Échéances en retard"
               count={overdueDeadlines.length}

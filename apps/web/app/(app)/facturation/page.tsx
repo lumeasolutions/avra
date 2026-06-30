@@ -210,7 +210,7 @@ function ModalDevis({ onClose, devisToEdit }: { onClose: () => void; devisToEdit
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {/* Client */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Dossier lié (optionnel)</label>
               <select
@@ -393,7 +393,7 @@ function ModalFacture({ onClose, devisSource }: { onClose: () => void; devisSour
             </div>
           </div>
           {/* Client */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Dossier lié</label>
               <select
@@ -810,7 +810,7 @@ function ModalSignature({ devis, onClose }: { devis: Devis; onClose: () => void 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#304035]/8 bg-gradient-to-r from-[#304035]/5 to-violet-50">
           <div className="flex items-center gap-3">
@@ -827,7 +827,7 @@ function ModalSignature({ devis, onClose }: { devis: Devis; onClose: () => void 
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 flex-1 overflow-y-auto min-h-0">
           {/* Statut si déjà envoyé */}
           {alreadySentForSign && !sent && (
             <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-3">
@@ -871,7 +871,7 @@ function ModalSignature({ devis, onClose }: { devis: Devis; onClose: () => void 
           </div>
 
           {/* Prénom et Nom du client */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Prénom du client *</label>
               <input

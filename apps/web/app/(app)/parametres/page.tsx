@@ -779,7 +779,7 @@ export default function ParametresPage() {
           {showAddApporteur && (
             <div className="rounded-xl border border-[#a67749]/30 bg-[#a67749]/5 p-4 space-y-3">
               <p className="text-xs font-bold text-[#304035]/70">Nouvel apporteur d'affaires</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Nom / Société *" value={newApporteur.nom} onChange={v => setNewApporteur(p => ({ ...p, nom: v }))} />
                 <Field label="Email" value={newApporteur.email ?? ''} onChange={v => setNewApporteur(p => ({ ...p, email: v }))} />
                 <Field label="Téléphone" value={newApporteur.phone ?? ''} onChange={v => setNewApporteur(p => ({ ...p, phone: v }))} />
