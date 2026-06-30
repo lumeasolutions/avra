@@ -178,9 +178,41 @@ export const useFacturationStore = create<FacturationState>()(
         const counter = get()._invoiceCounter;
         set(s => ({ _invoiceCounter: s._invoiceCounter + 1 }));
         const ref = `${prefix}-${year}-${String(counter).padStart(3, '0')}`;
-        const newInv: Invoice = { ...inv, id: 'inv' + uid(), ref };
-        set(s => ({ invoices: [newInv, ...s.invoices] }));
-        return newInv.id;
+        const id = 'inv' + uid();
+        const montantHT = round2(inv.montantHT || 0);
+        const tva = inv.tva ?? 20;
+        const totalTTC = round2(montantHT * (1 + tva / 100));
+        // Facture saisie au montant global (sans lignes détaillées) : on génère
+        // une ligne synthétique pour permettre la PERSISTANCE BACKEND (le payload
+        // s'appuie sur les lignes). Sans ça, la facture ne vivait qu'en localStorage.
+        const ligne: LigneDocument = {
+          id: 'l' + uid(),
+          description: inv.notes?.trim() || 'Prestation',
+          quantite: 1, unite: 'forfait',
+          prixUnitaireHT: montantHT, tva, remise: 0,
+        };
+        const token = 'tok_' + id.slice(3, 9) + '_' + crypto.randomUUID().replace(/-/g, '').slice(0, 8);
+        const detail: InvoiceDetail = { ...inv, id, ref, montantHT, totalTTC, token, lignes: [ligne] };
+        const baseInv: Invoice = { ...inv, id, ref, montantHT, totalTTC };
+        set(s => ({
+          invoices: [baseInv, ...s.invoices],
+          invoiceDetails: { ...s.invoiceDetails, [id]: detail },
+        }));
+        // Write-through backend : persiste puis remplace l'id local par l'id backend.
+        createInvoice(invoiceDetailToPayload(detail))
+          .then((a) => {
+            const mapped = invoiceApiToDetail(a);
+            set(s => {
+              const { [id]: _old, ...restDetails } = s.invoiceDetails;
+              const { lignes: _l, ...base } = mapped;
+              return {
+                invoices: s.invoices.map(i => i.id === id ? (base as Invoice) : i),
+                invoiceDetails: { ...restDetails, [mapped.id]: mapped },
+              };
+            });
+          })
+          .catch((e: any) => console.warn('[facturation] addInvoice createInvoice échec, gardé en local:', e?.message || e));
+        return id;
       },
 
       addInvoiceDetail: (inv) => {
