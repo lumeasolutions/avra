@@ -1405,7 +1405,7 @@ function AddIntervenantModal({
   const [form, setForm] = useState({ type: defaultType, name: '', phone: '', email: '', notes: '' });
   return (
     <div onClick={onClose} className="fixed inset-0 z-90 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold text-[#304035] mb-4">Nouvel intervenant ({defaultType})</h2>
         <div className="space-y-3">
           <select value={form.type} onChange={(e) => setForm(f => ({ ...f, type: e.target.value }))} className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm">
@@ -1444,7 +1444,7 @@ function EditIntervenantModal({
   const canSave = form.nom.trim().length > 0 && !saving;
   return (
     <div onClick={onClose} className="fixed inset-0 z-90 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+      <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold text-[#304035] mb-4">Modifier la fiche</h2>
         <div className="space-y-3">
           <label className="block">

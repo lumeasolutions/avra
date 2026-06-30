@@ -27,10 +27,10 @@ import { StatsTableauVendeur } from '@/components/statistiques/StatsTableauVende
 
 type TabKey = 'statut' | 'fournisseur' | 'vendeur';
 
-const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: 'statut',      label: 'Tableau 1 — Statut',      icon: Table2 },
-  { key: 'fournisseur', label: 'Tableau 2 — Fournisseur', icon: Package },
-  { key: 'vendeur',     label: 'Tableau 3 — Vendeur',     icon: Users },
+const TABS: { key: TabKey; label: string; short: string; icon: React.ElementType }[] = [
+  { key: 'statut',      label: 'Tableau 1 — Statut',      short: 'Statut',      icon: Table2 },
+  { key: 'fournisseur', label: 'Tableau 2 — Fournisseur', short: 'Fournisseur', icon: Package },
+  { key: 'vendeur',     label: 'Tableau 3 — Vendeur',     short: 'Vendeur',     icon: Users },
 ];
 
 export default function StatistiquesPage() {
@@ -141,8 +141,9 @@ export default function StatistiquesPage() {
                       : 'text-[#304035]/55 hover:text-[#304035] hover:bg-[#304035]/5'
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  {t.label}
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">{t.label}</span>
+                  <span className="sm:hidden">{t.short}</span>
                 </button>
               );
             })}

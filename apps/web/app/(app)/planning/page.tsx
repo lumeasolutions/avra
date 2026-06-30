@@ -538,7 +538,7 @@ export default function PlanningPage() {
         icon={<Calendar className="h-7 w-7" />}
         title="Planning"
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
             <button
               onClick={() => setWeekOffset(w => w - 1)}
               style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}

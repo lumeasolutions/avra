@@ -200,6 +200,7 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
+      padding: 16,
       zIndex: 50,
     }} onClick={onClose}>
       <div

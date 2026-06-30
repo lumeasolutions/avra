@@ -278,7 +278,7 @@ export default function DashboardPage() {
           ) : (
             <div className="divide-y divide-[#304035]/5">
               {/* Stats par statut */}
-              <div className="grid grid-cols-4 divide-x divide-[#304035]/5 border-b border-[#304035]/5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-[#304035]/5 border-b border-[#304035]/5">
                 {[
                   { label: 'Urgent', color: '#ef4444', count: storeDossiers.filter(d => d.status === 'URGENT').length },
                   { label: 'En cours', color: '#f97316', count: storeDossiers.filter(d => d.status === 'EN COURS').length },

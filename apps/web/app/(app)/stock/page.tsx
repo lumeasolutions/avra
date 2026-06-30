@@ -956,7 +956,7 @@ export default function StockPage() {
             {/* Body scrollable — scrollbar visible (CSS custom plus bas) */}
             <div className="stock-modal-body space-y-4 px-7 py-5 overflow-y-auto flex-1">
               {/* Ligne 1 : Fournisseur + Modèle */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">Fournisseur *</label>
                   <input
@@ -980,7 +980,7 @@ export default function StockPage() {
               </div>
 
               {/* Ligne 2 : Matière + Catégorie */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">Matière / Finition</label>
                   <input
@@ -1011,7 +1011,7 @@ export default function StockPage() {
               </div>
 
               {/* Ligne 3 : Prix achat + vente */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">Prix achat (€ HT)</label>
                   <input
@@ -1043,7 +1043,7 @@ export default function StockPage() {
               {/* Ligne 4 : Quantité + Seuil
                   La 'Référence fournisseur' a été supprimée — c'était un doublon
                   avec 'Modèle / Réf' (ligne 1). Une seule source de vérité. */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">Qté en stock</label>
                   <input

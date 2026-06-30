@@ -235,7 +235,7 @@ export default function SAVPage() {
 
       {/* F8 : Toolbar actions en lot */}
       {selectedIds.size > 0 && (
-        <div className="rounded-xl bg-orange-50 border border-orange-200 p-3 flex items-center gap-3 sticky top-2 z-20 shadow-md">
+        <div className="rounded-xl bg-orange-50 border border-orange-200 p-3 flex items-center flex-wrap gap-3 sticky top-2 z-20 shadow-md">
           <span className="text-sm font-bold text-orange-900">
             {selectedIds.size} ticket{selectedIds.size > 1 ? 's' : ''} selectionne{selectedIds.size > 1 ? 's' : ''}
           </span>

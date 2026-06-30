@@ -1594,7 +1594,7 @@ export default function ParametresPage() {
             <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-3 flex items-center gap-1.5">
               <Brain className="h-3.5 w-3.5" /> Personnalité de l'assistant
             </p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {([
                 { value: 'professionnel', label: 'Professionnel', desc: 'Formel et précis', emoji: '💼' },
                 { value: 'amical',        label: 'Amical',        desc: 'Chaleureux et humain', emoji: '😊' },
@@ -1725,7 +1725,7 @@ export default function ParametresPage() {
               {/* Longueur de réponse */}
               <div>
                 <label className="block text-xs font-semibold text-[#304035]/60 mb-2">Longueur des réponses</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {([
                     { value: 'courte',    label: 'Courte',    desc: '1-2 phrases' },
                     { value: 'normale',   label: 'Normale',   desc: 'Équilibré' },
