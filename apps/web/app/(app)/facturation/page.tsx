@@ -460,11 +460,21 @@ function ModalFacture({ onClose, devisSource }: { onClose: () => void; devisSour
 function ModalConvertir({ devis, onClose }: { devis: Devis; onClose: () => void }) {
   const convertDevisToFacture = useFacturationStore(s => s.convertDevisToFacture);
   const updateDevisStatut = useFacturationStore(s => s.updateDevisStatut);
+  const invoiceDetails = useFacturationStore(s => s.invoiceDetails);
   const [factureType, setFactureType] = useState<FactureDetailType>('ACOMPTE');
   const [pourcentage, setPourcentage] = useState(30);
 
-  const montant = Math.round(devis.totalHT * pourcentage / 100);
-  const ttc = Math.round(devis.totalTTC * pourcentage / 100);
+  // Acomptes/intermédiaires déjà facturés pour ce devis → base du calcul du solde.
+  const dejaFactures = Object.values(invoiceDetails).filter(
+    (d) => (d as any).devisId === devis.id && ((d as any).factureType === 'ACOMPTE' || (d as any).factureType === 'INTERMEDIAIRE'),
+  );
+  const acomptesTTC = dejaFactures.reduce((s, d) => s + ((d as any).totalTTC ?? 0), 0);
+  const acomptesHT = dejaFactures.reduce((s, d) => s + ((d as any).montantHT ?? 0), 0);
+
+  const isSolde = factureType === 'SOLDE';
+  // Solde = total du devis − acomptes déjà facturés (et non un simple pourcentage).
+  const montant = isSolde ? Math.max(0, devis.totalHT - acomptesHT) : Math.round(devis.totalHT * pourcentage / 100);
+  const ttc = isSolde ? Math.max(0, devis.totalTTC - acomptesTTC) : Math.round(devis.totalTTC * pourcentage / 100);
 
   const handleConvert = () => {
     convertDevisToFacture(devis.id, factureType, pourcentage);
@@ -494,7 +504,7 @@ function ModalConvertir({ devis, onClose }: { devis: Devis; onClose: () => void 
               ))}
             </div>
           </div>
-          {factureType !== 'STANDARD' && (
+          {(factureType === 'ACOMPTE' || factureType === 'INTERMEDIAIRE') && (
             <div>
               <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Pourcentage à facturer : {pourcentage}%</label>
               <input type="range" min="5" max="100" step="5" value={pourcentage} onChange={e => setPourcentage(parseInt(e.target.value))} className="w-full" />
@@ -506,7 +516,12 @@ function ModalConvertir({ devis, onClose }: { devis: Devis; onClose: () => void 
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3">
             <p className="text-xs text-emerald-700 font-semibold">Facture à créer</p>
             <p className="text-lg font-bold text-emerald-800 mt-0.5">{fmt(ttc)} TTC</p>
-            <p className="text-xs text-emerald-600">{fmt(montant)} HT · {pourcentage}% du devis</p>
+            <p className="text-xs text-emerald-600">
+              {fmt(montant)} HT · {isSolde ? 'solde (total du devis − acomptes déjà facturés)' : `${pourcentage}% du devis`}
+            </p>
+            {isSolde && acomptesTTC > 0 && (
+              <p className="text-xs text-emerald-600/80 mt-0.5">Acomptes déjà facturés : {fmt(acomptesTTC)} TTC</p>
+            )}
           </div>
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-[#304035]/8">
@@ -1131,11 +1146,24 @@ function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
 
   // TTC reel (ventilation multi-taux) : on utilise totalTTC si dispo, sinon fallback mono-taux.
   const invTTC = (i: Invoice) => i.totalTTC != null ? i.totalTTC : (i.montantHT > 0 ? i.montantHT * (1 + i.tva / 100) : 0);
-  const totalHT = invoices.reduce((s, i) => s + (i.montantHT > 0 ? i.montantHT : 0), 0);
-  const totalTTC = invoices.reduce((s, i) => s + invTTC(i), 0);
-  const totalPaye = invoices.filter(i => i.statut === 'PAYÉE').reduce((s, i) => s + invTTC(i), 0);
-  const totalRetard = invoices.filter(i => i.statut === 'RETARD').reduce((s, i) => s + Math.abs(invTTC(i)), 0);
-  const totalAttente = invoices.filter(i => i.statut === 'EN ATTENTE').reduce((s, i) => s + invTTC(i), 0);
+  // FIX CA : une facture de SOLDE est enregistrée au montant brut du devis avec
+  // `montantDeja` = acomptes déjà facturés. Sans déduction, l'acompte serait
+  // compté DEUX fois dans le CA (dans la facture d'acompte ET dans le solde brut).
+  // On compte donc le NET = brut − acomptes déjà facturés pour chaque facture.
+  const invDeja = (i: Invoice) => invoiceDetails[i.id]?.montantDeja ?? 0; // TTC déjà facturé (0 sauf solde)
+  const invNetTTC = (i: Invoice) => invTTC(i) - invDeja(i);
+  const invNetHT = (i: Invoice) => {
+    const ht = i.montantHT > 0 ? i.montantHT : 0;
+    const ttc = invTTC(i);
+    const deja = invDeja(i);
+    if (deja <= 0 || ttc <= 0) return ht;
+    return Math.max(0, ht - deja * (ht / ttc)); // déduction HT au prorata HT/TTC
+  };
+  const totalHT = invoices.reduce((s, i) => s + invNetHT(i), 0);
+  const totalTTC = invoices.reduce((s, i) => s + invNetTTC(i), 0);
+  const totalPaye = invoices.filter(i => i.statut === 'PAYÉE').reduce((s, i) => s + invNetTTC(i), 0);
+  const totalRetard = invoices.filter(i => i.statut === 'RETARD').reduce((s, i) => s + Math.abs(invNetTTC(i)), 0);
+  const totalAttente = invoices.filter(i => i.statut === 'EN ATTENTE').reduce((s, i) => s + invNetTTC(i), 0);
 
   const NEXT_STATUS: Record<InvoiceStatus, InvoiceStatus | null> = {
     'EN ATTENTE': 'PAYÉE', 'ACOMPTE': 'PAYÉE', 'RETARD': 'PAYÉE', 'PAYÉE': null, 'AVOIR': null,
