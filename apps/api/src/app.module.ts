@@ -27,6 +27,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { DossierDocumentsModule } from './modules/dossier-documents/dossier-documents.module';
 import { QuotesModule } from './modules/quotes/quotes.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { PublicModule } from './modules/public/public.module';
 import { TeamModule } from './modules/team/team.module';
 
 @Module({
@@ -74,6 +75,7 @@ import { TeamModule } from './modules/team/team.module';
     DossierDocumentsModule,
     QuotesModule,
     InvoicesModule,
+    PublicModule,
     TeamModule,
   ],
   providers: [

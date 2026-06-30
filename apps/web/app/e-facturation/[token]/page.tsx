@@ -97,83 +97,28 @@ export default function EFacturationPortal() {
   const [showPrintHint, setShowPrintHint] = useState(false);
   const [signerName, setSignerName] = useState('');
   const [showSignModal, setShowSignModal] = useState(false);
+  const [submitErr, setSubmitErr] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!token) return;
-
-    // Lecture depuis localStorage (store Zustand persisté)
-    try {
-      const raw = localStorage.getItem('avra-store');
-      if (!raw) { setNotFound(true); setLoading(false); return; }
-      const parsed = JSON.parse(raw);
-      const state = parsed?.state ?? parsed;
-
-      const societe = state.societe ?? {
-        nom: 'AVRA Studio',
-        adresse: '12 rue de la Paix',
-        codePostal: '75001',
-        ville: 'Paris',
-        siret: '123 456 789 00012',
-        tva: 'FR12345678901',
-        phone: '01 23 45 67 89',
-        email: 'contact@avra.fr',
-      };
-
-      // Chercher dans devis
-      const allDevis: any[] = state.devis ?? [];
-      const devisTrouve = allDevis.find((d: any) => d.token === token);
-      if (devisTrouve) {
-        setDoc({
-          type: 'devis',
-          ref: devisTrouve.ref,
-          statut: devisTrouve.statut,
-          client: devisTrouve.client,
-          clientEmail: devisTrouve.clientEmail,
-          clientAddress: devisTrouve.clientAddress,
-          dateCreation: devisTrouve.dateCreation,
-          dateValidite: devisTrouve.dateValidite,
-          conditionsPaiement: devisTrouve.conditionsPaiement,
-          notes: devisTrouve.notes,
-          lignes: devisTrouve.lignes ?? [],
-          totalHT: devisTrouve.totalHT,
-          totalTTC: devisTrouve.totalTTC,
-          societe,
-        });
+    let cancelled = false;
+    // Lecture depuis le serveur (endpoint public par token). Plus de localStorage :
+    // le client final n'a évidemment pas le navigateur de l'émetteur.
+    (async () => {
+      try {
+        const res = await fetch(`/api/v1/public/document/${encodeURIComponent(token)}`);
+        if (cancelled) return;
+        if (!res.ok) { setNotFound(true); setLoading(false); return; }
+        const data = (await res.json()) as DocumentPublic;
+        if (cancelled) return;
+        setDoc(data);
         setLoading(false);
-        return;
+      } catch {
+        if (!cancelled) { setNotFound(true); setLoading(false); }
       }
-
-      // Chercher dans invoiceDetails
-      const details: Record<string, any> = state.invoiceDetails ?? {};
-      const factureTrouvee = Object.values(details).find((f: any) => f.token === token);
-      if (factureTrouvee) {
-        const f = factureTrouvee as any;
-        setDoc({
-          type: 'facture',
-          ref: f.ref,
-          statut: f.statut,
-          client: f.client,
-          clientEmail: f.clientEmail,
-          clientAddress: f.clientAddress,
-          dateCreation: f.date,
-          dateEcheance: f.dateEcheance,
-          conditionsPaiement: f.conditionsPaiement,
-          notes: f.notes,
-          lignes: f.lignes ?? [],
-          totalHT: f.montantHT,
-          totalTTC: f.montantHT * (1 + (f.tva ?? 20) / 100),
-          societe,
-        });
-        setLoading(false);
-        return;
-      }
-
-      setNotFound(true);
-      setLoading(false);
-    } catch {
-      setNotFound(true);
-      setLoading(false);
-    }
+    })();
+    return () => { cancelled = true; };
   }, [token]);
 
   function handleAccept() {
@@ -181,46 +126,31 @@ export default function EFacturationPortal() {
     setShowSignModal(true);
   }
 
-  function confirmAccept() {
-    if (!token || !doc) return;
+  async function respond(action: 'accept' | 'refuse') {
+    if (!token || !doc || submitting) return;
+    setSubmitting(true); setSubmitErr(null);
     try {
-      const raw = localStorage.getItem('avra-store');
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      const state = parsed?.state ?? parsed;
-      const allDevis: any[] = state.devis ?? [];
-      const idx = allDevis.findIndex((d: any) => d.token === token);
-      if (idx >= 0) {
-        allDevis[idx] = { ...allDevis[idx], statut: 'ACCEPTÉ' };
-        state.devis = allDevis;
-        if (parsed.state) parsed.state = state;
-        else Object.assign(parsed, state);
-        localStorage.setItem('avra-store', JSON.stringify(parsed));
+      const res = await fetch(`/api/v1/public/document/${encodeURIComponent(token)}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, signerName: signerName || undefined }),
+      });
+      if (res.ok) {
+        setShowSignModal(false);
+        setActionDone(action === 'accept' ? 'accepted' : 'refused');
+      } else {
+        const data = await res.json().catch(() => null);
+        setSubmitErr(data?.message ?? "Impossible d'enregistrer votre réponse. Réessayez.");
       }
-    } catch {}
-    setActionDone('accepted');
-    setShowSignModal(false);
+    } catch {
+      setSubmitErr('Erreur réseau. Vérifiez votre connexion et réessayez.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  function handleRefuse() {
-    if (!token || !doc) return;
-    try {
-      const raw = localStorage.getItem('avra-store');
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      const state = parsed?.state ?? parsed;
-      const allDevis: any[] = state.devis ?? [];
-      const idx = allDevis.findIndex((d: any) => d.token === token);
-      if (idx >= 0) {
-        allDevis[idx] = { ...allDevis[idx], statut: 'REFUSÉ' };
-        state.devis = allDevis;
-        if (parsed.state) parsed.state = state;
-        else Object.assign(parsed, state);
-        localStorage.setItem('avra-store', JSON.stringify(parsed));
-      }
-    } catch {}
-    setActionDone('refused');
-  }
+  function confirmAccept() { void respond('accept'); }
+  function handleRefuse() { void respond('refuse'); }
 
   function handlePrint() {
     window.print();
@@ -541,17 +471,20 @@ export default function EFacturationPortal() {
             <div className="flex gap-3">
               <button
                 onClick={handleRefuse}
-                className="py-[10px] px-5 bg-[#fee2e2] text-[#dc2626] border-none rounded text-sm font-semibold cursor-pointer"
+                disabled={submitting}
+                className="py-[10px] px-5 bg-[#fee2e2] text-[#dc2626] border-none rounded text-sm font-semibold cursor-pointer disabled:opacity-60"
               >
                 ✕ Refuser le devis
               </button>
               <button
                 onClick={handleAccept}
-                className="py-[10px] px-5 bg-[#6366f1] text-white border-none rounded text-sm font-semibold cursor-pointer shadow-[0_2px_8px_rgba(99,102,241,0.4)]"
+                disabled={submitting}
+                className="py-[10px] px-5 bg-[#6366f1] text-white border-none rounded text-sm font-semibold cursor-pointer shadow-[0_2px_8px_rgba(99,102,241,0.4)] disabled:opacity-60"
               >
                 ✓ Accepter le devis
               </button>
             </div>
+            {submitErr && <div className="w-full text-sm text-[#dc2626] mt-1">{submitErr}</div>}
           </div>
         )}
 
@@ -612,24 +545,26 @@ export default function EFacturationPortal() {
               </div>
             </div>
 
+            {submitErr && <div style={{ fontSize: 13, color: '#dc2626', marginBottom: 12 }}>{submitErr}</div>}
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setShowSignModal(false)}
+                disabled={submitting}
                 style={{ padding: '10px 18px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 8, fontSize: 14, cursor: 'pointer' }}
               >
                 Annuler
               </button>
               <button
                 onClick={confirmAccept}
-                disabled={!signerName.trim()}
+                disabled={!signerName.trim() || submitting}
                 style={{
-                  padding: '10px 20px', background: signerName.trim() ? '#6366f1' : '#c7d2fe',
+                  padding: '10px 20px', background: (signerName.trim() && !submitting) ? '#6366f1' : '#c7d2fe',
                   color: 'white', border: 'none', borderRadius: 8, fontSize: 14,
-                  fontWeight: 600, cursor: signerName.trim() ? 'pointer' : 'not-allowed',
-                  boxShadow: signerName.trim() ? '0 2px 8px rgba(99,102,241,0.4)' : 'none'
+                  fontWeight: 600, cursor: (signerName.trim() && !submitting) ? 'pointer' : 'not-allowed',
+                  boxShadow: (signerName.trim() && !submitting) ? '0 2px 8px rgba(99,102,241,0.4)' : 'none'
                 }}
               >
-                ✓ Confirmer l'acceptation
+                {submitting ? 'Envoi…' : "✓ Confirmer l'acceptation"}
               </button>
             </div>
           </div>
