@@ -7,15 +7,18 @@
  */
 import { api } from './api';
 
+// Champs typés `any` à dessein : on y range les interfaces de config du store
+// (PreferencesConfig, Societe, …) qui, étant des interfaces nommées sans
+// signature d'index, ne sont pas assignables à `Record<string, unknown>`.
 export interface SettingsConfig {
-  preferences?: Record<string, unknown>;
-  numerotation?: Record<string, unknown>;
-  facturationConfig?: Record<string, unknown>;
-  notifConfig?: Record<string, unknown>;
-  societe?: Record<string, unknown>;
-  relanceConfig?: Record<string, unknown>;
-  alertesConfig?: Record<string, unknown>;
-  iaConfig?: Record<string, unknown>;
+  preferences?: any;
+  numerotation?: any;
+  facturationConfig?: any;
+  notifConfig?: any;
+  societe?: any;
+  relanceConfig?: any;
+  alertesConfig?: any;
+  iaConfig?: any;
 }
 
 export const getSettings = () => api<{ config: SettingsConfig | null }>('/settings');
