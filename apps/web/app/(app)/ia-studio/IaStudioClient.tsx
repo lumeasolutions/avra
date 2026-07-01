@@ -225,6 +225,7 @@ async function callRenduAPI(params: {
 async function callArchitectAPI(params: {
   mode: 'interior' | 'exterior';
   facades?: string; planTravail?: string; sol?: string; murs?: string;
+  poignees?: string; credence?: string; cooktop?: 'induction' | 'gas';
   ambiance?: string; highRes?: boolean;
   referenceImageDataUrl: string;
   projectId?: string | null;
@@ -1191,6 +1192,9 @@ export default function IaStudioPage() {
   const [archPlan,     setArchPlan]     = useState('');
   const [archSol,      setArchSol]      = useState('');
   const [archMurs,     setArchMurs]     = useState('');
+  const [archPoignees, setArchPoignees] = useState('');
+  const [archCredence, setArchCredence] = useState('');
+  const [archCooktop,  setArchCooktop]  = useState<'' | 'induction' | 'gas'>('');
   const [archAmbiance, setArchAmbiance] = useState('');
   const [archHighRes,  setArchHighRes]  = useState(false);
   const [archLoading,  setArchLoading]  = useState(false);
@@ -1629,6 +1633,10 @@ export default function IaStudioPage() {
         planTravail: archPlan.trim()    || undefined,
         sol:         archSol.trim()     || undefined,
         murs:        archMurs.trim()    || undefined,
+        // Champs cuisine (n'ont de sens qu'en intérieur)
+        poignees:    archMode === 'interior' ? (archPoignees.trim() || undefined) : undefined,
+        credence:    archMode === 'interior' ? (archCredence.trim() || undefined) : undefined,
+        cooktop:     archMode === 'interior' && archCooktop ? archCooktop : undefined,
         ambiance:    archAmbiance.trim() || undefined,
         highRes:     archHighRes,
         referenceImageDataUrl,
@@ -2662,7 +2670,7 @@ export default function IaStudioPage() {
                 <input
                   value={archFacades}
                   onChange={e => setArchFacades(e.target.value)}
-                  placeholder="Ex : Chêne fumé mat, poignées laiton brossé"
+                  placeholder="Ex : Chêne fumé mat, façade laquée blanche"
                   className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
                 />
                 <div className="mt-2 flex flex-wrap gap-1.5">
@@ -2674,6 +2682,27 @@ export default function IaStudioPage() {
                   ))}
                 </div>
               </div>
+
+              {archMode === 'interior' && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Poignées <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                  <input
+                    value={archPoignees}
+                    onChange={e => setArchPoignees(e.target.value)}
+                    placeholder="Ex : Laiton brossé, noir mat, inox"
+                    className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
+                  />
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {['Laiton brossé', 'Noir mat', 'Inox brossé', 'Chrome poli', 'Chêne', 'Sans poignée (gorge)'].map(s => (
+                      <button key={s} onClick={() => setArchPoignees(s)}
+                        className="rounded-full border border-[#8a6cc2]/20 bg-[#8a6cc2]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#8a6cc2]/50 hover:bg-[#8a6cc2]/10 transition-all">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Utile quand l’IA garde des poignées bois alors que vous voulez du métal.</p>
+                </div>
+              )}
 
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Plan de travail <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
@@ -2691,7 +2720,28 @@ export default function IaStudioPage() {
                     </button>
                   ))}
                 </div>
+                <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Décrivez précisément la matière (couleur + veinage) pour un rendu plus fidèle.</p>
               </div>
+
+              {archMode === 'interior' && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Crédence <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                  <input
+                    value={archCredence}
+                    onChange={e => setArchCredence(e.target.value)}
+                    placeholder="Ex : Carrelage zellige blanc, inox, même matière que le plan"
+                    className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
+                  />
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {['Zellige blanc', 'Même pierre que le plan', 'Inox brossé', 'Carrelage métro', 'Verre laqué noir'].map(s => (
+                      <button key={s} onClick={() => setArchCredence(s)}
+                        className="rounded-full border border-[#8a6cc2]/20 bg-[#8a6cc2]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#8a6cc2]/50 hover:bg-[#8a6cc2]/10 transition-all">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Sol <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
@@ -2708,10 +2758,36 @@ export default function IaStudioPage() {
                 <input
                   value={archMurs}
                   onChange={e => setArchMurs(e.target.value)}
-                  placeholder="Ex : Peinture mate blanche, lambris bois, crédence céramique"
+                  placeholder="Ex : Peinture mate blanche, lambris bois"
                   className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
                 />
               </div>
+
+              {archMode === 'interior' && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Type de plaque <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                  <div className="flex gap-1.5">
+                    {([
+                      { key: '',          label: 'Non spécifié' },
+                      { key: 'induction', label: 'Induction' },
+                      { key: 'gas',       label: 'Gaz' },
+                    ] as const).map(o => {
+                      const active = archCooktop === o.key;
+                      return (
+                        <button key={o.key || 'none'} onClick={() => setArchCooktop(o.key)}
+                          className={`flex-1 rounded-xl border px-3 py-2 text-[11px] font-bold transition-all ${
+                            active
+                              ? 'border-[#8a6cc2] bg-[#8a6cc2]/10 text-[#6f54a8]'
+                              : 'border-[#304035]/12 bg-[#f5eee8]/40 text-[#304035]/60 hover:border-[#8a6cc2]/40'
+                          }`}>
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Force le type de plaque de cuisson dans le rendu (surface lisse induction vs. brûleurs gaz).</p>
+                </div>
+              )}
             </div>
 
             {/* Dossier + CTA */}

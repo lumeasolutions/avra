@@ -42,6 +42,12 @@ export interface ArchitectParams {
   sol?: string;
   /** Murs (optionnel). */
   murs?: string;
+  /** Poignées / quincaillerie (optionnel) — cas classique où l'IA garde le bois. */
+  poignees?: string;
+  /** Crédence (optionnel). */
+  credence?: string;
+  /** Type de plaque de cuisson (optionnel) : force induction ou gaz. */
+  cooktop?: 'induction' | 'gas';
   /** Ambiance / consigne libre de l'utilisateur (optionnel). */
   ambiance?: string;
   /** Upscale 4K du rendu final (+0,02 $, +qq s). */
@@ -80,32 +86,54 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
       ? 'professional architectural exterior photograph, photorealistic, accurate proportions and geometry true to the source, bright and luminous natural daylight, soft even lighting, airy well-lit atmosphere, clean materials'
       : 'professional architectural interior photograph, photorealistic, accurate proportions and geometry true to the source, bright and luminous lighting, soft even natural and artificial light, airy well-lit atmosphere, clean detailed materials';
 
-  const materials: string[] = [];
-  if (params.facades?.trim()) materials.push(`cabinet fronts: ${params.facades.trim()}`);
-  if (params.planTravail?.trim()) materials.push(`countertop: ${params.planTravail.trim()}`);
-  if (params.sol?.trim()) materials.push(`floor: ${params.sol.trim()}`);
-  if (params.murs?.trim()) materials.push(`walls: ${params.murs.trim()}`);
+  // ── Finitions DEMANDÉES = remplacements IMPÉRATIFS ──────────────────────────
+  // Formulation forte ("must be exactly", "replace") + localisation de la surface,
+  // placée EN TÊTE (poids maximal). Sur un img2img sans negativePrompt, c'est ce
+  // qui pousse réellement le modèle à changer la matière au lieu de garder la
+  // source. Les poignées et le plan de travail sont les cas les plus « collants »
+  // (bois gardé alors qu'on demande du laiton, plan pas exactement la bonne pierre).
+  const requested: string[] = [];
+  if (params.facades?.trim())
+    requested.push(`the cabinet fronts must be exactly ${params.facades.trim()}`);
+  if (params.poignees?.trim())
+    requested.push(`the cabinet door handles and knobs must be exactly ${params.poignees.trim()} — replace any existing handle finish, keep this exact hardware metal and finish, do not leave them wood if a metal finish is requested`);
+  if (params.planTravail?.trim())
+    requested.push(`the countertop / worktop surface must be exactly ${params.planTravail.trim()} — reproduce this material, its color and its veining precisely, do not substitute it with a different stone or material`);
+  if (params.credence?.trim())
+    requested.push(`the backsplash must be exactly ${params.credence.trim()}`);
+  if (params.sol?.trim())
+    requested.push(`the floor must be exactly ${params.sol.trim()}`);
+  if (params.murs?.trim())
+    requested.push(`the walls must be exactly ${params.murs.trim()}`);
+  if (params.cooktop === 'induction')
+    requested.push('the cooktop is a flat frameless black induction glass-ceramic hob, with no burners and no grates');
+  else if (params.cooktop === 'gas')
+    requested.push('the cooktop is a gas hob with visible metal burners and cast-iron pan support grates');
+
+  const mandatory = requested.length
+    ? `apply these exact finishes, replacing whatever is currently there and reproducing each requested material, color and finish precisely, do not substitute any of them: ${requested.join('; ')}`
+    : '';
 
   const ambiance = params.ambiance?.trim() ? params.ambiance.trim() : '';
 
-  // Fidélité maximale aux éléments existants de l'image source. MyArchitectAI
-  // n'expose pas de paramètre de "structure strength" : on force donc la
-  // préservation des matériaux/couleurs/équipements directement dans le prompt.
-  // Tout élément explicitement redéfini dans `materials` (Façades/Plan/Sol/Murs)
-  // prime ; le reste doit rester strictement fidèle à la source.
-  // IMPORTANT : ne PAS nommer d'objets potentiellement absents (évier, robinet,
-  // hotte…). Sur ces endpoints sans negativePrompt, citer "faucet/sink" dans le
-  // prompt positif pousse le modèle à EN AJOUTER même s'il n'y en a pas dans la
-  // source. On ne préserve donc que des SURFACES/matériaux, + une interdiction
-  // générique d'inventer quoi que ce soit qui n'est pas déjà visible.
+  // Fidélité : s'applique UNIQUEMENT à ce qui n'a PAS été explicitement redéfini
+  // ci-dessus (fini la contradiction « garde l'original SAUF… » qui diluait la
+  // demande). On ne nomme aucun objet potentiellement absent (évier/robinet/hotte)
+  // pour ne pas pousser le modèle à en inventer.
   const fidelity =
-    'render only the elements that are actually present in the source image; faithfully reproduce the existing wood tones and wood grain, the existing colors, finishes and materials, the cabinet handles, the floor, the backsplash, the worktop and the wall colors exactly as they appear in the original, except for any material explicitly requested above; do not recolor, do not change or invent materials, do not alter the wood species or its tone, do not add, invent or imagine any new object, fixture, appliance, plumbing or furniture that is not clearly visible in the source, and do not move or duplicate existing elements';
+    'for every element that is not explicitly requested above, keep it exactly as it appears in the source image; do not recolor, do not change or invent materials, do not alter the wood species or its tone, do not add, invent or imagine any new object, fixture, appliance, plumbing or furniture that is not clearly visible in the source, and do not move or duplicate existing elements';
+
+  // Rappel « critical » sur les 2 finitions les plus souvent mal respectées.
+  const criticalBits: string[] = [];
+  if (params.planTravail?.trim()) criticalBits.push(`the worktop must be exactly ${params.planTravail.trim()}`);
+  if (params.poignees?.trim()) criticalBits.push(`the handles must be exactly ${params.poignees.trim()}`);
+  const critical = criticalBits.length ? `critical: ${criticalBits.join(' and ')}, match these precisely` : '';
 
   // Contraintes anti-dérive baked-in (faute de negativePrompt sur ces endpoints).
   const guard =
     'preserve the original layout and camera angle, no extra furniture, no added objects, no warped or deformed shapes, no distorted lines, no text, crisp clean image, sharp focus, fine high detail, high resolution, smooth surfaces, no grain, no noise, no blur, no compression artifacts';
 
-  return [base, materials.length ? materials.join(', ') : '', ambiance, fidelity, guard]
+  return [base, mandatory, ambiance, fidelity, critical, guard]
     .filter(Boolean)
     .join('. ');
 }
