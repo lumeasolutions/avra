@@ -385,3 +385,46 @@ export async function generateColoristeRender(
   }
   return { success: true, imageUrls: res.outputs, prompt, endpoint: 'render/interior', upscaled: false };
 }
+
+/**
+ * Édition ciblée d'une image existante (endpoint /edit-by-prompt).
+ *
+ * Contrairement à render/interior qui REGÉNÈRE toute la scène, edit-by-prompt
+ * applique UNE modification décrite en langage naturel en gardant le reste de
+ * l'image identique (fidélité maximale : niche, égouttoir, meubles non touchés).
+ * Réponse : { output: "https://..." } (string unique, gérée par extractOutputs).
+ *
+ * @param imageUrl URL https publique de l'image à retoucher (rendu ou photo)
+ * @param prompt   Consigne d'édition déjà propre (anglais, atomique, + « keep the
+ *                 rest identical » — cf. buildRetouchInstruction côté route)
+ */
+export function editByPrompt(imageUrl: string, prompt: string): Promise<EndpointResult> {
+  return callEndpoint('/edit-by-prompt', { image: imageUrl, prompt });
+}
+
+/**
+ * Retouche haut-niveau « Retouche photo » — applique une consigne d'édition
+ * ciblée via /edit-by-prompt. En mode mock (clé absente) : renvoie l'image source.
+ *
+ * @param prompt   Consigne d'édition propre (construite via buildRetouchInstruction)
+ * @param imageUrl URL https publique de l'image à retoucher
+ */
+export async function generateRetouch(
+  prompt: string,
+  imageUrl: string,
+): Promise<ArchitectResult> {
+  if (!isArchitectEnabled()) {
+    return {
+      success: true,
+      imageUrls: [imageUrl],
+      prompt: `${prompt} [MODE DÉMO — clé du moteur de rendu non configurée]`,
+      endpoint: 'mock',
+      upscaled: false,
+    };
+  }
+  const res = await editByPrompt(imageUrl, prompt);
+  if (!res.ok) {
+    return { success: false, imageUrls: [], prompt, endpoint: 'edit-by-prompt', upscaled: false, error: res.error };
+  }
+  return { success: true, imageUrls: res.outputs, prompt, endpoint: 'edit-by-prompt', upscaled: false };
+}

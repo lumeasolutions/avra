@@ -1204,6 +1204,16 @@ export default function IaStudioPage() {
   const [archResult,   setArchResult]   = useState<Item | null>(null);
   const [archError,    setArchError]    = useState<string | null>(null);
 
+  /* ── RETOUCHE PHOTO (edit-by-prompt) — édition ciblée du rendu affiché */
+  const [retouchOpen,    setRetouchOpen]    = useState(false);
+  const [retouchTab,     setRetouchTab]     = useState<'guided' | 'free'>('guided');
+  const [retouchZone,    setRetouchZone]    = useState('');
+  const [retouchMat,     setRetouchMat]     = useState('');
+  const [retouchFree,    setRetouchFree]    = useState('');
+  const [retouchLoading, setRetouchLoading] = useState(false);
+  const [retouchError,   setRetouchError]   = useState<string | null>(null);
+  const [retouchApplied, setRetouchApplied] = useState<string | null>(null);
+
   /* ── Couleurs modifiées manuellement (pour détecter si l'utilisateur a changé qqch) */
   const [colorsModified, setColorsModified] = useState(false);
 
@@ -1673,6 +1683,86 @@ export default function IaStudioPage() {
   const saveArchitect = () => {
     if (!archResult) return;
     openSaveModal(archResult, 'Rendu Réaliste', '🏛️', () => setArchResult(null));
+  };
+
+  /* ── RETOUCHE PHOTO : édition ciblée du rendu affiché via /api/ia/retouch */
+  const urlToDataUrl = async (url: string): Promise<string> => {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const runRetouch = async () => {
+    const srcUrl = archResult?.imageUrl;
+    if (!srcUrl) return;
+    const guided = retouchTab === 'guided';
+    if (guided && (!retouchZone || !retouchMat.trim())) {
+      setRetouchError('Choisissez une zone et indiquez la nouvelle matière/couleur.');
+      return;
+    }
+    if (!guided && !retouchFree.trim()) {
+      setRetouchError('Décrivez la retouche à appliquer.');
+      return;
+    }
+    const prevDossier = archResult?.dossier;
+    setRetouchLoading(true); setRetouchError(null); setRetouchApplied(null);
+    try {
+      let referenceImageDataUrl: string;
+      try {
+        referenceImageDataUrl = await urlToDataUrl(srcUrl);
+      } catch {
+        setRetouchError('Impossible de charger le rendu à retoucher. Réessayez.');
+        setRetouchLoading(false);
+        return;
+      }
+      const res = await fetch('/api/ia/retouch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          referenceImageDataUrl,
+          zone:        guided ? retouchZone : undefined,
+          material:    guided ? retouchMat.trim() : undefined,
+          instruction: guided ? undefined : retouchFree.trim(),
+          projectId:   dossierId || null,
+        }),
+      });
+      const text = await res.text();
+      let parsed: { imageUrl?: string; imageUrls?: string[]; instruction?: string; error?: unknown } | null = null;
+      try { parsed = JSON.parse(text); } catch { parsed = null; }
+
+      if (!res.ok || !parsed?.imageUrl) {
+        const msg =
+          parsed && typeof parsed.error === 'string' ? parsed.error
+          : res.status === 422 ? 'Consigne trop vague — précisez quel élément changer et comment.'
+          : res.status === 429 ? 'Trop de retouches cette heure. Patientez un peu.'
+          : 'La retouche a échoué. Réessayez.';
+        setRetouchError(msg);
+        setRetouchLoading(false);
+        return;
+      }
+
+      setIaHistoryRefresh(n => n + 1);
+      setRetouchApplied(typeof parsed.instruction === 'string' ? parsed.instruction : null);
+      // La retouche devient le nouveau rendu courant → permet d'enchaîner les retouches.
+      setArchResult({
+        id: uid(), module: 'architect',
+        prompt: guided ? `Retouche : ${retouchMat.trim()}` : `Retouche : ${retouchFree.trim()}`,
+        dossier: prevDossier,
+        ts: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        color: '#8a6cc2',
+        imageUrl: parsed.imageUrl,
+        imageUrls: Array.isArray(parsed.imageUrls) && parsed.imageUrls.length ? parsed.imageUrls : [parsed.imageUrl],
+      });
+      setRetouchMat(''); setRetouchFree('');
+    } catch {
+      setRetouchError('La retouche a pris trop de temps ou la connexion a été interrompue. Réessayez.');
+    }
+    setRetouchLoading(false);
   };
 
   /* ── Sélecteur dossier */
@@ -2607,6 +2697,115 @@ export default function IaStudioPage() {
                     onSave={saveArchitect}
                     onRegenerate={runArchitect}
                   />
+                )}
+
+                {/* RETOUCHE PHOTO — édition ciblée du rendu affiché */}
+                {archResult && !archLoading && (
+                  <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md overflow-hidden">
+                    <button
+                      onClick={() => { setRetouchOpen(o => !o); setRetouchError(null); }}
+                      className="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left hover:bg-[#8a6cc2]/[0.03] transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#8a6cc2]/10">
+                          <Wand2 className="h-4 w-4 text-[#8a6cc2]" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-[#304035]">Retoucher ce rendu</p>
+                          <p className="text-[11px] text-[#304035]/50 -mt-0.5">Corrige un détail sans tout régénérer</p>
+                        </div>
+                      </div>
+                      <span className={`text-[#8a6cc2] transition-transform ${retouchOpen ? 'rotate-180' : ''}`}>▾</span>
+                    </button>
+
+                    {retouchOpen && (
+                      <div className="border-t border-[#304035]/8 p-5 space-y-4">
+                        {/* Onglets guidé / libre */}
+                        <div className="flex gap-1.5 rounded-xl bg-[#f5eee8]/50 p-1">
+                          {([
+                            { key: 'guided', label: 'Retouche guidée' },
+                            { key: 'free',   label: 'Décrire (texte)' },
+                          ] as const).map(t => (
+                            <button key={t.key} onClick={() => { setRetouchTab(t.key); setRetouchError(null); }}
+                              className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-bold transition-all ${
+                                retouchTab === t.key ? 'bg-white text-[#6f54a8] shadow-sm' : 'text-[#304035]/55 hover:text-[#304035]'
+                              }`}>
+                              {t.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {retouchTab === 'guided' ? (
+                          <>
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Quelle zone ?</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {([
+                                  { key: 'meubles-bas',    label: 'Meubles bas' },
+                                  { key: 'meubles-hauts',  label: 'Meubles hauts' },
+                                  { key: 'toutes-facades', label: 'Toutes façades' },
+                                  { key: 'plan',           label: 'Plan de travail' },
+                                  { key: 'credence',       label: 'Crédence' },
+                                  { key: 'sol',            label: 'Sol' },
+                                  { key: 'murs',           label: 'Murs' },
+                                  { key: 'poignees',       label: 'Poignées' },
+                                ] as const).map(z => (
+                                  <button key={z.key} onClick={() => setRetouchZone(z.key)}
+                                    className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                                      retouchZone === z.key
+                                        ? 'border-[#8a6cc2] bg-[#8a6cc2]/10 text-[#6f54a8]'
+                                        : 'border-[#304035]/12 bg-[#f5eee8]/40 text-[#304035]/60 hover:border-[#8a6cc2]/40'
+                                    }`}>
+                                    {z.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Nouvelle matière / couleur</p>
+                              <input
+                                value={retouchMat}
+                                onChange={e => setRetouchMat(e.target.value)}
+                                placeholder="Ex : Blanc mat uni, noyer clair, inox brossé"
+                                className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Décrivez la retouche</p>
+                            <textarea
+                              value={retouchFree}
+                              onChange={e => setRetouchFree(e.target.value)}
+                              rows={2}
+                              placeholder="Ex : mets les meubles hauts en blanc, garde le reste"
+                              className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow resize-none"
+                            />
+                            <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Une seule modification à la fois marche le mieux. Le reste de l'image est préservé automatiquement.</p>
+                          </div>
+                        )}
+
+                        {retouchError && (
+                          <div className="rounded-xl border border-red-300/40 bg-red-50/60 px-3 py-2 text-[11px] text-red-700">{retouchError}</div>
+                        )}
+                        {retouchApplied && !retouchError && (
+                          <div className="rounded-xl border border-[#8a6cc2]/25 bg-[#8a6cc2]/[0.06] px-3 py-2 text-[11px] text-[#304035]/70">
+                            <b className="text-[#6f54a8]">Appliqué :</b> {retouchApplied}
+                          </div>
+                        )}
+
+                        <button onClick={runRetouch} disabled={retouchLoading}
+                          className="w-full rounded-2xl py-3 font-black text-white shadow-md hover:shadow-lg active:scale-[.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                          style={{ background: 'linear-gradient(135deg,#8a6cc2 0%,#6f54a8 100%)' }}>
+                          <span className="flex items-center justify-center gap-2 text-sm">
+                            {retouchLoading
+                              ? <><Loader2 className="h-4 w-4 animate-spin" />Retouche en cours…</>
+                              : <><Wand2 className="h-4 w-4" />Appliquer la retouche</>}
+                          </span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* État vide */}
