@@ -19,7 +19,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateRetouch } from '@/lib/server/myarchitect-api';
-import { buildStructuredInstruction, reformulateFreeText } from '@/lib/server/retouch-instruction';
+import { buildStructuredInstruction, buildStructuredInstructionMulti, reformulateFreeText } from '@/lib/server/retouch-instruction';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
 import { prisma } from '@/lib/server/prisma';
@@ -84,12 +84,22 @@ export async function POST(req: NextRequest) {
   const zone = typeof body.zone === 'string' ? body.zone : '';
   const material = typeof body.material === 'string' ? body.material : '';
   const freeText = typeof body.instruction === 'string' ? body.instruction : '';
+  // Retouche GROUPÉE : plusieurs { zone, material } appliqués en UNE génération.
+  const changes: Array<{ zone: string; material: string }> = Array.isArray(body.changes)
+    ? body.changes
+        .filter((c: unknown): c is { zone: string; material: string } =>
+          !!c && typeof (c as { zone?: unknown }).zone === 'string' &&
+          typeof (c as { material?: unknown }).material === 'string')
+        .map((c: { zone: string; material: string }) => ({ zone: c.zone, material: c.material }))
+    : [];
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 
-  // ── 4) Construction de la consigne d'édition (propre, atomique, anglais)
+  // ── 4) Construction de la consigne d'édition (propre, anglais)
   let instruction: string | null = null;
-  if (zone && material) {
+  if (changes.length > 0) {
+    instruction = buildStructuredInstructionMulti(changes);
+  } else if (zone && material) {
     instruction = buildStructuredInstruction(zone, material);
   } else if (freeText.trim()) {
     instruction = await reformulateFreeText(freeText);
@@ -120,6 +130,7 @@ export async function POST(req: NextRequest) {
           engine: 'myarchitectai-retouch',
           zone: zone || null,
           material: material || null,
+          changes: changes.length > 0 ? changes : null,
           freeText: freeText || null,
           instruction,
         },

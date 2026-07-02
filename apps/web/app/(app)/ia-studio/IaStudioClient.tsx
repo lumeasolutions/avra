@@ -1210,6 +1210,7 @@ export default function IaStudioPage() {
   const [retouchTab,     setRetouchTab]     = useState<'guided' | 'free'>('guided');
   const [retouchZone,    setRetouchZone]    = useState('');
   const [retouchMat,     setRetouchMat]     = useState('');
+  const [retouchChanges, setRetouchChanges] = useState<{ zone: string; material: string }[]>([]);
   const [retouchFree,    setRetouchFree]    = useState('');
   const [retouchLoading, setRetouchLoading] = useState(false);
   const [retouchError,   setRetouchError]   = useState<string | null>(null);
@@ -1703,7 +1704,15 @@ export default function IaStudioPage() {
     const srcUrl = archResult?.imageUrl;
     if (!srcUrl) return;
     const guided = retouchTab === 'guided';
-    if (guided && (!retouchZone || !retouchMat.trim())) {
+    // Retouche GROUPÉE : file d'attente + la saisie courante si elle est valide,
+    // le tout appliqué en UNE seule génération. Dédoublonnage par zone : si la
+    // saisie courante vise une zone déjà en file, elle la remplace (pas de doublon).
+    const cur = retouchZone && retouchMat.trim() ? { zone: retouchZone, material: retouchMat.trim() } : null;
+    const pending = [
+      ...retouchChanges.filter(c => !cur || c.zone !== cur.zone),
+      ...(cur ? [cur] : []),
+    ];
+    if (guided && pending.length === 0) {
       setRetouchError('Choisissez une zone et indiquez la nouvelle matière/couleur.');
       return;
     }
@@ -1727,8 +1736,7 @@ export default function IaStudioPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           referenceImageDataUrl,
-          zone:        guided ? retouchZone : undefined,
-          material:    guided ? retouchMat.trim() : undefined,
+          changes:     guided ? pending : undefined,
           instruction: guided ? undefined : retouchFree.trim(),
           projectId:   dossierId || null,
         }),
@@ -1753,14 +1761,16 @@ export default function IaStudioPage() {
       // La retouche devient le nouveau rendu courant → permet d'enchaîner les retouches.
       setArchResult({
         id: uid(), module: 'architect',
-        prompt: guided ? `Retouche : ${retouchMat.trim()}` : `Retouche : ${retouchFree.trim()}`,
+        prompt: guided
+          ? `Retouche : ${pending.map(c => c.material).join(', ')}`
+          : `Retouche : ${retouchFree.trim()}`,
         dossier: prevDossier,
         ts: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         color: '#8a6cc2',
         imageUrl: parsed.imageUrl,
         imageUrls: Array.isArray(parsed.imageUrls) && parsed.imageUrls.length ? parsed.imageUrls : [parsed.imageUrl],
       });
-      setRetouchMat(''); setRetouchFree('');
+      setRetouchMat(''); setRetouchFree(''); setRetouchZone(''); setRetouchChanges([]);
     } catch {
       setRetouchError('La retouche a pris trop de temps ou la connexion a été interrompue. Réessayez.');
     }
@@ -2773,6 +2783,47 @@ export default function IaStudioPage() {
                                 className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
                               />
                             </div>
+
+                            {/* Empiler plusieurs changements → tout appliquer en UNE génération */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!retouchZone || !retouchMat.trim()) {
+                                  setRetouchError('Choisissez une zone et une matière avant d\'ajouter.');
+                                  return;
+                                }
+                                setRetouchError(null);
+                                setRetouchChanges(prev => [
+                                  ...prev.filter(c => c.zone !== retouchZone),
+                                  { zone: retouchZone, material: retouchMat.trim() },
+                                ]);
+                                setRetouchZone(''); setRetouchMat('');
+                              }}
+                              className="w-full rounded-xl border border-dashed border-[#8a6cc2]/40 py-2 text-[12px] font-bold text-[#6f54a8] hover:bg-[#8a6cc2]/5 transition-colors"
+                            >
+                              + Ajouter ce changement (pour tout appliquer en 1 seul rendu)
+                            </button>
+
+                            {retouchChanges.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {retouchChanges.map((c, i) => {
+                                  const labels: Record<string, string> = {
+                                    'meubles-bas': 'Meubles bas', 'meubles-hauts': 'Meubles hauts',
+                                    'toutes-facades': 'Toutes façades', 'plan': 'Plan de travail',
+                                    'credence': 'Crédence', 'sol': 'Sol', 'murs': 'Murs',
+                                    'poignees': 'Poignées', 'evier': 'Évier',
+                                  };
+                                  return (
+                                    <span key={c.zone + i} className="inline-flex items-center gap-1.5 rounded-full bg-[#8a6cc2]/10 border border-[#8a6cc2]/25 px-2.5 py-1 text-[11px] text-[#6f54a8]">
+                                      {(labels[c.zone] || c.zone)} → {c.material}
+                                      <button type="button" aria-label="Retirer"
+                                        onClick={() => setRetouchChanges(prev => prev.filter((_, j) => j !== i))}
+                                        className="text-[#6f54a8]/60 hover:text-[#6f54a8]">✕</button>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </>
                         ) : (
                           <div>
@@ -2784,7 +2835,7 @@ export default function IaStudioPage() {
                               placeholder="Ex : mets les meubles hauts en blanc, garde le reste"
                               className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow resize-none"
                             />
-                            <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Une seule modification à la fois marche le mieux. Le reste de l'image est préservé automatiquement.</p>
+                            <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Tu peux décrire plusieurs changements d&apos;un coup (ex. « plan noir et poignées laiton ») — tout est appliqué en 1 seul rendu, le reste est préservé.</p>
                           </div>
                         )}
 
@@ -2803,7 +2854,10 @@ export default function IaStudioPage() {
                           <span className="flex items-center justify-center gap-2 text-sm">
                             {retouchLoading
                               ? <><Loader2 className="h-4 w-4 animate-spin" />Retouche en cours…</>
-                              : <><Wand2 className="h-4 w-4" />Appliquer la retouche</>}
+                              : <><Wand2 className="h-4 w-4" />{(() => {
+                                  const n = retouchChanges.length + ((retouchZone && retouchMat.trim()) ? 1 : 0);
+                                  return retouchTab === 'guided' && n > 1 ? `Appliquer les ${n} retouches (1 rendu)` : 'Appliquer la retouche';
+                                })()}</>}
                           </span>
                         </button>
                       </div>

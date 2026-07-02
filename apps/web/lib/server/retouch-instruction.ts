@@ -51,10 +51,37 @@ export function buildStructuredInstruction(zone: string, material: string): stri
   return `Change ${loc} to exactly ${mat}.${antiVeining} ${KEEP_REST}`;
 }
 
-const SYSTEM_PROMPT = `You convert a French kitchen-render retouch request into ONE precise, atomic image-editing instruction in English for an image-editing model.
+/** Retouche GUIDÉE MULTIPLE : plusieurs zone+matière → UNE consigne combinée. */
+export function buildStructuredInstructionMulti(
+  changes: Array<{ zone: string; material: string }>,
+): string | null {
+  // Dédoublonnage par zone (le dernier gagne) : on ne veut jamais deux ordres
+  // contradictoires sur la même zone dans une consigne combinée.
+  const byZone = new Map<string, { zone: string; material: string }>();
+  for (const c of changes) {
+    if (ZONE_EN[c.zone] && c.material?.trim()) {
+      byZone.set(c.zone, { zone: c.zone, material: c.material.trim() });
+    }
+  }
+  const valid = Array.from(byZone.values());
+  if (valid.length === 0) return null;
+  if (valid.length === 1) return buildStructuredInstruction(valid[0].zone, valid[0].material);
+  const parts = valid.map((c) => {
+    const loc = ZONE_EN[c.zone];
+    const mat = c.material.trim();
+    const antiVeining =
+      (c.zone === 'plan' || c.zone === 'credence' || c.zone === 'murs') && looksPlain(mat)
+        ? ' (keep this surface perfectly uniform, no veining, no marbling and no pattern)'
+        : '';
+    return `${loc} must become exactly ${mat}${antiVeining}`;
+  });
+  return `Apply all of these changes to the image at the same time: ${parts.join('; ')}. ${KEEP_REST}`;
+}
+
+const SYSTEM_PROMPT = `You convert a French kitchen-render retouch request into ONE precise image-editing instruction in English for an image-editing model.
 
 Rules:
-- Describe ONLY the single change requested. If several changes are asked, keep only the main one.
+- Preserve EVERY change the user asks for. If several changes are requested, combine them into ONE instruction that applies them all at the same time (e.g. "change the worktop to black AND the handles to brass").
 - Be specific about WHICH element changes (e.g. "the upper wall cabinets", "the worktop", "the backsplash").
 - If a plain or matte colour is requested for a countertop, backsplash or wall, add that it must stay uniform with no veining or pattern.
 - ALWAYS end with: "Keep everything else in the image exactly identical, do not add, remove or invent anything else."
