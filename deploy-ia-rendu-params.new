@@ -1,0 +1,9 @@
+@echo off
+cd /d "%~dp0"
+set GIT_PAGER=cat
+set PAGER=cat
+echo === Add / commit parametres rendu IA ===
+git add -A
+git commit -m "feat(ia-architect): parametres poignees/credence/plaque + fidelite (auto-prompt)" -m "- Nouveaux champs Poignees / Credence / Type de plaque (induction ou gaz) en mode interieur" -m "- buildArchitectPrompt reecrit : finitions demandees = remplacements imperatifs en tete de prompt" -m "- Corrige la fidelite du plan de travail et le cas poignees laiton rendues en bois" -m "- Enrichissement fidelite via /auto-prompt : decrit la scene source (accessoires type egouttoir) pour ne pas les supprimer" -m "- Clause de fidelite anti-suppression des accessoires existants + rappel critical plan/poignees" -m "- route /api/ia/architect parse poignees/credence/cooktop ; ArchitectParams etendu"
+echo.
+echo === Push HEAD vers

@@ -224,7 +224,8 @@ async function callRenduAPI(params: {
 /* ─── IA Architect (MyArchitectAI) : appel de la route /api/ia/architect ─── */
 async function callArchitectAPI(params: {
   mode: 'interior' | 'exterior';
-  facades?: string; planTravail?: string; sol?: string; murs?: string;
+  facades?: string; facadesBas?: string; facadesHaut?: string;
+  planTravail?: string; sol?: string; murs?: string;
   poignees?: string; credence?: string; cooktop?: 'induction' | 'gas';
   ambiance?: string; highRes?: boolean;
   referenceImageDataUrl: string;
@@ -1188,7 +1189,9 @@ export default function IaStudioPage() {
   const [archRefFile,  setArchRefFile]  = useState<File | null>(null);
   const [archRefURL,   setArchRefURL]   = useState<string | null>(null);
   const [archMode,     setArchMode]     = useState<'interior' | 'exterior'>('interior');
-  const [archFacades,  setArchFacades]  = useState('');
+  const [archFacades,     setArchFacades]     = useState('');
+  const [archFacadesBas,  setArchFacadesBas]  = useState('');
+  const [archFacadesHaut, setArchFacadesHaut] = useState('');
   const [archPlan,     setArchPlan]     = useState('');
   const [archSol,      setArchSol]      = useState('');
   const [archMurs,     setArchMurs]     = useState('');
@@ -1630,6 +1633,8 @@ export default function IaStudioPage() {
       const result = await callArchitectAPI({
         mode:        archMode,
         facades:     archFacades.trim() || undefined,
+        facadesBas:  archMode === 'interior' ? (archFacadesBas.trim()  || undefined) : undefined,
+        facadesHaut: archMode === 'interior' ? (archFacadesHaut.trim() || undefined) : undefined,
         planTravail: archPlan.trim()    || undefined,
         sol:         archSol.trim()     || undefined,
         murs:        archMurs.trim()    || undefined,
@@ -2666,7 +2671,7 @@ export default function IaStudioPage() {
               </label>
 
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Façades & couleurs <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Façades — toutes <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
                 <input
                   value={archFacades}
                   onChange={e => setArchFacades(e.target.value)}
@@ -2682,6 +2687,30 @@ export default function IaStudioPage() {
                   ))}
                 </div>
               </div>
+
+              {archMode === 'interior' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Meubles bas <span className="text-[#304035]/30 font-normal normal-case">(si différent)</span></p>
+                    <input
+                      value={archFacadesBas}
+                      onChange={e => setArchFacadesBas(e.target.value)}
+                      placeholder="Ex : Noyer clair"
+                      className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Meubles hauts <span className="text-[#304035]/30 font-normal normal-case">(si différent)</span></p>
+                    <input
+                      value={archFacadesHaut}
+                      onChange={e => setArchFacadesHaut(e.target.value)}
+                      placeholder="Ex : Blanc mat"
+                      className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
+                    />
+                  </div>
+                  <p className="sm:col-span-2 -mt-1 text-[10px] text-[#304035]/45 leading-snug">Remplissez ces deux champs pour distinguer bas et hauts (ex. bas noyer, hauts blancs). Laissez vides pour appliquer « Façades — toutes ».</p>
+                </div>
+              )}
 
               {archMode === 'interior' && (
                 <div>

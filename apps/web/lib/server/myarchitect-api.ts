@@ -34,8 +34,12 @@ export type ArchitectMode = 'interior' | 'exterior';
 export interface ArchitectParams {
   /** Intérieur (cuisine, pièce) ou extérieur (façade, perspective). */
   mode: ArchitectMode;
-  /** Façades & couleurs (optionnel) — injecté dans le prompt si renseigné. */
+  /** Façades — toutes (optionnel). Fallback si bas/haut non renseignés. */
   facades?: string;
+  /** Façades meubles bas uniquement (optionnel) — override sur les bas. */
+  facadesBas?: string;
+  /** Façades meubles hauts uniquement (optionnel) — override sur les hauts. */
+  facadesHaut?: string;
   /** Plan de travail (optionnel). */
   planTravail?: string;
   /** Sol (optionnel). */
@@ -48,6 +52,8 @@ export interface ArchitectParams {
   credence?: string;
   /** Type de plaque de cuisson (optionnel) : force induction ou gaz. */
   cooktop?: 'induction' | 'gas';
+  /** Description auto de la scène source (via /auto-prompt) — levier de fidélité. */
+  sourceDescription?: string;
   /** Ambiance / consigne libre de l'utilisateur (optionnel). */
   ambiance?: string;
   /** Upscale 4K du rendu final (+0,02 $, +qq s). */
@@ -93,14 +99,33 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
   // source. Les poignées et le plan de travail sont les cas les plus « collants »
   // (bois gardé alors qu'on demande du laiton, plan pas exactement la bonne pierre).
   const requested: string[] = [];
-  if (params.facades?.trim())
-    requested.push(`the cabinet fronts must be exactly ${params.facades.trim()}`);
+
+  // ── Façades : gestion séparée meubles BAS / meubles HAUTS ───────────────────
+  // Un seul champ « toutes » (facades) sert de fallback. Si l'utilisateur ne
+  // redéfinit qu'un groupe, on ORDONNE de garder l'autre tel quel (sinon le
+  // moteur applique la teinte aux deux — cas noyer clair débordant sur les hauts).
+  const facAll  = params.facades?.trim();
+  const facBas  = params.facadesBas?.trim() || facAll;
+  const facHaut = params.facadesHaut?.trim() || facAll;
+  if (facBas && facHaut && facBas === facHaut) {
+    requested.push(`all cabinet fronts, both the base/lower units and the wall/upper units, must be exactly ${facBas}`);
+  } else {
+    if (facBas)
+      requested.push(`the base / lower cabinet fronts (the units standing on the floor) must be exactly ${facBas}`);
+    if (facHaut)
+      requested.push(`the wall / upper cabinet fronts (the units mounted high on the wall) must be exactly ${facHaut}`);
+    if (facBas && !facHaut)
+      requested.push('keep the wall / upper cabinets exactly as they are in the source image, do not apply the lower cabinet color or finish to the upper cabinets');
+    if (facHaut && !facBas)
+      requested.push('keep the base / lower cabinets exactly as they are in the source image, do not apply the upper cabinet color or finish to the lower cabinets');
+  }
+
   if (params.poignees?.trim())
     requested.push(`the cabinet door handles and knobs must be exactly ${params.poignees.trim()} — replace any existing handle finish, keep this exact hardware metal and finish, do not leave them wood if a metal finish is requested`);
   if (params.planTravail?.trim())
-    requested.push(`the countertop / worktop surface must be exactly ${params.planTravail.trim()} — reproduce this material, its color and its veining precisely, do not substitute it with a different stone or material`);
+    requested.push(`the countertop / worktop surface must be exactly ${params.planTravail.trim()} — reproduce this exact material, color and finish; if this is a plain, solid or matte colour, keep the surface perfectly uniform and smooth with no veining, no marbling, no speckles and no stone-like pattern, and do NOT turn it into marble or any veined stone unless the requested material is explicitly a veined stone`);
   if (params.credence?.trim())
-    requested.push(`the backsplash must be exactly ${params.credence.trim()}`);
+    requested.push(`the backsplash must be exactly ${params.credence.trim()} — if this is a plain or matte colour, keep it uniform with no veining, marbling or pattern unless a pattern is explicitly requested`);
   if (params.sol?.trim())
     requested.push(`the floor must be exactly ${params.sol.trim()}`);
   if (params.murs?.trim())
@@ -110,8 +135,16 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
   else if (params.cooktop === 'gas')
     requested.push('the cooktop is a gas hob with visible metal burners and cast-iron pan support grates');
 
+  // Description auto de la scène (via /auto-prompt) : ancre les accessoires
+  // réellement présents (égouttoir, objets sur le plan…) pour que le rendu ne
+  // les supprime pas. Placée après le style, avant les remplacements.
+  const sourceDescription = params.sourceDescription?.trim();
+  const sceneBlock = sourceDescription
+    ? `the source image shows the following scene — reproduce all of it faithfully and keep every element and small accessory listed here, especially any items resting on the worktop or countertop: ${sourceDescription}`
+    : '';
+
   const mandatory = requested.length
-    ? `apply these exact finishes, replacing whatever is currently there and reproducing each requested material, color and finish precisely, do not substitute any of them: ${requested.join('; ')}`
+    ? `${sourceDescription ? 'however, ' : ''}apply these exact finishes, which take priority over and override any material or finish mentioned in the scene description above, replacing whatever is currently there and reproducing each requested material, color and finish precisely, do not substitute any of them: ${requested.join('; ')}`
     : '';
 
   const ambiance = params.ambiance?.trim() ? params.ambiance.trim() : '';
@@ -121,7 +154,7 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
   // demande). On ne nomme aucun objet potentiellement absent (évier/robinet/hotte)
   // pour ne pas pousser le modèle à en inventer.
   const fidelity =
-    'for every element that is not explicitly requested above, keep it exactly as it appears in the source image; do not recolor, do not change or invent materials, do not alter the wood species or its tone, do not add, invent or imagine any new object, fixture, appliance, plumbing or furniture that is not clearly visible in the source, and do not move or duplicate existing elements';
+    'for every element that is not explicitly requested above, keep it exactly as it appears in the source image; keep and faithfully reproduce every object, accessory and item that is visible in the source, including small accessories and items resting on the worktop and countertop, do not remove, omit, hide, erase or simplify any existing element or accessory; do not recolor, do not change or invent materials, do not alter the wood species or its tone, do not add, invent or imagine any new object, fixture, appliance, plumbing or furniture that is not clearly visible in the source, and do not move or duplicate existing elements';
 
   // Rappel « critical » sur les 2 finitions les plus souvent mal respectées.
   const criticalBits: string[] = [];
@@ -131,9 +164,9 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
 
   // Contraintes anti-dérive baked-in (faute de negativePrompt sur ces endpoints).
   const guard =
-    'preserve the original layout and camera angle, no extra furniture, no added objects, no warped or deformed shapes, no distorted lines, no text, crisp clean image, sharp focus, fine high detail, high resolution, smooth surfaces, no grain, no noise, no blur, no compression artifacts';
+    'preserve the original layout and camera angle, no extra furniture, no added objects, no new window, no new door, no new opening, do not add windows, do not convert a niche, alcove, open shelf, recess or open cupboard into a window or into an opening, keep every existing wall opening, niche, alcove, recess and open shelving exactly as it is in the source image, no warped or deformed shapes, no distorted lines, no text, crisp clean image, sharp focus, fine high detail, high resolution, smooth surfaces, no grain, no noise, no blur, no compression artifacts';
 
-  return [base, mandatory, ambiance, fidelity, critical, guard]
+  return [base, sceneBlock, mandatory, ambiance, fidelity, critical, guard]
     .filter(Boolean)
     .join('. ');
 }
@@ -245,6 +278,25 @@ export async function upscale4k(imageUrl: string): Promise<string | null> {
 }
 
 /**
+ * Auto-prompt MyArchitectAI — analyse l'image source et renvoie une description
+ * détaillée (liste virgulée) de TOUT ce qu'elle contient. Recommandé par l'API
+ * pour pré-remplir le prompt des endpoints de rendu.
+ *
+ * On l'utilise ici comme LEVIER DE FIDÉLITÉ : la description mentionne les petits
+ * accessoires réellement présents (ex. un égouttoir, des objets sur le plan) que
+ * le moteur de rendu a tendance à « lisser » sinon. Comme la description est
+ * ancrée sur l'image réelle, elle ne peut pas inventer d'objet absent (elle ne
+ * cite un évier que s'il y en a un) — ce qui lève la tension du prompt statique.
+ *
+ * Non bloquant : renvoie null si l'appel échoue (le rendu part alors sans
+ * enrichissement, comme avant). Coût : un appel /auto-prompt par rendu.
+ */
+export async function autoPrompt(imageUrl: string): Promise<string | null> {
+  const res = await callEndpoint('/auto-prompt', { image: imageUrl });
+  return res.ok ? (res.outputs[0]?.trim() || null) : null;
+}
+
+/**
  * Génération haut-niveau « IA Architect ».
  *
  * @param params   Paramètres UI (mode, matériaux, highRes…)
@@ -257,18 +309,24 @@ export async function generateArchitectRender(
   params: ArchitectParams,
   imageUrl: string,
 ): Promise<ArchitectResult> {
-  const prompt = buildArchitectPrompt(params);
-
-  // ── Mode mock : aucune clé configurée
+  // ── Mode mock : aucune clé configurée (pas d'appel API)
   if (!isArchitectEnabled()) {
     return {
       success: true,
       imageUrls: [imageUrl],
-      prompt: `${prompt} [MODE DÉMO — clé du moteur de rendu non configurée]`,
+      prompt: `${buildArchitectPrompt(params)} [MODE DÉMO — clé du moteur de rendu non configurée]`,
       endpoint: 'mock',
       upscaled: false,
     };
   }
+
+  // ── Enrichissement fidélité (non bloquant) : on décrit d'abord la scène source
+  // pour que le rendu conserve les petits accessoires (égouttoir, objets…). Si
+  // l'auto-prompt échoue, on rend quand même avec le prompt statique.
+  const sourceDescription = await autoPrompt(imageUrl);
+  const prompt = buildArchitectPrompt(
+    sourceDescription ? { ...params, sourceDescription } : params,
+  );
 
   // ── Rendu principal
   const endpoint = params.mode === 'exterior' ? 'render/exterior' : 'render/interior';

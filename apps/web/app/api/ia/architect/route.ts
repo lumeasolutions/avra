@@ -99,6 +99,8 @@ export async function POST(req: NextRequest) {
   const params: ArchitectParams = {
     mode,
     facades: typeof body.facades === 'string' ? body.facades : undefined,
+    facadesBas: typeof body.facadesBas === 'string' ? body.facadesBas : undefined,
+    facadesHaut: typeof body.facadesHaut === 'string' ? body.facadesHaut : undefined,
     planTravail: typeof body.planTravail === 'string' ? body.planTravail : undefined,
     sol: typeof body.sol === 'string' ? body.sol : undefined,
     murs: typeof body.murs === 'string' ? body.murs : undefined,
@@ -126,6 +128,8 @@ export async function POST(req: NextRequest) {
           engine: 'myarchitectai',
           mode,
           facades: params.facades ?? null,
+          facadesBas: params.facadesBas ?? null,
+          facadesHaut: params.facadesHaut ?? null,
           planTravail: params.planTravail ?? null,
           sol: params.sol ?? null,
           murs: params.murs ?? null,
