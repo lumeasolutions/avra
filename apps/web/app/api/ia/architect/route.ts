@@ -106,7 +106,10 @@ export async function POST(req: NextRequest) {
     murs: typeof body.murs === 'string' ? body.murs : undefined,
     poignees: typeof body.poignees === 'string' ? body.poignees : undefined,
     credence: typeof body.credence === 'string' ? body.credence : undefined,
-    cooktop: body.cooktop === 'induction' || body.cooktop === 'gas' ? body.cooktop : undefined,
+    cooktop:
+      body.cooktop === 'induction' || body.cooktop === 'gas' || body.cooktop === 'downdraft'
+        ? body.cooktop
+        : undefined,
     ambiance: typeof body.ambiance === 'string' ? body.ambiance : undefined,
     highRes: body.highRes === true,
   };

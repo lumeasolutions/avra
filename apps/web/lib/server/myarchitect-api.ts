@@ -50,8 +50,8 @@ export interface ArchitectParams {
   poignees?: string;
   /** Crédence (optionnel). */
   credence?: string;
-  /** Type de plaque de cuisson (optionnel) : force induction ou gaz. */
-  cooktop?: 'induction' | 'gas';
+  /** Type de plaque de cuisson (optionnel) : induction, gaz ou aspirante (downdraft). */
+  cooktop?: 'induction' | 'gas' | 'downdraft';
   /** Description auto de la scène source (via /auto-prompt) — levier de fidélité. */
   sourceDescription?: string;
   /** Ambiance / consigne libre de l'utilisateur (optionnel). */
@@ -134,6 +134,8 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
     requested.push('the cooktop is a flat frameless black induction glass-ceramic hob, with no burners and no grates');
   else if (params.cooktop === 'gas')
     requested.push('the cooktop is a gas hob with visible metal burners and cast-iron pan support grates');
+  else if (params.cooktop === 'downdraft')
+    requested.push('the cooktop is a black induction glass-ceramic hob with a central downdraft extractor: a venting hob with an integrated central extraction slot or grille running down the middle of the cooktop that draws air downward (a downdraft venting cooktop, like a BORA or Elica NikolaTesla), no burners, no grates, and because it vents downward there is no overhead range hood or extractor hood above it');
 
   // Description auto de la scène (via /auto-prompt) : ancre les accessoires
   // réellement présents (égouttoir, objets sur le plan…) pour que le rendu ne

@@ -226,7 +226,7 @@ async function callArchitectAPI(params: {
   mode: 'interior' | 'exterior';
   facades?: string; facadesBas?: string; facadesHaut?: string;
   planTravail?: string; sol?: string; murs?: string;
-  poignees?: string; credence?: string; cooktop?: 'induction' | 'gas';
+  poignees?: string; credence?: string; cooktop?: 'induction' | 'gas' | 'downdraft';
   ambiance?: string; highRes?: boolean;
   referenceImageDataUrl: string;
   projectId?: string | null;
@@ -1197,7 +1197,7 @@ export default function IaStudioPage() {
   const [archMurs,     setArchMurs]     = useState('');
   const [archPoignees, setArchPoignees] = useState('');
   const [archCredence, setArchCredence] = useState('');
-  const [archCooktop,  setArchCooktop]  = useState<'' | 'induction' | 'gas'>('');
+  const [archCooktop,  setArchCooktop]  = useState<'' | 'induction' | 'gas' | 'downdraft'>('');
   const [archAmbiance, setArchAmbiance] = useState('');
   const [archHighRes,  setArchHighRes]  = useState(false);
   const [archLoading,  setArchLoading]  = useState(false);
@@ -2795,16 +2795,17 @@ export default function IaStudioPage() {
               {archMode === 'interior' && (
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Type de plaque <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
-                  <div className="flex gap-1.5">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {([
                       { key: '',          label: 'Non spécifié' },
                       { key: 'induction', label: 'Induction' },
                       { key: 'gas',       label: 'Gaz' },
+                      { key: 'downdraft', label: 'Aspirante' },
                     ] as const).map(o => {
                       const active = archCooktop === o.key;
                       return (
                         <button key={o.key || 'none'} onClick={() => setArchCooktop(o.key)}
-                          className={`flex-1 rounded-xl border px-3 py-2 text-[11px] font-bold transition-all ${
+                          className={`rounded-xl border px-3 py-2 text-[11px] font-bold transition-all ${
                             active
                               ? 'border-[#8a6cc2] bg-[#8a6cc2]/10 text-[#6f54a8]'
                               : 'border-[#304035]/12 bg-[#f5eee8]/40 text-[#304035]/60 hover:border-[#8a6cc2]/40'
@@ -2814,7 +2815,7 @@ export default function IaStudioPage() {
                       );
                     })}
                   </div>
-                  <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Force le type de plaque de cuisson dans le rendu (surface lisse induction vs. brûleurs gaz).</p>
+                  <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Force le type de plaque : induction (surface lisse), gaz (brûleurs), ou aspirante (extraction centrale intégrée, sans hotte).</p>
                 </div>
               )}
             </div>
