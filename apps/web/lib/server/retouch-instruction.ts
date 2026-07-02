@@ -26,6 +26,7 @@ const ZONE_EN: Record<string, string> = {
   'sol':            'only the floor',
   'murs':           'only the walls',
   'poignees':       'only the cabinet door handles and knobs',
+  'evier':          'only the kitchen sink (keep its exact shape and position, do not make it stainless steel unless asked)',
 };
 
 const KEEP_REST =

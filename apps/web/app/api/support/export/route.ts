@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/server/prisma';
 import { isSupportEmail } from '@/lib/server/support-guard';
 import { collectWorkspaceSnapshot } from '@/lib/server/support-data';
+import { checkRateLimit } from '@/lib/server/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,6 +21,15 @@ export async function GET(req: NextRequest) {
   const auth = isSupportEmail(req);
   if (!auth.ok) {
     return NextResponse.json({ error: 'Accès réservé au support.' }, { status: 401 });
+  }
+
+  // Throttle défensif sur l'export de données (40 / heure / admin).
+  const rl = checkRateLimit(`support-export:${auth.email}`, { limit: 40, windowMs: 60 * 60 * 1000 });
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Trop d\'exports dans l\'heure. Réessayez plus tard.' },
+      { status: 429 },
+    );
   }
 
   const workspaceId = (new URL(req.url).searchParams.get('workspaceId') ?? '').trim();

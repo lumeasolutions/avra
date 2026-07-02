@@ -46,19 +46,26 @@ function extractEmailFromJwt(token: string): string | null {
 }
 
 /**
- * Vérifie que la requête provient d'un des deux comptes support.
- * Retourne { ok:true, email } ou { ok:false }. Échoue fermé par défaut.
+ * Cœur du contrôle : vérifie un access_token (JWT) contre la liste blanche.
+ * Partagé par les routes API (NextRequest) et les Server Components (cookies()).
+ * Échoue fermé par défaut.
  */
-export function isSupportEmail(req: NextRequest): SupportCheckResult {
-  const allowed = getSupportEmails();
-  const token = req.cookies.get('access_token')?.value;
+export function checkSupportToken(token: string | undefined | null): SupportCheckResult {
   if (!token) return { ok: false };
-
+  const allowed = getSupportEmails();
   const email = extractEmailFromJwt(token);
   if (email && allowed.has(email)) {
     return { ok: true, email };
   }
   return { ok: false };
+}
+
+/**
+ * Vérifie que la requête provient d'un des deux comptes support.
+ * Retourne { ok:true, email } ou { ok:false }. Échoue fermé par défaut.
+ */
+export function isSupportEmail(req: NextRequest): SupportCheckResult {
+  return checkSupportToken(req.cookies.get('access_token')?.value);
 }
 
 /** Liste publique (pour le front : masquer/afficher le lien). Pas un secret. */

@@ -53,10 +53,18 @@ export async function safeColumnList(table: string): Promise<string[]> {
   return rows.map((r) => r.column_name).filter((c) => !SENSITIVE_COL_RE.test(c));
 }
 
-/** Construit un fragment `"col1", "col2", …` sûr (fallback `*` si table vide/inconnue). */
+/**
+ * Construit un fragment `"col1", "col2", …` en n'incluant QUE des colonnes sûres.
+ * Ne retombe JAMAIS sur `SELECT *` : si aucune colonne sûre n'est trouvée (table
+ * inconnue ou 100 % de colonnes sensibles), on lève une erreur plutôt que de
+ * risquer d'exporter une colonne secrète par inadvertance. Fail-closed.
+ */
 export async function safeSelectColumns(table: string): Promise<string> {
   const cols = await safeColumnList(table);
-  return cols.length ? cols.map((c) => `"${c}"`).join(', ') : '*';
+  if (cols.length === 0) {
+    throw new Error(`safeSelectColumns: aucune colonne sûre pour "${table}" (fail-closed).`);
+  }
+  return cols.map((c) => `"${c}"`).join(', ');
 }
 
 export interface WorkspaceSnapshot {

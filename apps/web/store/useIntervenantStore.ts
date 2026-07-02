@@ -24,6 +24,7 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { STORE_VERSION, preservingMigrate } from './persistVersioning';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -240,6 +241,10 @@ export const useIntervenantStore = create<IntervenantState>()(
         intervenants: INITIAL_INTERVENANTS,
       }),
     }),
-    { name: 'avra-intervenant-store' }
+    {
+      name: 'avra-intervenant-store',
+      version: STORE_VERSION,
+      migrate: preservingMigrate<IntervenantState>(),
+    }
   )
 );

@@ -226,7 +226,7 @@ async function callArchitectAPI(params: {
   mode: 'interior' | 'exterior';
   facades?: string; facadesBas?: string; facadesHaut?: string;
   planTravail?: string; sol?: string; murs?: string;
-  poignees?: string; credence?: string; cooktop?: 'induction' | 'gas' | 'downdraft';
+  poignees?: string; credence?: string; evier?: string; cooktop?: 'induction' | 'gas' | 'downdraft';
   ambiance?: string; highRes?: boolean;
   referenceImageDataUrl: string;
   projectId?: string | null;
@@ -1197,6 +1197,7 @@ export default function IaStudioPage() {
   const [archMurs,     setArchMurs]     = useState('');
   const [archPoignees, setArchPoignees] = useState('');
   const [archCredence, setArchCredence] = useState('');
+  const [archEvier,    setArchEvier]    = useState('');
   const [archCooktop,  setArchCooktop]  = useState<'' | 'induction' | 'gas' | 'downdraft'>('');
   const [archAmbiance, setArchAmbiance] = useState('');
   const [archHighRes,  setArchHighRes]  = useState(false);
@@ -1651,6 +1652,7 @@ export default function IaStudioPage() {
         // Champs cuisine (n'ont de sens qu'en intérieur)
         poignees:    archMode === 'interior' ? (archPoignees.trim() || undefined) : undefined,
         credence:    archMode === 'interior' ? (archCredence.trim() || undefined) : undefined,
+        evier:       archMode === 'interior' ? (archEvier.trim() || undefined) : undefined,
         cooktop:     archMode === 'interior' && archCooktop ? archCooktop : undefined,
         ambiance:    archAmbiance.trim() || undefined,
         highRes:     archHighRes,
@@ -2749,6 +2751,7 @@ export default function IaStudioPage() {
                                   { key: 'sol',            label: 'Sol' },
                                   { key: 'murs',           label: 'Murs' },
                                   { key: 'poignees',       label: 'Poignées' },
+                                  { key: 'evier',          label: 'Évier' },
                                 ] as const).map(z => (
                                   <button key={z.key} onClick={() => setRetouchZone(z.key)}
                                     className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all ${
@@ -2968,6 +2971,27 @@ export default function IaStudioPage() {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {archMode === 'interior' && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50 mb-2">Évier <span className="text-[#304035]/30 font-normal normal-case">(optionnel)</span></p>
+                  <input
+                    value={archEvier}
+                    onChange={e => setArchEvier(e.target.value)}
+                    placeholder="Ex : Blanc céramique, noir composite, inox"
+                    className="w-full rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-4 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#8a6cc2]/25 transition-shadow"
+                  />
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {['Blanc céramique', 'Noir composite', 'Gris anthracite', 'Inox', 'Beige sable'].map(s => (
+                      <button key={s} onClick={() => setArchEvier(s)}
+                        className="rounded-full border border-[#8a6cc2]/20 bg-[#8a6cc2]/5 px-2.5 py-1 text-[10px] text-[#304035]/65 hover:border-[#8a6cc2]/50 hover:bg-[#8a6cc2]/10 transition-all">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Utile quand l&apos;IA rend un évier blanc ou coloré en inox.</p>
                 </div>
               )}
 

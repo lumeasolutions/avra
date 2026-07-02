@@ -16,6 +16,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/server/prisma';
 import { isSupportEmail } from '@/lib/server/support-guard';
 import { collectWorkspaceSnapshot, deleteWorkspaceData } from '@/lib/server/support-data';
+import { uploadToIaRenders } from '@/lib/server/supabase-storage';
+import { checkRateLimit } from '@/lib/server/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,6 +29,15 @@ export async function POST(req: NextRequest) {
   const auth = isSupportEmail(req);
   if (!auth.ok) {
     return NextResponse.json({ error: 'Accès réservé au support.' }, { status: 401 });
+  }
+
+  // Throttle défensif sur cette action destructive (10 / heure / admin).
+  const rl = checkRateLimit(`support-reset:${auth.email}`, { limit: 10, windowMs: 60 * 60 * 1000 });
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: 'Trop de réinitialisations dans l\'heure. Réessayez plus tard.' },
+      { status: 429 },
+    );
   }
 
   // Défense en profondeur CSRF : le cookie d'auth est déjà SameSite=Strict.
@@ -70,22 +81,41 @@ export async function POST(req: NextRequest) {
     // 1) Sauvegarde AVANT suppression (renvoyée au client pour téléchargement).
     const snapshot = await collectWorkspaceSnapshot(workspaceId);
 
+    // 1bis) SAUVEGARDE SERVEUR BLOQUANTE : on écrit le snapshot dans Supabase
+    //       AVANT toute suppression. Si l'écriture échoue → on ANNULE le reset.
+    //       La restauration ne dépend donc plus du seul téléchargement navigateur.
+    let backupPath: string | null = null;
+    try {
+      backupPath = `support-backups/${workspaceId}/${Date.now()}.json`;
+      await uploadToIaRenders(
+        backupPath,
+        Buffer.from(safeJson(snapshot), 'utf-8'),
+        'application/json',
+      );
+    } catch (backupErr) {
+      console.error('[/api/support/reset] server backup failed:', backupErr);
+      return NextResponse.json(
+        { error: 'Sauvegarde serveur impossible — réinitialisation annulée par sécurité.' },
+        { status: 502 },
+      );
+    }
+
     // 2) Suppression atomique. counts = mesuré avant suppression.
     const counts = await deleteWorkspaceData(workspaceId);
 
-    // 3) Journalisation.
+    // 3) Journalisation (avec le chemin de la sauvegarde serveur).
     const targetEmail = (snapshot.members[0]?.email as string) ?? null;
     try {
       await prisma.$executeRaw`
         INSERT INTO "SupportAuditLog" ("adminEmail", action, "targetWorkspaceId", "targetEmail", detail)
         VALUES (${auth.email}, ${'reset_account'}, ${workspaceId}, ${targetEmail},
-                ${JSON.stringify({ counts })}::jsonb);
+                ${JSON.stringify({ counts, backupPath })}::jsonb);
       `;
     } catch (logErr) {
       console.error('[/api/support/reset] audit log failed:', logErr);
     }
 
-    return new NextResponse(safeJson({ ok: true, counts, snapshot }), {
+    return new NextResponse(safeJson({ ok: true, counts, snapshot, backupPath }), {
       status: 200,
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
     });

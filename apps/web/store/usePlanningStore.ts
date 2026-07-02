@@ -3,6 +3,7 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { STORE_VERSION, preservingMigrate } from './persistVersioning';
 
 // Types
 export interface PlanningEvent {
@@ -239,6 +240,10 @@ export const usePlanningStore = create<PlanningState>()(
         customInterventionTypes: [],
       }),
     }),
-    { name: 'avra-planning-store' }
+    {
+      name: 'avra-planning-store',
+      version: STORE_VERSION,
+      migrate: preservingMigrate<PlanningState>(),
+    }
   )
 );

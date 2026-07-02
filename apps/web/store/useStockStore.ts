@@ -3,6 +3,7 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { STORE_VERSION, preservingMigrate } from './persistVersioning';
 // Persistance backend du stock (write-through + hydratation via useDataSync).
 import {
   createStockItemApi, updateStockItemApi, deleteStockItemApi,
@@ -129,6 +130,10 @@ export const useStockStore = create<StockState>()(
         commandes: INITIAL_COMMANDES,
       }),
     }),
-    { name: 'avra-stock-store' }
+    {
+      name: 'avra-stock-store',
+      version: STORE_VERSION,
+      migrate: preservingMigrate<StockState>(),
+    }
   )
 );

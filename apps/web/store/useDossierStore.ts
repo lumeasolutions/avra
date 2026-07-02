@@ -4,6 +4,7 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { STORE_VERSION, preservingMigrate } from './persistVersioning';
 
 // Types (extraits du store global)
 export type DossierStatus = 'URGENT' | 'EN COURS' | 'FINITION' | 'A VALIDER';
@@ -1169,6 +1170,10 @@ export const useDossierStore = create<DossierState>()(
         commandesAccess: {},
       }),
     }),
-    { name: 'avra-dossier-store' }
+    {
+      name: 'avra-dossier-store',
+      version: STORE_VERSION,
+      migrate: preservingMigrate<DossierState>(),
+    }
   )
 );

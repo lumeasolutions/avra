@@ -3,6 +3,7 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { STORE_VERSION, preservingMigrate } from './persistVersioning';
 // VAGUE 1b — persistance backend des devis (write-through + hydratation via useDataSync).
 import {
   createQuote, updateQuoteApi, deleteQuoteApi, isBackendQuoteId,
@@ -424,6 +425,10 @@ export const useFacturationStore = create<FacturationState>()(
         _devisCounter: 12,
       }),
     }),
-    { name: 'avra-facturation-store' }
+    {
+      name: 'avra-facturation-store',
+      version: STORE_VERSION,
+      migrate: preservingMigrate<FacturationState>(),
+    }
   )
 );

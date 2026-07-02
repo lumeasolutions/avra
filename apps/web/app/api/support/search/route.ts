@@ -48,6 +48,17 @@ export async function GET(req: NextRequest) {
       LIMIT 50;
     `;
 
+    // Traçabilité « qui a cherché qui » — non bloquant.
+    try {
+      await prisma.$executeRaw`
+        INSERT INTO "SupportAuditLog" ("adminEmail", action, "targetWorkspaceId", "targetEmail", detail)
+        VALUES (${auth.email}, ${'search'}, ${null}, ${null},
+                ${JSON.stringify({ q, count: results.length })}::jsonb);
+      `;
+    } catch (logErr) {
+      console.error('[/api/support/search] audit log failed:', logErr);
+    }
+
     return NextResponse.json({ results, query: q });
   } catch (err) {
     console.error('[/api/support/search] error:', err);

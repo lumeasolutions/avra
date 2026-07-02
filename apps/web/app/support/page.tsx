@@ -10,6 +10,9 @@
  */
 
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { checkSupportToken } from '@/lib/server/support-guard';
 import SupportClient from './SupportClient';
 
 export const metadata: Metadata = {
@@ -21,5 +24,11 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default function SupportPage() {
+  // Défense en profondeur : on ne rend même pas la coquille du back-office à un
+  // utilisateur connecté non autorisé (les API restent gated en 401 de toute façon).
+  const token = cookies().get('access_token')?.value;
+  if (!checkSupportToken(token).ok) {
+    redirect('/dashboard');
+  }
   return <SupportClient />;
 }

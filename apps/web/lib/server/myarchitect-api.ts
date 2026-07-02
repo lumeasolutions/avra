@@ -50,6 +50,8 @@ export interface ArchitectParams {
   poignees?: string;
   /** Crédence (optionnel). */
   credence?: string;
+  /** Évier (optionnel) — couleur/matière, ex. « blanc céramique » (cas où l'IA le met en inox). */
+  evier?: string;
   /** Type de plaque de cuisson (optionnel) : induction, gaz ou aspirante (downdraft). */
   cooktop?: 'induction' | 'gas' | 'downdraft';
   /** Description auto de la scène source (via /auto-prompt) — levier de fidélité. */
@@ -126,6 +128,8 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
     requested.push(`the countertop / worktop surface must be exactly ${params.planTravail.trim()} — reproduce this exact material, color and finish; if this is a plain, solid or matte colour, keep the surface perfectly uniform and smooth with no veining, no marbling, no speckles and no stone-like pattern, and do NOT turn it into marble or any veined stone unless the requested material is explicitly a veined stone`);
   if (params.credence?.trim())
     requested.push(`the backsplash must be exactly ${params.credence.trim()} — if this is a plain or matte colour, keep it uniform with no veining, marbling or pattern unless a pattern is explicitly requested`);
+  if (params.evier?.trim())
+    requested.push(`the kitchen sink must be exactly ${params.evier.trim()} — keep this exact sink colour and material, do not make it stainless steel unless stainless steel is what is requested`);
   if (params.sol?.trim())
     requested.push(`the floor must be exactly ${params.sol.trim()}`);
   if (params.murs?.trim())
@@ -156,7 +160,7 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
   // demande). On ne nomme aucun objet potentiellement absent (évier/robinet/hotte)
   // pour ne pas pousser le modèle à en inventer.
   const fidelity =
-    'for every element that is not explicitly requested above, keep it exactly as it appears in the source image; keep and faithfully reproduce every object, accessory and item that is visible in the source, including small accessories and items resting on the worktop and countertop, do not remove, omit, hide, erase or simplify any existing element or accessory; do not recolor, do not change or invent materials, do not alter the wood species or its tone, do not add, invent or imagine any new object, fixture, appliance, plumbing or furniture that is not clearly visible in the source, and do not move or duplicate existing elements';
+    'for every element that is not explicitly requested above, keep it exactly as it appears in the source image; keep and faithfully reproduce every object, accessory and item that is visible in the source, including small accessories and items resting on the worktop and countertop, do not remove, omit, hide, erase or simplify any existing element or accessory; if a sink is visible in the source, keep its exact colour and material and do NOT turn a white, ceramic, composite or coloured sink into stainless steel unless a stainless steel sink is explicitly requested; do not recolor, do not change or invent materials, do not alter the wood species or its tone, do not add, invent or imagine any new object, fixture, appliance, plumbing or furniture that is not clearly visible in the source, and do not move or duplicate existing elements';
 
   // Rappel « critical » sur les 2 finitions les plus souvent mal respectées.
   const criticalBits: string[] = [];

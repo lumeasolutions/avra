@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
     murs: typeof body.murs === 'string' ? body.murs : undefined,
     poignees: typeof body.poignees === 'string' ? body.poignees : undefined,
     credence: typeof body.credence === 'string' ? body.credence : undefined,
+    evier: typeof body.evier === 'string' ? body.evier : undefined,
     cooktop:
       body.cooktop === 'induction' || body.cooktop === 'gas' || body.cooktop === 'downdraft'
         ? body.cooktop
@@ -138,6 +139,7 @@ export async function POST(req: NextRequest) {
           murs: params.murs ?? null,
           poignees: params.poignees ?? null,
           credence: params.credence ?? null,
+          evier: params.evier ?? null,
           cooktop: params.cooktop ?? null,
           ambiance: params.ambiance ?? null,
           highRes: params.highRes ?? false,

@@ -3,6 +3,7 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { STORE_VERSION, preservingMigrate } from './persistVersioning';
 
 // Types
 export interface HistoryLog {
@@ -159,6 +160,10 @@ export const useHistoryStore = create<HistoryState>()(
         relances: INITIAL_RELANCES,
       }),
     }),
-    { name: 'avra-history-store' }
+    {
+      name: 'avra-history-store',
+      version: STORE_VERSION,
+      migrate: preservingMigrate<HistoryState>(),
+    }
   )
 );
