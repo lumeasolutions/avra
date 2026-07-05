@@ -382,13 +382,16 @@ export default function DossierDetailPage() {
       //    en transmettant les options selectionnees pour qu'elles
       //    deviennent des sous-dossiers dedies dans le dossier signe.
       await signProject(id, selectedOptions.length > 0 ? selectedOptions : undefined);
-    } catch (err) {
-      console.warn('[sign] API call failed (state local conservé) :', err);
-    } finally {
-      setSigning(false);
+      // Redirection UNIQUEMENT en cas de succès réel de l'API.
       setShowDateButoiresModal(false);
       setSelectedOptions([]);
       router.push('/dossiers-signes');
+    } catch (err) {
+      // Échec API : on NE redirige PAS (sinon fausse impression de succès).
+      console.warn('[sign] API call failed :', err);
+      alert('La signature du dossier a échoué. Vérifiez votre connexion et réessayez.');
+    } finally {
+      setSigning(false);
     }
   };
   const SUBFOLDER_SEP = ' ▸ ';

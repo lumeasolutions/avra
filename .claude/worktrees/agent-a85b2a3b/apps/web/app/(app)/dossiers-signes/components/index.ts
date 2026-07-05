@@ -1,1 +1,0 @@
-export { DossierCard } from './DossierCard';
