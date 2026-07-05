@@ -92,6 +92,16 @@ export interface CommandeAccessEntry {
   id: string;
   fournisseur: string;
   dateButoir: string;
+  /** Produit / désignation (optionnel — enrichi par l'extraction IA). */
+  produit?: string;
+  /** Montant HT en euros (optionnel). */
+  montant?: number;
+  /**
+   * Ligne validée : commande passée / confirmation reçue / livraison faite.
+   * Coché manuellement depuis le tableau de bord. Tant que false/undefined,
+   * la date butoir peut générer une alerte (urgent / retard).
+   */
+  validee?: boolean;
 }
 
 export type CommandeType = 'STANDARD' | 'ELECTRO_DIRECT';

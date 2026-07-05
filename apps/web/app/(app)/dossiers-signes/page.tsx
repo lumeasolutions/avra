@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { VendeurBadge } from '@/components/vendeur/VendeurBadge';
-import { useDossierStore, useFacturationStore, type ConfirmationFournisseur, type CommandeType } from '@/store';
+import { useDossierStore, useFacturationStore, type ConfirmationFournisseur, type CommandeType, type CommandeAccessEntry } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -114,8 +114,27 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
   const updateDateButoireSignee = useDossierStore(s => s.updateDateButoireSignee);
   const setEcheanceValidee = useDossierStore(s => s.setEcheanceValidee);
   const echeancesValidees = useDossierStore(s => s.echeancesValidees);
+  const commandesAccess = useDossierStore(s => s.commandesAccess);
+  const updateCommandeAccess = useDossierStore(s => s.updateCommandeAccess);
   const dossier = useDossierStore(s => s.dossiersSignes.find(d => d.id === dossierId));
   const saved = datesButoiresSignes[dossierId] ?? {};
+
+  // Lignes multi-fournisseurs d'une étape 'access' (Commande / Confirmation /
+  // Livraison). Indexées par label d'item. Chaque ligne a sa propre date butoir.
+  const getLines = (label: string): CommandeAccessEntry[] => commandesAccess[dossierId]?.[label] ?? [];
+
+  /** Statut d'UNE ligne 'access' d'après sa date butoir + son drapeau validé. */
+  const getLineStatus = (dateButoir: string, validee?: boolean): 'done' | 'retard' | 'urgent' | 'planned' | 'none' => {
+    if (validee) return 'done';
+    if (!dateButoir) return 'none';
+    const iso = dateButoir.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const d = iso ? new Date(+iso[1], +iso[2] - 1, +iso[3]) : new Date(dateButoir);
+    if (isNaN(d.getTime())) return 'none';
+    const t0 = new Date(today); t0.setHours(0, 0, 0, 0);
+    const diff = Math.round((d.getTime() - t0.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return 'retard';
+    return diff <= 7 ? 'urgent' : 'planned';
+  };
 
   // 05/05/2026 — listes profession-aware partagées avec DateButoireValidationModal.
   // La clé d'indexation est le `label` du DateButoireItem (pas un id slug).
@@ -135,6 +154,11 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
   // Helper : un item 'access' est completed si son sous-dossier a des documents
   // ou est marque validated.
   const isAccessCompleted = (label: string): boolean => {
+    // Priorité aux lignes saisies : l'étape est validée quand TOUTES ses lignes
+    // le sont (et qu'il y en a au moins une).
+    const lines = getLines(label);
+    if (lines.length > 0) return lines.every(l => !!l.validee);
+    // Fallback legacy : sous-dossier avec documents / marqué validé.
     const sf = findSubfolder(label);
     if (!sf) return false;
     if (sf.validated) return true;
@@ -395,38 +419,135 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
               // ── Items 'access' (Commande, Confirmations, Livraison) ─────
               //    Etat dérivé du sous-dossier signedSubfolders correspondant.
               if (item.kind === 'access') {
+                const lines = getLines(item.label);
                 const sf = findSubfolder(item.label);
                 const docCount = sf?.documents?.length ?? 0;
                 const completed = isAccessCompleted(item.label);
-                const dotColor = completed ? '#10b981' : '#e5e7eb';
-                const bgColor = completed ? 'rgba(16,185,129,0.06)' : 'transparent';
-                const borderColor = completed ? 'rgba(16,185,129,0.2)' : 'rgba(48,64,53,0.08)';
+
+                // Statut agrégé de l'étape (pour la pastille + le liseré) :
+                // retard > urgent > validé > neutre.
+                const lineStatuses = lines.map(l => getLineStatus(l.dateButoir, l.validee));
+                const retardCount = lineStatuses.filter(s => s === 'retard').length;
+                const urgentCount = lineStatuses.filter(s => s === 'urgent').length;
+                const valideeCount = lines.filter(l => !!l.validee).length;
+                const headStatus: 'retard' | 'urgent' | 'done' | 'neutre' =
+                  retardCount > 0 ? 'retard'
+                  : urgentCount > 0 ? 'urgent'
+                  : (lines.length > 0 && completed) ? 'done'
+                  : 'neutre';
+
+                const headDot = headStatus === 'retard' ? '#dc2626'
+                  : headStatus === 'urgent' ? '#f97316'
+                  : headStatus === 'done' ? '#10b981'
+                  : (docCount > 0 ? '#10b981' : '#e5e7eb');
+                const headBorder = headStatus === 'retard' ? 'rgba(220,38,38,0.22)'
+                  : headStatus === 'urgent' ? 'rgba(249,115,22,0.22)'
+                  : headStatus === 'done' ? 'rgba(16,185,129,0.2)'
+                  : 'rgba(48,64,53,0.08)';
+                const headBg = headStatus === 'retard' ? 'rgba(220,38,38,0.04)'
+                  : headStatus === 'urgent' ? 'rgba(249,115,22,0.04)'
+                  : headStatus === 'done' ? 'rgba(16,185,129,0.05)'
+                  : 'transparent';
+
                 return (
                   <div
                     key={item.label}
                     style={{
-                      padding: '0.75rem 1rem',
-                      border: `1px solid ${borderColor}`,
+                      border: `1px solid ${headBorder}`,
                       borderRadius: '0.75rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      backgroundColor: bgColor,
+                      backgroundColor: headBg,
+                      overflow: 'hidden',
                     }}
                   >
-                    <div style={{ width: '0.625rem', height: '0.625rem', borderRadius: '50%', backgroundColor: dotColor, flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: '0.8rem', fontWeight: '700', color: '#304035' }}>
-                      {item.label}
-                    </span>
-                    {completed ? (
-                      <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        <Check style={{ width: 12, height: 12 }} />
-                        {docCount > 0 ? `${docCount} doc${docCount > 1 ? 's' : ''}` : 'Validé'}
+                    {/* En-tête de l'étape */}
+                    <div style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ width: '0.625rem', height: '0.625rem', borderRadius: '50%', backgroundColor: headDot, flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: '0.8rem', fontWeight: '700', color: '#304035' }}>
+                        {item.label}
                       </span>
-                    ) : (
-                      <span style={{ fontSize: '0.75rem', color: 'rgba(48,64,53,0.3)', fontStyle: 'italic' }}>
-                        Vide à compléter
-                      </span>
+                      {lines.length > 0 ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 700 }}>
+                          <span style={{ color: valideeCount === lines.length ? '#16a34a' : 'rgba(48,64,53,0.55)' }}>
+                            {valideeCount}/{lines.length} validée{lines.length > 1 ? 's' : ''}
+                          </span>
+                          {retardCount > 0 && <span style={{ color: '#dc2626' }}>· {retardCount} en retard</span>}
+                          {retardCount === 0 && urgentCount > 0 && <span style={{ color: '#ea580c' }}>· {urgentCount} urgent{urgentCount > 1 ? 's' : ''}</span>}
+                        </span>
+                      ) : docCount > 0 ? (
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Check style={{ width: 12, height: 12 }} />
+                          {docCount} doc{docCount > 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.75rem', color: 'rgba(48,64,53,0.3)', fontStyle: 'italic' }}>
+                          Vide à compléter
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Lignes fournisseur (une par commande / confirmation / livraison) */}
+                    {lines.length > 0 && (
+                      <div style={{ borderTop: `1px solid ${headBorder}`, padding: '6px 8px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {lines.map((line) => {
+                          const st = getLineStatus(line.dateButoir, line.validee);
+                          const color = st === 'done' ? '#16a34a'
+                            : st === 'retard' ? '#dc2626'
+                            : st === 'urgent' ? '#ea580c'
+                            : st === 'planned' ? '#2563eb'
+                            : 'rgba(48,64,53,0.4)';
+                          const label = st === 'done' ? 'Validé'
+                            : st === 'retard' ? `En retard · ${formatDate(line.dateButoir)}`
+                            : st === 'urgent' ? `Urgent · ${formatDate(line.dateButoir)}`
+                            : st === 'planned' ? `À venir · ${formatDate(line.dateButoir)}`
+                            : 'Sans date';
+                          return (
+                            <div
+                              key={line.id}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                padding: '6px 8px', borderRadius: 8,
+                                background: st === 'retard' ? 'rgba(220,38,38,0.06)'
+                                  : st === 'urgent' ? 'rgba(249,115,22,0.06)'
+                                  : st === 'done' ? 'rgba(16,185,129,0.05)'
+                                  : 'rgba(48,64,53,0.03)',
+                              }}
+                            >
+                              {/* Case à cocher "validé" */}
+                              <button
+                                type="button"
+                                onClick={() => updateCommandeAccess(dossierId, item.label, line.id, { validee: !line.validee })}
+                                title={line.validee ? 'Marquer comme non validé' : 'Marquer comme validé (commande passée / reçue / livrée)'}
+                                style={{
+                                  width: 18, height: 18, borderRadius: 5, flexShrink: 0, cursor: 'pointer',
+                                  border: line.validee ? 'none' : '1.5px solid rgba(48,64,53,0.25)',
+                                  background: line.validee ? '#16a34a' : 'transparent',
+                                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                  padding: 0,
+                                }}
+                              >
+                                {line.validee && <Check style={{ width: 12, height: 12, color: 'white' }} />}
+                              </button>
+                              {/* Fournisseur (+ produit / montant) */}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#304035', textDecoration: line.validee ? 'line-through' : 'none', opacity: line.validee ? 0.6 : 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {line.fournisseur || 'Fournisseur ?'}
+                                  {line.produit ? <span style={{ fontWeight: 500, color: 'rgba(48,64,53,0.55)' }}> · {line.produit}</span> : null}
+                                </div>
+                                {typeof line.montant === 'number' && line.montant > 0 && (
+                                  <div style={{ fontSize: '0.68rem', color: 'rgba(48,64,53,0.5)' }}>
+                                    {line.montant.toLocaleString('fr-FR')} € HT
+                                  </div>
+                                )}
+                              </div>
+                              {/* Statut / date */}
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color, flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                {st === 'done' ? <CheckCircle2 style={{ width: 11, height: 11 }} /> : <Clock style={{ width: 11, height: 11 }} />}
+                                {label}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 );

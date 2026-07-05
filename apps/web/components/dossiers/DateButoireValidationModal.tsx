@@ -631,6 +631,8 @@ export function DateButoireValidationModal({
           addCommandeAccess(dossierId, commandeLabel, {
             fournisseur: cmd.fournisseur,
             dateButoir,
+            produit: cmd.produit || undefined,
+            montant: typeof cmd.montantHT === 'number' ? cmd.montantHT : undefined,
           });
           commandesAdded++;
         }

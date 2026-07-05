@@ -37,13 +37,19 @@ export function isRetardAlert(a: WithKey): boolean {
     k.startsWith('facture-') ||
     k.startsWith('cmd-livraison-') ||
     k.startsWith('devis-attente-') ||
+    (k.startsWith('cmdligne-') && !k.startsWith('cmdligne-soon-')) ||
     (k.startsWith('butoir-') && !k.startsWith('butoir-soon-'))
   );
 }
 
 export function isUrgentAlert(a: WithKey): boolean {
   const k = a.sourceKey ?? '';
-  return k.startsWith('urgent-') || k.startsWith('stock-rupture-') || k.startsWith('butoir-soon-');
+  return (
+    k.startsWith('urgent-') ||
+    k.startsWith('stock-rupture-') ||
+    k.startsWith('butoir-soon-') ||
+    k.startsWith('cmdligne-soon-')
+  );
 }
 
 export type DossierAlertLevel = 'retard' | 'urgent' | null;
