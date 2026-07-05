@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
-import { splitPath, joinPath, displayName as folderDisplayName, childFolders, sanitizeFolderName } from '@/lib/folderTree';
+import { splitPath, joinPath, displayName as folderDisplayName, childFolders, sanitizeFolderName, isDescendant } from '@/lib/folderTree';
 import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
@@ -1407,6 +1407,20 @@ export default function DossierDetailPage() {
         const docs = (sf.documents ?? []).map(normalizeDoc);
         const childPaths = childFolders(dossier.subfolders.map(s => s.label), openedSubfolder);
 
+        // Pièces jointes "envoyables" d'un dossier (ses fichiers stockés + ceux de
+        // ses sous-dossiers imbriqués) → pour "Envoyer ce sous-dossier".
+        const folderAttachments = (folderPath: string) => {
+          const out: Array<{ dossierDocumentId: string; displayName: string; mimeType?: string }> = [];
+          for (const s of dossier.subfolders) {
+            if (s.label !== folderPath && !isDescendant(s.label, folderPath)) continue;
+            for (const d of (s.documents ?? [])) {
+              const nd = normalizeDoc(d);
+              if (nd.docId) out.push({ dossierDocumentId: nd.docId, displayName: nd.name, mimeType: nd.type ?? undefined });
+            }
+          }
+          return out;
+        };
+
         // Ajout "manuel" par nom seul — placeholder local, sans upload.
         // Utile pour noter qu'un document physique est attendu mais pas encore reçu.
         const handleAddDoc = () => {
@@ -1533,19 +1547,12 @@ export default function DossierDetailPage() {
                     {childPaths.length > 0 ? `${childPaths.length} sous-dossier${childPaths.length > 1 ? 's' : ''} · ` : ''}{docs.length} document{docs.length > 1 ? 's' : ''}{sf.date ? ` · Modifié le ${sf.date}` : ''}
                   </p>
                   {/* Envoyer TOUT le sous-dossier (fichiers stockés) à un intervenant */}
-                  {docs.some(d => d.docId) && (
+                  {folderAttachments(openedSubfolder).length > 0 && (
                     <div className="mt-2">
                       <SendToIntervenantButton
                         variant="compact"
                         label="Envoyer ce sous-dossier"
-                        prefill={{
-                          projectId: id,
-                          attachments: docs.filter(d => d.docId).map(d => ({
-                            dossierDocumentId: d.docId!,
-                            displayName: d.name,
-                            mimeType: d.type ?? undefined,
-                          })),
-                        }}
+                        prefill={{ projectId: id, attachments: folderAttachments(openedSubfolder) }}
                       />
                     </div>
                   )}
@@ -1598,17 +1605,30 @@ export default function DossierDetailPage() {
                     <div className="text-[12px] text-[#304035]/40 italic px-1 py-2">Aucun sous-dossier ici. Créez-en un, ou ajoutez des documents ci-dessous.</div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                      {childPaths.map((cp) => (
-                        <button
-                          key={cp}
-                          onClick={() => setOpenedSubfolder(cp)}
-                          className="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-[#304035]/10 hover:border-[#a67749]/45 hover:bg-[#a67749]/5 transition-all text-center"
-                          title={folderDisplayName(cp)}
-                        >
-                          <span className="text-3xl leading-none">📁</span>
-                          <span className="text-[12px] font-semibold text-[#304035] truncate w-full">{folderDisplayName(cp)}</span>
-                        </button>
-                      ))}
+                      {childPaths.map((cp) => {
+                        const cpAtts = folderAttachments(cp);
+                        return (
+                        <div key={cp} className="relative group">
+                          <button
+                            onClick={() => setOpenedSubfolder(cp)}
+                            className="w-full flex flex-col items-center gap-1.5 p-3 rounded-xl border border-[#304035]/10 hover:border-[#a67749]/45 hover:bg-[#a67749]/5 transition-all text-center"
+                            title={folderDisplayName(cp)}
+                          >
+                            <span className="text-3xl leading-none">📁</span>
+                            <span className="text-[12px] font-semibold text-[#304035] truncate w-full">{folderDisplayName(cp)}</span>
+                          </button>
+                          {cpAtts.length > 0 && (
+                            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Envoyer ce sous-dossier à un intervenant">
+                              <SendToIntervenantButton
+                                variant="icon"
+                                style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(255,255,255,0.95)', color: '#3D5449', border: '1px solid rgba(48,64,53,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}
+                                prefill={{ projectId: id, attachments: cpAtts }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
