@@ -116,7 +116,6 @@ type DateButoiresData = {
 
 function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: string; onClose: () => void; profession: string | null }) {
   const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
-  const updateDateButoireSignee = useDossierStore(s => s.updateDateButoireSignee);
   const setEcheanceValidee = useDossierStore(s => s.setEcheanceValidee);
   const echeancesValidees = useDossierStore(s => s.echeancesValidees);
   const commandesAccess = useDossierStore(s => s.commandesAccess);
@@ -171,34 +170,21 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
   };
 
   /**
-   * Toggle validation d'un item kind 'date' depuis le tableau de bord.
-   * - Si pas encore validé → enregistre la date du jour (format YYYY-MM-DD)
-   * - Si déjà validé → vide la date (revient en À VALIDER)
-   *
-   * Utilise updateDateButoireSignee qui patch le store datesButoiresSignes.
+   * Validation d'une étape 'date' depuis le tableau de bord = UNIQUEMENT le
+   * drapeau (echeancesValidees). On ne touche PAS à la date butoir (l'échéance
+   * se règle dans la modale de validation). Valider éteint l'alerte partout ;
+   * dévalider la rallume (l'échéance repilote retard/urgent).
    */
-  const toggleDateValidation = (label: string) => {
-    const current = saved[label];
-    if (current) {
-      updateDateButoireSignee(dossierId, label, '');
-      setEcheanceValidee(dossierId, label, false); // marque "non fait" → l'alerte peut réapparaître
-    } else {
-      const today = new Date();
-      const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      updateDateButoireSignee(dossierId, label, iso);
-      setEcheanceValidee(dossierId, label, true); // marque "fait" → éteint l'alerte partout
-    }
-  };
+  const validateStep = (label: string) => setEcheanceValidee(dossierId, label, true);
+  const unvalidateStep = (label: string) => setEcheanceValidee(dossierId, label, false);
 
   // Helper : un item est completed selon son kind
   const isItemCompleted = (item: DateButoireItem): boolean => {
     if (item.kind === 'date') {
-      // Une étape n'est "validée" que si sa date est AUJOURD'HUI ou PASSÉE.
-      // Une échéance future (date butoir auto-remplie / IA) = pas encore faite.
-      const v = saved[item.label];
-      if (!v) return false;
-      const d = new Date(v);
-      return !isNaN(d.getTime()) && d <= today;
+      // SEULE VÉRITÉ = le bouton « Validé » (drapeau echeancesValidees).
+      // Le temps qui passe ne valide RIEN : tant que l'utilisateur n'a pas
+      // cliqué Validé, l'étape reste "à valider" (et alerte si l'échéance passe).
+      return echeancesValidees[dossierId]?.[item.label] === true;
     }
     if (item.kind === 'access') return isAccessCompleted(item.label);
     // 'static' (SAV) — informationnel, on compte comme non-bloquant
@@ -212,8 +198,10 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
   const totalCount = progressItems.length;
 
   const getDateStatus = (id: string) => {
-    const validated = echeancesValidees[dossierId]?.[id];
-    if (validated === true) return 'done'; // fait (drapeau) → aligné avec l'assistant
+    // SEULE VÉRITÉ = le bouton « Validé ». Validé → done. Sinon (drapeau false
+    // OU absent), l'échéance pilote le statut : passée = retard, proche = urgent,
+    // future = à venir. Rien ne s'auto-valide avec le temps.
+    if (echeancesValidees[dossierId]?.[id] === true) return 'done';
     const val = saved[id];
     if (!val) return 'none';
     // Parse LOCAL (comme le moteur) : sinon "YYYY-MM-DD" serait minuit UTC et
@@ -223,13 +211,7 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
     if (isNaN(d.getTime())) return 'none';
     const t0 = new Date(today); t0.setHours(0, 0, 0, 0);
     const diff = Math.round((d.getTime() - t0.getTime()) / (1000 * 60 * 60 * 24));
-    if (validated === false) {
-      // Échéance réelle non faite : passée = retard, aujourd'hui/proche = urgent.
-      if (diff < 0) return 'retard';
-      return diff <= 7 ? 'urgent' : 'planned';
-    }
-    // Legacy (drapeau absent) : ancien comportement optimiste (passé = fait).
-    if (diff <= 0) return 'done';
+    if (diff < 0) return 'retard';
     return diff <= 7 ? 'urgent' : 'planned';
   };
 
@@ -585,30 +567,28 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
                 );
               }
 
-              // ── Items 'date' (cas par défaut) ───────────────────────────
-              //    27/05/2026 : badges cliquables pour valider/invalider.
-              //    Si non rempli → bouton "À VALIDER" qui set la date du jour.
-              //    Si rempli → badge avec date + petit ✕ pour annuler la validation.
+              // ── Items 'date' ────────────────────────────────────────────
+              //    Le bouton « Valider » (drapeau) est la SEULE validation.
+              //    3 états : (1) validé → vert + ✕ pour dévalider ; (2) échéance
+              //    posée non validée → statut (retard/urgent/à venir) + bouton
+              //    Valider ; (3) sans date → bouton « À valider ».
               const status = getDateStatus(item.label);
               const val = saved[item.label];
-              const isFilled = !!val;
-              // Couleurs sémantiques : vert = validé (date <= aujourd'hui),
-              // orange = échéance urgente (<= 7 j), bleu = à venir, gris = à valider.
-              const dotColor = !isFilled ? '#e5e7eb'
-                : status === 'done' ? '#10b981'
+              const dotColor = status === 'done' ? '#10b981'
                 : status === 'retard' ? '#dc2626'
                 : status === 'urgent' ? '#f97316'
-                : '#3b82f6';
-              const bgColor = !isFilled ? 'transparent'
-                : status === 'done' ? 'rgba(16,185,129,0.05)'
+                : status === 'planned' ? '#3b82f6'
+                : '#e5e7eb';
+              const bgColor = status === 'done' ? 'rgba(16,185,129,0.05)'
                 : status === 'retard' ? 'rgba(220,38,38,0.06)'
                 : status === 'urgent' ? 'rgba(249,115,22,0.06)'
-                : 'rgba(59,130,246,0.05)';
-              const borderColor = !isFilled ? 'rgba(48,64,53,0.08)'
-                : status === 'done' ? 'rgba(16,185,129,0.2)'
+                : status === 'planned' ? 'rgba(59,130,246,0.05)'
+                : 'transparent';
+              const borderColor = status === 'done' ? 'rgba(16,185,129,0.2)'
                 : status === 'retard' ? 'rgba(220,38,38,0.2)'
                 : status === 'urgent' ? 'rgba(249,115,22,0.2)'
-                : 'rgba(59,130,246,0.2)';
+                : status === 'planned' ? 'rgba(59,130,246,0.2)'
+                : 'rgba(48,64,53,0.08)';
               return (
                 <div
                   key={item.label}
@@ -626,28 +606,17 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
                   <span style={{ flex: 1, fontSize: '0.8rem', fontWeight: '700', color: '#304035' }}>
                     {item.label}
                   </span>
-                  {isFilled ? (
+                  {status === 'done' ? (
+                    // (1) Validé → vert + ✕ pour dévalider (rallume l'alerte)
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 4,
-                        fontSize: '0.75rem', fontWeight: '700',
-                        color: status === 'done' ? '#16a34a' : status === 'retard' ? '#dc2626' : status === 'urgent' ? '#f97316' : '#2563eb',
-                      }}>
-                        {status === 'done'
-                          ? <CheckCircle2 style={{ width: 12, height: 12 }} />
-                          : <Clock style={{ width: 12, height: 12 }} />}
-                        {status === 'done'
-                          ? `Validé · ${formatDate(val)}`
-                          : status === 'retard'
-                            ? `En retard · ${formatDate(val)}`
-                            : status === 'urgent'
-                              ? `Urgent · ${formatDate(val)}`
-                              : `À venir · ${formatDate(val)}`}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: '700', color: '#16a34a' }}>
+                        <CheckCircle2 style={{ width: 12, height: 12 }} />
+                        Validé{val ? ` · ${formatDate(val)}` : ''}
                       </span>
                       <button
                         type="button"
-                        onClick={() => toggleDateValidation(item.label)}
-                        title="Annuler la validation (repasse en 'À valider')"
+                        onClick={() => unvalidateStep(item.label)}
+                        title="Annuler la validation (repasse en « à valider »)"
                         style={{
                           padding: 3, borderRadius: 6, border: 'none',
                           background: 'rgba(48,64,53,0.06)', cursor: 'pointer',
@@ -655,23 +624,45 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
                           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                           transition: 'all 0.15s',
                         }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(220,38,38,0.12)';
-                          e.currentTarget.style.color = '#dc2626';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'rgba(48,64,53,0.06)';
-                          e.currentTarget.style.color = 'rgba(48,64,53,0.5)';
-                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(220,38,38,0.12)'; e.currentTarget.style.color = '#dc2626'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(48,64,53,0.06)'; e.currentTarget.style.color = 'rgba(48,64,53,0.5)'; }}
                       >
                         <X style={{ width: 11, height: 11 }} />
                       </button>
                     </div>
+                  ) : val ? (
+                    // (2) Échéance posée, PAS validée → statut + bouton Valider (vert)
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: '700', color: status === 'retard' ? '#dc2626' : status === 'urgent' ? '#f97316' : '#2563eb' }}>
+                        <Clock style={{ width: 12, height: 12 }} />
+                        {status === 'retard' ? `En retard · ${formatDate(val)}` : status === 'urgent' ? `Urgent · ${formatDate(val)}` : `À venir · ${formatDate(val)}`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => validateStep(item.label)}
+                        title="Marquer cette étape comme validée (éteint l'alerte)"
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '4px 10px', borderRadius: 8,
+                          border: '1px solid rgba(16,185,129,0.35)',
+                          background: 'rgba(16,185,129,0.1)', color: '#16a34a',
+                          fontSize: '0.7rem', fontWeight: '800',
+                          textTransform: 'uppercase', letterSpacing: '0.06em',
+                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,0.2)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,0.1)'; }}
+                      >
+                        <Check style={{ width: 11, height: 11 }} />
+                        Valider
+                      </button>
+                    </div>
                   ) : (
+                    // (3) Aucune date posée, pas validé → bouton « À valider »
                     <button
                       type="button"
-                      onClick={() => toggleDateValidation(item.label)}
-                      title="Cliquer pour valider cette étape aujourd'hui"
+                      onClick={() => validateStep(item.label)}
+                      title="Marquer cette étape comme validée"
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: 4,
                         padding: '4px 10px', borderRadius: 8,
@@ -684,16 +675,8 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
                         transition: 'all 0.15s',
                         fontFamily: 'inherit',
                       }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(16,185,129,0.12)';
-                        e.currentTarget.style.borderColor = 'rgba(16,185,129,0.4)';
-                        e.currentTarget.style.color = '#16a34a';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(249,115,22,0.08)';
-                        e.currentTarget.style.borderColor = 'rgba(249,115,22,0.3)';
-                        e.currentTarget.style.color = '#ea580c';
-                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(16,185,129,0.12)'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.4)'; e.currentTarget.style.color = '#16a34a'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(249,115,22,0.08)'; e.currentTarget.style.borderColor = 'rgba(249,115,22,0.3)'; e.currentTarget.style.color = '#ea580c'; }}
                     >
                       <Hourglass style={{ width: 11, height: 11 }} />
                       À valider

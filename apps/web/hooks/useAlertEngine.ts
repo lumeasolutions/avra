@@ -128,12 +128,14 @@ function computeAlerts(): RawAlert[] {
       // Drapeau "validé (fait)". true = fait → aucune alerte. false = échéance
       // réelle non faite → peut être en retard. undefined = legacy → traité comme
       // fait (pas de faux retard sur l'historique), mais on garde le rappel futur.
+      // SEULE VÉRITÉ = le bouton « Validé » (echeancesValidees). Tant qu'il n'est
+      // pas coché (false OU absent), l'échéance reste active : passée = retard,
+      // proche = rappel. Rien ne s'auto-valide avec le temps.
       const validated = echeancesValidees[ds.id]?.[label];
       if (validated === true) continue;
-      const isLegacy = validated === undefined;
       const daysUntil = -daysSince(date, now); // positif = dans le futur
       const daysLate = daysSince(date, now);
-      if (daysLate > 0 && !isLegacy && ac.onButoirDepassee !== false) {
+      if (daysLate > 0 && ac.onButoirDepassee !== false) {
         alerts.push({
           severity: 'error',
           category: 'dossier',
