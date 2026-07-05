@@ -5,11 +5,12 @@ import {
   CalendarCog, ChevronLeft, ChevronRight, Plus, X,
   Hammer, Truck, Zap, Wrench, Users, TrendingUp,
   AlertTriangle, CheckCircle, Clock, ChevronDown,
-  Pencil, Trash2,
+  Pencil, Trash2, Paperclip,
 } from 'lucide-react';
 import { useDossierStore, usePlanningStore } from '@/store';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { createDemande } from '@/lib/demandes-api';
+import { uploadDossierDocDirect } from '@/lib/dossier-docs-api';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CustomInterventionTypeModal } from '@/components/planning/CustomInterventionTypeModal';
@@ -213,6 +214,9 @@ export default function PlanningGestionPage() {
   const [pgDocs, setPgDocs] = useState<PgDoc[] | null>(null);
   const [pgDocsLoading, setPgDocsLoading] = useState(false);
   const [pgSelectedDocIds, setPgSelectedDocIds] = useState<string[]>([]);
+  // Upload d'un fichier depuis l'ordinateur (ajoute au dossier + pre-selectionne).
+  const [pgUploading, setPgUploading] = useState(false);
+  const [pgUploadError, setPgUploadError] = useState<string | null>(null);
   const [modalDate,  setModalDate]    = useState('');
   const [modalHour,  setModalHour]    = useState(9);
   const [modalMinute, setModalMinute] = useState(0); // 0 / 15 / 30 / 45
@@ -427,7 +431,28 @@ export default function PlanningGestionPage() {
     return () => { cancelled = true; };
   }, [showAdd, newEvent.intervenantId, pgProjectId]);
   // Reset de la selection a la fermeture de la modale.
-  useEffect(() => { if (!showAdd) setPgSelectedDocIds([]); }, [showAdd]);
+  useEffect(() => { if (!showAdd) { setPgSelectedDocIds([]); setPgUploadError(null); } }, [showAdd]);
+
+  // Upload d'un fichier depuis l'ordinateur : on l'ajoute au dossier (sous-dossier
+  // "Dossier - Documents Intervenants"), on l'insere dans la liste et on le
+  // pre-selectionne pour l'envoi. Reutilise l'upload direct Supabase existant.
+  const handlePgFileUpload = async (file: File) => {
+    if (!pgProjectId) return;
+    setPgUploadError(null);
+    setPgUploading(true);
+    try {
+      const doc = await uploadDossierDocDirect(pgProjectId, 'Dossier - Documents Intervenants', file);
+      setPgDocs((prev) => [
+        ...(prev ?? []),
+        { id: doc.id, subfolderLabel: doc.subfolderLabel, originalName: doc.originalName, mimeType: doc.mimeType },
+      ]);
+      setPgSelectedDocIds((prev) => [...prev, doc.id]);
+    } catch (e: any) {
+      setPgUploadError(e?.message || "Échec de l'envoi du fichier.");
+    } finally {
+      setPgUploading(false);
+    }
+  };
 
   const handleAdd = () => {
     if (!newEvent.client.trim() || !modalDate) return;
@@ -1477,6 +1502,28 @@ export default function PlanningGestionPage() {
                         </div>
                       )}
                     </div>
+                  )}
+
+                  {/* Ajouter un fichier depuis l'ordinateur (upload direct dans le
+                      dossier, puis pre-selectionne pour l'envoi). */}
+                  <label
+                    className={`mt-2 flex items-center justify-center gap-2 text-[11px] font-semibold rounded-xl border border-dashed px-3 py-2 transition-colors ${
+                      pgUploading
+                        ? 'opacity-60 pointer-events-none border-[#304035]/20 text-[#304035]/40'
+                        : 'border-[#a67749]/45 text-[#a67749] hover:bg-[#a67749]/5 cursor-pointer'
+                    }`}
+                  >
+                    <Paperclip className="w-3.5 h-3.5" />
+                    {pgUploading ? 'Envoi du fichier…' : 'Ajouter un fichier de mon ordinateur'}
+                    <input
+                      type="file"
+                      className="hidden"
+                      disabled={pgUploading}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePgFileUpload(f); e.currentTarget.value = ''; }}
+                    />
+                  </label>
+                  {pgUploadError && (
+                    <div className="text-[10px] text-red-500 mt-1">{pgUploadError}</div>
                   )}
                 </div>
               )}
