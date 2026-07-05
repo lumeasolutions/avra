@@ -46,9 +46,21 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
   const status = STATUS_COLOR[dossier.status] ?? STATUS_COLOR['EN COURS'];
 
   const subfolders = dossier.subfolders ?? [];
-  const totalSubfolders = subfolders.length;
-  const filledSubfolders = subfolders.filter((sf) => (sf.documents?.length ?? 0) > 0).length;
-  const validatedSubfolders = subfolders.filter((sf) => sf.validated).length;
+  const NEST = ' ▸ ';
+  // Regroupement au niveau PARENT : un sous-dossier imbriqué (ex. "X ▸ Y") est
+  // compté dans son parent, jamais affiché comme une entrée séparée.
+  const topSubfolders = subfolders.filter((sf) => !sf.label.includes(NEST));
+  const folderDocCount = (label: string) =>
+    subfolders.reduce(
+      (sum, sf) =>
+        sf.label === label || sf.label.startsWith(label + NEST)
+          ? sum + (sf.documents?.length ?? 0)
+          : sum,
+      0,
+    );
+  const totalSubfolders = topSubfolders.length;
+  const filledSubfolders = topSubfolders.filter((sf) => folderDocCount(sf.label) > 0).length;
+  const validatedSubfolders = topSubfolders.filter((sf) => sf.validated).length;
   const totalDocs = subfolders.reduce((sum, sf) => sum + (sf.documents?.length ?? 0), 0);
   const progressPct = totalSubfolders > 0 ? Math.round((filledSubfolders / totalSubfolders) * 100) : 0;
 
@@ -207,13 +219,13 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
               Sous-dossiers ({totalSubfolders})
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {subfolders.length === 0 ? (
+              {topSubfolders.length === 0 ? (
                 <div style={{ padding: '14px 12px', textAlign: 'center', fontSize: 12, color: 'rgba(48,64,53,0.5)', border: '1px dashed rgba(48,64,53,0.15)', borderRadius: 10 }}>
                   Aucun sous-dossier pour l&apos;instant.
                 </div>
               ) : (
-                subfolders.map((sf) => {
-                  const docCount = sf.documents?.length ?? 0;
+                topSubfolders.map((sf) => {
+                  const docCount = folderDocCount(sf.label);
                   const filled = docCount > 0;
                   const validated = !!sf.validated;
                   const bg = validated ? 'rgba(16,185,129,0.05)' : filled ? 'rgba(166,119,73,0.04)' : 'transparent';
