@@ -103,6 +103,20 @@ function getDateButoireItemsForProfession(profession: string | null): DateButoir
   return [...base, SAV_DASHBOARD_ITEM];
 }
 
+/**
+ * Items EXACTEMENT comme la modale « Dates butoires » (DateButoireValidationModal) :
+ * les listes brutes SANS le SAV_DASHBOARD_ITEM (qui, lui, n'existe que dans le
+ * tableau de bord). Sert au compteur "X/Y dates butoires" des cartes pour qu'il
+ * corresponde au 100% de la modale (sinon le SAV compte comme une date jamais
+ * saisissable → "5/6" alors que la modale dit 100%).
+ */
+function getModalDateItems(profession: string | null): DateButoireItem[] {
+  if (profession === 'menuisier') return MENUISIER_DATE_BUTOIRE_ITEMS;
+  if (profession === 'cuisiniste') return CUISINISTE_DATE_BUTOIRE_ITEMS;
+  if (profession === 'architecte') return ARCHITECTE_DATE_BUTOIRE_ITEMS;
+  return DEFAULT_DATE_BUTOIRE_ITEMS;
+}
+
 // ─── Sous-composant : Modal dates butoires (legacy, conservé en _UNUSED_) ──
 // La saisie des dates butoires utilise maintenant DateButoireValidationModal
 // (cohérent avec la modale Validation projet en cours). Cette fonction
@@ -1116,9 +1130,13 @@ export default function DossiersSignesPage() {
               {filtered.map((d, i) => {
                 const [c1, c2] = avatarColor(d.name);
                 const initials = `${d.name.charAt(0)}${d.firstName ? d.firstName.charAt(0) : ''}`.toUpperCase();
-                const datesCount = Object.keys(datesButoiresSignes[d.id] ?? {}).length;
-                const itemsForPro = getDateButoireItemsForProfession(profession);
-                const totalDates = itemsForPro.filter(it => it.kind === 'date').length;
+                // MÊME métrique que la modale Dates butoires (filledCount) : on
+                // compte les items 'date' ayant une date NON VIDE (pas les clés
+                // brutes du store, qui peuvent diverger → "5/6" alors que 100%).
+                const savedDatesGrid = datesButoiresSignes[d.id] ?? {};
+                const dateItemsForPro = getModalDateItems(profession).filter(it => it.kind === 'date');
+                const totalDates = dateItemsForPro.length;
+                const datesCount = dateItemsForPro.filter(it => !!savedDatesGrid[it.label]).length;
                 return (
                   <div key={d.id} className="signe-card group" style={{ animationDelay: `${i * 40}ms` }}>
                     <div className="relative bg-white rounded-2xl border border-emerald-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
@@ -1215,9 +1233,11 @@ export default function DossiersSignesPage() {
               <div className="h-1 w-full bg-gradient-to-r from-emerald-400 to-transparent" />
               {filtered.map((d, i) => {
                 const [c1, c2] = avatarColor(d.name);
-                const datesCountList = Object.keys(datesButoiresSignes[d.id] ?? {}).length;
-                const itemsForProList = getDateButoireItemsForProfession(profession);
-                const totalDateslist = itemsForProList.filter(it => it.kind === 'date').length;
+                // MÊME métrique que la modale Dates butoires (items 'date' non vides).
+                const savedDatesList = datesButoiresSignes[d.id] ?? {};
+                const dateItemsForProList = getModalDateItems(profession).filter(it => it.kind === 'date');
+                const totalDateslist = dateItemsForProList.length;
+                const datesCountList = dateItemsForProList.filter(it => !!savedDatesList[it.label]).length;
                 return (
                   <div key={d.id}>
                     <div
