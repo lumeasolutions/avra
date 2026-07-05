@@ -30,7 +30,9 @@ const ZONE_EN: Record<string, string> = {
 };
 
 const KEEP_REST =
-  'Keep everything else in the image exactly identical: the layout, the camera angle, every other surface, all objects and accessories, and do not add, remove, move or invent anything else.';
+  'Change ONLY the color and material of the requested element(s): keep their exact shape, size, geometry, edges, contours and position strictly unchanged. ' +
+  'Keep everything else in the image exactly identical: the layout, the camera angle, the existing lighting, shadows and reflections, every other surface, and all objects and accessories. ' +
+  'Do NOT add, remove, move or invent anything — in particular do NOT add any spotlights, recessed ceiling lights, LED strip lights, lamps, light fixtures, glows, plants, decor, furniture or extra objects.';
 
 /** Vrai si la matière ressemble à une couleur unie/mate (→ interdire le veinage). */
 function looksPlain(material: string): boolean {
@@ -83,8 +85,10 @@ const SYSTEM_PROMPT = `You convert a French kitchen-render retouch request into 
 Rules:
 - Preserve EVERY change the user asks for. If several changes are requested, combine them into ONE instruction that applies them all at the same time (e.g. "change the worktop to black AND the handles to brass").
 - Be specific about WHICH element changes (e.g. "the upper wall cabinets", "the worktop", "the backsplash").
+- The changes must be color/material ONLY. Instruct to keep the exact same shape, size, geometry and position of the edited element — only its color and material change.
+- NEVER add new elements. Do not add spotlights, recessed lights, LED strips, lamps, light fixtures, plants, decor, furniture or any object, even if it would look nicer. Preserve the existing lighting, shadows and reflections.
 - If a plain or matte colour is requested for a countertop, backsplash or wall, add that it must stay uniform with no veining or pattern.
-- ALWAYS end with: "Keep everything else in the image exactly identical, do not add, remove or invent anything else."
+- ALWAYS end with: "Change only the color and material, keep the exact shape and geometry of the edited element, and keep everything else in the image exactly identical — do not add, remove or invent anything else (no added lights, spotlights, objects or decor)."
 - If the request is too vague to know which element to change or what to do, output exactly: UNCLEAR
 - Output ONLY the instruction text, no quotes, no explanation.`;
 

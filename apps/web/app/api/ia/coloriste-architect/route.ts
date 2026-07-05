@@ -111,9 +111,11 @@ export async function POST(req: NextRequest) {
     + 'colors and finishes to the cabinet fronts, the handles and the countertop. The new '
     + 'colors must be clearly and fully applied (no leftover original colors). ';
   const PRESERVE =
-    ' Keep the same room layout, cabinet and appliance positions and the same camera angle; '
-    + 'do not add or remove furniture, no warped or deformed shapes, no text. Photorealistic, '
-    + 'sharp focus, high detail.';
+    ' Change ONLY the colors and materials: keep the exact same shapes, geometry, sizes and positions '
+    + 'of every cabinet, drawer and panel, the same room layout and the same camera angle. '
+    + 'Keep the existing lighting of the room: DO NOT add any spotlights, recessed ceiling lights, '
+    + 'LED strips, lamps or new light fixtures. DO NOT add or remove furniture, appliances, decor or any '
+    + 'object. No warped or deformed shapes, no text. Photorealistic, sharp focus, high detail.';
   const prompt = `${RECOLOR_DIRECTIVE}${buildColoristPrompt(params).prompt}${PRESERVE}`;
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;

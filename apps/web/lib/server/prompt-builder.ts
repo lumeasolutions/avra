@@ -261,11 +261,9 @@ const FINISH_BLOCKS: Record<FinishType, string> = {
   'verre-mat':'frosted matte glass finish, soft translucent surface, subtle light diffusion, contemporary glass texture',
 };
 
-const LIGHTING_BLOCKS: Record<LightingType, string> = {
-  naturelle: 'natural daylight streaming through large windows, soft diffused shadows, warm golden hour atmosphere, realistic sun direction',
-  spots:     'warm recessed LED ceiling spotlights, dramatic accent lighting, under-cabinet LED strip lights casting warm glow on countertop',
-  mixte:     'combination of natural daylight from windows and warm recessed LED spotlights, balanced interior lighting, professional staging',
-};
+// (LIGHTING_BLOCKS retiré : le coloriste ne réinvente plus l'éclairage — il
+//  préserve celui de la photo source pour ne pas ajouter de spots. Le mode
+//  Rendu utilise LIGHTING_BLOCKS_RENDU, distinct.)
 
 const SIZE_BLOCKS: Record<RoomSizeType, string> = {
   petite:  'compact galley kitchen layout, clever storage solutions, efficient use of space',
@@ -296,8 +294,11 @@ const NEGATIVE_PROMPT_COLORISTE =
   NEGATIVE_PROMPT + ', ' +
   'no recomposed scene, no showroom restaging, no reorganized layout, ' +
   'no added decoration, no new objects on counters or shelves, no added pendant lights or sconces, ' +
+  'no added spotlights, no added recessed ceiling lights, no added LED strip lights, ' +
+  'no added lamps or light fixtures, no new lighting, no extra light sources, ' +
   'no added vases or plants or fruits or books or bottles or art frames, ' +
   'no changed hood shape, no changed glass partition, no changed shelves position, ' +
+  'no reshaped cabinets, no changed cabinet geometry, no changed cabinet size or proportions, no altered shapes, ' +
   'no different camera angle, no different framing, no zoom in or out, ' +
   'no added or removed appliances, no Architectural Digest restyling, no magazine recomposition';
 
@@ -454,7 +455,10 @@ export function buildColoristPrompt(
   const poigneeName  = (params.handleMaterial ?? hexToName(params.poigneeHex) + ' handles') + poigneeFinishSuffix;
   const planName     = (params.countertopMaterial ?? hexToName(params.planHex) + ' countertop') + planFinishSuffix;
   const finishBlock  = FINISH_BLOCKS[params.facadeFinish];
-  const lightBlock   = LIGHTING_BLOCKS[params.lightingStyle];
+  // Coloriste = recoloration d'une PHOTO EXISTANTE : on ne réinvente PAS
+  // l'éclairage (sinon l'IA ajoute des spots / bandeaux LED). On préserve
+  // l'éclairage de la source.
+  const keepLighting = 'Keep the existing lighting of the room exactly as in the source photo, do not add any spotlights, recessed ceiling lights, LED strips or new light fixtures';
 
   // Suffixes "texture importée" — quand l'utilisateur a uploadé une image de
   // matière pour un élément, on incite le modèle à respecter ce motif/matière.
@@ -492,7 +496,8 @@ export function buildColoristPrompt(
       `Professional architectural interior photography of a modern French kitchen.`,
       `Kitchen cabinet fronts in ${facadeName}, ${finishBlock}${facadeTextureHint}.`,
       `${poigneeName}${poigneeTextureHint}, ${planName}${planTextureHint}.`,
-      lightBlock + '.',
+      keepLighting + '.',
+      `Change ONLY the colors and materials — keep the exact same shapes, geometry, layout and camera angle, and add no new object.`,
       `Perfectly clean and staged kitchen, showroom presentation.`,
       TECH_SUFFIX + '.',
     ].join(' ');
@@ -501,7 +506,7 @@ export function buildColoristPrompt(
   else if (level === 'simplified') {
     prompt = [
       `Interior photography of a kitchen with ${facadeName} cabinets${facadeTextureHint}, ${poigneeName}${poigneeTextureHint}.`,
-      `${lightBlock}.`,
+      `${keepLighting}. Change only colors and materials, keep the exact shapes and add nothing.`,
       `Photorealistic, professional quality, high-end kitchen.`,
       `Canon EOS R5, 8K, interior design magazine.`,
     ].join(' ');
@@ -517,9 +522,10 @@ export function buildColoristPrompt(
   }
 
   const seed     = hashToSeed(buildSeedKey(params));
-  const warnings = validatePrompt(prompt, NEGATIVE_PROMPT);
+  const warnings = validatePrompt(prompt, NEGATIVE_PROMPT_COLORISTE);
 
-  return { prompt, negative: NEGATIVE_PROMPT, seed, level, warnings };
+  // Négatif FORT : coloriste = couleur/matière only, pas de spots/objets ajoutés.
+  return { prompt, negative: NEGATIVE_PROMPT_COLORISTE, seed, level, warnings };
 }
 
 // ─────────────────────────────────────────── BUILDER RENDU KONTEXT (img2img)
@@ -817,17 +823,19 @@ export function buildKontextColoristPrompt(
       `2. ${poigneeInstruction}.`,
       `3. ${planInstruction}.`,
       ``,
-      `STRICTLY PRESERVE from the source photo — DO NOT CHANGE:`,
+      `Change ONLY the color and material of those 3 elements. Keep their exact shape, size, geometry, edges and position.`,
+      ``,
+      `STRICTLY PRESERVE from the source photo — DO NOT CHANGE and DO NOT ADD:`,
       `- Camera angle, framing, perspective, focal length, zoom level`,
-      `- Position and shape of every cabinet, drawer and panel`,
+      `- Position, shape, size and geometry of every cabinet, drawer and panel`,
       `- All walls, floor tiles, ceiling, windows and doors`,
       `- All appliances (oven, stovetop, refrigerator, microwave, hood, dishwasher)`,
       `- Faucet, sink, plumbing fixtures, drain`,
       `- Wall color, backsplash material and pattern`,
-      `- Lighting setup, shadows, reflections direction`,
-      `- Decorative items (plants, fruits, bottles, utensils)`,
+      `- The existing lighting setup, shadows and reflections — DO NOT add any spotlights, recessed ceiling lights, LED strips, lamps or light fixtures`,
+      `- Decorative items — DO NOT add any new object, plant, decor or furniture`,
       ``,
-      `The output must look like the EXACT same kitchen photo, only with the cabinet doors, handles and countertop materials changed to the new specifications. Photorealistic professional interior photography.`,
+      `The output must look like the EXACT same kitchen photo from the same angle, only with the cabinet doors, handles and countertop materials recolored/retextured to the new specifications, without reshaping anything and without adding any element. Photorealistic professional interior photography.`,
     ].join('\n');
   }
 
@@ -839,12 +847,12 @@ export function buildKontextColoristPrompt(
       facadeIdx  ? `Match cabinet material to image ${facadeIdx}.`  : '',
       poigneeIdx ? `Match handle material to image ${poigneeIdx}.` : '',
       planIdx    ? `Match countertop material to image ${planIdx}.`: '',
-      `KEEP everything else (camera angle, walls, floor, appliances) IDENTICAL to the source. Photorealistic.`,
+      `Change ONLY color and material, keep the exact shape and geometry. KEEP everything else (camera angle, walls, floor, appliances, existing lighting) IDENTICAL to the source and ADD NOTHING (no spotlights, no lights, no objects). Photorealistic.`,
     ].filter(Boolean).join(' ');
   }
 
   else { // minimal
-    prompt = `Edit image 1: only change cabinet color to ${facadeName} (${finishBlock}). Keep camera angle, room and everything else identical. Photorealistic.`;
+    prompt = `Edit image 1: only change the cabinet color to ${facadeName} (${finishBlock}), keeping the exact shape and geometry. Keep the camera angle, room, existing lighting and everything else identical, add nothing. Photorealistic.`;
   }
 
   if (params.extraContext && level !== 'minimal') {
@@ -856,5 +864,7 @@ export function buildKontextColoristPrompt(
   if (prompt.length < 80)   warnings.push('Prompt Kontext trop court');
   if (prompt.length > 1500) warnings.push('Prompt trop long — risque de confusion');
 
-  return { prompt, negative: NEGATIVE_PROMPT, seed, level, warnings };
+  // Négatif FORT anti-recomposition : interdit spots/lumières/objets ajoutés +
+  // reshape (c'est le coloriste, on ne change QUE couleur/matière, pas la forme).
+  return { prompt, negative: NEGATIVE_PROMPT_COLORISTE, seed, level, warnings };
 }
