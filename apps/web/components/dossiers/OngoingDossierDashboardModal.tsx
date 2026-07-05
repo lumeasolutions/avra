@@ -18,11 +18,9 @@ import Link from 'next/link';
 import {
   X,
   BarChart3,
-  Folder,
   CheckCircle2,
   AlertTriangle,
   Clock,
-  FileText,
   Calendar,
   Phone,
   Mail,
@@ -181,31 +179,6 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
             </div>
           </div>
 
-          {/* KPIs */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 18 }}>
-            <KpiCard
-              icon={<Folder size={14} />}
-              label="Sous-dossiers"
-              value={`${filledSubfolders}/${totalSubfolders}`}
-              sub={`${validatedSubfolders} validé${validatedSubfolders > 1 ? 's' : ''}`}
-              color="#a67749"
-            />
-            <KpiCard
-              icon={<FileText size={14} />}
-              label="Documents"
-              value={String(totalDocs)}
-              sub="au total"
-              color="#5b9bd5"
-            />
-            <KpiCard
-              icon={<CheckCircle2 size={14} />}
-              label="Avancement"
-              value={`${progressPct}%`}
-              sub="sous-dossiers remplis"
-              color="#10b981"
-            />
-          </div>
-
           {/* Progress bar */}
           <div style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -330,40 +303,6 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
           </Link>
         </div>
       </div>
-    </div>
-  );
-}
-
-function KpiCard({
-  icon,
-  label,
-  value,
-  sub,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub: string;
-  color: string;
-}) {
-  return (
-    <div
-      style={{
-        padding: '10px 12px',
-        border: '1px solid rgba(48,64,53,0.08)',
-        borderRadius: 12,
-        background: '#fff',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, color, marginBottom: 4 }}>
-        {icon}
-        <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          {label}
-        </span>
-      </div>
-      <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#304035', lineHeight: 1.1 }}>{value}</p>
-      <p style={{ margin: '3px 0 0', fontSize: 10, color: 'rgba(48,64,53,0.5)' }}>{sub}</p>
     </div>
   );
 }
