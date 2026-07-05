@@ -237,7 +237,7 @@ export default function DossierDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const addInvoice        = useFacturationStore(s => s.addInvoice);
+  const addDevis          = useFacturationStore(s => s.addDevis);
 
   const [showDevis,     setShowDevis]     = useState(false);
   const [showStatus,    setShowStatus]    = useState(false);
@@ -1107,7 +1107,7 @@ export default function DossierDetailPage() {
               style={{ background: 'linear-gradient(135deg, #10b981, #059669)', boxShadow: '0 4px 16px rgba(16,185,129,0.3)' }}
             >
               <Plus className="h-4 w-4" />
-              Créer une facture
+              Créer un devis
             </button>
             )}
             {!isSigned && canEditThis && (
@@ -1976,13 +1976,13 @@ export default function DossierDetailPage() {
               <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-sm"
                 style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>{initials}</div>
               <div>
-                <h3 className="text-xl font-bold text-[#304035]">Créer une facture</h3>
+                <h3 className="text-xl font-bold text-[#304035]">Créer un devis</h3>
                 <p className="text-xs text-[#304035]/50">Pour {dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''}</p>
               </div>
             </div>
             <div className="space-y-4 mt-6">
               <div>
-                <label className="block text-xs font-bold text-[#304035]/60 uppercase tracking-wider mb-1.5">Objet de la facture</label>
+                <label className="block text-xs font-bold text-[#304035]/60 uppercase tracking-wider mb-1.5">Objet du devis</label>
                 <input value={devisObjet} onChange={e => setDevisObjet(e.target.value)}
                   className="w-full rounded-xl border border-[#304035]/15 px-4 py-3 text-sm text-[#304035] placeholder-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
                   placeholder="Cuisine complète, salle de bain..." />
@@ -2018,15 +2018,28 @@ export default function DossierDetailPage() {
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => {
-                  if (devisObjet) {
-                    addSubfolder(id, `FACTURE — ${devisObjet}`);
-                    if (devisMontant) addInvoice({ dossierId: id, client: dossier.name, date: new Date().toLocaleDateString('fr-FR'), montantHT: parseFloat(devisMontant), tva: parseFloat(devisTva) || 20, statut: 'EN ATTENTE', type: 'Facture', notes: devisObjet });
+                  if (devisObjet && devisMontant) {
+                    const now = new Date();
+                    const fr = (d: Date) => d.toLocaleDateString('fr-FR');
+                    addDevis({
+                      dossierId: id,
+                      client: dossier.name,
+                      objet: devisObjet,
+                      lignes: [{ id: 'l1', description: devisObjet, quantite: 1, unite: 'forfait', prixUnitaireHT: parseFloat(devisMontant) || 0, tva: parseFloat(devisTva) || 20, remise: 0 }],
+                      statut: 'BROUILLON',
+                      dateCreation: fr(now),
+                      dateValidite: fr(new Date(now.getTime() + 30 * 86400000)),
+                      conditionsPaiement: '',
+                      notes: devisObjet,
+                      totalHT: 0,
+                      totalTTC: 0,
+                    });
                   }
                   setShowDevis(false); setDevisObjet(''); setDevisMontant(''); setDevisTva('20');
                 }}
                 className="flex-1 rounded-xl py-3 font-bold text-white transition-all hover:shadow-lg"
                 style={{ background: 'linear-gradient(135deg, #304035, #4a6358)' }}>
-                Créer la facture
+                Créer le devis
               </button>
               <button onClick={() => setShowDevis(false)}
                 className="flex-1 rounded-xl border border-[#304035]/20 py-3 font-medium text-[#304035] hover:bg-[#f5eee8] transition-colors">
