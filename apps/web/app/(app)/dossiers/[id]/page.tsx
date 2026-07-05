@@ -1558,10 +1558,10 @@ export default function DossierDetailPage() {
                             <span className="text-[12px] font-semibold text-[#304035] truncate w-full">{folderDisplayName(cp)}</span>
                           </button>
                           {cpAtts.length > 0 && (
-                            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Envoyer ce sous-dossier à un intervenant">
+                            <div className="absolute top-1 right-1" title="Envoyer ce sous-dossier à un intervenant">
                               <SendToIntervenantButton
                                 variant="icon"
-                                style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(255,255,255,0.95)', color: '#3D5449', border: '1px solid rgba(48,64,53,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}
+                                style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #1a2a1e 0%, #3D5449 100%)', color: '#cbb98a', border: 'none', boxShadow: '0 2px 6px rgba(26,42,30,0.28)' }}
                                 prefill={{ projectId: id, attachments: cpAtts }}
                               />
                             </div>
@@ -1723,7 +1723,7 @@ export default function DossierDetailPage() {
                               {doc.docId && (
                                 <SendToIntervenantButton
                                   variant="icon"
-                                  style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(255,255,255,0.95)', color: '#3D5449', border: '1px solid rgba(48,64,53,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}
+                                  style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #1a2a1e 0%, #3D5449 100%)', color: '#cbb98a', border: 'none', boxShadow: '0 2px 6px rgba(26,42,30,0.28)' }}
                                   prefill={{ projectId: id, attachments: [{ dossierDocumentId: doc.docId, displayName: doc.name, mimeType: doc.type ?? undefined }] }}
                                 />
                               )}
