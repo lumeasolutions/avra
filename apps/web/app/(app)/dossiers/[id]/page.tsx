@@ -27,6 +27,7 @@ import { DossierEcheances } from '@/components/alerts/DossierEcheances';
 import { scrollToAnchor } from '@/lib/scrollToAnchor';
 import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
+import { ModalDevis } from '@/app/(app)/facturation/components/ModalDevis';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
 
 /** Normalise un document (string legacy ou objet) pour affichage. */
@@ -237,8 +238,6 @@ export default function DossierDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const addDevis          = useFacturationStore(s => s.addDevis);
-
   const [showDevis,     setShowDevis]     = useState(false);
   const [showStatus,    setShowStatus]    = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
@@ -300,9 +299,6 @@ export default function DossierDetailPage() {
     setPreviewUrl(url);
   };
   const closePreview = () => { setPreviewDoc(null); setPreviewUrl(null); };
-  const [devisObjet,    setDevisObjet]    = useState('');
-  const [devisMontant,  setDevisMontant]  = useState('');
-  const [devisTva,      setDevisTva]      = useState('20');
   // Les notes sont synchronisées avec le store (persistées en localStorage).
   // Valeur initiale = celle du dossier en store ; les changements sont propagés
   // via updateDossierNotes.
@@ -1959,86 +1955,18 @@ export default function DossierDetailPage() {
         </div>
       )}
 
-      {/* ══ MODAL : Créer un devis ══ */}
+      {/* ══ MODAL : Créer un devis (éditeur COMPLET, identique à Facturation) ══
+          Pré-rempli avec le client + le dossier courant. */}
       {showDevis && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl border border-[#304035]/10">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-sm"
-                style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>{initials}</div>
-              <div>
-                <h3 className="text-xl font-bold text-[#304035]">Créer un devis</h3>
-                <p className="text-xs text-[#304035]/50">Pour {dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''}</p>
-              </div>
-            </div>
-            <div className="space-y-4 mt-6">
-              <div>
-                <label className="block text-xs font-bold text-[#304035]/60 uppercase tracking-wider mb-1.5">Objet du devis</label>
-                <input value={devisObjet} onChange={e => setDevisObjet(e.target.value)}
-                  className="w-full rounded-xl border border-[#304035]/15 px-4 py-3 text-sm text-[#304035] placeholder-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
-                  placeholder="Cuisine complète, salle de bain..." />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-[#304035]/60 uppercase tracking-wider mb-1.5">Montant HT (€)</label>
-                  <input type="number" value={devisMontant} onChange={e => setDevisMontant(e.target.value)}
-                    className="w-full rounded-xl border border-[#304035]/15 px-4 py-3 text-sm text-[#304035] placeholder-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
-                    placeholder="15 000" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#304035]/60 uppercase tracking-wider mb-1.5">TVA (%)</label>
-                  <div className="flex gap-1">
-                    {['5.5','10','20'].map(t => (
-                      <button key={t} type="button" onClick={() => setDevisTva(t)}
-                        className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-all ${devisTva === t ? 'bg-[#304035] text-white border-[#304035]' : 'bg-white text-[#304035]/60 border-[#304035]/12'}`}>
-                        {t}%
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {devisMontant && (
-                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 flex items-center justify-between">
-                  <span className="text-xs text-emerald-600">Total TTC</span>
-                  <span className="text-base font-black text-emerald-700">
-                    {new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(parseFloat(devisMontant) * (1 + parseFloat(devisTva)/100))}
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => {
-                  if (devisObjet && devisMontant) {
-                    const now = new Date();
-                    const fr = (d: Date) => d.toLocaleDateString('fr-FR');
-                    addDevis({
-                      dossierId: id,
-                      client: dossier.name,
-                      objet: devisObjet,
-                      lignes: [{ id: 'l1', description: devisObjet, quantite: 1, unite: 'forfait', prixUnitaireHT: parseFloat(devisMontant) || 0, tva: parseFloat(devisTva) || 20, remise: 0 }],
-                      statut: 'BROUILLON',
-                      dateCreation: fr(now),
-                      dateValidite: fr(new Date(now.getTime() + 30 * 86400000)),
-                      conditionsPaiement: '',
-                      notes: devisObjet,
-                      totalHT: 0,
-                      totalTTC: 0,
-                    });
-                  }
-                  setShowDevis(false); setDevisObjet(''); setDevisMontant(''); setDevisTva('20');
-                }}
-                className="flex-1 rounded-xl py-3 font-bold text-white transition-all hover:shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #304035, #4a6358)' }}>
-                Créer le devis
-              </button>
-              <button onClick={() => setShowDevis(false)}
-                className="flex-1 rounded-xl border border-[#304035]/20 py-3 font-medium text-[#304035] hover:bg-[#f5eee8] transition-colors">
-                Annuler
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalDevis
+          prefill={{
+            dossierId: id,
+            client: dossier.name + (dossier.firstName ? ` ${dossier.firstName}` : ''),
+            clientEmail: dossier.email ?? '',
+            clientAddress: dossier.address ?? '',
+          }}
+          onClose={() => setShowDevis(false)}
+        />
       )}
 
       {/* ═══════════════════════════════════════════════

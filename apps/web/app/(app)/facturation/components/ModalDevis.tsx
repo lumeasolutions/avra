@@ -9,9 +9,11 @@ import { LignesEditor } from './LignesEditor';
 interface ModalDevisProps {
   onClose: () => void;
   devisToEdit?: Devis;
+  /** Pré-remplissage à la création (ex. ouverture depuis un dossier). Ignoré en édition. */
+  prefill?: { client?: string; clientEmail?: string; clientAddress?: string; dossierId?: string };
 }
 
-export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit }: ModalDevisProps) {
+export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit, prefill }: ModalDevisProps) {
   const addDevis = useFacturationStore(s => s.addDevis);
   const updateDevis = useFacturationStore(s => s.updateDevis);
   const dossiers = useDossierStore(s => s.dossiers);
@@ -19,10 +21,10 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit 
   const allDossiers = [...dossiers, ...dossiersSignes];
 
   const [form, setForm] = useState({
-    client: devisToEdit?.client ?? '',
-    clientEmail: devisToEdit?.clientEmail ?? '',
-    clientAddress: devisToEdit?.clientAddress ?? '',
-    dossierId: devisToEdit?.dossierId ?? '',
+    client: devisToEdit?.client ?? prefill?.client ?? '',
+    clientEmail: devisToEdit?.clientEmail ?? prefill?.clientEmail ?? '',
+    clientAddress: devisToEdit?.clientAddress ?? prefill?.clientAddress ?? '',
+    dossierId: devisToEdit?.dossierId ?? prefill?.dossierId ?? '',
     dateValidite: devisToEdit?.dateValidite ?? new Date(Date.now() + 30 * 86400000).toLocaleDateString('fr-FR'),
     conditionsPaiement: devisToEdit?.conditionsPaiement ?? '30% acompte, 40% intermédiaire, 30% solde',
     notes: devisToEdit?.notes ?? '',
