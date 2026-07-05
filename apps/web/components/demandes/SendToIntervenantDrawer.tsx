@@ -850,7 +850,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                           try {
                             const fd = new FormData();
                             fd.append('file', f);
-                            fd.append('subfolderLabel', 'Demandes — pièces jointes');
+                            fd.append('subfolderLabel', 'Dossier - Documents Intervenants');
                             const doc = await apiUpload<any>(`/dossiers/${encodeURIComponent(prefill.projectId)}/documents`, fd);
                             setUploads(u => u.map((x) =>
                               x.displayName === f.name && x.uploading
