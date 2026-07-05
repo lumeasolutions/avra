@@ -7,7 +7,7 @@ import {
   FolderOpen, FileText, ImageIcon, Ruler, CheckCircle, ArrowLeft,
   GitCompare, AlertTriangle, Plus, ChevronRight, Tag, Phone, Mail,
   MapPin, Calendar, Receipt, FileCheck, StickyNote, Pencil, X,
-  Clock, Circle, TrendingUp, Zap, Eye, Download, Check, CornerDownRight, LayoutDashboard, LayoutGrid, List, FolderPlus
+  Clock, Circle, TrendingUp, Eye, Download, Check, CornerDownRight, LayoutDashboard, LayoutGrid, List, FolderPlus
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
@@ -1304,15 +1304,6 @@ export default function DossierDetailPage() {
             </div>
           </div>
 
-          {/* Action rapide */}
-          <button
-            onClick={() => setShowDevis(true)}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 font-bold text-white text-sm transition-all hover:shadow-lg active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #a67749, #c08a5a)', boxShadow: '0 4px 16px rgba(166,119,73,0.3)' }}
-          >
-            <Zap className="h-4 w-4" />
-            Action rapide
-          </button>
         </div>
       </div>
 
