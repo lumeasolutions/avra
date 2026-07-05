@@ -1123,6 +1123,7 @@ export const useDossierStore = create<DossierState>()(
             [dossierId]: { ...(s.datesButoiresSignes[dossierId] ?? {}), [label]: date },
           },
         }));
+        pushDossierData(get, dossierId);
       },
 
       updateDossierSigneDateButoires: (dossierId, dateButoires) => {

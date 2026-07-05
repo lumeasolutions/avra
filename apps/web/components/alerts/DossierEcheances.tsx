@@ -87,9 +87,14 @@ export function DossierEcheances({ dossierId }: { dossierId: string }) {
 
   // 1) Étapes à date — nouveau système, sinon fallback legacy dateButoires.
   const dateRows = useMemo(() => {
-    const base: [string, string][] = [];
     const nd = newDates ?? {};
-    if (Object.keys(nd).length > 0) {
+    // Legacy = anciens dossiers sans le nouveau système de dates. Ces dates ne
+    // sont PAS validables depuis le tableau de bord ⇒ on ne les affiche jamais
+    // en RETARD (aligné sur le moteur d'alertes, qui n'émet qu'un rappel proche
+    // pour le legacy). Sinon la bande contredirait l'assistant.
+    const isLegacy = Object.keys(nd).length === 0;
+    const base: [string, string][] = [];
+    if (!isLegacy) {
       for (const [label, v] of Object.entries(nd)) if (v) base.push([label, v]);
     } else if (signe?.dateButoires) {
       for (const [key, label] of Object.entries(LEGACY_LABELS)) {
@@ -99,7 +104,8 @@ export function DossierEcheances({ dossierId }: { dossierId: string }) {
     }
     return base
       .map(([label, dateStr]) => {
-        const status = echeanceStatus(dateStr, valides?.[label] === true);
+        let status = echeanceStatus(dateStr, valides?.[label] === true);
+        if (isLegacy && (status === 'retard' || status === 'planned')) status = 'none';
         return { label, dateStr, anchor: echeanceAnchor(label), status, prio: ECHEANCE_PRIO[status] };
       })
       .sort((a, b) => a.prio - b.prio);
@@ -110,6 +116,7 @@ export function DossierEcheances({ dossierId }: { dossierId: string }) {
     const map = commandes ?? {};
     const rows = [] as { stage: string; id: string; fournisseur: string; dateStr: string; status: EcheanceStatus; prio: number }[];
     for (const [stage, lignes] of Object.entries(map)) {
+      if (!Array.isArray(lignes)) continue;
       for (const l of lignes) {
         const status = echeanceStatus(l.dateButoir, l.validee === true);
         rows.push({ stage, id: l.id, fournisseur: l.fournisseur || 'Fournisseur ?', dateStr: l.dateButoir, status, prio: ECHEANCE_PRIO[status] });
