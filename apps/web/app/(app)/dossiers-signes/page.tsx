@@ -112,6 +112,8 @@ type DateButoiresData = {
 function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: string; onClose: () => void; profession: string | null }) {
   const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
   const updateDateButoireSignee = useDossierStore(s => s.updateDateButoireSignee);
+  const setEcheanceValidee = useDossierStore(s => s.setEcheanceValidee);
+  const echeancesValidees = useDossierStore(s => s.echeancesValidees);
   const dossier = useDossierStore(s => s.dossiersSignes.find(d => d.id === dossierId));
   const saved = datesButoiresSignes[dossierId] ?? {};
 
@@ -150,10 +152,12 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
     const current = saved[label];
     if (current) {
       updateDateButoireSignee(dossierId, label, '');
+      setEcheanceValidee(dossierId, label, false); // marque "non fait" → l'alerte peut réapparaître
     } else {
       const today = new Date();
       const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       updateDateButoireSignee(dossierId, label, iso);
+      setEcheanceValidee(dossierId, label, true); // marque "fait" → éteint l'alerte partout
     }
   };
 
@@ -179,14 +183,22 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
   const totalCount = progressItems.length;
 
   const getDateStatus = (id: string) => {
+    const validated = echeancesValidees[dossierId]?.[id];
+    if (validated === true) return 'done'; // fait (drapeau) → aligné avec l'assistant
     const val = saved[id];
     if (!val) return 'none';
     const d = new Date(val);
     if (isNaN(d.getTime())) return 'none';
-    if (d <= today) return 'done'; // aujourd'hui ou passé = réellement validé
-    const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff <= 7) return 'urgent'; // échéance future proche
-    return 'planned'; // échéance future lointaine (à venir, pas encore faite)
+    const t0 = new Date(today); t0.setHours(0, 0, 0, 0);
+    const diff = Math.round((d.getTime() - t0.getTime()) / (1000 * 60 * 60 * 24));
+    if (validated === false) {
+      // Échéance réelle non faite : passée = retard, aujourd'hui/proche = urgent.
+      if (diff < 0) return 'retard';
+      return diff <= 7 ? 'urgent' : 'planned';
+    }
+    // Legacy (drapeau absent) : ancien comportement optimiste (passé = fait).
+    if (diff <= 0) return 'done';
+    return diff <= 7 ? 'urgent' : 'planned';
   };
 
   return (
@@ -455,14 +467,17 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
               // orange = échéance urgente (<= 7 j), bleu = à venir, gris = à valider.
               const dotColor = !isFilled ? '#e5e7eb'
                 : status === 'done' ? '#10b981'
+                : status === 'retard' ? '#dc2626'
                 : status === 'urgent' ? '#f97316'
                 : '#3b82f6';
               const bgColor = !isFilled ? 'transparent'
                 : status === 'done' ? 'rgba(16,185,129,0.05)'
+                : status === 'retard' ? 'rgba(220,38,38,0.06)'
                 : status === 'urgent' ? 'rgba(249,115,22,0.06)'
                 : 'rgba(59,130,246,0.05)';
               const borderColor = !isFilled ? 'rgba(48,64,53,0.08)'
                 : status === 'done' ? 'rgba(16,185,129,0.2)'
+                : status === 'retard' ? 'rgba(220,38,38,0.2)'
                 : status === 'urgent' ? 'rgba(249,115,22,0.2)'
                 : 'rgba(59,130,246,0.2)';
               return (
@@ -487,16 +502,18 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 4,
                         fontSize: '0.75rem', fontWeight: '700',
-                        color: status === 'done' ? '#16a34a' : status === 'urgent' ? '#f97316' : '#2563eb',
+                        color: status === 'done' ? '#16a34a' : status === 'retard' ? '#dc2626' : status === 'urgent' ? '#f97316' : '#2563eb',
                       }}>
                         {status === 'done'
                           ? <CheckCircle2 style={{ width: 12, height: 12 }} />
                           : <Clock style={{ width: 12, height: 12 }} />}
                         {status === 'done'
                           ? `Validé · ${formatDate(val)}`
-                          : status === 'urgent'
-                            ? `Urgent · ${formatDate(val)}`
-                            : `À venir · ${formatDate(val)}`}
+                          : status === 'retard'
+                            ? `En retard · ${formatDate(val)}`
+                            : status === 'urgent'
+                              ? `Urgent · ${formatDate(val)}`
+                              : `À venir · ${formatDate(val)}`}
                       </span>
                       <button
                         type="button"

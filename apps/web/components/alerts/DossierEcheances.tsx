@@ -11,7 +11,7 @@
  * surbrillance). Même source d'alertes que partout (aucun calcul dupliqué).
  */
 import { useMemo } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Check } from 'lucide-react';
 import { useDossierStore } from '@/store/useDossierStore';
 import { useUIStore } from '@/store/useUIStore';
 import { useDossierAlerts } from '@/hooks/useDossierAlerts';
@@ -43,6 +43,7 @@ const badgeStyle = (color: string, bg: string) =>
 
 export function DossierEcheances({ dossierId }: { dossierId: string }) {
   const newDates = useDossierStore((s) => s.datesButoiresSignes[dossierId]);
+  const valides = useDossierStore((s) => s.echeancesValidees[dossierId]);
   const signe = useDossierStore((s) => s.dossiersSignes.find((d) => d.id === dossierId));
   const alerts = useUIStore((s) => s.alerts);
   const { retard, urgent } = useDossierAlerts(dossierId);
@@ -64,10 +65,11 @@ export function DossierEcheances({ dossierId }: { dossierId: string }) {
         const anchor = echeanceAnchor(label);
         const ret = retard.find((a) => a.anchor === anchor);
         const urg = urgent.find((a) => a.anchor === anchor);
-        return { label, dateStr, anchor, ret, urg, prio: ret ? 0 : urg ? 1 : 2 };
+        const done = valides?.[label] === true;
+        return { label, dateStr, anchor, ret, urg, done, prio: ret ? 0 : urg ? 1 : done ? 3 : 2 };
       })
       .sort((a, b) => a.prio - b.prio);
-  }, [newDates, signe, retard, urgent]);
+  }, [newDates, valides, signe, retard, urgent]);
 
   // ── Fournisseurs : confirmations en attente (badge si délai dépassé) ──
   const confRows = useMemo(() => {
@@ -91,21 +93,27 @@ export function DossierEcheances({ dossierId }: { dossierId: string }) {
             <h2 className="text-sm font-bold text-[#304035]">Échéances</h2>
           </div>
           <div className="px-3 py-2">
-            {dateRows.map(({ label, dateStr, anchor, ret, urg }) => {
+            {dateRows.map(({ label, dateStr, anchor, ret, urg, done }) => {
               const flagged = ret ?? urg;
               const color = ret ? '#D32F2F' : urg ? '#E68A00' : null;
               const bg = ret ? '#FFF0F0' : urg ? '#FFF6E9' : null;
+              const dotColor = done ? '#10b981' : color ?? 'rgba(48,64,53,0.18)';
               return (
                 <div key={label} id={anchor} style={{ scrollMarginTop: 90 }} className="flex items-center gap-2 px-2 py-2 rounded-lg">
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: color ?? 'rgba(48,64,53,0.18)', flexShrink: 0 }} />
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
                   <span className="flex-1 text-sm text-[#304035] font-medium">{label}</span>
                   <span className="text-xs text-[#304035]/45">{dateStr}</span>
-                  {flagged && color && bg && (
+                  {flagged && color && bg ? (
                     <span title={flagged.text} style={badgeStyle(color, bg)}>
                       <AlertTriangle style={{ width: 12, height: 12 }} />
                       {ret ? 'RETARD' : 'URGENT'}
                     </span>
-                  )}
+                  ) : done ? (
+                    <span style={badgeStyle('#16a34a', 'rgba(16,185,129,0.1)')}>
+                      <Check style={{ width: 12, height: 12 }} />
+                      VALIDÉ
+                    </span>
+                  ) : null}
                 </div>
               );
             })}

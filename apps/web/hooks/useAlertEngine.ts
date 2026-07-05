@@ -76,7 +76,7 @@ function computeAlerts(): RawAlert[] {
   const now = today();
 
   // ── Récupérer tous les états ──
-  const { dossiers, dossiersSignes, datesButoiresSignes } = useDossierStore.getState();
+  const { dossiers, dossiersSignes, datesButoiresSignes, echeancesValidees } = useDossierStore.getState();
   const { invoices, invoiceDetails, devis, payments } = useFacturationStore.getState();
   const { planningEvents, gestEvents } = usePlanningStore.getState();
   const { stockItems, commandes } = useStockStore.getState();
@@ -117,9 +117,15 @@ function computeAlerts(): RawAlert[] {
     for (const [label, dateStr] of Object.entries(savedDates)) {
       const date = parseFR(dateStr);
       if (!date) continue;
+      // Drapeau "validé (fait)". true = fait → aucune alerte. false = échéance
+      // réelle non faite → peut être en retard. undefined = legacy → traité comme
+      // fait (pas de faux retard sur l'historique), mais on garde le rappel futur.
+      const validated = echeancesValidees[ds.id]?.[label];
+      if (validated === true) continue;
+      const isLegacy = validated === undefined;
       const daysUntil = -daysSince(date, now); // positif = dans le futur
       const daysLate = daysSince(date, now);
-      if (daysLate > 0 && ac.onButoirDepassee !== false) {
+      if (daysLate > 0 && !isLegacy && ac.onButoirDepassee !== false) {
         alerts.push({
           severity: 'error',
           category: 'dossier',
@@ -133,7 +139,7 @@ function computeAlerts(): RawAlert[] {
             { label: 'Relancer client', action: 'relance_client' },
           ],
         });
-      } else if (daysUntil <= (ac.echeanceProche ?? 7)) {
+      } else if (daysUntil >= 0 && daysUntil <= (ac.echeanceProche ?? 7)) {
         alerts.push({
           severity: 'warning',
           category: 'dossier',

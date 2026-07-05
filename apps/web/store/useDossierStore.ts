@@ -554,6 +554,13 @@ interface DossierState {
   dossiersPerdus: DossierPerdu[];
   datesButoiresSignes: Record<string, Record<string, string>>;
   /**
+   * Drapeau « étape validée (faite) » par échéance, INDÉPENDANT de la date.
+   * true = faite, false = échéance réelle non faite (→ peut être en retard),
+   * undefined = legacy (avant la separation echeance/validé) → traité comme fait
+   * pour ne pas generer de faux retards sur l'historique.
+   */
+  echeancesValidees: Record<string, Record<string, boolean>>;
+  /**
    * Commandes saisies via le panneau ACCEDER de la modale validation.
    * Indexé par dossierId puis par label d'item access (COMMANDES, LIVRAISON…).
    * Chaque entrée = un fournisseur + une date butoir.
@@ -627,6 +634,8 @@ interface DossierState {
   updateDateButoireSignee: (dossierId: string, label: string, date: string) => void;
   updateDossierSigneDateButoires: (dossierId: string, dateButoires: DossierSigne['dateButoires']) => void;
   setDatesButoiresSignes: (dossierId: string, dates: Record<string, string>) => void;
+  /** Marque une étape faite (true) ou non faite (false). */
+  setEcheanceValidee: (dossierId: string, label: string, validated: boolean) => void;
   addConfirmation: (dossierId: string, conf: Omit<ConfirmationFournisseur, 'id'>) => void;
   updateConfirmation: (dossierId: string, confId: string, data: Partial<ConfirmationFournisseur>) => void;
   deleteConfirmation: (dossierId: string, confId: string) => void;
@@ -684,6 +693,7 @@ export const useDossierStore = create<DossierState>()(
       dossiersSignes: INITIAL_SIGNES,
       dossiersPerdus: INITIAL_PERDUS,
       datesButoiresSignes: {},
+      echeancesValidees: {},
       commandesAccess: {},
 
       addDossier: (data) => {
@@ -1105,13 +1115,28 @@ export const useDossierStore = create<DossierState>()(
       },
 
       setDatesButoiresSignes: (dossierId, dates) => {
+        set(s => {
+          // Nouvelle echeance = "a faire" (false) par defaut ; on preserve les
+          // validations existantes pour ce dossier.
+          const flags: Record<string, boolean> = { ...(s.echeancesValidees[dossierId] ?? {}) };
+          for (const label of Object.keys(dates)) {
+            if (flags[label] === undefined) flags[label] = false;
+          }
+          return {
+            datesButoiresSignes: { ...s.datesButoiresSignes, [dossierId]: dates },
+            echeancesValidees: { ...s.echeancesValidees, [dossierId]: flags },
+          };
+        });
+        pushDossierData(get, dossierId);
+      },
+
+      setEcheanceValidee: (dossierId, label, validated) => {
         set(s => ({
-          datesButoiresSignes: {
-            ...s.datesButoiresSignes,
-            [dossierId]: dates,
+          echeancesValidees: {
+            ...s.echeancesValidees,
+            [dossierId]: { ...(s.echeancesValidees[dossierId] ?? {}), [label]: validated },
           },
         }));
-        pushDossierData(get, dossierId);
       },
 
       addConfirmation: (dossierId, conf) => {
@@ -1167,6 +1192,7 @@ export const useDossierStore = create<DossierState>()(
         dossiersSignes: INITIAL_SIGNES,
         dossiersPerdus: INITIAL_PERDUS,
         datesButoiresSignes: {},
+        echeancesValidees: {},
         commandesAccess: {},
       }),
     }),
