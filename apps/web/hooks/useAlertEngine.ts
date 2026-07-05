@@ -797,9 +797,11 @@ function computeAlerts(): RawAlert[] {
   for (const dm of devisAlertDemandes) {
     if (dm.type !== 'DEVIS') continue;
     if (dm.status === 'TERMINEE' || dm.status === 'ANNULEE' || dm.status === 'REFUSEE') continue;
-    const devisRecu = (dm.attachments ?? []).some(
-      (a) => (a.uploadedByRole ?? '').toUpperCase() === 'INTERVENANT',
-    );
+    // Devis reçu = l'intervenant a déposé au moins une pièce jointe (compteur
+    // fiable renvoyé par l'endpoint liste), ou — à défaut — attachment chargé.
+    const devisRecu =
+      (dm._count?.attachments ?? 0) > 0 ||
+      (dm.attachments ?? []).some((a) => (a.uploadedByRole ?? '').toUpperCase() === 'INTERVENANT');
     if (devisRecu) continue;
     const date = parseFR(dm.scheduledFor ?? undefined);
     if (!date) continue;

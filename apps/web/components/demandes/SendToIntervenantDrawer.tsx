@@ -616,14 +616,16 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                 {type === 'DEVIS' ? 'Date de réception du devis' : 'Date / heure (optionnelle)'}
               </Label>
               <input
-                type="datetime-local"
+                // DEVIS : date seule (la réception se juge au jour près — pas d'heure
+                // trompeuse). Autres types : date + heure de planification.
+                type={type === 'DEVIS' ? 'date' : 'datetime-local'}
                 value={scheduledFor}
                 onChange={(e) => setScheduledFor(e.target.value)}
                 style={inputStyle()}
               />
               {type === 'DEVIS' && (
                 <p style={{ margin: '4px 2px 0', fontSize: 11, color: 'rgba(48,64,53,0.5)' }}>
-                  Si le devis n'est pas reçu à cette date, une alerte apparaîtra (assistant + dossier).
+                  Si le devis n'est pas reçu le lendemain de cette date, une alerte apparaîtra (assistant + dossier).
                 </p>
               )}
 
