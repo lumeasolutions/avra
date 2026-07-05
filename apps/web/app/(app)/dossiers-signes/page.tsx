@@ -43,19 +43,24 @@ function avatarColor(name: string) {
 
 function formatDate(dateStr: string) {
   if (!dateStr) return '—';
+  const fmt = (dt: Date) => dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  // dd/mm/yyyy → construction LOCALE (sinon décalage d'un jour en fuseau négatif).
   const parts = dateStr.split('/');
   if (parts.length === 3) {
     const [d, m, y] = parts;
-    const date = new Date(`${y}-${m}-${d}`);
-    if (!isNaN(date.getTime())) {
-      return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-    }
+    const date = new Date(+y, +m - 1, +d);
+    if (!isNaN(date.getTime())) return fmt(date);
   }
-  // Try ISO format (yyyy-mm-dd from date input)
-  const iso = new Date(dateStr);
-  if (!isNaN(iso.getTime())) {
-    return iso.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  // ISO yyyy-mm-dd (input date / extraction IA) → LOCAL, pas UTC (aligné avec
+  // getLineStatus : la date affichée ne doit pas contredire la pastille de statut).
+  const iso = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const date = new Date(+iso[1], +iso[2] - 1, +iso[3]);
+    if (!isNaN(date.getTime())) return fmt(date);
   }
+  // Fallback (autres formats parsables).
+  const d2 = new Date(dateStr);
+  if (!isNaN(d2.getTime())) return fmt(d2);
   return dateStr;
 }
 

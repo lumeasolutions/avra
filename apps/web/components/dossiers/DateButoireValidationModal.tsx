@@ -2065,6 +2065,7 @@ function CommandesAccessPanel({
 }: CommandesAccessPanelProps) {
   const [draftFournisseur, setDraftFournisseur] = useState('');
   const [draftDate, setDraftDate] = useState('');
+  const [draftMontant, setDraftMontant] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -2084,9 +2085,15 @@ function CommandesAccessPanel({
   const handleAdd = () => {
     const f = draftFournisseur.trim();
     if (!f) return;
-    onAdd({ fournisseur: f, dateButoir: draftDate || '' });
+    const m = parseFloat(draftMontant.replace(',', '.'));
+    onAdd({
+      fournisseur: f,
+      dateButoir: draftDate || '',
+      montant: Number.isFinite(m) && m > 0 ? m : undefined,
+    });
     setDraftFournisseur('');
     setDraftDate('');
+    setDraftMontant('');
     setShowSuggestions(false);
   };
 
@@ -2170,7 +2177,7 @@ function CommandesAccessPanel({
         .cap-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px; min-height: 0; }
         .cap-row {
           display: grid;
-          grid-template-columns: auto 1fr auto auto;
+          grid-template-columns: auto 1fr auto auto auto;
           gap: 8px; align-items: center;
           padding: 10px 12px;
           border-radius: 12px;
@@ -2204,6 +2211,18 @@ function CommandesAccessPanel({
           font-family: inherit;
         }
         .cap-row-date:focus { outline: none; border-color: #a67749; box-shadow: 0 0 0 3px rgba(166,119,73,0.18); }
+        .cap-row-montant, .cap-add-montant {
+          flex-shrink: 0; width: 92px;
+          padding: 6px 8px;
+          border: 1px solid rgba(48,64,53,0.15);
+          border-radius: 7px;
+          background: #fff;
+          font-size: 11.5px; color: #1a1614;
+          font-family: inherit;
+        }
+        .cap-add-montant { padding: 9px 10px; border-radius: 9px; }
+        .cap-row-montant:focus, .cap-add-montant:focus { outline: none; border-color: #a67749; box-shadow: 0 0 0 3px rgba(166,119,73,0.18); }
+        .cap-row-montant::placeholder, .cap-add-montant::placeholder { color: rgba(48,64,53,0.35); }
         .cap-row-actions { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
         .cap-row-action-btn {
           width: 30px; height: 30px;
@@ -2258,7 +2277,7 @@ function CommandesAccessPanel({
         }
         .cap-add-row {
           display: grid;
-          grid-template-columns: 1fr auto auto;
+          grid-template-columns: 1fr auto auto auto;
           gap: 8px;
           align-items: center;
         }
@@ -2379,6 +2398,17 @@ function CommandesAccessPanel({
                   aria-label="Fournisseur"
                 />
                 <input
+                  type="number"
+                  className="cap-row-montant"
+                  value={entry.montant ?? ''}
+                  min={0}
+                  step="0.01"
+                  placeholder="€ HT"
+                  onChange={(e) => onUpdate(entry.id, { montant: e.target.value ? Number(e.target.value) : undefined })}
+                  disabled={disabled}
+                  aria-label={`Montant HT pour ${entry.fournisseur}`}
+                />
+                <input
                   type="date"
                   className="cap-row-date"
                   value={entry.dateButoir}
@@ -2427,6 +2457,18 @@ function CommandesAccessPanel({
             onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
             disabled={disabled}
             aria-label={fournisseurAria}
+          />
+          <input
+            type="number"
+            className="cap-add-montant"
+            placeholder="€ HT"
+            value={draftMontant}
+            min={0}
+            step="0.01"
+            onChange={(e) => setDraftMontant(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+            disabled={disabled}
+            aria-label="Montant HT (optionnel)"
           />
           <input
             type="date"
