@@ -23,6 +23,7 @@ import { VendeurAssignDropdown } from '@/components/vendeur/VendeurAssignDropdow
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useDossierPermissions } from '@/hooks/useDossierPermissions';
 import { DossierAlertBadge } from '@/components/alerts/DossierAlertBadge';
+import { DossierEcheances } from '@/components/alerts/DossierEcheances';
 import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
@@ -112,6 +113,37 @@ export default function DossierDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
   const router = useRouter();
+
+  // Deep-link : arriver sur /dossiers/<id>#<ancre> (clic sur une alerte depuis
+  // l'assistant) → défilement + surbrillance de l'élément visé. Réessaie quelques
+  // fois car l'élément peut être rendu après hydratation des stores.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let cancelled = false;
+    const scrollToHash = () => {
+      const hash = window.location.hash.replace(/^#/, '');
+      if (!hash) return;
+      let tries = 0;
+      const attempt = () => {
+        if (cancelled) return;
+        const el = document.getElementById(hash);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('avra-alert-highlight');
+          window.setTimeout(() => el.classList.remove('avra-alert-highlight'), 2400);
+        } else if (tries++ < 12) {
+          window.setTimeout(attempt, 160);
+        }
+      };
+      attempt();
+    };
+    scrollToHash();
+    window.addEventListener('hashchange', scrollToHash);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('hashchange', scrollToHash);
+    };
+  }, [id]);
 
   const dossiers          = useDossierStore(s => s.dossiers);
   const dossiersSignes    = useDossierStore(s => s.dossiersSignes);
@@ -1215,6 +1247,21 @@ export default function DossierDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Bande Échéances (dates butoires) — badge ! sur les retards/imminents,
+              + surbrillance quand on arrive via un clic depuis l'assistant. */}
+          <style>{`
+            @keyframes avraAlertPulse {
+              0%, 100% { box-shadow: 0 0 0 0 rgba(211,47,47,0); }
+              25%      { box-shadow: 0 0 0 3px rgba(211,47,47,0.45); }
+            }
+            .avra-alert-highlight {
+              animation: avraAlertPulse 1.2s ease-in-out 2;
+              border-radius: 12px;
+              background: rgba(211,47,47,0.06) !important;
+            }
+          `}</style>
+          <DossierEcheances dossierId={id} />
 
           {/* Progression — reflete reellement le ratio de sous-dossiers valides */}
           <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">

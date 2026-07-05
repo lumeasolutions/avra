@@ -136,7 +136,17 @@ export function DossierAlertBadge({
                   <div key={a.id} style={{ padding: '10px 12px', borderTop: '0.5px solid rgba(48,64,53,0.08)' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0, marginTop: 5 }} />
-                      <span style={{ flex: 1, fontSize: 13, color: '#304035', lineHeight: 1.4 }}>{a.text}</span>
+                      {a.anchor ? (
+                        <a
+                          href={`#${a.anchor}`}
+                          onClick={() => setOpen(false)}
+                          style={{ flex: 1, fontSize: 13, color: '#304035', lineHeight: 1.4, textDecoration: 'none', cursor: 'pointer' }}
+                        >
+                          {a.text}
+                        </a>
+                      ) : (
+                        <span style={{ flex: 1, fontSize: 13, color: '#304035', lineHeight: 1.4 }}>{a.text}</span>
+                      )}
                     </div>
                     {a.actions && a.actions.length > 0 && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6, marginLeft: 16 }}>

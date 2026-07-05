@@ -324,7 +324,7 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
                       <AlertIconComp severity={alert.severity}/>
                     </div>
                     {alert.dossierId ? (
-                      <Link href={`/dossiers/${alert.dossierId}`} style={{ flex:1, minWidth:0, display:'block', textDecoration:'none', color:'inherit', cursor:'pointer' }}>
+                      <Link href={`/dossiers/${alert.dossierId}${alert.anchor ? `#${alert.anchor}` : ''}`} style={{ flex:1, minWidth:0, display:'block', textDecoration:'none', color:'inherit', cursor:'pointer' }}>
                         <div style={{ fontSize:11.5, color:'#1a1a1a', fontWeight:600, lineHeight:1.35 }}>
                           {alert.text}
                         </div>

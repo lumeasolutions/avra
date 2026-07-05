@@ -14,6 +14,23 @@ import type { AlertItem } from '@/store/useUIStore';
 
 type WithKey = Pick<AlertItem, 'sourceKey'>;
 
+/**
+ * Ancre DOM d'une échéance (date butoir) — partagée par le moteur d'alertes
+ * (pour poser l'ancre sur l'alerte) et la bande « Échéances » du dossier (pour
+ * poser le même id sur la ligne). Garantit que le clic atterrit au bon endroit.
+ * Ex : "Plan technique" → "ech-plan-technique".
+ */
+export function echeanceAnchor(label: string): string {
+  return (
+    'ech-' +
+    label
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  );
+}
+
 export function isRetardAlert(a: WithKey): boolean {
   const k = a.sourceKey ?? '';
   return (
