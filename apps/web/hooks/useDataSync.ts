@@ -332,19 +332,31 @@ export function useDataSync() {
 
       // VAGUE 3 (05/07/2026) — hydrate le tableau de bord (dates butoires +
       // validations « Validé » + lignes commande/confirmation/livraison) depuis
-      // la colonne dossierBoard. On prefere l'API ; on garde le local pour les
-      // dossiers sans board serveur (anterieurs a la migration).
+      // la colonne dossierBoard.
+      //
+      // FUSION, le LOCAL GAGNE par clé (fix 06/07/2026) : on ne remplace JAMAIS
+      // l'état local en bloc, sinon un board serveur périmé (push pas encore
+      // arrivé, ou re-sync) écraserait une validation qu'on vient de cliquer
+      // dans le tableau de bord → « ça ne tient pas ». Le serveur ne fait que
+      // COMBLER les clés absentes en local. On relit l'état le plus frais.
       {
-        const nextDates = { ...store.datesButoiresSignes };
-        const nextValidees = { ...store.echeancesValidees };
-        const nextCommandes = { ...store.commandesAccess };
+        const cur = useDossierStore.getState();
+        const nextDates = { ...cur.datesButoiresSignes };
+        const nextValidees = { ...cur.echeancesValidees };
+        const nextCommandes = { ...cur.commandesAccess };
         let touched = false;
         for (const p of signedProjects) {
           const b = (p as any).dossierBoard;
           if (!b || typeof b !== 'object') continue;
-          if (b.dates && typeof b.dates === 'object') { nextDates[p.id] = b.dates; touched = true; }
-          if (b.validees && typeof b.validees === 'object') { nextValidees[p.id] = b.validees; touched = true; }
-          if (b.commandes && typeof b.commandes === 'object') { nextCommandes[p.id] = b.commandes; touched = true; }
+          if (b.dates && typeof b.dates === 'object') {
+            nextDates[p.id] = { ...b.dates, ...(cur.datesButoiresSignes[p.id] ?? {}) }; touched = true;
+          }
+          if (b.validees && typeof b.validees === 'object') {
+            nextValidees[p.id] = { ...b.validees, ...(cur.echeancesValidees[p.id] ?? {}) }; touched = true;
+          }
+          if (b.commandes && typeof b.commandes === 'object') {
+            nextCommandes[p.id] = { ...b.commandes, ...(cur.commandesAccess[p.id] ?? {}) }; touched = true;
+          }
         }
         if (touched) {
           useDossierStore.setState({
