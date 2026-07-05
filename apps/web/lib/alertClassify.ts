@@ -36,6 +36,7 @@ export function isRetardAlert(a: WithKey): boolean {
   return (
     k.startsWith('facture-') ||
     k.startsWith('cmd-livraison-') ||
+    k.startsWith('devis-attente-') ||
     (k.startsWith('butoir-') && !k.startsWith('butoir-soon-'))
   );
 }

@@ -610,14 +610,22 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                 style={{ ...inputStyle(), resize: 'vertical' }}
               />
 
-              {/* Scheduled */}
-              <Label style={{ marginTop: 14 }}>Date / heure (optionnelle)</Label>
+              {/* Scheduled — pour un DEVIS, c'est la date de réception attendue du
+                  devis : si dépassée sans devis reçu → alerte "devis en retard". */}
+              <Label style={{ marginTop: 14 }}>
+                {type === 'DEVIS' ? 'Date de réception du devis' : 'Date / heure (optionnelle)'}
+              </Label>
               <input
                 type="datetime-local"
                 value={scheduledFor}
                 onChange={(e) => setScheduledFor(e.target.value)}
                 style={inputStyle()}
               />
+              {type === 'DEVIS' && (
+                <p style={{ margin: '4px 2px 0', fontSize: 11, color: 'rgba(48,64,53,0.5)' }}>
+                  Si le devis n'est pas reçu à cette date, une alerte apparaîtra (assistant + dossier).
+                </p>
+              )}
 
               {/* SECURITE : Selecteur des pieces du dossier client a partager.
                   Le pro choisit explicitement quels fichiers transmettre —

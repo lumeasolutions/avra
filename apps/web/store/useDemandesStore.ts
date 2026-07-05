@@ -54,6 +54,11 @@ export interface IntervenantFilters {
 interface DemandesState {
   // ─── PRO side ────────────────────────────────────────────────────────────
   proDemandes: Demande[];
+  /**
+   * Demandes de type DEVIS chargées GLOBALEMENT (indépendamment des filtres de
+   * page SAV/planning) pour alimenter le moteur d'alertes « devis en retard ».
+   */
+  devisAlertDemandes: Demande[];
   proTotal: number;
   proPage: number;
   proPageSize: number;
@@ -93,6 +98,8 @@ interface DemandesState {
   setProFilters: (filters: Partial<DemandeFilters>) => void;
   setProPage: (page: number) => void;
   fetchProDemandes: () => Promise<void>;
+  /** Charge les demandes DEVIS (pour les alertes « devis en retard »). Non-intrusif. */
+  fetchDevisAlertDemandes: () => Promise<void>;
   fetchProStats: () => Promise<void>;
   createDemande: (data: {
     intervenantId: string;
@@ -156,6 +163,7 @@ const errMsg = (err: any, fallback: string): string => {
 export const useDemandesStore = create<DemandesState>((set, get) => ({
   // PRO
   proDemandes: [],
+  devisAlertDemandes: [],
   proTotal: 0,
   proPage: 1,
   proPageSize: 50,
@@ -223,6 +231,17 @@ export const useDemandesStore = create<DemandesState>((set, get) => ({
       } else {
         set({ loadingProList: false, errorProList: errMsg(e, 'Erreur chargement demandes') });
       }
+    }
+  },
+
+  fetchDevisAlertDemandes: async () => {
+    try {
+      // Filtre DEVIS uniquement + grande page : on ne touche PAS aux filtres de
+      // page (proFilters) utilisés par SAV/planning. Échec silencieux (bonus).
+      const res: DemandesPage = await listDemandesPro({ type: 'DEVIS', page: 1, pageSize: 100 });
+      set({ devisAlertDemandes: res.data });
+    } catch {
+      /* silencieux : ne bloque rien */
     }
   },
 
