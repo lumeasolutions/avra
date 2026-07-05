@@ -57,16 +57,56 @@ export class InvoicesService {
   }
 
   /**
-   * Numero par SERIE sans trou : on compte les factures existantes du meme
-   * prefixe (F / FA / AV) pour l'annee, et on incremente. Atomique dans la tx.
+   * Numero par SERIE (F / FA / AV) pour l'annee, SANS doublon ni trou de sequence.
+   *
+   * 1) Verrou consultatif transactionnel (pg_advisory_xact_lock) sur la serie
+   *    (workspace+prefixe+annee) : serialise la generation de numero -> deux
+   *    creations concurrentes ne peuvent pas obtenir le meme numero. Le verrou
+   *    est libere automatiquement a la fin de la transaction.
+   * 2) On repart du plus GRAND numero existant de la serie (pas d'un count() qui
+   *    regresse apres une suppression), puis +1.
+   *
+   * Doit etre appele DANS un $transaction (tx).
    */
   private async nextReference(tx: any, workspaceId: string, type: string): Promise<string> {
     const year = new Date().getFullYear();
     const prefix = PREFIX_BY_TYPE[type] ?? 'F';
-    const count = await tx.invoice.count({
-      where: { workspaceId, reference: { startsWith: `${prefix}-${year}-` } },
-    });
-    return `${prefix}-${year}-${String(count + 1).padStart(4, '0')}`;
+    const serie = `${prefix}-${year}-`;
+
+    // Verrou par serie — evite les numeros dupliques en creation concurrente.
+    // Meme cle que QuotesService.convertToInvoice pour la serie F- : les deux
+    // chemins de conversion sont ainsi mutuellement exclusifs.
+    const lockKey = `invoice:${workspaceId}:${prefix}:${year}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    // Max sur les DEUX tables : un devis converti via quote.convertToInvoice
+    // porte aussi une reference F- (legacy), il faut en tenir compte.
+    const [invRows, quoteRows] = await Promise.all([
+      tx.invoice.findMany({ where: { workspaceId, reference: { startsWith: serie } }, select: { reference: true } }),
+      tx.quote.findMany({ where: { workspaceId, reference: { startsWith: serie } }, select: { reference: true } }),
+    ]);
+    let max = 0;
+    for (const r of [...invRows, ...quoteRows]) {
+      const n = parseInt(String(r.reference).slice(serie.length), 10);
+      if (Number.isFinite(n) && n > max) max = n;
+    }
+    return `${serie}${String(max + 1).padStart(4, '0')}`;
+  }
+
+  /**
+   * Un AVOIR (note de credit) porte des montants NEGATIFs. On normalise les
+   * prix unitaires en -abs(prix) de facon idempotente (rejouable sans double
+   * inversion), pour que lignes ET totaux soient coherents et reduisent le CA.
+   */
+  private normalizeAvoirLines<T extends { unitPrice: string | number | Decimal }>(
+    lines: T[],
+    type: string,
+  ): T[] {
+    if (type !== 'AVOIR') return lines ?? [];
+    return (lines ?? []).map((l) => ({
+      ...l,
+      unitPrice: new Decimal(l.unitPrice).abs().negated().toString(),
+    }));
   }
 
   async findAll(workspaceId: string, projectId?: string) {
@@ -89,7 +129,8 @@ export class InvoicesService {
   async create(workspaceId: string, dto: CreateInvoiceDto) {
     return this.prisma.$transaction(async (tx: any) => {
       const type = dto.type ?? 'STANDARD';
-      const totals = this.computeTotals(dto.lines);
+      const lines = this.normalizeAvoirLines(dto.lines ?? [], type);
+      const totals = this.computeTotals(lines);
       const reference = dto.reference ?? (await this.nextReference(tx, workspaceId, type));
       return tx.invoice.create({
         data: {
@@ -112,7 +153,7 @@ export class InvoicesService {
           totalHT: totals.totalHT,
           totalTVA: totals.totalTVA,
           totalTTC: totals.totalTTC,
-          lines: { create: (dto.lines ?? []).map((l, i) => this.mapLineCreate(l, i)) },
+          lines: { create: lines.map((l, i) => this.mapLineCreate(l, i)) },
         },
         include: { lines: { orderBy: { position: 'asc' } } },
       });
@@ -196,7 +237,16 @@ export class InvoicesService {
         montantDeja = acomptes.reduce((s: Decimal, a: any) => s.plus(new Decimal(a.totalTTC ?? 0)), new Decimal(0)).toDecimalPlaces(2);
       }
 
-      const totals = this.computeTotals(lines as any);
+      // AVOIR -> montants negatifs (idempotent). Neutre pour les autres types.
+      const finalLines = this.normalizeAvoirLines(lines, type);
+      const totals = this.computeTotals(finalLines as any);
+
+      // SOLDE : les acomptes deja encaisses ne peuvent pas depasser le total TTC
+      // (sinon "net a payer" = totalTTC - montantDeja deviendrait negatif).
+      if (type === 'SOLDE' && montantDeja && montantDeja.greaterThan(totals.totalTTC)) {
+        montantDeja = totals.totalTTC;
+      }
+
       const reference = await this.nextReference(tx, workspaceId, type);
 
       return tx.invoice.create({
@@ -219,7 +269,7 @@ export class InvoicesService {
           totalHT: totals.totalHT,
           totalTVA: totals.totalTVA,
           totalTTC: totals.totalTTC,
-          lines: { create: (lines as any).map((l: any, i: number) => this.mapLineCreate(l, i)) },
+          lines: { create: (finalLines as any).map((l: any, i: number) => this.mapLineCreate(l, i)) },
         },
         include: { lines: { orderBy: { position: 'asc' } } },
       });

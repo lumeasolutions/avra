@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNumber, IsObject, IsOptional, IsString, Min } from 'class-validator';
 import { StockCategory, StockItemStatus } from '../../../prisma-enums';
 
 export class CreateStockItemDto {
@@ -35,14 +35,17 @@ export class CreateStockItemDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   purchasePrice?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   salePrice?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   quantity?: number = 1;
 
   @IsOptional()

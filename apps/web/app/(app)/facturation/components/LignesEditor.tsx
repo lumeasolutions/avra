@@ -61,7 +61,7 @@ export const LignesEditor = React.memo(function LignesEditor({ lignes, onChange 
             <select
               className="rounded-lg border border-[#304035]/10 px-1 py-1.5 text-xs text-[#304035] bg-white focus:outline-none w-full"
               value={l.tva}
-              onChange={e => updateLigne(l.id, 'tva', parseInt(e.target.value))}
+              onChange={e => updateLigne(l.id, 'tva', parseFloat(e.target.value))}
             >
               {[0, 5.5, 10, 20].map(t => <option key={t} value={t}>{t}%</option>)}
             </select>

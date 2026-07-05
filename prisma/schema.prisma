@@ -1192,8 +1192,8 @@ model Quote {
   conditionsPaiement String?
   validUntil  DateTime?
   notes       String?
-  // Lien e-facturation public.
-  token       String?
+  // Lien e-facturation public (unique : lookup serveur direct, pas de collision).
+  token       String?  @unique
   // Signature electronique.
   signatureStatus String?
   signatureEmail  String?
@@ -1205,7 +1205,9 @@ model Quote {
   updatedAt   DateTime @updatedAt
 
   workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project     Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // SetNull (pas Cascade) : supprimer un dossier ne doit PAS effacer le devis
+  // (piece a valeur commerciale/legale). Le devis devient standalone.
+  project     Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
   lines       QuoteLine[]
 
   @@index([workspaceId])
@@ -1247,7 +1249,7 @@ model Invoice {
   date         DateTime @default(now())
   dateEcheance DateTime?
   notes        String?
-  token        String?
+  token        String?  @unique
   // Acomptes deja factures (pour une facture de solde).
   montantDeja  Decimal? @db.Decimal(12, 2)
   // Totaux snapshot (centimes exacts).
@@ -1258,7 +1260,9 @@ model Invoice {
   updatedAt    DateTime @updatedAt
 
   workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project   Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // SetNull : une facture (conservation legale 10 ans) survit a la suppression
+  // de son dossier -> elle devient standalone au lieu d'etre detruite.
+  project   Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
   lines     InvoiceLine[]
 
   @@index([workspaceId])
@@ -1297,7 +1301,9 @@ model PaymentRequest {
   updatedAt       DateTime      @updatedAt
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Restrict (projectId obligatoire ici) : on BLOQUE la suppression d'un dossier
+  // tant qu'il porte des demandes de paiement -> aucune perte de piece financiere.
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Restrict)
 
   @@index([workspaceId])
   @@index([projectId])
@@ -1329,7 +1335,8 @@ model SignatureRequest {
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   // projectId optionnel (devis standalone) => relation optionnelle obligatoire (Prisma P1012)
-  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // SetNull : conserver la trace de signature meme si le dossier est supprime.
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
   @@index([projectId])

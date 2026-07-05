@@ -7,14 +7,14 @@
 #### 1. **Claude API Key Created**
 - **Platform**: Anthropic Console (console.anthropic.com)
 - **Key Name**: AVRA-Assistant-Claude
-- **API Key**: `sk-ant-api103-Ch00BrQ8dU_ID-H2mwfexUdIzo3bq8g_wwyz5bI8LT3-GtxVQHwhbNGXeNSrmSGVz1D_sIg2U9i2yAnaaDnPhg-5x50AgAA`
+- **API Key**: `sk-ant-REDACTED-voir-variable-env-ANTHROPIC_API_KEY`
 - **Model**: `claude-opus-4-6` (can be changed to `claude-sonnet-4-6` or `claude-haiku-4-5`)
 - **Account**: lumeasolutions@outlook.fr
 
 #### 2. **.env Configuration Updated**
 ```env
 # IA - Claude (Assistant / Chat) - Primary for AVRA
-ANTHROPIC_API_KEY=sk-ant-api103-Ch00BrQ8dU_ID-H2mwfexUdIzo3bq8g_wwyz5bI8LT3-GtxVQHwhbNGXeNSrmSGVz1D_sIg2U9i2yAnaaDnPhg-5x50AgAA
+ANTHROPIC_API_KEY=sk-ant-REDACTED-voir-variable-env-ANTHROPIC_API_KEY
 ANTHROPIC_MODEL=claude-opus-4-6
 
 # IA - Qwen (Assistant / Chat) - Fallback/disabled due to France access restrictions
@@ -23,7 +23,7 @@ QWEN_MODEL=qwen-plus
 QWEN_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 
 # FAL.AI Image Generation (Already Configured)
-FAL_KEY=5bc5e9d9-a38c-4dac-b151-8fffac51fc9d:d481622f5209ddf70610c08ac84121b0
+FAL_KEY=REDACTED-voir-variable-env-FAL_KEY
 ```
 
 #### 3. **QwenService Refactored for Multi-Provider Support**

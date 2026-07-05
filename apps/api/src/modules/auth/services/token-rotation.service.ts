@@ -112,7 +112,8 @@ export class TokenRotationService {
    * + secret, so what we actually need to compare server-side is just `jti`.
    */
   async hashRefreshToken(token: string): Promise<string> {
-    return bcrypt.hash(token, 10);
+    // Cost aligné sur BCRYPT_COST=12 (auth.service) — cohérence + recommandation OWASP.
+    return bcrypt.hash(token, 12);
   }
 
   /**

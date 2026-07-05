@@ -72,23 +72,24 @@ export function checkRateLimit(key: string, config: RateLimitConfig): RateLimitR
  */
 export function getClientIp(req: Request): string {
   const trustedProxy = process.env.TRUSTED_PROXY === 'true';
+  // Sur Vercel, la plateforme est le proxy de confiance en frontal : elle réécrit
+  // x-forwarded-for / x-real-ip avec l'IP client réelle, non spoofable à ce niveau.
+  const onVercel = !!process.env.VERCEL;
 
-  if (trustedProxy) {
-    // Reverse proxy configuré — prendre la dernière IP de confiance dans la chaîne
+  // x-real-ip est posé par la plateforme (Vercel) — prioritaire car non forgeable.
+  const realIp = req.headers.get('x-real-ip')?.trim();
+  if (realIp) return realIp;
+
+  // Sur Vercel (ou proxy de confiance déclaré), la 1re IP de x-forwarded-for est
+  // l'IP client réelle.
+  if (onVercel || trustedProxy) {
     const forwarded = req.headers.get('x-forwarded-for');
     if (forwarded) {
-      // La première IP est l'originale, mais avec plusieurs proxies prendre la dernière
-      // ajoutée par notre proxy de confiance (dernier élément du header)
       const ips = forwarded.split(',').map(ip => ip.trim()).filter(Boolean);
-      // On retourne la première IP (client réel) uniquement si la chaîne est courte
-      // pour éviter les injections de fausses IPs en tête de liste
-      if (ips.length > 0 && ips.length <= 3) return ips[0];
+      if (ips.length > 0) return ips[0];
     }
-    const realIp = req.headers.get('x-real-ip');
-    if (realIp && realIp.trim()) return realIp.trim();
   }
 
-  // Sans proxy de confiance : on ne peut pas déterminer l'IP réelle
-  // On utilise une clé générique — moins précis mais plus sûr
-  return req.headers.get('x-real-ip')?.trim() ?? 'unknown';
+  // Ni plateforme de confiance ni header exploitable : clé générique (moins précis).
+  return 'unknown';
 }

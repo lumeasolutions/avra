@@ -8,6 +8,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/server/rate-limit';
+
+// Route publique (visiteurs non authentifiés) : on borne le débit ET la taille de
+// la conversation pour éviter le drain du budget OpenAI/Anthropic par un script.
+const CHAT_MARKETING_RATE_LIMIT = { limit: 15, windowMs: 60_000 }; // 15 req/min/IP
+const MAX_MESSAGES = 20;
+const MAX_TOTAL_CHARS = 8000;
 
 const SYSTEM_PROMPT = `Tu es Aria, l'assistante commerciale d'AVRA — le logiciel de gestion dédié aux professionnels de l'agencement (cuisinistes, menuisiers, architectes d'intérieur, agenceurs).
 
@@ -56,9 +63,32 @@ function fallbackStream(message: string) {
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIp(req);
+    const rate = checkRateLimit(`chat-marketing:${ip}`, CHAT_MARKETING_RATE_LIMIT);
+    if (!rate.success) {
+      return NextResponse.json(
+        { error: 'Trop de requêtes. Réessayez dans une minute.' },
+        { status: 429, headers: { 'Retry-After': '60' } },
+      );
+    }
+
     const { messages } = await req.json();
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: 'messages requis' }, { status: 400 });
+    }
+    if (messages.length > MAX_MESSAGES) {
+      return NextResponse.json({ error: 'Conversation trop longue' }, { status: 400 });
+    }
+    // Valide roles + borne la taille cumulée (anti-injection de contexte massif).
+    let totalChars = 0;
+    for (const m of messages) {
+      if (!m || typeof m.content !== 'string' || (m.role !== 'user' && m.role !== 'assistant')) {
+        return NextResponse.json({ error: 'Format de message invalide' }, { status: 400 });
+      }
+      totalChars += m.content.length;
+    }
+    if (totalChars > MAX_TOTAL_CHARS) {
+      return NextResponse.json({ error: 'Message trop long' }, { status: 400 });
     }
 
     const openaiKey = process.env.OPENAI_API_KEY;

@@ -37,13 +37,13 @@ cd apps/web && npx next dev --port 3002
 
 ### Claude API (Chat Assistant) ✅
 ```env
-ANTHROPIC_API_KEY=sk-ant-api103-Ch00BrQ8dU_ID-H2mwfexUdIzo3bq8g_wwyz5bI8LT3-GtxVQHwhbNGXeNSrmSGVz1D_sIg2U9i2yAnaaDnPhg-5x50AgAA
+ANTHROPIC_API_KEY=sk-ant-REDACTED-voir-variable-env-ANTHROPIC_API_KEY
 ANTHROPIC_MODEL=claude-opus-4-6
 ```
 
 ### FAL.AI (Image Generation) ✅
 ```env
-FAL_KEY=5bc5e9d9-a38c-4dac-b151-8fffac51fc9d:d481622f5209ddf70610c08ac84121b0
+FAL_KEY=REDACTED-voir-variable-env-FAL_KEY
 ```
 
 ## Key Features

@@ -52,11 +52,29 @@ export class QuotesService {
     };
   }
 
-  /** Genere une reference D-{annee}-{NNN} basee sur le nombre de devis du workspace. */
+  /**
+   * Genere une reference D-{annee}-{NNN} SANS doublon ni trou :
+   * - verrou consultatif transactionnel sur la serie (workspace+annee) pour
+   *   serialiser les creations concurrentes,
+   * - numero base sur le PLUS GRAND existant (delete-safe), pas sur un count().
+   * Doit etre appele DANS un $transaction (tx).
+   */
   private async nextReference(tx: any, workspaceId: string): Promise<string> {
     const year = new Date().getFullYear();
-    const count = await tx.quote.count({ where: { workspaceId } });
-    return `D-${year}-${String(count + 1).padStart(3, '0')}`;
+    const serie = `D-${year}-`;
+    const lockKey = `quote:${workspaceId}:D:${year}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    const rows = await tx.quote.findMany({
+      where: { workspaceId, reference: { startsWith: serie } },
+      select: { reference: true },
+    });
+    let max = 0;
+    for (const r of rows) {
+      const n = parseInt(String(r.reference).slice(serie.length), 10);
+      if (Number.isFinite(n) && n > max) max = n;
+    }
+    return `${serie}${String(max + 1).padStart(3, '0')}`;
   }
 
   async findAll(workspaceId: string, projectId?: string) {
@@ -164,8 +182,23 @@ export class QuotesService {
       }
 
       const year = new Date().getFullYear();
-      const count = await tx.quote.count({ where: { workspaceId, status: 'INVOICED' } });
-      const number = `F-${year}-${String(count + 1).padStart(4, '0')}`;
+      const serie = `F-${year}-`;
+      // Verrou PARTAGE avec InvoicesService.nextReference (meme cle) : les deux
+      // chemins de conversion (quote.convertToInvoice ET invoice.convertFromQuote)
+      // ne peuvent plus emettre le meme numero F-. Max calcule sur les DEUX tables.
+      const lockKey = `invoice:${workspaceId}:F:${year}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+      const [quoteRefs, invoiceRefs] = await Promise.all([
+        tx.quote.findMany({ where: { workspaceId, reference: { startsWith: serie } }, select: { reference: true } }),
+        tx.invoice.findMany({ where: { workspaceId, reference: { startsWith: serie } }, select: { reference: true } }),
+      ]);
+      let max = 0;
+      for (const r of [...quoteRefs, ...invoiceRefs]) {
+        const n = parseInt(String(r.reference).slice(serie.length), 10);
+        if (Number.isFinite(n) && n > max) max = n;
+      }
+      const number = `${serie}${String(max + 1).padStart(4, '0')}`;
 
       return tx.quote.update({
         where: { id },

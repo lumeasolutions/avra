@@ -14,7 +14,7 @@ Your AVRA application has been successfully configured with:
 
 **Added:**
 ```env
-ANTHROPIC_API_KEY=sk-ant-api103-Ch00BrQ8dU_ID-H2mwfexUdIzo3bq8g_wwyz5bI8LT3-GtxVQHwhbNGXeNSrmSGVz1D_sIg2U9i2yAnaaDnPhg-5x50AgAA
+ANTHROPIC_API_KEY=sk-ant-REDACTED-voir-variable-env-ANTHROPIC_API_KEY
 ANTHROPIC_MODEL=claude-opus-4-6
 ```
 
