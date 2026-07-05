@@ -1532,6 +1532,23 @@ export default function DossierDetailPage() {
                   <p className="text-xs text-[#304035]/50 mt-1">
                     {childPaths.length > 0 ? `${childPaths.length} sous-dossier${childPaths.length > 1 ? 's' : ''} · ` : ''}{docs.length} document{docs.length > 1 ? 's' : ''}{sf.date ? ` · Modifié le ${sf.date}` : ''}
                   </p>
+                  {/* Envoyer TOUT le sous-dossier (fichiers stockés) à un intervenant */}
+                  {docs.some(d => d.docId) && (
+                    <div className="mt-2">
+                      <SendToIntervenantButton
+                        variant="compact"
+                        label="Envoyer ce sous-dossier"
+                        prefill={{
+                          projectId: id,
+                          attachments: docs.filter(d => d.docId).map(d => ({
+                            dossierDocumentId: d.docId!,
+                            displayName: d.name,
+                            mimeType: d.type ?? undefined,
+                          })),
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {/* Toggle affichage : liste / grille (vignettes) */}
@@ -1647,6 +1664,13 @@ export default function DossierDetailPage() {
                         >
                           <Download className="h-4 w-4" />
                         </button>
+                        {doc.docId && (
+                          <SendToIntervenantButton
+                            variant="icon"
+                            style={{ width: 28, height: 28, background: 'transparent', color: '#3D5449', border: 'none', borderRadius: 8 }}
+                            prefill={{ projectId: id, attachments: [{ dossierDocumentId: doc.docId, displayName: doc.name, mimeType: doc.type ?? undefined }] }}
+                          />
+                        )}
                         {canEditThis && (
                         <button
                           onClick={() => handleDelete(doc)}
@@ -1736,6 +1760,13 @@ export default function DossierDetailPage() {
                               >
                                 <Download className="h-3.5 w-3.5" />
                               </button>
+                              {doc.docId && (
+                                <SendToIntervenantButton
+                                  variant="icon"
+                                  style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(255,255,255,0.95)', color: '#3D5449', border: '1px solid rgba(48,64,53,0.12)', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}
+                                  prefill={{ projectId: id, attachments: [{ dossierDocumentId: doc.docId, displayName: doc.name, mimeType: doc.type ?? undefined }] }}
+                                />
+                              )}
                               {canEditThis && (
                               <button
                                 type="button"
