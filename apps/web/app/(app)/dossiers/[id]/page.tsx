@@ -7,7 +7,7 @@ import {
   FolderOpen, FileText, ImageIcon, Ruler, CheckCircle, ArrowLeft,
   GitCompare, AlertTriangle, Plus, ChevronRight, Tag, Phone, Mail,
   MapPin, Calendar, Receipt, FileCheck, StickyNote, Pencil, X,
-  Clock, Circle, TrendingUp, Eye, Download, Check, CornerDownRight, LayoutDashboard, LayoutGrid, List, FolderPlus
+  Clock, Circle, TrendingUp, Eye, Download, Check, CornerDownRight, LayoutDashboard, LayoutGrid, List, FolderPlus, Send
 } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
@@ -27,6 +27,7 @@ import { DossierEcheances } from '@/components/alerts/DossierEcheances';
 import { scrollToAnchor } from '@/lib/scrollToAnchor';
 import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
+import { SendToIntervenantDrawer } from '@/components/demandes/SendToIntervenantDrawer';
 import { ModalDevis } from '@/app/(app)/facturation/components/ModalDevis';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
 
@@ -239,6 +240,10 @@ export default function DossierDetailPage() {
   }, [id]);
 
   const [showDevis,     setShowDevis]     = useState(false);
+  // Envoi d'un sous-dossier : pièces jointes calculées (après upload des fichiers
+  // locaux) + état "préparation". Ouvre le drawer d'envoi quand non-null.
+  const [sendFolderAtts, setSendFolderAtts] = useState<Array<{ dossierDocumentId: string; displayName: string; mimeType?: string }> | null>(null);
+  const [preparingSend, setPreparingSend] = useState(false);
   const [showStatus,    setShowStatus]    = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showAddFolder, setShowAddFolder] = useState(false);
@@ -339,6 +344,67 @@ export default function DossierDetailPage() {
 
   const cfg = STATUS_CONFIG[dossier.status] ?? STATUS_CONFIG['EN COURS'];
   const StatusIcon = cfg.Icon;
+
+  // ── Envoi d'un sous-dossier à un intervenant ────────────────────────────────
+  // Un dossier EN COURS peut contenir des fichiers LOCAUX (dataUrl, sans docId).
+  // Or l'envoi ne sait joindre que des documents backend (dossierDocumentId).
+  // On téléverse donc à la volée les fichiers locaux pour obtenir un docId, sinon
+  // l'envoi serait impossible. Puis on ouvre le drawer d'envoi.
+  const folderHasSendable = (folderPath: string): boolean => {
+    for (const s of dossier.subfolders) {
+      if (s.label !== folderPath && !isDescendant(s.label, folderPath)) continue;
+      for (const d of (s.documents ?? [])) {
+        const nd = normalizeDoc(d);
+        if (nd.docId || nd.dataUrl || nd.url) return true;
+      }
+    }
+    return false;
+  };
+
+  const srcToFile = async (src: string, name: string, type?: string): Promise<File> => {
+    const res = await fetch(src);
+    const blob = await res.blob();
+    return new File([blob], name, { type: type || blob.type || 'application/octet-stream' });
+  };
+
+  const handleSendFolder = async (folderPath: string) => {
+    if (preparingSend) return;
+    const collected: Array<{ doc: DocumentFile; label: string }> = [];
+    for (const s of dossier.subfolders) {
+      if (s.label !== folderPath && !isDescendant(s.label, folderPath)) continue;
+      for (const d of (s.documents ?? [])) {
+        const nd = normalizeDoc(d);
+        if (nd.docId || nd.dataUrl || nd.url) collected.push({ doc: nd, label: s.label });
+      }
+    }
+    if (collected.length === 0) return;
+    setPreparingSend(true);
+    try {
+      const atts: Array<{ dossierDocumentId: string; displayName: string; mimeType?: string }> = [];
+      for (const { doc, label } of collected) {
+        if (doc.docId) {
+          atts.push({ dossierDocumentId: doc.docId, displayName: doc.name, mimeType: doc.type ?? undefined });
+          continue;
+        }
+        // Fichier local → upload backend pour obtenir un docId.
+        const src = doc.url || doc.dataUrl;
+        if (!src) continue;
+        try {
+          const file = await srcToFile(src, doc.name, doc.type);
+          const up = await uploadDossierDocDirect(id, label, file);
+          // Remplace le doc local par la version backend (évite un doublon au reload).
+          removeDocumentFromSubfolder(id, label, doc.name);
+          addDocumentToSubfolder(id, label, { docId: up.id, name: up.originalName, type: up.mimeType ?? undefined, size: up.sizeBytes ?? undefined, addedAt: up.createdAt });
+          atts.push({ dossierDocumentId: up.id, displayName: up.originalName, mimeType: up.mimeType ?? undefined });
+        } catch {
+          /* un fichier échoue → on continue avec les autres */
+        }
+      }
+      if (atts.length > 0) setSendFolderAtts(atts);
+    } finally {
+      setPreparingSend(false);
+    }
+  };
   // Progression reelle : ratio de sous-dossiers valides sur le total.
   // PROGRESS_MAP servait de fallback simule quand il n'y avait pas encore de validations.
   const totalSubs = dossier.subfolders.length;
@@ -1343,20 +1409,6 @@ export default function DossierDetailPage() {
         const docs = (sf.documents ?? []).map(normalizeDoc);
         const childPaths = childFolders(dossier.subfolders.map(s => s.label), openedSubfolder);
 
-        // Pièces jointes "envoyables" d'un dossier (ses fichiers stockés + ceux de
-        // ses sous-dossiers imbriqués) → pour "Envoyer ce sous-dossier".
-        const folderAttachments = (folderPath: string) => {
-          const out: Array<{ dossierDocumentId: string; displayName: string; mimeType?: string }> = [];
-          for (const s of dossier.subfolders) {
-            if (s.label !== folderPath && !isDescendant(s.label, folderPath)) continue;
-            for (const d of (s.documents ?? [])) {
-              const nd = normalizeDoc(d);
-              if (nd.docId) out.push({ dossierDocumentId: nd.docId, displayName: nd.name, mimeType: nd.type ?? undefined });
-            }
-          }
-          return out;
-        };
-
         // Ajout "manuel" par nom seul — placeholder local, sans upload.
         // Utile pour noter qu'un document physique est attendu mais pas encore reçu.
         const handleAddDoc = () => {
@@ -1482,14 +1534,21 @@ export default function DossierDetailPage() {
                   <p className="text-xs text-[#304035]/50 mt-1">
                     {childPaths.length > 0 ? `${childPaths.length} sous-dossier${childPaths.length > 1 ? 's' : ''} · ` : ''}{docs.length} document{docs.length > 1 ? 's' : ''}{sf.date ? ` · Modifié le ${sf.date}` : ''}
                   </p>
-                  {/* Envoyer TOUT le sous-dossier (fichiers stockés) à un intervenant */}
-                  {folderAttachments(openedSubfolder).length > 0 && (
+                  {/* Envoyer TOUT le sous-dossier à un intervenant. Marche aussi
+                      pour un dossier EN COURS : les fichiers locaux sont televerses
+                      automatiquement avant l'envoi. */}
+                  {folderHasSendable(openedSubfolder) && (
                     <div className="mt-2">
-                      <SendToIntervenantButton
-                        variant="compact"
-                        label="Envoyer ce sous-dossier"
-                        prefill={{ projectId: id, attachments: folderAttachments(openedSubfolder) }}
-                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSendFolder(openedSubfolder)}
+                        disabled={preparingSend}
+                        className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold text-[#cbb98a] disabled:opacity-60"
+                        style={{ background: 'linear-gradient(135deg, #1a2a1e 0%, #3D5449 100%)' }}
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        {preparingSend ? 'Préparation…' : 'Envoyer ce sous-dossier'}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1541,9 +1600,7 @@ export default function DossierDetailPage() {
                     <div className="text-[12px] text-[#304035]/40 italic px-1 py-2">Aucun sous-dossier ici. Créez-en un, ou ajoutez des documents ci-dessous.</div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                      {childPaths.map((cp) => {
-                        const cpAtts = folderAttachments(cp);
-                        return (
+                      {childPaths.map((cp) => (
                         <div key={cp} className="relative group">
                           <button
                             onClick={() => setOpenedSubfolder(cp)}
@@ -1553,18 +1610,20 @@ export default function DossierDetailPage() {
                             <span className="text-3xl leading-none">📁</span>
                             <span className="text-[12px] font-semibold text-[#304035] truncate w-full">{folderDisplayName(cp)}</span>
                           </button>
-                          {cpAtts.length > 0 && (
-                            <div className="absolute top-1 right-1" title="Envoyer ce sous-dossier à un intervenant">
-                              <SendToIntervenantButton
-                                variant="icon"
-                                style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #1a2a1e 0%, #3D5449 100%)', color: '#cbb98a', border: 'none', boxShadow: '0 2px 6px rgba(26,42,30,0.28)' }}
-                                prefill={{ projectId: id, attachments: cpAtts }}
-                              />
-                            </div>
+                          {folderHasSendable(cp) && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleSendFolder(cp); }}
+                              disabled={preparingSend}
+                              title="Envoyer ce sous-dossier à un intervenant"
+                              className="absolute top-1 right-1 inline-flex items-center justify-center disabled:opacity-60"
+                              style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #1a2a1e 0%, #3D5449 100%)', color: '#cbb98a', border: 'none', boxShadow: '0 2px 6px rgba(26,42,30,0.28)' }}
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                            </button>
                           )}
                         </div>
-                        );
-                      })}
+                      ))}
                     </div>
                   )}
                 </div>
@@ -1968,6 +2027,13 @@ export default function DossierDetailPage() {
           onClose={() => setShowDevis(false)}
         />
       )}
+
+      {/* Drawer d'envoi d'un sous-dossier (ouvert après préparation des pièces). */}
+      <SendToIntervenantDrawer
+        open={!!sendFolderAtts}
+        prefill={{ projectId: id, attachments: sendFolderAtts ?? [] }}
+        onClose={() => setSendFolderAtts(null)}
+      />
 
       {/* ═══════════════════════════════════════════════
           MODALE WAOUHH — CONFIRMATION SUPPRESSION
