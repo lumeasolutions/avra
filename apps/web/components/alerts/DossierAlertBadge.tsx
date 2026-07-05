@@ -15,6 +15,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, X } from 'lucide-react';
 import { useDossierAlerts } from '@/hooks/useDossierAlerts';
+import { scrollToAnchor } from '@/lib/scrollToAnchor';
 import type { AlertItem } from '@/store/useUIStore';
 
 const STYLE = {
@@ -139,7 +140,7 @@ export function DossierAlertBadge({
                       {a.anchor ? (
                         <a
                           href={`#${a.anchor}`}
-                          onClick={() => setOpen(false)}
+                          onClick={() => { setOpen(false); scrollToAnchor(a.anchor); }}
                           style={{ flex: 1, fontSize: 13, color: '#304035', lineHeight: 1.4, textDecoration: 'none', cursor: 'pointer' }}
                         >
                           {a.text}

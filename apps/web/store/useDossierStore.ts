@@ -654,6 +654,21 @@ function isPersistableId(id: string): boolean {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
 
+// Défensif : une échéance dont la date est DÉJÀ PASSÉE à l'initialisation du
+// drapeau est considérée "faite" (true) — jamais un faux retard historique ;
+// une échéance future = "à faire" (false). Parse en local (YYYY-MM-DD ou dd/mm/yyyy).
+function isPastDeadline(dateStr: string): boolean {
+  if (!dateStr) return false;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  const slash = dateStr.includes('/') ? dateStr.split('/') : null;
+  let d: Date | null = null;
+  if (iso) d = new Date(+iso[1], +iso[2] - 1, +iso[3]);
+  else if (slash && slash.length === 3) d = new Date(+slash[2], +slash[1] - 1, +slash[0]);
+  if (!d || isNaN(d.getTime())) return false;
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  return d.getTime() < t0.getTime();
+}
+
 function pushDossierData(get: () => DossierState, dossierId: string): void {
   if (typeof window === 'undefined') return;
   if (!isPersistableId(dossierId)) return;
@@ -1119,8 +1134,9 @@ export const useDossierStore = create<DossierState>()(
           // Nouvelle echeance = "a faire" (false) par defaut ; on preserve les
           // validations existantes pour ce dossier.
           const flags: Record<string, boolean> = { ...(s.echeancesValidees[dossierId] ?? {}) };
-          for (const label of Object.keys(dates)) {
-            if (flags[label] === undefined) flags[label] = false;
+          for (const [label, dateStr] of Object.entries(dates)) {
+            // Nouvelle échéance : passée = déjà faite (true), future = à faire (false).
+            if (flags[label] === undefined) flags[label] = isPastDeadline(dateStr);
           }
           return {
             datesButoiresSignes: { ...s.datesButoiresSignes, [dossierId]: dates },

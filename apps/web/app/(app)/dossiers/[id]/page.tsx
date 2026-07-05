@@ -24,6 +24,7 @@ import { useProjectActions } from '@/hooks/useProjectActions';
 import { useDossierPermissions } from '@/hooks/useDossierPermissions';
 import { DossierAlertBadge } from '@/components/alerts/DossierAlertBadge';
 import { DossierEcheances } from '@/components/alerts/DossierEcheances';
+import { scrollToAnchor } from '@/lib/scrollToAnchor';
 import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
@@ -119,30 +120,10 @@ export default function DossierDetailPage() {
   // fois car l'élément peut être rendu après hydratation des stores.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    let cancelled = false;
-    const scrollToHash = () => {
-      const hash = window.location.hash.replace(/^#/, '');
-      if (!hash) return;
-      let tries = 0;
-      const attempt = () => {
-        if (cancelled) return;
-        const el = document.getElementById(hash);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.add('avra-alert-highlight');
-          window.setTimeout(() => el.classList.remove('avra-alert-highlight'), 2400);
-        } else if (tries++ < 12) {
-          window.setTimeout(attempt, 160);
-        }
-      };
-      attempt();
-    };
-    scrollToHash();
-    window.addEventListener('hashchange', scrollToHash);
-    return () => {
-      cancelled = true;
-      window.removeEventListener('hashchange', scrollToHash);
-    };
+    const onHash = () => scrollToAnchor(window.location.hash);
+    onHash(); // à l'arrivée (clic depuis l'assistant)
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, [id]);
 
   const dossiers          = useDossierStore(s => s.dossiers);

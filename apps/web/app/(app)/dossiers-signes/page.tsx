@@ -187,7 +187,10 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
     if (validated === true) return 'done'; // fait (drapeau) → aligné avec l'assistant
     const val = saved[id];
     if (!val) return 'none';
-    const d = new Date(val);
+    // Parse LOCAL (comme le moteur) : sinon "YYYY-MM-DD" serait minuit UTC et
+    // decalerait le calcul d'un jour selon le fuseau.
+    const iso = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const d = iso ? new Date(+iso[1], +iso[2] - 1, +iso[3]) : new Date(val);
     if (isNaN(d.getTime())) return 'none';
     const t0 = new Date(today); t0.setHours(0, 0, 0, 0);
     const diff = Math.round((d.getTime() - t0.getTime()) / (1000 * 60 * 60 * 24));
