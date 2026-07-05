@@ -533,17 +533,6 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                 </div>
               )}
 
-              {/* Templates rapides */}
-              <TemplatesPicker
-                onApply={(tpl) => {
-                  setType(tpl.type);
-                  setTitle(tpl.title);
-                  if (tpl.notes) setNotes(tpl.notes);
-                }}
-                onSave={() => ({ name: title || 'Nouveau template', type, title, notes })}
-                currentValid={!!title.trim()}
-              />
-
               {/* Type */}
               <Label>Type de demande</Label>
               <div style={{
