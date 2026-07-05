@@ -8,17 +8,51 @@
  * Chaque ligne porte l'ancre `echeanceAnchor(label)` → c'est la cible du clic
  * depuis l'assistant (scroll + surbrillance). Même source d'alertes que partout.
  */
+import { useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useDossierStore } from '@/store/useDossierStore';
 import { useDossierAlerts } from '@/hooks/useDossierAlerts';
 import { echeanceAnchor } from '@/lib/alertClassify';
 
+// Correspondance clé legacy -> libellé (identique au moteur d'alertes, pour que
+// l'ancre concorde entre l'alerte et la ligne affichée).
+const LEGACY_LABELS: Record<string, string> = {
+  suiviChantier: 'Suivi chantier',
+  releveMesures: 'Relevé de mesures',
+  planTechnique: 'Plan technique',
+  fichePose: 'Fiche de pose',
+  permisConstruire: 'Permis de construire',
+  sav: 'SAV',
+};
+
 export function DossierEcheances({ dossierId }: { dossierId: string }) {
-  const dates = useDossierStore((s) => s.datesButoiresSignes)[dossierId] ?? {};
+  const newDates = useDossierStore((s) => s.datesButoiresSignes[dossierId]);
+  const legacy = useDossierStore((s) => s.dossiersSignes.find((d) => d.id === dossierId)?.dateButoires);
   const { retard, urgent } = useDossierAlerts(dossierId);
 
-  const entries = Object.entries(dates).filter(([, v]) => !!v);
-  if (entries.length === 0) return null;
+  // Source des dates : nouveau système en priorité, sinon fallback legacy.
+  const rows = useMemo(() => {
+    const base: [string, string][] = [];
+    const nd = newDates ?? {};
+    if (Object.keys(nd).length > 0) {
+      for (const [label, v] of Object.entries(nd)) if (v) base.push([label, v]);
+    } else if (legacy) {
+      for (const [key, label] of Object.entries(LEGACY_LABELS)) {
+        const v = (legacy as Record<string, string | undefined>)[key];
+        if (v) base.push([label, v]);
+      }
+    }
+    const decorated = base.map(([label, dateStr]) => {
+      const anchor = echeanceAnchor(label);
+      const ret = retard.find((a) => a.anchor === anchor);
+      const urg = urgent.find((a) => a.anchor === anchor);
+      return { label, dateStr, anchor, ret, urg, prio: ret ? 0 : urg ? 1 : 2 };
+    });
+    // Retards d'abord, puis imminents, puis le reste (tri stable).
+    return decorated.sort((a, b) => a.prio - b.prio);
+  }, [newDates, legacy, retard, urgent]);
+
+  if (rows.length === 0) return null;
 
   return (
     <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
@@ -26,10 +60,7 @@ export function DossierEcheances({ dossierId }: { dossierId: string }) {
         <h2 className="text-sm font-bold text-[#304035]">Échéances</h2>
       </div>
       <div className="px-3 py-2">
-        {entries.map(([label, dateStr]) => {
-          const anchor = echeanceAnchor(label);
-          const ret = retard.find((a) => a.anchor === anchor);
-          const urg = urgent.find((a) => a.anchor === anchor);
+        {rows.map(({ label, dateStr, anchor, ret, urg }) => {
           const flagged = ret ?? urg;
           const color = ret ? '#D32F2F' : urg ? '#E68A00' : null;
           const bg = ret ? '#FFF0F0' : urg ? '#FFF6E9' : null;
@@ -41,11 +72,15 @@ export function DossierEcheances({ dossierId }: { dossierId: string }) {
               style={{ scrollMarginTop: 90 }}
               className="flex items-center gap-2 px-2 py-2 rounded-lg"
             >
-              {color ? (
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
-              ) : (
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(48,64,53,0.18)', flexShrink: 0 }} />
-              )}
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: color ?? 'rgba(48,64,53,0.18)',
+                  flexShrink: 0,
+                }}
+              />
               <span className="flex-1 text-sm text-[#304035] font-medium">{label}</span>
               <span className="text-xs text-[#304035]/45">{dateStr}</span>
               {flagged && color && bg && (
