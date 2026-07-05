@@ -13,6 +13,7 @@ import { createDemande } from '@/lib/demandes-api';
 import { api } from '@/lib/api';
 import { MicPermissionHelpModal } from './MicPermissionHelpModal';
 import Link from 'next/link';
+import { isRetardAlert, isUrgentAlert } from '@/lib/alertClassify';
 
 // ── Rendu Markdown léger ──────────────────────────────────────────────────────
 
@@ -140,20 +141,8 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
   // Filtre des alertes par catégorie (clic sur une carte KPI). 'all' = défaut.
   const [alertFilter, setAlertFilter] = useState<'all'|'urgent'|'retard'|'encours'>('all');
   const activeAlerts  = alerts.filter(a => !a.dismissed);
-  // Classifieurs partagés (cartes KPI + filtre liste) — une seule source de vérité.
-  // IMPORTANT : urgent et retard sont MUTUELLEMENT EXCLUSIFS (sinon doublon, car
-  // les retards sont aussi en severity:'error'). On classe donc par sourceKey :
-  //   • RETARD  = déjà en retard (facture échéance/retard, livraison, butoir dépassé)
-  //   • URGENT  = à traiter en priorité mais PAS encore en retard
-  //               (dossier marqué urgent, rupture de stock, butoir imminent)
-  const isRetardAlert = (a: any) => {
-    const k = (a as any).sourceKey ?? '';
-    return k.startsWith('facture-') || k.startsWith('cmd-livraison-') || (k.startsWith('butoir-') && !k.startsWith('butoir-soon-'));
-  };
-  const isUrgentAlert = (a: any) => {
-    const k = (a as any).sourceKey ?? '';
-    return k.startsWith('urgent-') || k.startsWith('stock-rupture-') || k.startsWith('butoir-soon-');
-  };
+  // Classifieurs URGENT/RETARD importés depuis @/lib/alertClassify — SOURCE DE
+  // VÉRITÉ UNIQUE, partagée avec les badges « ! » sur les dossiers.
   const displayedAlerts = activeAlerts.filter(a =>
     alertFilter === 'urgent'  ? isUrgentAlert(a)
     : alertFilter === 'retard'  ? isRetardAlert(a)
@@ -334,16 +323,29 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
                     }}>
                       <AlertIconComp severity={alert.severity}/>
                     </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:11.5, color:'#1a1a1a', fontWeight:600, lineHeight:1.35 }}>
-                        {alert.text}
+                    {alert.dossierId ? (
+                      <Link href={`/dossiers/${alert.dossierId}`} style={{ flex:1, minWidth:0, display:'block', textDecoration:'none', color:'inherit', cursor:'pointer' }}>
+                        <div style={{ fontSize:11.5, color:'#1a1a1a', fontWeight:600, lineHeight:1.35 }}>
+                          {alert.text}
+                        </div>
+                        {alert.category && (
+                          <span style={{ fontSize:9, fontWeight:700, color:'#9A9590', textTransform:'uppercase', letterSpacing:'0.04em' }}>
+                            {alert.category}
+                          </span>
+                        )}
+                      </Link>
+                    ) : (
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:11.5, color:'#1a1a1a', fontWeight:600, lineHeight:1.35 }}>
+                          {alert.text}
+                        </div>
+                        {alert.category && (
+                          <span style={{ fontSize:9, fontWeight:700, color:'#9A9590', textTransform:'uppercase', letterSpacing:'0.04em' }}>
+                            {alert.category}
+                          </span>
+                        )}
                       </div>
-                      {alert.category && (
-                        <span style={{ fontSize:9, fontWeight:700, color:'#9A9590', textTransform:'uppercase', letterSpacing:'0.04em' }}>
-                          {alert.category}
-                        </span>
-                      )}
-                    </div>
+                    )}
                     <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
                       <div style={{ width:7, height:7, borderRadius:'50%', background: DOT_COLOR[alert.severity] ?? '#BDBDBD' }}/>
                       <button onClick={() => dismissAlert(alert.id)} style={{ border:'none', background:'transparent', cursor:'pointer', color:'#C0BAB2', padding:2, display:'flex', alignItems:'center' }}>

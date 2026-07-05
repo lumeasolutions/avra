@@ -9,6 +9,7 @@ import { useDossierStore } from '@/store';
 import { ValidationDashboard } from '@/components/dossiers/ValidationDashboard';
 import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
 import { OngoingDossierDashboardModal } from '@/components/dossiers/OngoingDossierDashboardModal';
+import { DossierAlertBadge } from '@/components/alerts/DossierAlertBadge';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useDossierPermissions } from '@/hooks/useDossierPermissions';
 import { DashboardTriggerButton } from '@/components/layout/DashboardTriggerButton';
@@ -596,6 +597,7 @@ export default function DossiersPage() {
                           <Icon className="h-3 w-3" />
                           {cfg.label}
                         </div>
+                        <DossierAlertBadge dossierId={d.id} variant="compact" />
                         {canEditDossier(d) && (
                         <button
                           type="button"
@@ -725,6 +727,9 @@ export default function DossiersPage() {
 
                   {/* Éléments */}
                   <span className="text-xs text-[#304035]/35 shrink-0">{d.subfolders.length} élém.</span>
+
+                  {/* Badge alerte URGENT/RETARD (même source que l'assistant) */}
+                  <DossierAlertBadge dossierId={d.id} variant="compact" />
 
                   {/* Badge */}
                   <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold shrink-0 ${cfg.tagBg}`}>

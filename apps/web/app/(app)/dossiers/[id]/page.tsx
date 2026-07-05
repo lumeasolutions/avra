@@ -22,6 +22,7 @@ import { OptionSelectionModal } from '@/components/dossiers/OptionSelectionModal
 import { VendeurAssignDropdown } from '@/components/vendeur/VendeurAssignDropdown';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useDossierPermissions } from '@/hooks/useDossierPermissions';
+import { DossierAlertBadge } from '@/components/alerts/DossierAlertBadge';
 import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
@@ -485,6 +486,9 @@ export default function DossierDetailPage() {
             <h1 className="text-3xl font-black text-white tracking-tight leading-none mb-1">
               {dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''}
             </h1>
+            <div className="mb-1">
+              <DossierAlertBadge dossierId={id} variant="full" />
+            </div>
             <div className="flex items-center gap-3 mt-2 flex-wrap">
               {dossier.createdAt && (
                 <span className="flex items-center gap-1.5 text-white/55 text-xs">
