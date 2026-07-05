@@ -528,6 +528,11 @@ model Project {
   prixLignes      Json?
   confirmations   Json?
   dateButoires    Json?
+  // VAGUE 3 (05/07/2026) — état complet du tableau de bord du dossier signé :
+  // { dates: {label→date}, validees: {label→bool}, commandes: {label→ligne[]} }.
+  // Persiste les dates butoires, les validations (bouton Validé) et les lignes
+  // commande/confirmation/livraison (auparavant localStorage only).
+  dossierBoard    Json?
 
   workspace            Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   client               Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)

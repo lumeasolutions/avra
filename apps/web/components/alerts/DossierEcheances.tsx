@@ -1,21 +1,24 @@
 'use client';
 
 /**
- * Bande de suivi du dossier — regroupe :
- *  • « Échéances » : dates butoires (Suivi, Relevé, Plan technique…) avec badge
- *    ! RETARD (rouge) / URGENT (orange) sur les concernées.
- *  • « Fournisseurs » : confirmations en attente, badge EN ATTENTE (orange) sur
- *    celles dont le délai est dépassé.
+ * Bande de suivi du dossier — vue COMPLÈTE de toutes les échéances en cours :
+ *  • « Échéances »   : étapes à date (Modifications, Relevé, Fiche de pose…).
+ *  • « Commandes / Confirmations / Livraisons » : lignes multi-fournisseurs
+ *    (chaque fournisseur a sa propre date butoir).
+ *  • « Fournisseurs » : confirmations (ancien système).
  *
- * Chaque ligne porte une ancre → cible du clic depuis l'assistant (scroll +
- * surbrillance). Même source d'alertes que partout (aucun calcul dupliqué).
+ * TOUT passe par la source de statut unique `echeanceStatus` (même calcul que le
+ * tableau de bord et le moteur d'alertes → aucune divergence possible). Le badge
+ * RETARD / URGENT / À VENIR / VALIDÉ est piloté par le drapeau « validé » : rien
+ * ne s'auto-valide avec le temps.
+ *
+ * Chaque ligne porte une ancre → cible du clic depuis l'assistant (scroll).
  */
 import { useMemo } from 'react';
-import { AlertTriangle, Check } from 'lucide-react';
+import { AlertTriangle, Check, Clock } from 'lucide-react';
 import { useDossierStore } from '@/store/useDossierStore';
-import { useUIStore } from '@/store/useUIStore';
-import { useDossierAlerts } from '@/hooks/useDossierAlerts';
 import { echeanceAnchor } from '@/lib/alertClassify';
+import { echeanceStatus, ECHEANCE_PRIO, type EcheanceStatus } from '@/lib/echeanceStatus';
 
 const LEGACY_LABELS: Record<string, string> = {
   suiviChantier: 'Suivi chantier',
@@ -41,14 +44,48 @@ const badgeStyle = (color: string, bg: string) =>
     flexShrink: 0,
   }) as const;
 
+/** Couleur de la pastille selon le statut. */
+function dotColor(status: EcheanceStatus): string {
+  return status === 'retard' ? '#dc2626'
+    : status === 'urgent' ? '#f97316'
+    : status === 'planned' ? '#3b82f6'
+    : status === 'done' ? '#10b981'
+    : 'rgba(48,64,53,0.18)';
+}
+
+/** Badge de statut (null si aucune date / statut 'none'). */
+function StatusBadge({ status }: { status: EcheanceStatus }) {
+  if (status === 'retard') return <span style={badgeStyle('#D32F2F', '#FFF0F0')}><AlertTriangle style={{ width: 12, height: 12 }} />RETARD</span>;
+  if (status === 'urgent') return <span style={badgeStyle('#E68A00', '#FFF6E9')}><Clock style={{ width: 12, height: 12 }} />URGENT</span>;
+  if (status === 'planned') return <span style={badgeStyle('#2563eb', '#EFF4FF')}><Clock style={{ width: 12, height: 12 }} />À VENIR</span>;
+  if (status === 'done') return <span style={badgeStyle('#16a34a', 'rgba(16,185,129,0.1)')}><Check style={{ width: 12, height: 12 }} />VALIDÉ</span>;
+  return null;
+}
+
+/** Une ligne générique de la bande (pastille + libellé + date + badge). */
+function EcheanceRow({
+  anchor, label, sub, dateStr, status,
+}: { anchor?: string; label: string; sub?: string; dateStr?: string; status: EcheanceStatus }) {
+  return (
+    <div id={anchor} style={{ scrollMarginTop: 90 }} className="flex items-center gap-2 px-2 py-2 rounded-lg">
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor(status), flexShrink: 0 }} />
+      <span className="flex-1 text-sm text-[#304035] font-medium truncate">
+        {label}
+        {sub ? <span className="text-[#304035]/45 font-normal"> · {sub}</span> : null}
+      </span>
+      {dateStr ? <span className="text-xs text-[#304035]/45 whitespace-nowrap">{dateStr}</span> : null}
+      <StatusBadge status={status} />
+    </div>
+  );
+}
+
 export function DossierEcheances({ dossierId }: { dossierId: string }) {
   const newDates = useDossierStore((s) => s.datesButoiresSignes[dossierId]);
   const valides = useDossierStore((s) => s.echeancesValidees[dossierId]);
+  const commandes = useDossierStore((s) => s.commandesAccess[dossierId]);
   const signe = useDossierStore((s) => s.dossiersSignes.find((d) => d.id === dossierId));
-  const alerts = useUIStore((s) => s.alerts);
-  const { retard, urgent } = useDossierAlerts(dossierId);
 
-  // ── Échéances (dates butoires) : nouveau système, sinon fallback legacy ──
+  // 1) Étapes à date — nouveau système, sinon fallback legacy dateButoires.
   const dateRows = useMemo(() => {
     const base: [string, string][] = [];
     const nd = newDates ?? {};
@@ -62,28 +99,36 @@ export function DossierEcheances({ dossierId }: { dossierId: string }) {
     }
     return base
       .map(([label, dateStr]) => {
-        const anchor = echeanceAnchor(label);
-        const ret = retard.find((a) => a.anchor === anchor);
-        const urg = urgent.find((a) => a.anchor === anchor);
-        const done = valides?.[label] === true;
-        return { label, dateStr, anchor, ret, urg, done, prio: ret ? 0 : urg ? 1 : done ? 3 : 2 };
+        const status = echeanceStatus(dateStr, valides?.[label] === true);
+        return { label, dateStr, anchor: echeanceAnchor(label), status, prio: ECHEANCE_PRIO[status] };
       })
       .sort((a, b) => a.prio - b.prio);
-  }, [newDates, valides, signe, retard, urgent]);
+  }, [newDates, valides, signe]);
 
-  // ── Fournisseurs : confirmations en attente (badge si délai dépassé) ──
+  // 2) Lignes commande / confirmation / livraison (multi-fournisseurs).
+  const cmdRows = useMemo(() => {
+    const map = commandes ?? {};
+    const rows = [] as { stage: string; id: string; fournisseur: string; dateStr: string; status: EcheanceStatus; prio: number }[];
+    for (const [stage, lignes] of Object.entries(map)) {
+      for (const l of lignes) {
+        const status = echeanceStatus(l.dateButoir, l.validee === true);
+        rows.push({ stage, id: l.id, fournisseur: l.fournisseur || 'Fournisseur ?', dateStr: l.dateButoir, status, prio: ECHEANCE_PRIO[status] });
+      }
+    }
+    return rows.sort((a, b) => a.prio - b.prio);
+  }, [commandes]);
+
+  // 3) Confirmations (ancien système dossier.confirmations).
   const confRows = useMemo(() => {
-    const confs = (signe?.confirmations ?? []).filter((c) => !c.validee);
-    return confs
+    return (signe?.confirmations ?? [])
       .map((c) => {
-        const anchor = `conf-${c.id}`;
-        const alerte = alerts.find((a) => !a.dismissed && a.anchor === anchor && a.dossierId === dossierId);
-        return { conf: c, anchor, alerte, prio: alerte ? 0 : 1 };
+        const status = echeanceStatus(c.dateButoir, c.validee === true);
+        return { conf: c, anchor: `conf-${c.id}`, status, prio: ECHEANCE_PRIO[status] };
       })
       .sort((a, b) => a.prio - b.prio);
-  }, [signe, alerts, dossierId]);
+  }, [signe]);
 
-  if (dateRows.length === 0 && confRows.length === 0) return null;
+  if (dateRows.length === 0 && cmdRows.length === 0 && confRows.length === 0) return null;
 
   return (
     <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
@@ -93,52 +138,34 @@ export function DossierEcheances({ dossierId }: { dossierId: string }) {
             <h2 className="text-sm font-bold text-[#304035]">Échéances</h2>
           </div>
           <div className="px-3 py-2">
-            {dateRows.map(({ label, dateStr, anchor, ret, urg, done }) => {
-              const flagged = ret ?? urg;
-              const color = ret ? '#D32F2F' : urg ? '#E68A00' : null;
-              const bg = ret ? '#FFF0F0' : urg ? '#FFF6E9' : null;
-              const dotColor = done ? '#10b981' : color ?? 'rgba(48,64,53,0.18)';
-              return (
-                <div key={label} id={anchor} style={{ scrollMarginTop: 90 }} className="flex items-center gap-2 px-2 py-2 rounded-lg">
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
-                  <span className="flex-1 text-sm text-[#304035] font-medium">{label}</span>
-                  <span className="text-xs text-[#304035]/45">{dateStr}</span>
-                  {flagged && color && bg ? (
-                    <span title={flagged.text} style={badgeStyle(color, bg)}>
-                      <AlertTriangle style={{ width: 12, height: 12 }} />
-                      {ret ? 'RETARD' : 'URGENT'}
-                    </span>
-                  ) : done ? (
-                    <span style={badgeStyle('#16a34a', 'rgba(16,185,129,0.1)')}>
-                      <Check style={{ width: 12, height: 12 }} />
-                      VALIDÉ
-                    </span>
-                  ) : null}
-                </div>
-              );
-            })}
+            {dateRows.map((r) => (
+              <EcheanceRow key={r.label} anchor={r.anchor} label={r.label} dateStr={r.dateStr} status={r.status} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {cmdRows.length > 0 && (
+        <>
+          <div className={`px-5 py-3 border-b border-[#304035]/8 ${dateRows.length > 0 ? 'border-t' : ''}`}>
+            <h2 className="text-sm font-bold text-[#304035]">Commandes / Confirmations / Livraisons</h2>
+          </div>
+          <div className="px-3 py-2">
+            {cmdRows.map((r) => (
+              <EcheanceRow key={`${r.stage}-${r.id}`} anchor={`cmdligne-${r.id}`} label={r.stage} sub={r.fournisseur} dateStr={r.dateStr} status={r.status} />
+            ))}
           </div>
         </>
       )}
 
       {confRows.length > 0 && (
         <>
-          <div className={`px-5 py-3 border-b border-[#304035]/8 ${dateRows.length > 0 ? 'border-t' : ''}`}>
+          <div className={`px-5 py-3 border-b border-[#304035]/8 ${dateRows.length > 0 || cmdRows.length > 0 ? 'border-t' : ''}`}>
             <h2 className="text-sm font-bold text-[#304035]">Fournisseurs</h2>
           </div>
           <div className="px-3 py-2">
-            {confRows.map(({ conf, anchor, alerte }) => (
-              <div key={conf.id} id={anchor} style={{ scrollMarginTop: 90 }} className="flex items-center gap-2 px-2 py-2 rounded-lg">
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: alerte ? '#E68A00' : 'rgba(48,64,53,0.18)', flexShrink: 0 }} />
-                <span className="flex-1 text-sm text-[#304035] font-medium">{conf.fournisseur}</span>
-                <span className="text-xs text-[#304035]/45">{conf.dateButoir}</span>
-                {alerte && (
-                  <span title={alerte.text} style={badgeStyle('#E68A00', '#FFF6E9')}>
-                    <AlertTriangle style={{ width: 12, height: 12 }} />
-                    EN ATTENTE
-                  </span>
-                )}
-              </div>
+            {confRows.map((r) => (
+              <EcheanceRow key={r.conf.id} anchor={r.anchor} label={r.conf.fournisseur} dateStr={r.conf.dateButoir} status={r.status} />
             ))}
           </div>
         </>

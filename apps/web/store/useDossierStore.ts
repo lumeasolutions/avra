@@ -685,6 +685,12 @@ function pushDossierData(get: () => DossierState, dossierId: string): void {
     confirmations: dd.confirmations ?? [],
     // dateButoires : soit sur le dossier, soit dans la map dediee
     dateButoires: dd.dateButoires ?? s.datesButoiresSignes?.[dossierId] ?? null,
+    // VAGUE 3 : état complet du tableau de bord (dates + validations + lignes).
+    dossierBoard: {
+      dates: s.datesButoiresSignes?.[dossierId] ?? {},
+      validees: s.echeancesValidees?.[dossierId] ?? {},
+      commandes: s.commandesAccess?.[dossierId] ?? {},
+    },
   };
   void import('@/lib/api')
     .then(({ api }) =>
@@ -1053,6 +1059,7 @@ export const useDossierStore = create<DossierState>()(
             commandesAccess: { ...s.commandesAccess, [dossierId]: dossierMap },
           };
         });
+        pushDossierData(get, dossierId);
       },
 
       updateCommandeAccess: (dossierId, label, entryId, patch) => {
@@ -1066,6 +1073,7 @@ export const useDossierStore = create<DossierState>()(
             commandesAccess: { ...s.commandesAccess, [dossierId]: dossierMap },
           };
         });
+        pushDossierData(get, dossierId);
       },
 
       removeCommandeAccess: (dossierId, label, entryId) => {
@@ -1077,6 +1085,7 @@ export const useDossierStore = create<DossierState>()(
             commandesAccess: { ...s.commandesAccess, [dossierId]: dossierMap },
           };
         });
+        pushDossierData(get, dossierId);
       },
 
       perdreDossier: (id, reason) => {
@@ -1150,6 +1159,7 @@ export const useDossierStore = create<DossierState>()(
             [dossierId]: { ...(s.echeancesValidees[dossierId] ?? {}), [label]: validated },
           },
         }));
+        pushDossierData(get, dossierId);
       },
 
       addConfirmation: (dossierId, conf) => {

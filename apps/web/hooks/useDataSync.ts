@@ -330,6 +330,31 @@ export function useDataSync() {
         });
       }
 
+      // VAGUE 3 (05/07/2026) — hydrate le tableau de bord (dates butoires +
+      // validations « Validé » + lignes commande/confirmation/livraison) depuis
+      // la colonne dossierBoard. On prefere l'API ; on garde le local pour les
+      // dossiers sans board serveur (anterieurs a la migration).
+      {
+        const nextDates = { ...store.datesButoiresSignes };
+        const nextValidees = { ...store.echeancesValidees };
+        const nextCommandes = { ...store.commandesAccess };
+        let touched = false;
+        for (const p of signedProjects) {
+          const b = (p as any).dossierBoard;
+          if (!b || typeof b !== 'object') continue;
+          if (b.dates && typeof b.dates === 'object') { nextDates[p.id] = b.dates; touched = true; }
+          if (b.validees && typeof b.validees === 'object') { nextValidees[p.id] = b.validees; touched = true; }
+          if (b.commandes && typeof b.commandes === 'object') { nextCommandes[p.id] = b.commandes; touched = true; }
+        }
+        if (touched) {
+          useDossierStore.setState({
+            datesButoiresSignes: nextDates,
+            echeancesValidees: nextValidees,
+            commandesAccess: nextCommandes,
+          });
+        }
+      }
+
       if (hasDemoPerdu || dossiersPerdus.length > 0) {
         const realPerduIds = new Set(dossiersPerdus.map((d) => d.id));
         const localNonDemoPerdu = hasDemoPerdu

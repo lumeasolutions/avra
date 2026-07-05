@@ -107,6 +107,7 @@ export class ProjectsService {
         prixLignes: true,
         confirmations: true,
         dateButoires: true,
+        dossierBoard: true,
         // Relations optimisées avec select ciblé
         client: {
           select: {
@@ -264,6 +265,7 @@ export class ProjectsService {
       prixLignes?: unknown;
       confirmations?: unknown;
       dateButoires?: unknown;
+      dossierBoard?: unknown;
       vendeurName?: string | null;
       statsSkipped?: boolean;
       terminated?: boolean;
@@ -281,6 +283,7 @@ export class ProjectsService {
       if (data.prixLignes !== undefined) patch.prixLignes = data.prixLignes as any;
       if (data.confirmations !== undefined) patch.confirmations = data.confirmations as any;
       if (data.dateButoires !== undefined) patch.dateButoires = data.dateButoires as any;
+      if (data.dossierBoard !== undefined) patch.dossierBoard = data.dossierBoard as any;
       if (data.vendeurName !== undefined) patch.vendeurName = data.vendeurName;
       if (data.statsSkipped !== undefined) patch.statsSkipped = !!data.statsSkipped;
       if (data.terminated !== undefined) patch.terminated = !!data.terminated;

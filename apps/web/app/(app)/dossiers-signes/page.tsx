@@ -24,6 +24,7 @@ import {
   DEFAULT_DATE_BUTOIRE_ITEMS,
   type DateButoireItem,
 } from '@/components/dossiers/DateButoireValidationModal';
+import { echeanceStatus } from '@/lib/echeanceStatus';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -127,18 +128,8 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
   // Livraison). Indexées par label d'item. Chaque ligne a sa propre date butoir.
   const getLines = (label: string): CommandeAccessEntry[] => commandesAccess[dossierId]?.[label] ?? [];
 
-  /** Statut d'UNE ligne 'access' d'après sa date butoir + son drapeau validé. */
-  const getLineStatus = (dateButoir: string, validee?: boolean): 'done' | 'retard' | 'urgent' | 'planned' | 'none' => {
-    if (validee) return 'done';
-    if (!dateButoir) return 'none';
-    const iso = dateButoir.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    const d = iso ? new Date(+iso[1], +iso[2] - 1, +iso[3]) : new Date(dateButoir);
-    if (isNaN(d.getTime())) return 'none';
-    const t0 = new Date(today); t0.setHours(0, 0, 0, 0);
-    const diff = Math.round((d.getTime() - t0.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return 'retard';
-    return diff <= 7 ? 'urgent' : 'planned';
-  };
+  /** Statut d'UNE ligne 'access' — délègue à la source unique echeanceStatus. */
+  const getLineStatus = (dateButoir: string, validee?: boolean) => echeanceStatus(dateButoir, validee === true);
 
   // 05/05/2026 — listes profession-aware partagées avec DateButoireValidationModal.
   // La clé d'indexation est le `label` du DateButoireItem (pas un id slug).
@@ -147,7 +138,6 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
   // (Commande, Confirmations, Livraison) sont cables sur signedSubfolders :
   // completed quand le sous-dossier contient au moins 1 document ou est validé.
   const items = getDateButoireItemsForProfession(profession);
-  const today = new Date();
 
   // Helper : retrouve un sous-dossier signé par label (match case-insensitive, trim)
   const findSubfolder = (label: string) => {
@@ -197,23 +187,9 @@ function TableauDeBordModal({ dossierId, onClose, profession }: { dossierId: str
   const completedCount = progressItems.filter(isItemCompleted).length;
   const totalCount = progressItems.length;
 
-  const getDateStatus = (id: string) => {
-    // SEULE VÉRITÉ = le bouton « Validé ». Validé → done. Sinon (drapeau false
-    // OU absent), l'échéance pilote le statut : passée = retard, proche = urgent,
-    // future = à venir. Rien ne s'auto-valide avec le temps.
-    if (echeancesValidees[dossierId]?.[id] === true) return 'done';
-    const val = saved[id];
-    if (!val) return 'none';
-    // Parse LOCAL (comme le moteur) : sinon "YYYY-MM-DD" serait minuit UTC et
-    // decalerait le calcul d'un jour selon le fuseau.
-    const iso = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    const d = iso ? new Date(+iso[1], +iso[2] - 1, +iso[3]) : new Date(val);
-    if (isNaN(d.getTime())) return 'none';
-    const t0 = new Date(today); t0.setHours(0, 0, 0, 0);
-    const diff = Math.round((d.getTime() - t0.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return 'retard';
-    return diff <= 7 ? 'urgent' : 'planned';
-  };
+  // SEULE VÉRITÉ = le bouton « Validé » (echeancesValidees). Délègue à la source
+  // unique echeanceStatus (même calcul que la bande Échéances et le moteur).
+  const getDateStatus = (id: string) => echeanceStatus(saved[id], echeancesValidees[dossierId]?.[id] === true);
 
   return (
     <div style={{

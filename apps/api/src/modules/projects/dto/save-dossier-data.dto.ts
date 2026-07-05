@@ -27,6 +27,9 @@ export class SaveDossierDataDto {
   dateButoires?: unknown;
 
   @Allow()
+  dossierBoard?: unknown;
+
+  @Allow()
   vendeurName?: string | null;
 
   @Allow()
