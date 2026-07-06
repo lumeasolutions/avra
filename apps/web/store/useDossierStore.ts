@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { STORE_VERSION, preservingMigrate } from './persistVersioning';
+import { SEP, isDescendant } from '@/lib/folderTree';
 
 // Types (extraits du store global)
 export type DossierStatus = 'URGENT' | 'EN COURS' | 'FINITION' | 'A VALIDER';
@@ -360,6 +361,13 @@ export const ARCHITECTE_SIGNED_SUBFOLDERS: SubFolder[] = [
 export interface ValidatedOptionSelection {
   sourceLabel: string;
   customName?: string;
+  /**
+   * Chemins COMPLETS des sous-dossiers imbriqués (ex "PROJET VERSION 1 – APD ▸ APD 1")
+   * à inclure sous le dossier validé, en préservant la hiérarchie + les docs.
+   * - undefined / vide → tout le dossier (tous les sous-dossiers imbriqués).
+   * - liste → seulement ces sous-dossiers (et leurs propres descendants).
+   */
+  includeSubPaths?: string[];
 }
 
 /**
@@ -408,21 +416,40 @@ export function buildSignedSubfoldersForProfession(
   // ─── Helper interne : construit un sous-dossier valide a partir d'une
   // option source. Copie les documents du sous-dossier source (sans prefixe,
   // pour rester utilisable comme dossier actif) et applique le custom name.
-  const buildValidatedSubfolder = (
-    sourceLabel: string,
-    customName: string | undefined,
-    suffix: 'VALIDÉE' | 'VALIDÉ',
-  ): SubFolder => {
-    const srcSubfolder = (source.subfolders ?? []).find((sf) => sf.label === sourceLabel);
-    const docs: DocumentFile[] = (srcSubfolder?.documents ?? []).map((d) =>
-      typeof d === 'string' ? { name: d } : { ...d },
-    );
-    const base = sourceLabel.trim();
-    const cleanCustom = customName?.trim();
-    const finalLabel = cleanCustom
-      ? `${base} ${cleanCustom.toUpperCase()} ${suffix}`
-      : `${base} ${suffix}`;
-    return { label: finalLabel, documents: docs };
+  const cloneDoc = (d: SubFolderDocument): DocumentFile =>
+    typeof d === 'string' ? { name: d } : { ...d };
+
+  // Construit le dossier validé + ses SOUS-DOSSIERS IMBRIQUÉS sélectionnés, en
+  // préservant la hiérarchie et en copiant les documents. Retourne la liste à
+  // plat (labels = chemins complets avec le séparateur ▸).
+  //   - opt.includeSubPaths vide/undefined → tout le dossier (tous descendants).
+  //   - sinon → seulement les sous-dossiers cochés (+ leurs propres descendants).
+  const buildNestedForOption = (
+    opt: ValidatedOptionSelection,
+    finalParentLabel: string,
+  ): SubFolder[] => {
+    const allSubs = source.subfolders ?? [];
+    const src = allSubs.find((sf) => sf.label === opt.sourceLabel);
+    const out: SubFolder[] = [{ label: finalParentLabel, documents: (src?.documents ?? []).map(cloneDoc) }];
+    const descendants = allSubs.filter((sf) => isDescendant(sf.label, opt.sourceLabel));
+    const sel = opt.includeSubPaths;
+    // undefined → tout le dossier ; [] → aucun sous-dossier (parent seul) ;
+    // liste → seulement ces sous-dossiers (+ leurs propres descendants).
+    const included = sel === undefined
+      ? descendants
+      : descendants.filter((sf) => sel.some((p) => sf.label === p || isDescendant(sf.label, p)));
+    for (const d of included) {
+      const rel = d.label.slice(opt.sourceLabel.length + SEP.length);
+      out.push({ label: `${finalParentLabel}${SEP}${rel}`, documents: (d.documents ?? []).map(cloneDoc) });
+    }
+    return out;
+  };
+
+  // Label du dossier validé pour menuisier / cuisiniste (suffixe VALIDÉ/VALIDÉE).
+  const suffixLabel = (opt: ValidatedOptionSelection, suffix: 'VALIDÉE' | 'VALIDÉ'): string => {
+    const base = opt.sourceLabel.trim();
+    const c = opt.customName?.trim();
+    return c ? `${base} ${c.toUpperCase()} ${suffix}` : `${base} ${suffix}`;
   };
 
   // ─── Étape 2 : aiguillage par profession ───────────────────────────────
@@ -449,8 +476,8 @@ export function buildSignedSubfoldersForProfession(
       optionsToValidate = bestLabel ? [{ sourceLabel: bestLabel }] : [];
     }
 
-    const validatedSubfolders = optionsToValidate.map((opt) =>
-      buildValidatedSubfolder(opt.sourceLabel, opt.customName, 'VALIDÉ'),
+    const validatedSubfolders = optionsToValidate.flatMap((opt) =>
+      buildNestedForOption(opt, suffixLabel(opt, 'VALIDÉ')),
     );
     if (validatedSubfolders.length === 0) {
       // Aucune option detectee : on conserve le placeholder MENUISIER d'origine
@@ -484,8 +511,8 @@ export function buildSignedSubfoldersForProfession(
       optionsToValidate = bestLabel ? [{ sourceLabel: bestLabel }] : [];
     }
 
-    const validatedSubfolders = optionsToValidate.map((opt) =>
-      buildValidatedSubfolder(opt.sourceLabel, opt.customName, 'VALIDÉE'),
+    const validatedSubfolders = optionsToValidate.flatMap((opt) =>
+      buildNestedForOption(opt, suffixLabel(opt, 'VALIDÉE')),
     );
     if (validatedSubfolders.length === 0) {
       validatedSubfolders.push({ label: 'OPTION VALIDÉE' });
@@ -521,23 +548,18 @@ export function buildSignedSubfoldersForProfession(
   // Pour l'architecte, on conserve le formatage historique
   // "APD VERSION N (DOSSIER SIGNÉ)" en remplacant le suffixe via une
   // construction custom (le helper generique ne convient pas).
-  const buildArchitecteValidated = (opt: ValidatedOptionSelection): SubFolder => {
-    const srcSubfolder = (source.subfolders ?? []).find((sf) => sf.label === opt.sourceLabel);
-    const docs: DocumentFile[] = (srcSubfolder?.documents ?? []).map((d) =>
-      typeof d === 'string' ? { name: d } : { ...d },
-    );
+  const architecteLabel = (opt: ValidatedOptionSelection): string => {
     const m = opt.sourceLabel.match(ARCHITECTE_PROJET_VERSION_REGEX);
     const baseLabel = m
       ? `APD VERSION ${m[1]} (DOSSIER SIGNÉ)`
       : `${opt.sourceLabel} VALIDÉ (DOSSIER SIGNÉ)`;
     const cleanCustom = opt.customName?.trim();
-    const finalLabel = cleanCustom ? `${baseLabel} — ${cleanCustom.toUpperCase()}` : baseLabel;
-    return { label: finalLabel, documents: docs };
+    return cleanCustom ? `${baseLabel} — ${cleanCustom.toUpperCase()}` : baseLabel;
   };
 
   const architecteValidatedSubfolders =
     optionsToValidate.length > 0
-      ? optionsToValidate.map(buildArchitecteValidated)
+      ? optionsToValidate.flatMap((opt) => buildNestedForOption(opt, architecteLabel(opt)))
       : [{ label: 'APD VERSION VALIDÉE (DOSSIER SIGNÉ)' } as SubFolder];
 
   return ARCHITECTE_SIGNED_SUBFOLDERS.flatMap((sf) => {
