@@ -26,7 +26,7 @@ import {
   CUISINISTE_OPTION_REGEX,
   ARCHITECTE_PROJET_VERSION_REGEX,
 } from '@/store/useDossierStore';
-import { isDirectChild, displayName } from '@/lib/folderTree';
+import { childFolders, displayName } from '@/lib/folderTree';
 
 /** Sous-dossier imbriqué (enfant direct) d'une option, sélectionnable. */
 interface SubCandidate {
@@ -71,10 +71,17 @@ function detectCandidates(
     if (match) {
       const n = parseInt(match[1], 10);
       // Sous-dossiers imbriqués (enfants directs) de cette option — ex les
-      // "APD 1", "APD 2"… créés dans un dossier APD.
-      const subFolders: SubCandidate[] = (dossier.subfolders ?? [])
-        .filter((s) => isDirectChild(s.label, sf.label))
-        .map((s) => ({ label: s.label, name: displayName(s.label), docCount: s.documents?.length ?? 0 }))
+      // "APD 1", "APD 2"… créés dans un dossier APD. On passe par childFolders
+      // (et non un filtre isDirectChild sur les subfolders bruts) pour inclure
+      // AUSSI les dossiers "fantômes" (intermédiaires jamais créés explicitement
+      // mais présents via un document profond) — sinon ils seraient invisibles et
+      // silencieusement exclus lors d'une sélection partielle.
+      const allLabels = (dossier.subfolders ?? []).map((s) => s.label);
+      const subFolders: SubCandidate[] = childFolders(allLabels, sf.label)
+        .map((path) => {
+          const real = (dossier.subfolders ?? []).find((s) => s.label === path);
+          return { label: path, name: displayName(path), docCount: real?.documents?.length ?? 0 };
+        })
         .sort((a, b) => a.name.localeCompare(b.name, 'fr', { numeric: true, sensitivity: 'base' }));
       candidates.push({
         sourceLabel: sf.label,
