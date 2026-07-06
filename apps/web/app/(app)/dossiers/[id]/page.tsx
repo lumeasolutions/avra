@@ -28,6 +28,7 @@ import { scrollToAnchor } from '@/lib/scrollToAnchor';
 import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { SendToIntervenantDrawer } from '@/components/demandes/SendToIntervenantDrawer';
+import { SignedDossierDashboardModal } from '@/components/dossiers/SignedDossierDashboardModal';
 import { ModalDevis } from '@/app/(app)/facturation/components/ModalDevis';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
 
@@ -2235,7 +2236,16 @@ export default function DossierDetailPage() {
        *  Liste des sous-dossiers avec statut validation + date.
        *  Ouvert/ferme via le bouton 'Tableau de bord' dans la banniere.
        *  ══════════════════════════════════════════════════════════════════ */}
-      {showDashboard && (() => {
+      {/* Dossier SIGNÉ → même tableau de bord que dans la liste des signés
+          (composant partagé). Dossier EN COURS → dashboard sous-dossiers ci-dessous. */}
+      {showDashboard && isSigned && (
+        <SignedDossierDashboardModal
+          dossierId={id}
+          profession={profession}
+          onClose={() => setShowDashboard(false)}
+        />
+      )}
+      {showDashboard && !isSigned && (() => {
         // Calculs : progression + listes valide / en attente
         const allSubs = dossier.subfolders;
         const totalSubs = allSubs.length;
