@@ -262,6 +262,13 @@ export async function deleteDemandePro(id: string): Promise<{ ok: boolean }> {
   });
 }
 
+/** Relance ciblee d'une seule demande (bouton "Relancer" par ligne). */
+export async function relanceDemandePro(id: string): Promise<{ sent: boolean }> {
+  return api<{ sent: boolean }>(`/demandes/${encodeURIComponent(id)}/relance`, {
+    method: 'POST',
+  });
+}
+
 export async function updateDemandeStatusPro(
   id: string,
   status: DemandeStatus,

@@ -896,9 +896,14 @@ export default function DossierDetailPage() {
                 return ordered.filter((it) => !it.sf.label.includes(SEP));
               })().map(({ sf, depth }, i) => {
                 // Alerte dynamique : uniquement si le sous-dossier est vide
-                // (aucun document présent). Dès qu'un document est ajouté,
-                // l'alerte disparaît automatiquement.
-                const isEmpty = !sf.documents || sf.documents.length === 0;
+                // (aucun document présent ET aucun sous-dossier enfant). Dès
+                // qu'un document ou un sous-dossier est ajouté, l'alerte
+                // disparaît automatiquement. (Ex : la racine « AVANT VENTE »
+                // n'a pas de doc direct mais contient toute l'archive → pas « Vide ».)
+                const hasChildren = dossier.subfolders.some(
+                  (o) => o.label.startsWith(sf.label + ' ▸ '),
+                );
+                const isEmpty = (!sf.documents || sf.documents.length === 0) && !hasChildren;
                 const isValidated = !!sf.validated;
                 const docsCount = sf.documents?.length ?? 0;
                 // Date affichée : dernière modif du sous-dossier, sinon date de création du dossier

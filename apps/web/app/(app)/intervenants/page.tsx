@@ -14,7 +14,7 @@ import {
   X, Send, Link2, Clock, Pencil,
   ChevronRight, AlertTriangle, FolderOpen, ArrowLeft, Folder,
   CheckCircle2, AlertCircle, Hourglass, RefreshCw, HardHat, Star,
-  Filter, Sparkles, Users, MessageSquare,
+  Filter, Users, MessageSquare,
 } from 'lucide-react';
 import MessagesIntervenantsPage from '@/app/(app)/messages-intervenants/page';
 import { useIntervenantStore, type Intervenant } from '@/store';
@@ -28,8 +28,8 @@ import { DonnerAccesModal } from '@/components/demandes/DonnerAccesModal';
 import { MiniCalendarWeek } from '@/components/demandes/MiniCalendarWeek';
 import { RatingEditor } from '@/components/demandes/RatingEditor';
 import {
-  listInvitations, listDemandesPro,
-  type IntervenantInvitation, type Demande, type DemandeType,
+  listInvitations, listDemandesPro, relanceDemandePro,
+  type IntervenantInvitation, type Demande, type DemandeType, type DemandeStatus,
 } from '@/lib/demandes-api';
 import { api } from '@/lib/api';
 
@@ -316,12 +316,18 @@ export default function IntervenantsHubPage() {
     }
   };
 
-  const handleDemandeSpeciale = () => {
-    setDrawerPrefill({
-      type: 'AUTRE',
-      title: '',
-      notes: 'Description detaillee de la demande :',
-    });
+  /** Relance ciblee d'une seule demande (bouton "Relancer" par ligne). */
+  const handleRelanceOne = async (demandeId: string) => {
+    try {
+      await relanceDemandePro(demandeId);
+      // Maj optimiste : bump updatedAt pour refleter la relance dans la liste.
+      setProDemandes((prev) =>
+        prev.map((d) => (d.id === demandeId ? { ...d, updatedAt: new Date().toISOString() } : d)),
+      );
+    } catch (err: any) {
+      alert(`Erreur relance : ${err?.message ?? 'inconnu'}`);
+      throw err; // remonte l'échec pour que la liste n'affiche pas "Relancé ✓"
+    }
   };
 
   const handleAddDossier = async (intervenantId: string, name: string) => {
@@ -450,7 +456,8 @@ export default function IntervenantsHubPage() {
 
         <QuickDemandesSection
           onPickChip={handlePickChip}
-          onDemandeSpeciale={handleDemandeSpeciale}
+          proDemandes={proDemandes}
+          onRelance={handleRelanceOne}
         />
 
         <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm overflow-hidden">
@@ -512,17 +519,12 @@ export default function IntervenantsHubPage() {
           )}
         </div>
 
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2.5 sm:grid-cols-3">
           <ActionButton
             primary
             label="Ajouter un artisan"
             icon={<Plus className="h-4 w-4" />}
             onClick={() => setShowAddForm(true)}
-          />
-          <ActionButton
-            label="Demande spéciale"
-            icon={<Sparkles className="h-4 w-4" />}
-            onClick={handleDemandeSpeciale}
           />
           <ActionButton
             label="Donner accès"
@@ -625,7 +627,8 @@ export default function IntervenantsHubPage() {
         <QuickDemandesSection
           activeChip={selectedChipKey}
           onPickChip={handlePickChip}
-          onDemandeSpeciale={handleDemandeSpeciale}
+          proDemandes={proDemandes}
+          onRelance={handleRelanceOne}
         />
 
         <ChipDrilldown
@@ -831,21 +834,125 @@ function FiltersBar({ types, activeType, onPick }: { types: string[]; activeType
   );
 }
 
+// ─── Liste "Demandes en cours" (remplace l'ancien bouton Demande spéciale) ──
+const DEMANDE_STATUS_LABEL: Record<string, string> = {
+  ENVOYEE: 'Envoyée', VUE: 'Vue', ACCEPTEE: 'Acceptée', EN_COURS: 'En cours',
+  TERMINEE: 'Terminée', REFUSEE: 'Refusée', ANNULEE: 'Annulée',
+};
+const DEMANDE_TERMINAL: DemandeStatus[] = ['TERMINEE', 'REFUSEE', 'ANNULEE'];
+
+/** Ancienneté relative courte (aujourd'hui / il y a Xj). */
+function relativeAge(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400_000);
+  if (days <= 0) return "aujourd'hui";
+  if (days === 1) return 'hier';
+  return `il y a ${days} j`;
+}
+
+function DemandesEnCoursList({
+  demandes, onRelance,
+}: {
+  demandes: Demande[];
+  onRelance: (id: string) => Promise<void>;
+}) {
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [relancedId, setRelancedId] = useState<string | null>(null);
+
+  const enCours = useMemo(
+    () =>
+      [...demandes]
+        .filter((d) => !DEMANDE_TERMINAL.includes(d.status))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [demandes],
+  );
+
+  const handle = async (id: string) => {
+    setLoadingId(id);
+    try {
+      await onRelance(id);
+      // Feedback inline (pas d'alerte de succès intrusive).
+      setRelancedId(id);
+      setTimeout(() => setRelancedId((v) => (v === id ? null : v)), 2500);
+    } catch {
+      /* le parent a déjà affiché l'erreur */
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  return (
+    <div>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-[#7c6c58] mb-2.5">
+        Demandes en cours{enCours.length > 0 ? ` (${enCours.length})` : ''}
+      </p>
+
+      {enCours.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[#304035]/15 px-4 py-5 text-center text-[12.5px] text-[#304035]/50">
+          Aucune demande en cours.
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-72 overflow-y-auto pr-0.5">
+          {enCours.map((d) => {
+            const interName =
+              d.intervenant?.companyName ||
+              [d.intervenant?.firstName, d.intervenant?.lastName].filter(Boolean).join(' ') ||
+              'Intervenant';
+            const busy = loadingId === d.id;
+            const done = relancedId === d.id;
+            const noEmail = !d.intervenant?.email;
+            return (
+              <div
+                key={d.id}
+                className="flex items-center gap-3 rounded-xl border border-[#304035]/10 bg-white px-3.5 py-2.5"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-[#1a2a1e] truncate">{d.title}</p>
+                  <p className="text-[11.5px] text-[#304035]/55 truncate">
+                    {interName} · {DEMANDE_STATUS_LABEL[d.status] ?? d.status} · {relativeAge(d.createdAt)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handle(d.id)}
+                  disabled={busy || done || noEmail}
+                  title={noEmail ? "Aucun e-mail enregistré pour cet intervenant" : undefined}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold transition-colors whitespace-nowrap shrink-0 disabled:cursor-not-allowed',
+                    done
+                      ? 'bg-[#e8efe6] text-[#3b6d4a]'
+                      : 'text-white bg-[#a67749] hover:bg-[#92653b] disabled:opacity-50',
+                  )}
+                >
+                  {done ? (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Relancé
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className={`h-3.5 w-3.5 ${busy ? 'animate-spin' : ''}`} />
+                      {busy ? 'Relance…' : 'Relancer'}
+                    </>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function QuickDemandesSection({
-  activeChip, onPickChip, onDemandeSpeciale,
+  activeChip, onPickChip, proDemandes, onRelance,
 }: {
   activeChip?: string | null;
   onPickChip: (key: string) => void;
-  onDemandeSpeciale: () => void;
+  proDemandes: Demande[];
+  onRelance: (id: string) => Promise<void>;
 }) {
   return (
     <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm p-5 space-y-4">
-      <button
-        onClick={onDemandeSpeciale}
-        className="w-full rounded-xl px-5 py-3 text-sm font-semibold text-white bg-[#a67749] hover:bg-[#92653b] transition-colors flex items-center justify-center gap-2"
-      >
-        <Sparkles className="h-4 w-4" /> Demande spéciale
-      </button>
+      <DemandesEnCoursList demandes={proDemandes} onRelance={onRelance} />
 
       <div>
         <p className="text-[11px] font-bold uppercase tracking-wider text-[#7c6c58] mb-2.5">Demande rapide</p>

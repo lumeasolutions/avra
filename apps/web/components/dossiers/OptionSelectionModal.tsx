@@ -18,7 +18,7 @@
  * par option cochée, en copiant les documents source dedans.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type CSSProperties } from 'react';
 import { X, Check, FolderOpen, Folder } from 'lucide-react';
 import type { Dossier, ValidatedOptionSelection } from '@/store/useDossierStore';
 import {
@@ -109,9 +109,12 @@ export function OptionSelectionModal({ dossier, profession, onConfirm, onCancel 
   // État local — par défaut, RIEN de coché (utilisateur doit choisir explicitement)
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [customNames, setCustomNames] = useState<Record<string, string>>({});
-  // Sous-dossiers : subChecked[optionLabel][subPath] = false si DÉCOCHÉ.
-  // Par défaut (absent) = coché → tous inclus quand l'option est cochée.
-  const [subChecked, setSubChecked] = useState<Record<string, Record<string, boolean>>>({});
+  // Choix du contenu à valider pour chaque option :
+  //  - 'full' (défaut) → tout le projet (le dossier + TOUS ses sous-dossiers)
+  //  - 'partial'       → uniquement les sous-dossiers cochés ci-dessous
+  const [subMode, setSubMode] = useState<Record<string, 'full' | 'partial'>>({});
+  // En mode 'partial' : subInclude[optionLabel][subPath] = true si INCLUS.
+  const [subInclude, setSubInclude] = useState<Record<string, Record<string, boolean>>>({});
 
   const selectedCount = Object.values(checked).filter(Boolean).length;
   const canConfirm = selectedCount > 0;
@@ -120,26 +123,30 @@ export function OptionSelectionModal({ dossier, profession, onConfirm, onCancel 
     setChecked((s) => ({ ...s, [sourceLabel]: !s[sourceLabel] }));
   };
 
-  const isSubChecked = (optLabel: string, subPath: string) =>
-    subChecked[optLabel]?.[subPath] !== false;
-
-  const toggleSub = (optLabel: string, subPath: string) => {
-    setSubChecked((s) => {
+  const modeOf = (optLabel: string): 'full' | 'partial' => subMode[optLabel] ?? 'full';
+  const setMode = (optLabel: string, m: 'full' | 'partial') =>
+    setSubMode((s) => ({ ...s, [optLabel]: m }));
+  const isIncluded = (optLabel: string, subPath: string) => !!subInclude[optLabel]?.[subPath];
+  const toggleInclude = (optLabel: string, subPath: string) => {
+    setSubInclude((s) => {
       const cur = s[optLabel] ?? {};
-      return { ...s, [optLabel]: { ...cur, [subPath]: cur[subPath] === false ? true : false } };
+      return { ...s, [optLabel]: { ...cur, [subPath]: !cur[subPath] } };
     });
   };
+  const includedCount = (optLabel: string, subs: SubCandidate[]) =>
+    subs.filter((s) => isIncluded(optLabel, s.label)).length;
 
   const handleConfirm = () => {
     const selected: ValidatedOptionSelection[] = candidates
       .filter((c) => checked[c.sourceLabel])
       .map((c) => {
         const allSubs = c.subFolders.map((s) => s.label);
-        const included = allSubs.filter((p) => isSubChecked(c.sourceLabel, p));
-        // Tous inclus (ou aucun sous-dossier) → tout le dossier (undefined).
-        // Sinon → seulement la sélection (peut être [] = parent seul).
+        // Projet complet (ou pas de sous-dossiers) → undefined = tout le dossier.
+        // Sinon → uniquement la sélection cochée (peut être [] = dossier parent seul).
         const includeSubPaths =
-          allSubs.length === 0 || included.length === allSubs.length ? undefined : included;
+          allSubs.length === 0 || modeOf(c.sourceLabel) === 'full'
+            ? undefined
+            : allSubs.filter((p) => isIncluded(c.sourceLabel, p));
         return {
           sourceLabel: c.sourceLabel,
           customName: customNames[c.sourceLabel]?.trim() || undefined,
@@ -323,45 +330,86 @@ export function OptionSelectionModal({ dossier, profession, onConfirm, onCancel 
                       </div>
                     )}
 
-                    {/* Sous-dossiers imbriqués (APD 1, APD 2…) — visibles si coché.
-                        Tous cochés par défaut = tout le dossier. Décocher = exclure. */}
-                    {isChecked && c.subFolders.length > 0 && (
-                      <div
-                        onClick={(e) => e.preventDefault()}
-                        style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 28 }}
-                      >
-                        <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                          Sous-dossiers à inclure ({c.subFolders.filter((s) => isSubChecked(c.sourceLabel, s.label)).length}/{c.subFolders.length})
-                        </span>
-                        {c.subFolders.map((s) => {
-                          const on = isSubChecked(c.sourceLabel, s.label);
-                          return (
+                    {/* Contenu à valider — visible si l'option est cochée ET qu'elle
+                        contient des sous-dossiers (APD 1, APD 2, CUISINE…).
+                        Choix explicite : soit tout le projet, soit une sélection. */}
+                    {isChecked && c.subFolders.length > 0 && (() => {
+                      const mode = modeOf(c.sourceLabel);
+                      const nbIncl = includedCount(c.sourceLabel, c.subFolders);
+                      const pillStyle = (active: boolean): CSSProperties => ({
+                        flex: 1,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        padding: '7px 10px', borderRadius: 9,
+                        border: `1.5px solid ${active ? '#a67749' : 'rgba(48,64,53,0.15)'}`,
+                        background: active ? 'rgba(166,119,73,0.08)' : '#fff',
+                        color: active ? '#7a5327' : 'rgba(48,64,53,0.6)',
+                        fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                        fontFamily: 'inherit', textAlign: 'center',
+                      });
+                      return (
+                        <div
+                          onClick={(e) => e.preventDefault()}
+                          style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingLeft: 28 }}
+                        >
+                          <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            Contenu à valider
+                          </span>
+                          <div style={{ display: 'flex', gap: 8 }}>
                             <button
-                              key={s.label}
                               type="button"
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleSub(c.sourceLabel, s.label); }}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: 8,
-                                padding: '6px 8px', borderRadius: 8,
-                                border: `1px solid ${on ? 'rgba(166,119,73,0.35)' : 'rgba(48,64,53,0.12)'}`,
-                                background: on ? 'rgba(166,119,73,0.05)' : '#fff',
-                                cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-                              }}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMode(c.sourceLabel, 'full'); }}
+                              style={pillStyle(mode === 'full')}
                             >
-                              <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${on ? '#a67749' : 'rgba(48,64,53,0.3)'}`, background: on ? '#a67749' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                {on && <Check size={11} color="#fff" strokeWidth={3} />}
-                              </div>
-                              <Folder size={13} color="#a67749" style={{ flexShrink: 0 }} />
-                              <span style={{ fontSize: 12, fontWeight: 600, color: '#304035', flex: 1 }}>{s.name}</span>
-                              <span style={{ fontSize: 10, color: 'rgba(48,64,53,0.5)' }}>{s.docCount} doc{s.docCount > 1 ? 's' : ''}</span>
+                              <FolderOpen size={14} /> Projet complet
                             </button>
-                          );
-                        })}
-                        <span style={{ fontSize: 10, color: 'rgba(48,64,53,0.4)' }}>
-                          Décochez pour exclure un sous-dossier. Tous cochés = tout le dossier inclus.
-                        </span>
-                      </div>
-                    )}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMode(c.sourceLabel, 'partial'); }}
+                              style={pillStyle(mode === 'partial')}
+                            >
+                              <Folder size={14} /> Sous-dossiers précis
+                            </button>
+                          </div>
+
+                          {mode === 'partial' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                Sous-dossiers à inclure ({nbIncl}/{c.subFolders.length})
+                              </span>
+                              {c.subFolders.map((s) => {
+                                const on = isIncluded(c.sourceLabel, s.label);
+                                return (
+                                  <button
+                                    key={s.label}
+                                    type="button"
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleInclude(c.sourceLabel, s.label); }}
+                                    style={{
+                                      display: 'flex', alignItems: 'center', gap: 8,
+                                      padding: '6px 8px', borderRadius: 8,
+                                      border: `1px solid ${on ? 'rgba(166,119,73,0.35)' : 'rgba(48,64,53,0.12)'}`,
+                                      background: on ? 'rgba(166,119,73,0.05)' : '#fff',
+                                      cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                                    }}
+                                  >
+                                    <div style={{ width: 16, height: 16, borderRadius: 4, border: `1.5px solid ${on ? '#a67749' : 'rgba(48,64,53,0.3)'}`, background: on ? '#a67749' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                      {on && <Check size={11} color="#fff" strokeWidth={3} />}
+                                    </div>
+                                    <Folder size={13} color="#a67749" style={{ flexShrink: 0 }} />
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: '#304035', flex: 1 }}>{s.name}</span>
+                                    <span style={{ fontSize: 10, color: 'rgba(48,64,53,0.5)' }}>{s.docCount} doc{s.docCount > 1 ? 's' : ''}</span>
+                                  </button>
+                                );
+                              })}
+                              <span style={{ fontSize: 10, color: 'rgba(48,64,53,0.4)' }}>
+                                {nbIncl === 0
+                                  ? `Aucun coché : seul le dossier « ${displayName(c.sourceLabel)} » sera validé (sans ses sous-dossiers).`
+                                  : 'Cochez le(s) sous-dossier(s) à retenir. Passez sur « Projet complet » pour tout inclure.'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </label>
                 );
               })}

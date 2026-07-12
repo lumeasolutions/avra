@@ -318,6 +318,17 @@ export class DemandesController {
   }
 
   /**
+   * Relance MANUELLE ciblee — bouton "Relancer" en face d'une demande dans la
+   * liste "Demandes en cours" (page /intervenants). Scope workspace via JWT.
+   */
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Post(':id/relance')
+  @UseGuards(JwtAuthGuard)
+  async relanceOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.demandes.relanceOne(id, user.workspaceId);
+  }
+
+  /**
    * Endpoint cron auto-rappel.
    *
    * SEC CRIT-003:

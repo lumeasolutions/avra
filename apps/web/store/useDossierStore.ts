@@ -216,6 +216,7 @@ const DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'RELEVE DE MESURES' },
   { label: 'OPTION 1' },
   { label: 'OPTION 2' },
+  { label: 'DEVIS ARTISANS' },
 ];
 
 export const ARCHITECTE_DEFAULT_SUBFOLDERS: SubFolder[] = [
@@ -224,6 +225,7 @@ export const ARCHITECTE_DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'RELEVE DE MESURES' },
   { label: 'PROJET VERSION 1 – APS' },
   { label: 'PROJET VERSION 1 – APD' },
+  { label: 'DEVIS ARTISANS' },
 ];
 
 export const MENUISIER_DEFAULT_SUBFOLDERS: SubFolder[] = [
@@ -231,6 +233,7 @@ export const MENUISIER_DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
   { label: 'RELEVE DE MESURES' },
   { label: 'PROJET 1' },
+  { label: 'DEVIS ARTISANS' },
 ];
 
 /** Regex pour détecter les sous-dossiers "PROJET N" (menuisier) */
@@ -397,27 +400,25 @@ export function buildSignedSubfoldersForProfession(
     return SIGNED_SUBFOLDERS;
   }
 
-  // ─── Étape 1 : archive AVANT VENTE ─────────────────────────────────────
-  // Tous les documents du dossier en cours, aplatis et préfixés par leur
-  // sous-dossier d'origine pour préserver la traçabilité.
-  const archivedDocs: DocumentFile[] = [];
-  for (const sf of source.subfolders ?? []) {
-    if (!sf.documents) continue;
-    for (const doc of sf.documents) {
-      const baseDoc: DocumentFile =
-        typeof doc === 'string' ? { name: doc } : { ...doc };
-      archivedDocs.push({
-        ...baseDoc,
-        name: `[${sf.label}] ${baseDoc.name}`,
-      });
-    }
-  }
-
-  // ─── Helper interne : construit un sous-dossier valide a partir d'une
-  // option source. Copie les documents du sous-dossier source (sans prefixe,
-  // pour rester utilisable comme dossier actif) et applique le custom name.
+  // ─── Helper interne : clone un document (string ou objet) ──────────────
   const cloneDoc = (d: SubFolderDocument): DocumentFile =>
     typeof d === 'string' ? { name: d } : { ...d };
+
+  // ─── Étape 1 : archive AVANT VENTE (navigable) ─────────────────────────
+  // On recopie l'INTÉGRALITÉ du dossier en cours (tous les sous-dossiers +
+  // documents) SOUS le dossier "AVANT VENTE", en PRÉSERVANT la hiérarchie
+  // (chemins "AVANT VENTE ▸ …"). Résultat : un dossier d'archive NAVIGABLE
+  // dans le dossier signé où l'on retrouve tout l'avant-vente d'un coup
+  // (y compris les options non retenues) — sans avoir à chercher partout.
+  // NB : le projet validé reste STRICT (uniquement la sélection). L'archive,
+  // elle, conserve tout.
+  const archiveSubfolders: SubFolder[] = [
+    { label: 'AVANT VENTE', documents: [] },
+    ...(source.subfolders ?? []).map((sf) => ({
+      label: `AVANT VENTE${SEP}${sf.label}`,
+      documents: (sf.documents ?? []).map(cloneDoc),
+    })),
+  ];
 
   // Construit le dossier validé + ses SOUS-DOSSIERS IMBRIQUÉS sélectionnés, en
   // préservant la hiérarchie et en copiant les documents. Retourne la liste à
@@ -459,7 +460,7 @@ export function buildSignedSubfoldersForProfession(
   // qu'ils apparaissent dans la case « Confirmations validées » du gate stats,
   // en symétrie du devis. Si le dossier n'a pas de factures, on garde les
   // placeholders vides (comportement inchangé).
-  const FOURN_RE = /CONFIRMATION|COMMANDE|FOURNISSEUR|FACTURE.*ACHAT/i;
+  const FOURN_RE = /CONFIRMATION|COMMANDE|FOURNISSEUR|ARTISAN|FACTURE.*ACHAT/i;
   const fournisseurSubfolders: SubFolder[] = (source.subfolders ?? [])
     .filter((sf) => FOURN_RE.test(sf.label) && (sf.documents?.length ?? 0) > 0)
     .map((sf) => ({ label: sf.label, documents: (sf.documents ?? []).map(cloneDoc) }));
@@ -497,7 +498,7 @@ export function buildSignedSubfoldersForProfession(
     }
 
     return MENUISIER_SIGNED_SUBFOLDERS.flatMap((sf) => {
-      if (sf.label === 'AVANT VENTE') return [{ ...sf, documents: archivedDocs }];
+      if (sf.label === 'AVANT VENTE') return archiveSubfolders;
       if (sf.label === 'PROJET VALIDÉ') return validatedSubfolders;
       if (FOURN_RE.test(sf.label) && fournisseurSubfolders.length > 0) return [];
       return [{ ...sf }];
@@ -532,7 +533,7 @@ export function buildSignedSubfoldersForProfession(
     }
 
     return CUISINISTE_SIGNED_SUBFOLDERS.flatMap((sf) => {
-      if (sf.label === 'AVANT VENTE') return [{ ...sf, documents: archivedDocs }];
+      if (sf.label === 'AVANT VENTE') return archiveSubfolders;
       if (sf.label === 'OPTION VALIDÉE') return validatedSubfolders;
       if (FOURN_RE.test(sf.label) && fournisseurSubfolders.length > 0) return [];
       return [{ ...sf }];
@@ -577,7 +578,7 @@ export function buildSignedSubfoldersForProfession(
       : [{ label: 'APD VERSION VALIDÉE (DOSSIER SIGNÉ)' } as SubFolder];
 
   return ARCHITECTE_SIGNED_SUBFOLDERS.flatMap((sf) => {
-    if (sf.label === 'AVANT VENTE') return [{ ...sf, documents: archivedDocs }];
+    if (sf.label === 'AVANT VENTE') return archiveSubfolders;
     if (sf.label === 'APD VERSION VALIDÉE') return architecteValidatedSubfolders;
     if (FOURN_RE.test(sf.label) && fournisseurSubfolders.length > 0) return [];
     return [{ ...sf }];

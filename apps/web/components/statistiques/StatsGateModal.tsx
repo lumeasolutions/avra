@@ -221,6 +221,10 @@ export function StatsGateModal({
       // DEBUT du label (non ancre en fin) pour tolerer suffixe + custom.
       .filter((sf) => {
         const L = sf.label;
+        // Ignore l'archive AVANT VENTE (copie brute du dossier en cours) : ses
+        // sous-dossiers sont une archive navigable, pas des options validées —
+        // sinon on compterait les devis en double.
+        if (L === 'AVANT VENTE' || L.startsWith('AVANT VENTE ▸ ')) return false;
         return (
           /^OPTION\s+\d+/i.test(L) ||
           /^PROJET\s+VERSION\s+\d+\s*[–—-]\s*(APS|APD)/i.test(L) ||
@@ -248,14 +252,20 @@ export function StatsGateModal({
   const confirmationsSubfolders = useMemo<Array<{ label: string; docs: DocumentFile[] }>>(() => {
     const subfolders = selected?.signedSubfolders ?? [];
     return subfolders
-      .filter((sf) =>
-        /CONFIRMATION/i.test(sf.label) ||
-        /COMMANDE/i.test(sf.label) ||
-        /FOURNISSEUR/i.test(sf.label) ||
-        /FACTURE.*ACHAT/i.test(sf.label) ||
-        /FACTURES.*ACHATS/i.test(sf.label) ||
-        /ACHAT/i.test(sf.label),
-      )
+      .filter((sf) => {
+        // Ignore l'archive AVANT VENTE (copie brute) : ses sous-dossiers
+        // fournisseurs ne doivent pas apparaître en double dans les
+        // confirmations validées (regex ci-dessous non ancrées).
+        if (sf.label === 'AVANT VENTE' || sf.label.startsWith('AVANT VENTE ▸ ')) return false;
+        return (
+          /CONFIRMATION/i.test(sf.label) ||
+          /COMMANDE/i.test(sf.label) ||
+          /FOURNISSEUR/i.test(sf.label) ||
+          /FACTURE.*ACHAT/i.test(sf.label) ||
+          /FACTURES.*ACHATS/i.test(sf.label) ||
+          /ACHAT/i.test(sf.label)
+        );
+      })
       .map((sf) => ({
         label: sf.label,
         docs: (sf.documents ?? []).map((d: SubFolderDocument) =>
