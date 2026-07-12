@@ -452,6 +452,18 @@ export function buildSignedSubfoldersForProfession(
     return c ? `${base} ${c.toUpperCase()} ${suffix}` : `${base} ${suffix}`;
   };
 
+  // ─── Sous-dossiers FACTURES / ACHATS FOURNISSEURS ──────────────────────────
+  // Les modèles de dossier signé contiennent des placeholders VIDES
+  // (« COMMANDES FOURNISSEURS », « CONFIRMATIONS / FACTURES ACHATS »…). On les
+  // remplace par les vrais sous-dossiers du dossier (AVEC leurs documents) pour
+  // qu'ils apparaissent dans la case « Confirmations validées » du gate stats,
+  // en symétrie du devis. Si le dossier n'a pas de factures, on garde les
+  // placeholders vides (comportement inchangé).
+  const FOURN_RE = /CONFIRMATION|COMMANDE|FOURNISSEUR|FACTURE.*ACHAT/i;
+  const fournisseurSubfolders: SubFolder[] = (source.subfolders ?? [])
+    .filter((sf) => FOURN_RE.test(sf.label) && (sf.documents?.length ?? 0) > 0)
+    .map((sf) => ({ label: sf.label, documents: (sf.documents ?? []).map(cloneDoc) }));
+
   // ─── Étape 2 : aiguillage par profession ───────────────────────────────
   if (profession === 'menuisier') {
     // Determination des options a valider :
@@ -487,8 +499,9 @@ export function buildSignedSubfoldersForProfession(
     return MENUISIER_SIGNED_SUBFOLDERS.flatMap((sf) => {
       if (sf.label === 'AVANT VENTE') return [{ ...sf, documents: archivedDocs }];
       if (sf.label === 'PROJET VALIDÉ') return validatedSubfolders;
+      if (FOURN_RE.test(sf.label) && fournisseurSubfolders.length > 0) return [];
       return [{ ...sf }];
-    });
+    }).concat(fournisseurSubfolders);
   }
 
   if (profession === 'cuisiniste') {
@@ -521,8 +534,9 @@ export function buildSignedSubfoldersForProfession(
     return CUISINISTE_SIGNED_SUBFOLDERS.flatMap((sf) => {
       if (sf.label === 'AVANT VENTE') return [{ ...sf, documents: archivedDocs }];
       if (sf.label === 'OPTION VALIDÉE') return validatedSubfolders;
+      if (FOURN_RE.test(sf.label) && fournisseurSubfolders.length > 0) return [];
       return [{ ...sf }];
-    });
+    }).concat(fournisseurSubfolders);
   }
 
   // profession === 'architecte'
@@ -565,8 +579,9 @@ export function buildSignedSubfoldersForProfession(
   return ARCHITECTE_SIGNED_SUBFOLDERS.flatMap((sf) => {
     if (sf.label === 'AVANT VENTE') return [{ ...sf, documents: archivedDocs }];
     if (sf.label === 'APD VERSION VALIDÉE') return architecteValidatedSubfolders;
+    if (FOURN_RE.test(sf.label) && fournisseurSubfolders.length > 0) return [];
     return [{ ...sf }];
-  });
+  }).concat(fournisseurSubfolders);
 }
 
 // Données initiales — vides. Les vraies données viennent de l'API via useDataSync.
