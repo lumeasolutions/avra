@@ -1168,7 +1168,12 @@ export function StatsGateModal({
                         <div
                           key={l.id}
                           draggable
-                          onDragStart={(e) => { setDragLigneId(l.id); e.dataTransfer.effectAllowed = 'move'; }}
+                          onDragStart={(e) => {
+                            // Ne pas démarrer un glisser quand on interagit avec un champ
+                            // de saisie (édition du prix) — sinon impossible de cliquer/taper.
+                            if ((e.target as HTMLElement).tagName === 'INPUT') { e.preventDefault(); return; }
+                            setDragLigneId(l.id); e.dataTransfer.effectAllowed = 'move';
+                          }}
                           onDragOver={(e) => { if (dragLigneId && dragLigneId !== l.id) e.preventDefault(); }}
                           onDrop={(e) => { e.preventDefault(); if (dragLigneId) handleMergeLignes(dragLigneId, l.id); setDragLigneId(null); }}
                           onDragEnd={() => setDragLigneId(null)}
@@ -1187,10 +1192,34 @@ export function StatsGateModal({
                             <span style={{ fontWeight: 700, color: '#304035', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.produit || l.fournisseur}</span>
                             {l.produit && <span style={{ fontSize: 10, color: 'rgba(48,64,53,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.fournisseur}</span>}
                           </span>
-                          <span style={{ color: '#dc2626' }}>Achat {fmt(l.prixAchatHT)}</span>
-                          <span style={{ color: needsVente ? '#f59e0b' : '#16a34a', fontWeight: needsVente ? 700 : 400 }}>
-                            {needsVente ? '⚠ Vente à saisir' : `Vente ${fmt(l.prixVenteHT)}`}
-                          </span>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#dc2626', fontSize: 11 }}>
+                            Achat
+                            <input
+                              type="number" min="0" step="1"
+                              value={l.prixAchatHT || ''}
+                              placeholder="0"
+                              draggable={false}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onChange={(e) => onUpdateLigne(selected.id, l.id, { prixAchatHT: Number(e.target.value) || 0 })}
+                              title="Prix d'achat HT — cliquez pour modifier"
+                              style={{ width: 66, padding: '3px 6px', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, fontSize: 12, color: '#dc2626', background: '#fff', fontWeight: 600 }}
+                            />
+                            €
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 4, color: needsVente ? '#f59e0b' : '#16a34a', fontSize: 11 }}>
+                            Vente
+                            <input
+                              type="number" min="0" step="1"
+                              value={l.prixVenteHT || ''}
+                              placeholder="à saisir"
+                              draggable={false}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onChange={(e) => onUpdateLigne(selected.id, l.id, { prixVenteHT: Number(e.target.value) || 0 })}
+                              title="Prix de vente HT — cliquez pour modifier"
+                              style={{ width: 66, padding: '3px 6px', border: `1px solid ${needsVente ? 'rgba(245,158,11,0.5)' : 'rgba(22,163,74,0.3)'}`, borderRadius: 6, fontSize: 12, color: needsVente ? '#f59e0b' : '#16a34a', background: '#fff', fontWeight: 600 }}
+                            />
+                            €
+                          </label>
                           <span style={{ fontWeight: 700, color: m >= 0 ? '#16a34a' : '#dc2626' }}>
                             {needsVente ? '—' : `Marge ${fmt(m)} (${mPct}%)`}
                           </span>
