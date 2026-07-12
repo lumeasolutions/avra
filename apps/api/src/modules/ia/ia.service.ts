@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IaJobType } from '../../prisma-enums';
 import { DocumentKind, FileMimeCategory } from '../../prisma-enums';
@@ -102,6 +102,11 @@ export class IaService {
       },
     });
 
+    // Anti-IDOR : le projet rattaché doit appartenir au workspace de l'appelant.
+    if (projectId) {
+      const proj = await this.prisma.project.findFirst({ where: { id: projectId, workspaceId }, select: { id: true } });
+      if (!proj) throw new NotFoundException('Projet introuvable');
+    }
     const doc = await this.prisma.document.create({
       data: {
         workspaceId,
@@ -123,6 +128,15 @@ export class IaService {
     type: IaJobType,
     payload: { prompt?: string; sourceDocumentId?: string; style?: string },
   ) {
+    // Anti-IDOR : projet et document source référencés doivent appartenir au workspace.
+    if (projectId) {
+      const proj = await this.prisma.project.findFirst({ where: { id: projectId, workspaceId }, select: { id: true } });
+      if (!proj) throw new NotFoundException('Projet introuvable');
+    }
+    if (payload.sourceDocumentId) {
+      const src = await this.prisma.document.findFirst({ where: { id: payload.sourceDocumentId, workspaceId }, select: { id: true } });
+      if (!src) throw new NotFoundException('Document source introuvable');
+    }
     return this.prisma.iaJob.create({
       data: {
         workspaceId,

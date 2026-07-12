@@ -101,7 +101,7 @@ export default function HomePage() {
             url: 'https://avra-app.fr',
             offers: { '@type': 'Offer', priceCurrency: 'EUR', price: '49' },
             author: { '@type': 'Organization', name: 'Luméa', url: 'https://avra-app.fr' },
-            aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', reviewCount: '312' },
+            // aggregateRating retiré : pas d'avis vérifiables réels (bêta privée) → conformité Google/DGCCRF.
           }),
         }}
       />

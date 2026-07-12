@@ -21,6 +21,7 @@ function clearEphemeralStores() {
   if (typeof localStorage === 'undefined') return;
   const ephemeralKeys = [
     'avra-assistant-store',
+    'avra-assistant', // legacy (ancienne clé) — nettoyage
     'avra-history-store',
     'avra-ui-store',
   ];
@@ -40,6 +41,7 @@ export function clearAllAppStoresHard() {
     'avra-intervenant-store',
     'avra-stock-store',
     'avra-assistant-store',
+    'avra-assistant', // legacy (ancienne clé) — nettoyage
     'avra-history-store',
     'avra-config-store',
     'avra-ui-store',

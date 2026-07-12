@@ -56,7 +56,7 @@ export default function CGVPage() {
               <li>Signature électronique de documents</li>
             </ul>
             <p style={{ fontSize: 16, marginBottom: 0 }}>
-              Les tarifs et plans disponibles sont présentés sur le site https://avra-kappa.vercel.app. Ils peuvent être modifiés à tout moment par le Prestataire après notification préalable.
+              Les tarifs et plans disponibles sont présentés sur le site https://avra.fr. Ils peuvent être modifiés à tout moment par le Prestataire après notification préalable.
             </p>
           </section>
 

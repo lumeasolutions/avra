@@ -92,6 +92,7 @@ export default function PortailCuisinistePage() {
       <style>{`
         @media (max-width: 768px) {
           .portail-cui-root { padding: 0 0 16px 0 !important; padding-top: 64px !important; }
+          .portail-cui-kpi { grid-template-columns: 1fr 1fr !important; }
           .portail-cui-grid-dos { grid-template-columns: 1fr !important; }
           .portail-cui-planning-wrap { overflow-x: auto; }
           .portail-cui-planning-grid { min-width: 520px; }
@@ -105,6 +106,25 @@ export default function PortailCuisinistePage() {
         subtitle="Vue d'ensemble de vos dossiers, planning et alertes"
       />
 
+      {/* KPI synthèse (CA payé / urgents / en cours / SAV) */}
+      <div className="portail-cui-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12, marginBottom: 14 }}>
+        <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#2E7D32' }}>{fmt(stats.ca)}</div>
+          <div style={{ fontSize: 11, color: '#7A8E9F', marginTop: 2 }}>CA facturé (payé)</div>
+        </div>
+        <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#C62828' }}>{stats.urgents}</div>
+          <div style={{ fontSize: 11, color: '#7A8E9F', marginTop: 2 }}>Dossiers urgents</div>
+        </div>
+        <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#0F2540' }}>{stats.enPose}</div>
+          <div style={{ fontSize: 11, color: '#7A8E9F', marginTop: 2 }}>Dossiers en cours</div>
+        </div>
+        <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#F9A825' }}>{stats.savOuverts}</div>
+          <div style={{ fontSize: 11, color: '#7A8E9F', marginTop: 2 }}>SAV / confirmations en attente</div>
+        </div>
+      </div>
 
       {/* DOSSIERS EN COURS / DOSSIERS SIGNÉS */}
       <div className="portail-cui-grid-dos" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>

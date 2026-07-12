@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateStockItemDto } from './dto/create-stock-item.dto';
 import { UpdateStockItemDto } from './dto/update-stock-item.dto';
@@ -9,6 +9,11 @@ export class StockService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(workspaceId: string, dto: CreateStockItemDto) {
+    // Anti-IDOR : le fournisseur référencé doit appartenir au workspace.
+    if (dto.supplierId) {
+      const s = await this.prisma.supplier.findFirst({ where: { id: dto.supplierId, workspaceId }, select: { id: true } });
+      if (!s) throw new NotFoundException('Fournisseur introuvable');
+    }
     return this.prisma.stockItem.create({
       data: { ...dto, workspaceId },
     });
@@ -91,6 +96,11 @@ export class StockService {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.stockItem.findFirst({ where: { id, workspaceId } });
       if (!existing) return null;
+      // Anti-IDOR : fournisseur modifié doit rester dans le workspace.
+      if (dto.supplierId) {
+        const s = await tx.supplier.findFirst({ where: { id: dto.supplierId, workspaceId }, select: { id: true } });
+        if (!s) throw new NotFoundException('Fournisseur introuvable');
+      }
       return tx.stockItem.update({
         where: { id },
         data: dto,

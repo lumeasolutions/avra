@@ -6,11 +6,13 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { ConvertQuoteDto } from './dto/convert-quote.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtPayload } from '@avra/types';
 
 @Controller('invoices')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class InvoicesController {
   constructor(private readonly invoices: InvoicesService) {}
 
@@ -24,21 +26,26 @@ export class InvoicesController {
     return this.invoices.findOne(user.workspaceId, id);
   }
 
+  // Émission/modification/suppression de factures = documents légaux → OWNER/ADMIN uniquement.
+  @Roles('OWNER', 'ADMIN')
   @Post()
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateInvoiceDto) {
     return this.invoices.create(user.workspaceId, dto);
   }
 
+  @Roles('OWNER', 'ADMIN')
   @Post('from-quote')
   convertFromQuote(@CurrentUser() user: JwtPayload, @Body() dto: ConvertQuoteDto) {
     return this.invoices.convertFromQuote(user.workspaceId, dto);
   }
 
+  @Roles('OWNER', 'ADMIN')
   @Patch(':id')
   update(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() dto: UpdateInvoiceDto) {
     return this.invoices.update(user.workspaceId, id, dto);
   }
 
+  @Roles('OWNER', 'ADMIN')
   @Delete(':id')
   remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.invoices.delete(user.workspaceId, id);

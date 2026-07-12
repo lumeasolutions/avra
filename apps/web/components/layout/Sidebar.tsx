@@ -385,7 +385,7 @@ export function Sidebar() {
           <svg viewBox="0 0 24 24" fill="none"><path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
           E Sign
         </Link>
-        <Link href="/e-paiement" className={`menu-item ${pathname === '/e-paiement' ? 'active' : ''}`} onClick={close}>
+        <Link href="/epaiement" className={`menu-item ${pathname === '/epaiement' ? 'active' : ''}`} onClick={close}>
           <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
           E Paiement
         </Link>

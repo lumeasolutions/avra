@@ -1,11 +1,12 @@
-import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, Min } from 'class-validator';
+import { IsString, IsNumber, IsInt, IsOptional, IsArray, ValidateNested, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class OrderLineDto {
   @IsString()
   description: string;
 
-  @IsNumber()
+  // Colonne Prisma Int → @IsInt (sinon un décimal provoque un 500 Prisma).
+  @IsInt()
   @Min(0)
   quantity: number;
 

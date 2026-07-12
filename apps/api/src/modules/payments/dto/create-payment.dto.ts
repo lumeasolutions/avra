@@ -1,4 +1,4 @@
-import { IsString, IsUUID, IsNumber, IsOptional, IsEnum, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEnum, Min } from 'class-validator';
 
 export enum PaymentType {
   ACOMPTE = 'ACOMPTE',
@@ -7,7 +7,8 @@ export enum PaymentType {
 }
 
 export class CreatePaymentDto {
-  @IsUUID()
+  // NB: les IDs Prisma sont des cuid (pas des UUID) → @IsString, sinon 400 systématique.
+  @IsString()
   projectId: string;
 
   @IsEnum(PaymentType)

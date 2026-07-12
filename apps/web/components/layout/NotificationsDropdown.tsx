@@ -51,9 +51,10 @@ export const NotificationsDropdown = React.memo(function NotificationsDropdown()
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    if (open) load();
-  }, [open]);
+  // Charge au montage → la pastille de non-lus s'affiche sans avoir à ouvrir le menu.
+  useEffect(() => { load(); }, []);
+  // Rafraîchit à chaque ouverture.
+  useEffect(() => { if (open) load(); }, [open]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

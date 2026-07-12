@@ -87,6 +87,14 @@ export function useProjectActions() {
         return store.addDossier({ ...data, profession, vendeurName: resolveCurrentVendeurName() });
       }
 
+      // Nom + métier dérivés de la profession (avant : toujours "Cuisine …" / CUISINISTE,
+      // ce qui étiquetait à tort les projets menuisier/architecte comme cuisiniste).
+      const tradeType =
+        profession === 'menuisier' ? 'MENUISIER'
+        : profession === 'architecte' ? 'ARCHITECTE_INTERIEUR'
+        : 'CUISINISTE';
+      const projectPrefix = profession === 'cuisiniste' ? 'Cuisine' : 'Projet';
+
       // 1. Appel API EN PREMIER pour obtenir un vrai cuid avant tout local
       let result: { id: string };
       try {
@@ -98,8 +106,8 @@ export function useProjectActions() {
             lastName: data.lastName,
             email: data.email || undefined,
             phone: data.phone || undefined,
-            name: `Cuisine ${data.lastName}`,
-            tradeType: 'CUISINISTE',
+            name: `${projectPrefix} ${data.lastName}`,
+            tradeType,
           }),
         });
       } catch (err: any) {

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 // Le projet embarque un shim @prisma/client manuel
 // (apps/api/src/types/prisma-client.d.ts) qui n'expose pas `Prisma.Decimal`.
 // On importe donc la classe Decimal directement depuis le runtime Prisma et on
@@ -96,8 +97,14 @@ export class QuotesService {
 
   async create(workspaceId: string, dto: CreateQuoteDto) {
     return this.prisma.$transaction(async (tx: any) => {
+      // Anti-IDOR : le projet rattaché doit appartenir au workspace.
+      if (dto.projectId) {
+        const p = await tx.project.findFirst({ where: { id: dto.projectId, workspaceId }, select: { id: true } });
+        if (!p) throw new NotFoundException('Projet introuvable');
+      }
       const totals = this.computeTotals(dto.lines);
-      const reference = dto.reference ?? (await this.nextReference(tx, workspaceId));
+      // Référence TOUJOURS générée serveur (séquence légale), jamais fournie par le client.
+      const reference = await this.nextReference(tx, workspaceId);
       return tx.quote.create({
         data: {
           workspaceId,
@@ -111,7 +118,8 @@ export class QuotesService {
           conditionsPaiement: dto.conditionsPaiement ?? null,
           validUntil: dto.validUntil ? new Date(dto.validUntil) : null,
           notes: dto.notes ?? null,
-          token: dto.token ?? null,
+          // Token du portail public généré serveur (jamais fourni par le client) → non énumérable.
+          token: randomBytes(32).toString('hex'),
           signatureStatus: dto.signatureStatus ?? null,
           signatureEmail: dto.signatureEmail ?? null,
           totalHT: totals.totalHT,
@@ -130,10 +138,17 @@ export class QuotesService {
       const existing = await tx.quote.findFirst({ where: { id, workspaceId } });
       if (!existing) throw new NotFoundException(`Quote ${id} not found`);
 
+      // Anti-IDOR : rattachement projet modifié doit rester dans le workspace.
+      if (dto.projectId) {
+        const p = await tx.project.findFirst({ where: { id: dto.projectId, workspaceId }, select: { id: true } });
+        if (!p) throw new NotFoundException('Projet introuvable');
+      }
+
       const data: Record<string, unknown> = {};
+      // 'reference' et 'token' RETIRÉS : immuables après création.
       const scalarKeys: (keyof UpdateQuoteDto)[] = [
-        'projectId', 'status', 'reference', 'clientName', 'clientEmail',
-        'clientAddress', 'objet', 'conditionsPaiement', 'notes', 'token',
+        'projectId', 'status', 'clientName', 'clientEmail',
+        'clientAddress', 'objet', 'conditionsPaiement', 'notes',
         'signatureStatus', 'signatureEmail',
       ];
       for (const k of scalarKeys) {

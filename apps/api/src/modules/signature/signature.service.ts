@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { YouSignService } from './yousign.service';
 import { CreateSignatureDto } from './dto/create-signature.dto';
@@ -150,6 +150,12 @@ export class SignatureService {
         this.logger.error(`YouSign integration error: ${yousignError}`);
         // Fallback to local saving without YouSign
       }
+    }
+
+    // Anti-IDOR : le projet rattaché doit appartenir au workspace de l'appelant.
+    if (dto.projectId) {
+      const proj = await this.prisma.project.findFirst({ where: { id: dto.projectId, workspaceId }, select: { id: true } });
+      if (!proj) throw new NotFoundException('Projet introuvable');
     }
 
     // Save to database

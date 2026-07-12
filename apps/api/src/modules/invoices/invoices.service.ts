@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 // Shim @prisma/client manuel -> on importe Decimal du runtime et on fait toute
 // l'arithmetique monetaire en Decimal (jamais Number) pour des centimes exacts.
 import { Decimal } from '@prisma/client/runtime/library';
@@ -129,9 +130,19 @@ export class InvoicesService {
   async create(workspaceId: string, dto: CreateInvoiceDto) {
     return this.prisma.$transaction(async (tx: any) => {
       const type = dto.type ?? 'STANDARD';
+      // Anti-IDOR : projectId / quoteId doivent appartenir au workspace de l'appelant.
+      if (dto.projectId) {
+        const p = await tx.project.findFirst({ where: { id: dto.projectId, workspaceId }, select: { id: true } });
+        if (!p) throw new NotFoundException('Projet introuvable');
+      }
+      if (dto.quoteId) {
+        const q = await tx.quote.findFirst({ where: { id: dto.quoteId, workspaceId }, select: { id: true } });
+        if (!q) throw new NotFoundException('Devis introuvable');
+      }
       const lines = this.normalizeAvoirLines(dto.lines ?? [], type);
       const totals = this.computeTotals(lines);
-      const reference = dto.reference ?? (await this.nextReference(tx, workspaceId, type));
+      // La référence est TOUJOURS générée serveur (séquence légale continue), jamais fournie par le client.
+      const reference = await this.nextReference(tx, workspaceId, type);
       return tx.invoice.create({
         data: {
           workspaceId,
@@ -148,7 +159,8 @@ export class InvoicesService {
           date: dto.date ? new Date(dto.date) : new Date(),
           dateEcheance: dto.dateEcheance ? new Date(dto.dateEcheance) : null,
           notes: dto.notes ?? null,
-          token: dto.token ?? null,
+          // Token du portail public généré serveur (jamais fourni par le client).
+          token: randomBytes(32).toString('hex'),
           montantDeja: dto.montantDeja != null ? new Decimal(dto.montantDeja) : null,
           totalHT: totals.totalHT,
           totalTVA: totals.totalTVA,
@@ -165,10 +177,21 @@ export class InvoicesService {
       const existing = await tx.invoice.findFirst({ where: { id, workspaceId } });
       if (!existing) throw new NotFoundException(`Invoice ${id} not found`);
 
+      // Anti-IDOR : un rattachement projet/devis modifié doit rester dans le workspace.
+      if (dto.projectId) {
+        const p = await tx.project.findFirst({ where: { id: dto.projectId, workspaceId }, select: { id: true } });
+        if (!p) throw new NotFoundException('Projet introuvable');
+      }
+      if (dto.quoteId) {
+        const q = await tx.quote.findFirst({ where: { id: dto.quoteId, workspaceId }, select: { id: true } });
+        if (!q) throw new NotFoundException('Devis introuvable');
+      }
+
       const data: Record<string, unknown> = {};
+      // 'reference' et 'token' RETIRÉS : immuables après création (séquence légale + sécurité portail).
       const scalar: (keyof UpdateInvoiceDto)[] = [
-        'projectId', 'quoteId', 'reference', 'type', 'status', 'clientName',
-        'clientEmail', 'clientAddress', 'objet', 'conditionsPaiement', 'notes', 'token',
+        'projectId', 'quoteId', 'type', 'status', 'clientName',
+        'clientEmail', 'clientAddress', 'objet', 'conditionsPaiement', 'notes',
       ];
       for (const k of scalar) if (dto[k] !== undefined) data[k] = dto[k];
       if (dto.date !== undefined) data.date = dto.date ? new Date(dto.date) : new Date();

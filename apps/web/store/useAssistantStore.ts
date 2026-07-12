@@ -125,7 +125,10 @@ export const useAssistantStore = create<AssistantState>()(
         }),
     }),
     {
-      name: 'avra-assistant',
+      // Aligné sur la convention des autres stores ET sur les listes de purge
+      // de useAuthStore (sinon la conversation n'était jamais effacée au logout
+      // / changement de compte → fuite inter-comptes sur navigateur partagé).
+      name: 'avra-assistant-store',
       version: 1,
       // Ne persister QUE ce qui doit survivre au reload (pas open / seedPrompt)
       partialize: (state) => ({

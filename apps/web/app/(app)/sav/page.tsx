@@ -394,7 +394,7 @@ function SAVRow({ demande: d, selected, onToggle }: { demande: Demande; selected
           {/* F9 : Si demande SAV terminee → bouton "Créer facture" */}
           {d.status === 'TERMINEE' && (
             <a
-              href={`/facturation?createFromDemande=${d.id}${d.project?.id ? `&projectId=${d.project.id}` : ''}`}
+              href={`/facturation?nouveau=facture&createFromDemande=${d.id}${d.project?.id ? `&projectId=${d.project.id}` : ''}`}
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 transition-all"
               title="Créer une facture à partir de ce SAV terminé"

@@ -473,40 +473,29 @@ export function useDataSync() {
       const response = await api<any>('/payments');
       const data: any[] = Array.isArray(response) ? response : (response?.data ?? []);
 
-      const factStore = useFacturationStore.getState();
+      // IMPORTANT : /payments = PaymentRequest (acomptes / encaissements), à NE PAS
+      // confondre avec /invoices (factures). Avant, cette fonction écrivait à tort
+      // dans `invoices` (aussitôt écrasé par syncInvoices → factures perdues) et le
+      // tableau `payments` restait vide → fausses alertes « acompte non reçu ».
+      // On hydrate donc désormais le bon tableau `payments`. Les factures sont gérées
+      // exclusivement par syncInvoices.
+      const payStatut = (s: string): 'ENCAISSÉ' | 'EN ATTENTE' | 'RETARD' =>
+        s === 'PAID' ? 'ENCAISSÉ' : s === 'FAILED' ? 'RETARD' : 'EN ATTENTE';
 
-      // Détecter les factures de démo
-      const DEMO_INVOICE_PREFIXES = ['F-2025-', 'F-2026-'];
-      const hasDemoInvoices = factStore.invoices.some((inv) =>
-        DEMO_INVOICE_PREFIXES.some((prefix) => inv.ref.startsWith(prefix)) &&
-        typeof inv.id === 'string' && inv.id.length < 10,
-      );
-
-      // Si workspace vide → vider les factures démo
-      if (!Array.isArray(data) || data.length === 0) {
-        if (hasDemoInvoices) useFacturationStore.setState({ invoices: [] });
-        return;
-      }
-
-      // Convertir les paiements Prisma en format Invoice frontend
-      const invoices = data.map((p) => ({
+      const payments = (Array.isArray(data) ? data : []).map((p) => ({
         id: p.id,
-        ref: p.reference || `F-${new Date(p.createdAt).getFullYear()}-${p.id.slice(0, 6).toUpperCase()}`,
         dossierId: p.projectId || undefined,
         client: p.project?.client
           ? `${p.project.client.firstName || ''} ${p.project.client.lastName || ''}`.trim() || p.project.client.company || 'Client'
           : 'Client',
-        date: new Date(p.createdAt).toLocaleDateString('fr-FR'),
-        montantHT: p.amount ? Number(p.amount) : 0,
-        tva: 20,
-        statut: mapPaymentStatus(p.status),
         type: mapPaymentType(p.type),
-        notes: p.notes || '',
+        amount: p.amount ? Number(p.amount) : 0,
+        method: p.method || '',
+        date: new Date(p.createdAt).toLocaleDateString('fr-FR'),
+        statut: payStatut(p.status),
       }));
 
-      if (hasDemoInvoices || invoices.length > 0) {
-        useFacturationStore.setState({ invoices });
-      }
+      useFacturationStore.setState({ payments });
     } catch (err) {
       console.warn('[DataSync] Payments sync failed, keeping local data:', err);
     }

@@ -93,6 +93,7 @@ export default function PortailMenuisierPage() {
       <style>{`
         @media (max-width: 768px) {
           .portail-men-root { padding: 0 0 16px 0 !important; padding-top: 64px !important; }
+          .portail-men-kpi { grid-template-columns: 1fr 1fr !important; }
           .portail-men-grid-dos { grid-template-columns: 1fr !important; }
           .portail-men-planning-wrap { overflow-x: auto; }
           .portail-men-planning-grid { min-width: 520px; }
@@ -106,6 +107,25 @@ export default function PortailMenuisierPage() {
         subtitle="Vue d'ensemble de vos fabrications, livraisons et planning"
       />
 
+      {/* KPI synthèse */}
+      <div className="portail-men-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12, marginBottom: 14 }}>
+        <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#2E7D32' }}>{fmt(stats.ca)}</div>
+          <div style={{ fontSize: 11, color: '#7A8E9F', marginTop: 2 }}>CA facturé (payé)</div>
+        </div>
+        <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#0F2540' }}>{stats.fabricationsEnCours}</div>
+          <div style={{ fontSize: 11, color: '#7A8E9F', marginTop: 2 }}>Fabrications en cours</div>
+        </div>
+        <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#1565C0' }}>{stats.livraisonsPrevues}</div>
+          <div style={{ fontSize: 11, color: '#7A8E9F', marginTop: 2 }}>Livraisons prévues</div>
+        </div>
+        <div style={{ background: 'white', borderRadius: 14, padding: '14px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#C62828' }}>{stats.chantiersBloques}</div>
+          <div style={{ fontSize: 11, color: '#7A8E9F', marginTop: 2 }}>Chantiers bloqués</div>
+        </div>
+      </div>
 
       {/* FABRICATIONS / LIVRAISONS */}
       <div className="portail-men-grid-dos" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>

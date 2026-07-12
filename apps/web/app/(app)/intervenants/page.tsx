@@ -163,10 +163,14 @@ export default function IntervenantsHubPage() {
   const [selectedDossierId, setSelectedDossierId] = useState<string | null>(null);
 
   // Onglet de tête : liste des intervenants OU messagerie (fusion des 2 pages).
-  // Initialisé depuis ?tab=messages (lien direct / raccourci sidebar).
+  // Initialisé depuis ?tab=messages (lien direct / raccourci sidebar) OU ?demande=<id>
+  // (deep-link depuis Planning / SAV) → on ouvre la vue Messages où vivent les demandes.
   const [view, setView] = useState<'liste' | 'messages'>(() => {
     if (typeof window !== 'undefined') {
-      try { if (new URLSearchParams(window.location.search).get('tab') === 'messages') return 'messages'; } catch {}
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        if (sp.get('tab') === 'messages' || sp.get('demande')) return 'messages';
+      } catch {}
     }
     return 'liste';
   });

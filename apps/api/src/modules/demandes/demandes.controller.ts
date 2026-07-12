@@ -26,12 +26,15 @@ export class DemandesController {
   constructor(private readonly demandes: DemandesService) {}
 
   // ── ACCÈS PUBLIC SANS LOGIN (jeton HMAC) — page intervenant ouverte par e-mail ──
+  // Throttle strict : ces routes ne sont protégées que par un token → anti-brute-force / anti-abus.
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   @Public()
   @Get('public/intervention/:token')
   publicGetIntervention(@Param('token') token: string) {
     return this.demandes.publicGetByToken(token);
   }
 
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
   @Public()
   @SkipCsrf()
   @Post('public/intervention/:token/action')
@@ -65,6 +68,7 @@ export class DemandesController {
   }
 
   /** Upload d'un document par l'intervenant depuis le lien public (sans compte). */
+  @Throttle({ default: { ttl: 60_000, limit: 15 } })
   @Public()
   @SkipCsrf()
   @Post('public/intervention/:token/attachments')

@@ -1327,15 +1327,15 @@ export default function DossierDetailPage() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-white/50">TVA ({parseFloat(String(dossier.tva ?? '20').replace(/[^0-9.]/g, '')) || 20}%)</span>
+                  <span className="text-xs text-white/50">TVA ({(Number(dossier.tauxTVA) > 0 ? Number(dossier.tauxTVA) : 20)}%)</span>
                   <span className="text-sm font-bold text-white/70">
-                    {new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(totalHT * ((parseFloat(String(dossier.tva ?? '20').replace(/[^0-9.]/g, '')) || 20) / 100))}
+                    {new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(totalHT * (((Number(dossier.tauxTVA) > 0 ? Number(dossier.tauxTVA) : 20)) / 100))}
                   </span>
                 </div>
                 <div className="border-t border-white/10 pt-2 flex items-center justify-between">
                   <span className="text-xs text-white/50">Total TTC</span>
                   <span className="text-base font-black text-emerald-400">
-                    {new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(totalHT * (1 + (parseFloat(String(dossier.tva ?? '20').replace(/[^0-9.]/g, '')) || 20) / 100))}
+                    {new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(totalHT * (1 + ((Number(dossier.tauxTVA) > 0 ? Number(dossier.tauxTVA) : 20)) / 100))}
                   </span>
                 </div>
               </div>
