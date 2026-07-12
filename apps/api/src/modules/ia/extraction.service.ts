@@ -371,14 +371,13 @@ export class ExtractionService {
    * Extraction texte d'un PDF via **unpdf** (pdfjs moderne, compatible
    * serverless). Remplace pdf-parse@1.1.1 qui échouait de façon INTERMITTENTE
    * ("bad XRef entry" un coup, OK le suivant, pour le MÊME fichier).
-   * unpdf est ESM-only → import dynamique préservé via `new Function` (sinon TS
-   * le transpile en require() avec module=commonjs et casse à l'exécution).
+   * unpdf expose un build CommonJS (dist/index.cjs) → `require` classique,
+   * traçable et embarqué par le bundler Vercel (un import dynamique via
+   * `new Function` ne l'était PAS → "Cannot find package 'unpdf'").
    */
   private async parsePdfWithRetry(buffer: Buffer, attempts = 2): Promise<string> {
-    const dynamicImport = new Function('m', 'return import(m)') as (
-      m: string,
-    ) => Promise<typeof import('unpdf')>;
-    const { extractText, getDocumentProxy } = await dynamicImport('unpdf');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { extractText, getDocumentProxy } = require('unpdf');
     let lastErr: any;
     for (let i = 0; i < attempts; i++) {
       try {
