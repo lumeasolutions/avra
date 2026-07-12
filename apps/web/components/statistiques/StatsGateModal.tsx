@@ -395,6 +395,8 @@ export function StatsGateModal({
         userMsg = "Document introuvable : devis dans OPTION/PROJET/APD, factures dans « Commandes fournisseurs ».";
       } else if (msg.toLowerCase().includes('throttl') || msg.toLowerCase().includes('limit')) {
         userMsg = "Trop d'appels IA — patientez 1 minute avant de réessayer.";
+      } else if (msg.toLowerCase().includes('illisible')) {
+        userMsg = "Certains documents n'ont pas pu être lus (PDF illisible). Réessayez dans quelques secondes ; si ça persiste, vérifiez que ce sont bien des PDF ou images lisibles.";
       } else if (msg) {
         userMsg = `Échec extraction IA : ${msg}`;
       }
@@ -970,7 +972,7 @@ export function StatsGateModal({
                   {confirmsValidees.length === 0 && confirmationsSubfolders.length === 0 && (
                     <p style={{
                       margin: 0, fontSize: 11, color: 'rgba(48,64,53,0.5)', fontStyle: 'italic',
-                    }}>Aucune confirmation validée — ajoutez vos factures d&apos;achat dans le sous-dossier « Commande / Confirmations fournisseurs » pour les retrouver ici.</p>
+                    }}>Les factures d&apos;achat de « Commandes / Confirmations fournisseurs » n&apos;apparaissent ici qu&apos;une fois le sous-dossier validé — mais le bouton « Extraire achat + vente » les lit directement, validées ou non. Rien de plus à faire.</p>
                   )}
                 </div>
               </div>
