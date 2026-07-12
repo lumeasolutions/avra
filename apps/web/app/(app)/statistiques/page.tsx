@@ -16,7 +16,7 @@
  *      - TABLEAU 3 : par VENDEUR (Cassandra, Sylvie, …) + taux conversion + camembert
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { BarChart3, Clock, Lock, Table2, Users, Package } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -60,7 +60,17 @@ export default function StatistiquesPage() {
     [dossiersSignes],
   );
 
-  const isGateOpen = missingDossiers.length > 0;
+  // Le gate s'ouvre s'il manque des prix. MAIS une fois ouvert, on le GARDE
+  // ouvert même quand l'extraction remplit les prix (sinon il se fermait tout
+  // seul et sautait aux stats sans laisser vérifier/corriger les lignes). Il ne
+  // se ferme que sur action explicite (bouton « Voir les statistiques »).
+  const gateNeeded = missingDossiers.length > 0;
+  const [gateOpenedOnce, setGateOpenedOnce] = useState(false);
+  const [gateDismissed, setGateDismissed] = useState(false);
+  useEffect(() => {
+    if (gateNeeded && !gateDismissed) setGateOpenedOnce(true);
+  }, [gateNeeded, gateDismissed]);
+  const isGateOpen = (gateNeeded || gateOpenedOnce) && !gateDismissed;
 
   return (
     <div className="space-y-6 pb-8">
@@ -86,6 +96,7 @@ export default function StatistiquesPage() {
           onUpdateLigne={updateDossierPrixLigne}
           onAddLignesBulk={addDossierPrixLignesBulk}
           onSkipDossier={setDossierStatsSkipped}
+          onDone={() => setGateDismissed(true)}
         />
       )}
 

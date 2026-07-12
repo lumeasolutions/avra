@@ -97,6 +97,10 @@ interface Props {
   onAddLignesBulk: (dossierId: string, lignes: Omit<DossierPrixLigne, 'id'>[]) => void;
   /** Snooze : reporte un dossier hors du gate (StatsGate v2). */
   onSkipDossier: (dossierId: string, skipped: boolean) => void;
+  /** Fermeture explicite par l'utilisateur (« Voir les statistiques »). Le gate
+   *  reste ouvert après extraction pour laisser vérifier/corriger les lignes ;
+   *  il ne se ferme que sur ce clic une fois tous les prix saisis. */
+  onDone?: () => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -133,7 +137,7 @@ function writeDraft(dossierId: string, draft: Draft): void {
 
 // ── Composant principal ────────────────────────────────────────────────────
 export function StatsGateModal({
-  missingDossiers, allSignes, allDevis, onAddLigne, onRemoveLigne, onUpdateLigne, onAddLignesBulk, onSkipDossier,
+  missingDossiers, allSignes, allDevis, onAddLigne, onRemoveLigne, onUpdateLigne, onAddLignesBulk, onSkipDossier, onDone,
 }: Props) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(missingDossiers[0]?.id ?? null);
@@ -1435,9 +1439,25 @@ export function StatsGateModal({
               stats verrouillé tant que tous les dossiers n'ont pas leurs prix
               (ou ne sont pas reportés via ⏭).
             </span>
-            <span style={{ fontWeight: 700, color: '#304035' }}>
-              {missingDossiers.length} restant{missingDossiers.length > 1 ? 's' : ''}
-            </span>
+            {missingDossiers.length === 0 && onDone ? (
+              <button
+                onClick={onDone}
+                style={{
+                  padding: '8px 16px', borderRadius: 10, border: 'none',
+                  background: 'linear-gradient(135deg, #16a34a, #22c55e)',
+                  color: '#fff', fontWeight: 800, fontSize: 12.5, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  boxShadow: '0 4px 12px rgba(22,163,74,0.3)',
+                }}
+                title="Tous les prix sont saisis — vérifiez les lignes puis accédez aux statistiques"
+              >
+                <CheckCircle2 size={15} /> Voir les statistiques →
+              </button>
+            ) : (
+              <span style={{ fontWeight: 700, color: '#304035' }}>
+                {missingDossiers.length} restant{missingDossiers.length > 1 ? 's' : ''}
+              </span>
+            )}
           </div>
         </div>
 
