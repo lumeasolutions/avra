@@ -33,7 +33,7 @@ type DocKind = 'pdf' | 'image' | 'docx' | 'spreadsheet' | 'text' | 'unsupported'
  * les documents d'un dossier via OpenAI gpt-4o (Vision multimodal).
  *
  * Formats supportes (27/05/2026 — V2 multi-format) :
- *   - PDF      (pdf-parse)
+ *   - PDF      (unpdf — pdfjs moderne)
  *   - Image    (PNG, JPG, JPEG, WEBP, GIF — Vision base64 inline)
  *   - DOCX     (mammoth — Word moderne)
  *   - XLSX/XLS (exceljs — Excel)
@@ -105,20 +105,21 @@ export class ExtractionService {
       docs = candidates.filter((d) => numOf(d.subfolderLabel) === bestNum);
     }
 
-    const { textPayload, imagePayload, stats } = await this.buildPayload(
+    const { textPayload, imagePayload, stats, skipped } = await this.buildPayload(
       workspaceId,
       dossierId,
       docs,
     );
 
     if (!textPayload.length && !imagePayload.length) {
+      const detail = skipped.length ? ` Detail : ${skipped.slice(0, 3).join(' ; ')}` : '';
       throw new BadRequestException(
-        'Aucun document exploitable trouve (formats supportes : PDF, images PNG/JPG/WEBP, DOCX, XLSX, CSV, TXT)',
+        `${docs.length} document(s) trouve(s) mais illisible(s) par le moteur d'extraction (formats supportes : PDF, images PNG/JPG/WEBP, DOCX, XLSX, CSV, TXT).${detail}`,
       );
     }
 
     this.logger.log(
-      `Extraction payload: ${textPayload.length} doc(s) texte, ${imagePayload.length} image(s) - kinds=${JSON.stringify(stats)}`,
+      `Extraction payload: ${textPayload.length} doc(s) texte, ${imagePayload.length} image(s) - kinds=${JSON.stringify(stats)} - skipped=${skipped.length}`,
     );
 
     // Fiabilité : si plusieurs documents, on analyse CHAQUE document dans son
@@ -128,12 +129,119 @@ export class ExtractionService {
       ...textPayload.map((t) => ({ text: [t], images: [] as ExtractionImagePayload[] })),
       ...imagePayload.map((im) => ({ text: [] as ExtractionDocumentPayload[], images: [im] })),
     ];
+
+    let result: ExtractionResult;
+    let failedChunks = 0;
     if (chunks.length <= 1 || chunks.length > 10) {
       // 0-1 document : un seul appel suffit. >10 : on evite trop d'appels paralleles.
-      return this.callOpenAI(textPayload, imagePayload);
+      result = await this.callOpenAI(textPayload, imagePayload);
+    } else {
+      const settled = await this.runChunksLimited(chunks, 2);
+      // Fix : un chunk rejeté (429 / erreur) NE DOIT PAS disparaître en silence.
+      failedChunks = settled.filter((s) => s.status === 'rejected').length;
+      result = this.mergeExtractionResults(settled);
     }
-    const settled = await this.runChunksLimited(chunks, 2);
-    return this.mergeExtractionResults(settled);
+
+    // Rapprochement achat/vente : fusionne les lignes d'un même produit vues sur
+    // des documents différents (devis + facture) en une seule entrée.
+    result.commandes = this.consolidateCommandes(result.commandes);
+
+    // Transparence : remonte les documents perdus (parse KO ou appel IA KO) dans
+    // les notes + baisse la confiance, pour ne jamais afficher un résultat
+    // partiel comme s'il était complet.
+    return this.applyReliabilityNotes(result, skipped, failedChunks);
+  }
+
+  /** Normalise une chaîne pour comparaison (minuscules, sans accents/ponctuation). */
+  private normKey(s: string | null | undefined): string {
+    return (s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * Consolide les lignes commandes : fusionne en UNE seule entrée un même
+   * produit vu sur plusieurs documents (devis avec prix de VENTE + facture
+   * fournisseur avec prix d'ACHAT). Chaque document étant analysé dans un appel
+   * IA séparé puis concaténé, l'IA ne peut pas les fusionner elle-même.
+   *   1. Même marque + même produit (normalisés) → fusion.
+   *   2. Même marque, l'un n'a QUE l'achat et l'autre QUE la vente, un seul
+   *      candidat complémentaire → fusion (évite les faux positifs).
+   */
+  private consolidateCommandes(
+    list: ExtractionResult['commandes'],
+  ): ExtractionResult['commandes'] {
+    const out: ExtractionResult['commandes'] = [];
+    const combine = (
+      a: ExtractionResult['commandes'][number],
+      b: ExtractionResult['commandes'][number],
+    ): ExtractionResult['commandes'][number] => ({
+      fournisseur: a.fournisseur || b.fournisseur,
+      produit: a.produit || b.produit,
+      dateButoir: a.dateButoir ?? b.dateButoir,
+      montantHT: a.montantHT ?? b.montantHT,
+      montantVenteHT: a.montantVenteHT ?? b.montantVenteHT,
+      categorie: a.categorie ?? b.categorie,
+    });
+
+    for (const c of list) {
+      const brand = this.normKey(c.fournisseur);
+      const prod = this.normKey(c.produit);
+
+      let target = prod
+        ? out.find((o) => this.normKey(o.fournisseur) === brand && this.normKey(o.produit) === prod)
+        : undefined;
+
+      if (!target) {
+        const cAchatOnly = c.montantHT != null && c.montantVenteHT == null;
+        const cVenteOnly = c.montantVenteHT != null && c.montantHT == null;
+        if (cAchatOnly || cVenteOnly) {
+          const cands = out.filter(
+            (o) =>
+              this.normKey(o.fournisseur) === brand &&
+              (cAchatOnly
+                ? o.montantHT == null && o.montantVenteHT != null
+                : o.montantVenteHT == null && o.montantHT != null),
+          );
+          if (cands.length === 1) target = cands[0];
+        }
+      }
+
+      if (target) Object.assign(target, combine(target, c));
+      else out.push({ ...c });
+    }
+    return out;
+  }
+
+  /**
+   * Ajoute au résultat un avertissement + une pénalité de confiance quand des
+   * documents ont été ignorés (parse KO) ou perdus (appel IA rejeté). Évite de
+   * renvoyer un résultat incomplet avec une confiance élevée trompeuse.
+   */
+  private applyReliabilityNotes(
+    result: ExtractionResult,
+    skipped: string[],
+    failedChunks: number,
+  ): ExtractionResult {
+    const warns: string[] = [];
+    if (skipped.length) {
+      warns.push(`${skipped.length} document(s) non lisibles ignorés (${skipped.slice(0, 3).join(' ; ')})`);
+    }
+    if (failedChunks > 0) {
+      warns.push(`${failedChunks} document(s) n'ont pas pu être analysés (erreur IA temporaire)`);
+    }
+    if (warns.length) {
+      const penalty = Math.min(0.5, 0.15 * (skipped.length + failedChunks));
+      result.confiance = Math.max(0, Number((result.confiance * (1 - penalty)).toFixed(2)));
+      result.notes = [`⚠️ ${warns.join(' ; ')}`, result.notes]
+        .filter(Boolean)
+        .join(' — ')
+        .slice(0, 500);
+    }
+    return result;
   }
 
   // -----------------------------------------------------------------
@@ -176,6 +284,8 @@ export class ExtractionService {
     textPayload: ExtractionDocumentPayload[];
     imagePayload: ExtractionImagePayload[];
     stats: Record<DocKind, number>;
+    /** Noms des documents non exploités (format inconnu, texte vide, parse KO). */
+    skipped: string[];
   }> {
     const stats: Record<DocKind, number> = {
       pdf: 0, image: 0, docx: 0, spreadsheet: 0, text: 0, unsupported: 0,
@@ -189,16 +299,16 @@ export class ExtractionService {
 
     const textPayload: ExtractionDocumentPayload[] = [];
     const imagePayload: ExtractionImagePayload[] = [];
+    const skipped: string[] = [];
     let totalChars = 0;
     let imageCount = 0;
 
-    // pdf-parse est CJS - import dynamique pour ne pas casser le build webpack
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const pdfParse = require('pdf-parse');
-
     for (const doc of classified) {
       if (totalChars >= MAX_TOTAL_TEXT && imageCount >= MAX_IMAGES) break;
-      if (doc.kind === 'unsupported') continue;
+      if (doc.kind === 'unsupported') {
+        skipped.push(`${doc.originalName} (format non supporté)`);
+        continue;
+      }
 
       try {
         const buffer = await this.dossierDocs.downloadDocument(
@@ -209,36 +319,37 @@ export class ExtractionService {
 
         if (doc.kind === 'pdf') {
           if (totalChars >= MAX_TOTAL_TEXT) continue;
-          const parsed = await pdfParse(buffer);
-          const text = this.clampText((parsed?.text ?? '').trim(), MAX_TEXT_PER_DOC, MAX_TOTAL_TEXT - totalChars);
-          if (!text) continue;
+          const raw = await this.parsePdfWithRetry(buffer);
+          const text = this.clampText(raw, MAX_TEXT_PER_DOC, MAX_TOTAL_TEXT - totalChars);
+          if (!text) { skipped.push(`${doc.originalName} (PDF vide)`); continue; }
           totalChars += text.length;
           textPayload.push({ subfolder: doc.subfolderLabel, docName: doc.originalName, type: 'pdf', text });
         } else if (doc.kind === 'docx') {
           if (totalChars >= MAX_TOTAL_TEXT) continue;
           const raw = await this.extractDocxText(buffer);
           const text = this.clampText(raw, MAX_TEXT_PER_DOC, MAX_TOTAL_TEXT - totalChars);
-          if (!text) continue;
+          if (!text) { skipped.push(`${doc.originalName} (DOCX vide)`); continue; }
           totalChars += text.length;
           textPayload.push({ subfolder: doc.subfolderLabel, docName: doc.originalName, type: 'docx', text });
         } else if (doc.kind === 'spreadsheet') {
           if (totalChars >= MAX_TOTAL_TEXT) continue;
           const raw = await this.extractSpreadsheetText(buffer);
           const text = this.clampText(raw, MAX_TEXT_PER_DOC, MAX_TOTAL_TEXT - totalChars);
-          if (!text) continue;
+          if (!text) { skipped.push(`${doc.originalName} (tableur vide)`); continue; }
           totalChars += text.length;
           textPayload.push({ subfolder: doc.subfolderLabel, docName: doc.originalName, type: 'xlsx', text });
         } else if (doc.kind === 'text') {
           if (totalChars >= MAX_TOTAL_TEXT) continue;
           const raw = buffer.toString('utf-8');
           const text = this.clampText(raw, MAX_TEXT_PER_DOC, MAX_TOTAL_TEXT - totalChars);
-          if (!text) continue;
+          if (!text) { skipped.push(`${doc.originalName} (fichier vide)`); continue; }
           totalChars += text.length;
           textPayload.push({ subfolder: doc.subfolderLabel, docName: doc.originalName, type: 'text', text });
         } else if (doc.kind === 'image') {
           if (imageCount >= MAX_IMAGES) continue;
           if (buffer.length > MAX_IMAGE_BYTES) {
             this.logger.warn(`Skip image trop volumineuse ${doc.originalName} (${buffer.length} bytes)`);
+            skipped.push(`${doc.originalName} (image trop volumineuse)`);
             continue;
           }
           const mime = this.resolveImageMime(doc);
@@ -247,13 +358,41 @@ export class ExtractionService {
           imageCount++;
         }
       } catch (err) {
-        this.logger.warn(
-          `Skipping doc ${doc.originalName} (parse error): ${(err as Error).message}`,
-        );
+        const reason = (err as Error).message;
+        skipped.push(`${doc.originalName} (${doc.kind}) : ${reason}`);
+        this.logger.warn(`Skipping doc ${doc.originalName} (parse error): ${reason}`);
       }
     }
 
-    return { textPayload, imagePayload, stats };
+    return { textPayload, imagePayload, stats, skipped };
+  }
+
+  /**
+   * Extraction texte d'un PDF via **unpdf** (pdfjs moderne, compatible
+   * serverless). Remplace pdf-parse@1.1.1 qui échouait de façon INTERMITTENTE
+   * ("bad XRef entry" un coup, OK le suivant, pour le MÊME fichier).
+   * unpdf est ESM-only → import dynamique préservé via `new Function` (sinon TS
+   * le transpile en require() avec module=commonjs et casse à l'exécution).
+   */
+  private async parsePdfWithRetry(buffer: Buffer, attempts = 2): Promise<string> {
+    const dynamicImport = new Function('m', 'return import(m)') as (
+      m: string,
+    ) => Promise<typeof import('unpdf')>;
+    const { extractText, getDocumentProxy } = await dynamicImport('unpdf');
+    let lastErr: any;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const pdf = await getDocumentProxy(new Uint8Array(buffer));
+        const { text } = await extractText(pdf, { mergePages: true });
+        const t = (Array.isArray(text) ? text.join('\n') : text ?? '').trim();
+        if (t.length > 0) return t;
+        lastErr = new Error('texte vide');
+      } catch (err) {
+        lastErr = err;
+      }
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 150));
+    }
+    throw lastErr ?? new Error('unpdf a échoué');
   }
 
   private clampText(raw: string, perDoc: number, remainingBudget: number): string {
