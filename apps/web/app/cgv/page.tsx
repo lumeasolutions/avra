@@ -130,7 +130,7 @@ export default function CGVPage() {
               Conformément à la loi française, le Client a le droit de se rétracter dans un délai de 14 jours calendaires à compter de la date de souscription, sans justification ni frais.
             </p>
             <p style={{ fontSize: 16, marginBottom: 12 }}>
-              Pour exercer ce droit, le Client doit envoyer une demande écrite à contact@avra.fr avec la mention "droit de rétractation".
+              Pour exercer ce droit, le Client doit envoyer une demande écrite à contact@avra-app.fr avec la mention "droit de rétractation".
             </p>
             <p style={{ fontSize: 16, marginBottom: 0 }}>
               En cas de rétractation, le Client sera remboursé des sommes versées dans un délai de 14 jours, déduction faite des services réellement utilisés le cas échéant.
@@ -146,7 +146,7 @@ export default function CGVPage() {
               Nous offrons une garantie satisfait ou remboursé de 30 jours à compter de la date de souscription à un plan payant.
             </p>
             <p style={{ fontSize: 16, marginBottom: 12 }}>
-              Si le Client n'est pas satisfait du service, il peut demander un remboursement complet en contactant contact@avra.fr avant l'expiration des 30 jours.
+              Si le Client n'est pas satisfait du service, il peut demander un remboursement complet en contactant contact@avra-app.fr avant l'expiration des 30 jours.
             </p>
             <p style={{ fontSize: 16, marginBottom: 0 }}>
               Cette garantie ne s'applique qu'une seule fois par Client.
@@ -162,7 +162,7 @@ export default function CGVPage() {
               <strong>8.1 Résiliation par le Client</strong>
             </p>
             <p style={{ fontSize: 16, marginBottom: 12 }}>
-              Le Client peut résilier son abonnement à tout moment, sans pénalité, en se connectant à son compte ou en contactant contact@avra.fr.
+              Le Client peut résilier son abonnement à tout moment, sans pénalité, en se connectant à son compte ou en contactant contact@avra-app.fr.
             </p>
             <p style={{ fontSize: 16, marginBottom: 12 }}>
               La résiliation prend effet à la fin de la période de facturation en cours. Aucun remboursement au prorata n'est accordé pour les mois non utilisés.

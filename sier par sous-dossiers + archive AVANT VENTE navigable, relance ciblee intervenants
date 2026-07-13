@@ -1,0 +1,8 @@
+apps/api/src/modules/demandes/demandes.controller.ts
+apps/api/src/modules/demandes/demandes.service.ts
+apps/web/app/(app)/dossiers/[id]/page.tsx
+apps/web/app/(app)/intervenants/page.tsx
+apps/web/components/dossiers/OptionSelectionModal.tsx
+apps/web/components/statistiques/StatsGateModal.tsx
+apps/web/lib/demandes-api.ts
+apps/web/store/useDossierStore.ts

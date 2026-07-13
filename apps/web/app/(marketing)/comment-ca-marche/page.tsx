@@ -695,7 +695,7 @@ export default function CommentCaMarchePage() {
                   platform: '🤖 Android (Chrome)',
                   color: '#4A7C59',
                   steps: [
-                    'Visitez avra.fr dans Chrome',
+                    'Visitez avra-app.fr dans Chrome',
                     'Une bannière apparaît en bas : "Ajouter à l\'écran d\'accueil"',
                     'Appuyez sur Installer → c\'est fait !',
                   ],
@@ -704,7 +704,7 @@ export default function CommentCaMarchePage() {
                   platform: '🍎 iPhone / iPad (Safari)',
                   color: '#C9A96E',
                   steps: [
-                    'Ouvrez avra.fr dans Safari',
+                    'Ouvrez avra-app.fr dans Safari',
                     'Appuyez sur le bouton Partager ↑',
                     'Choisissez "Sur l\'écran d\'accueil" → Ajouter',
                   ],
@@ -713,7 +713,7 @@ export default function CommentCaMarchePage() {
                   platform: '💻 PC / Mac (Chrome ou Edge)',
                   color: '#7B5EA7',
                   steps: [
-                    'Ouvrez avra.fr dans Chrome ou Edge',
+                    'Ouvrez avra-app.fr dans Chrome ou Edge',
                     'Cliquez sur l\'icône ⊕ dans la barre d\'adresse',
                     'Confirmez l\'installation → fenêtre dédiée',
                   ],

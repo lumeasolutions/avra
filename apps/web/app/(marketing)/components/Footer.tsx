@@ -113,7 +113,7 @@ export default function Footer() {
         <div className="footer-bottom-links">
           <Link href="/mentions-legales">Mentions légales</Link>
           <Link href="/confidentialite">Politique de confidentialité</Link>
-          <a href="mailto:contact@avra.fr">contact@avra.fr</a>
+          <a href="mailto:contact@avra-app.fr">contact@avra-app.fr</a>
         </div>
       </div>
 

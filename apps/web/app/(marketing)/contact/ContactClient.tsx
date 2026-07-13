@@ -128,7 +128,7 @@ export default function ContactClient() {
               <div>
                 <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 30, color: '#1e2b22' }}>Informations de contact</h2>
                 {[
-                  { icon: Mail, title: 'Email', content: <><a href="mailto:contact@avra.fr" style={{ color: '#1e2b22', textDecoration: 'none' }}>contact@avra.fr</a><p style={{ fontSize: 14, color: '#999', marginTop: 8, marginBottom: 0 }}>Réponse sous 24h</p></> },
+                  { icon: Mail, title: 'Email', content: <><a href="mailto:contact@avra-app.fr" style={{ color: '#1e2b22', textDecoration: 'none' }}>contact@avra-app.fr</a><p style={{ fontSize: 14, color: '#999', marginTop: 8, marginBottom: 0 }}>Réponse sous 24h</p></> },
                   { icon: BookOpen, title: 'Documentation', content: <><p style={{ fontSize: 16, color: '#666', margin: 0 }}>Consultez notre centre d&apos;aide pour trouver des réponses rapidement</p><p style={{ fontSize: 14, color: '#999', marginTop: 8, marginBottom: 0 }}><a href="/comment-ca-marche" style={{ color: '#1e2b22', textDecoration: 'underline' }}>Visiter le centre d&apos;aide</a></p></> },
                   { icon: HelpCircle, title: 'FAQ', content: <><p style={{ fontSize: 16, color: '#666', margin: 0 }}>Posez vos questions les plus courantes</p><p style={{ fontSize: 14, color: '#999', marginTop: 8, marginBottom: 0 }}><a href="/blog" style={{ color: '#1e2b22', textDecoration: 'underline' }}>Lire la FAQ</a></p></> },
                 ].map(({ icon: Icon, title, content }) => (

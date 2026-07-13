@@ -1801,7 +1801,7 @@ export default function HomePage() {
                 platform: 'Android',
                 color: '#4A7C59',
                 glow: 'rgba(74,124,89,0.15)',
-                steps: ['Ouvrez Chrome sur avra.fr', 'Cliquez sur "Ajouter à l\'écran d\'accueil"', 'AVRA apparaît comme une app native'],
+                steps: ['Ouvrez Chrome sur avra-app.fr', 'Cliquez sur "Ajouter à l\'écran d\'accueil"', 'AVRA apparaît comme une app native'],
                 badge: 'Automatique',
               },
               {
@@ -1809,7 +1809,7 @@ export default function HomePage() {
                 platform: 'iPhone / iPad',
                 color: '#C9A96E',
                 glow: 'rgba(201,169,110,0.12)',
-                steps: ['Ouvrez Safari sur avra.fr', 'Appuyez sur le bouton Partager ↑', 'Choisissez "Sur l\'écran d\'accueil"'],
+                steps: ['Ouvrez Safari sur avra-app.fr', 'Appuyez sur le bouton Partager ↑', 'Choisissez "Sur l\'écran d\'accueil"'],
                 badge: '3 clics',
               },
               {

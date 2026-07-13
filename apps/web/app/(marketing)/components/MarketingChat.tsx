@@ -97,7 +97,7 @@ export function MarketingChat() {
         const next = [...prev];
         next[next.length - 1] = {
           role: 'assistant',
-          content: "Désolée, une erreur s'est produite. Réessayez ou visitez avra.fr !",
+          content: "Désolée, une erreur s'est produite. Réessayez ou visitez avra-app.fr !",
           typing: false,
         };
         return next;

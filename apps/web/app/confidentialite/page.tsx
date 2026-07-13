@@ -32,7 +32,7 @@ export default function ConfidentialitePage() {
               1. Responsable du traitement
             </h2>
             <p style={{ fontSize: 16, marginBottom: 0 }}>
-              <strong>Luméa Solutions</strong> est responsable du traitement de vos données personnelles. Vous pouvez nous contacter à <strong>privacy@avra.fr</strong> ou par courrier à : 123 rue de l'Agencement, 75010 Paris, France.
+              <strong>Luméa Solutions</strong> est responsable du traitement de vos données personnelles. Vous pouvez nous contacter à <strong>privacy@avra-app.fr</strong> ou par courrier à : 123 rue de l'Agencement, 75010 Paris, France.
             </p>
           </section>
 
@@ -154,7 +154,7 @@ export default function ConfidentialitePage() {
               </li>
             </ul>
             <p style={{ fontSize: 16, marginTop: 20, marginBottom: 0 }}>
-              Pour exercer ces droits, veuillez nous contacter à <strong>privacy@avra.fr</strong>.
+              Pour exercer ces droits, veuillez nous contacter à <strong>privacy@avra-app.fr</strong>.
             </p>
           </section>
 
@@ -189,7 +189,7 @@ export default function ConfidentialitePage() {
               9. Contact et réclamation auprès de la CNIL
             </h2>
             <p style={{ fontSize: 16, marginBottom: 12 }}>
-              Pour toute question concernant cette politique, veuillez nous contacter à <strong>privacy@avra.fr</strong>.
+              Pour toute question concernant cette politique, veuillez nous contacter à <strong>privacy@avra-app.fr</strong>.
             </p>
             <p style={{ fontSize: 16, marginBottom: 0 }}>
               Si vous estimez que vos droits ne sont pas respectés, vous avez le droit de déposer une plainte auprès de la Commission Nationale de l'Informatique et des Libertés (CNIL) : <strong>www.cnil.fr</strong>

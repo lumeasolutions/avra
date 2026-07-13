@@ -41,7 +41,7 @@ export default function MentionsLegalesPage() {
               <strong>Adresse :</strong> 123 rue de l'Agencement, 75010 Paris, France
             </p>
             <p style={{ fontSize: 16, marginBottom: 12 }}>
-              <strong>Email :</strong> contact@avra.fr
+              <strong>Email :</strong> contact@avra-app.fr
             </p>
             <p style={{ fontSize: 16, marginBottom: 12 }}>
               <strong>Téléphone :</strong> +33 1 XX XX XX XX
@@ -92,7 +92,7 @@ export default function MentionsLegalesPage() {
               Pour connaître nos pratiques en matière de traitement des données, veuillez consulter notre <a href="/confidentialite" style={{ color: '#1e2b22', textDecoration: 'underline' }}>politique de confidentialité</a>.
             </p>
             <p style={{ fontSize: 16, marginBottom: 0 }}>
-              Contact DPO : privacy@avra.fr
+              Contact DPO : privacy@avra-app.fr
             </p>
           </section>
 
