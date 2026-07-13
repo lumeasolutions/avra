@@ -69,9 +69,37 @@ export class InvoicesService {
    *
    * Doit etre appele DANS un $transaction (tx).
    */
-  private async nextReference(tx: any, workspaceId: string, type: string): Promise<string> {
+  /**
+   * REST 13/07/2026 — Résout le préfixe de numérotation depuis les réglages du
+   * workspace (Paramètres > Numérotation, stockés dans WorkspaceSettings.extra).
+   * Le réglage n'était jamais lu : il était purement décoratif. On retombe
+   * TOUJOURS sur les préfixes standard en cas d'absence/erreur (non-breaking :
+   * les défauts config 'F'/'AV' correspondent exactement à PREFIX_BY_TYPE).
+   */
+  private async resolvePrefix(workspaceId: string, type: string): Promise<string> {
+    const fallback = PREFIX_BY_TYPE[type] ?? 'F';
+    try {
+      const row = await this.prisma.workspaceSettings.findUnique({
+        where: { workspaceId },
+        select: { extra: true },
+      });
+      const num = (row?.extra as any)?.numerotation;
+      if (num && typeof num === 'object') {
+        const pf = typeof num.prefixeFacture === 'string' && num.prefixeFacture.trim() ? num.prefixeFacture.trim() : 'F';
+        const pa = typeof num.prefixeAvoir === 'string' && num.prefixeAvoir.trim() ? num.prefixeAvoir.trim() : 'AV';
+        if (type === 'AVOIR') return pa;
+        if (type === 'ACOMPTE' || type === 'INTERMEDIAIRE') return `${pf}A`;
+        return pf; // SOLDE, STANDARD
+      }
+    } catch {
+      /* réglages illisibles → préfixes standard */
+    }
+    return fallback;
+  }
+
+  private async nextReference(tx: any, workspaceId: string, type: string, prefixOverride?: string): Promise<string> {
     const year = new Date().getFullYear();
-    const prefix = PREFIX_BY_TYPE[type] ?? 'F';
+    const prefix = prefixOverride ?? (PREFIX_BY_TYPE[type] ?? 'F');
     const serie = `${prefix}-${year}-`;
 
     // Verrou par serie — evite les numeros dupliques en creation concurrente.
@@ -128,6 +156,8 @@ export class InvoicesService {
   }
 
   async create(workspaceId: string, dto: CreateInvoiceDto) {
+    const invoiceType = dto.type ?? 'STANDARD';
+    const prefix = await this.resolvePrefix(workspaceId, invoiceType);
     return this.prisma.$transaction(async (tx: any) => {
       const type = dto.type ?? 'STANDARD';
       // Anti-IDOR : projectId / quoteId doivent appartenir au workspace de l'appelant.
@@ -142,7 +172,7 @@ export class InvoicesService {
       const lines = this.normalizeAvoirLines(dto.lines ?? [], type);
       const totals = this.computeTotals(lines);
       // La référence est TOUJOURS générée serveur (séquence légale continue), jamais fournie par le client.
-      const reference = await this.nextReference(tx, workspaceId, type);
+      const reference = await this.nextReference(tx, workspaceId, type, prefix);
       return tx.invoice.create({
         data: {
           workspaceId,
@@ -230,6 +260,7 @@ export class InvoicesService {
    * pour ce devis, afin que le "net a payer" = total - acomptes.
    */
   async convertFromQuote(workspaceId: string, dto: ConvertQuoteDto) {
+    const prefix = await this.resolvePrefix(workspaceId, dto.type ?? 'STANDARD');
     return this.prisma.$transaction(async (tx: any) => {
       const quote = await tx.quote.findFirst({
         where: { id: dto.quoteId, workspaceId },
@@ -270,7 +301,7 @@ export class InvoicesService {
         montantDeja = totals.totalTTC;
       }
 
-      const reference = await this.nextReference(tx, workspaceId, type);
+      const reference = await this.nextReference(tx, workspaceId, type, prefix);
 
       return tx.invoice.create({
         data: {

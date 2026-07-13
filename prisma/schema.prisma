@@ -1167,6 +1167,10 @@ model SupplierOrder {
   lines       SupplierOrderLine[]
 
   @@index([workspaceId])
+  // DATA 13/07/2026 — Unicité de la référence de commande fournisseur par
+  // workspace (les NULL restent distincts côté Postgres). Migration
+  // 20260713_unique_supplier_order_reference (self-healing : dédup puis index).
+  @@unique([workspaceId, reference])
 }
 
 model SupplierOrderLine {

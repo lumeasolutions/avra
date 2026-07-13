@@ -21,6 +21,7 @@ export class StockController {
   ) {}
 
   @Post()
+  @Roles('OWNER', 'ADMIN', 'MEMBER')
   async create(@CurrentUser() user: JwtPayload, @Body() dto: CreateStockItemDto) {
     const result = await this.stock.create(user.workspaceId, dto);
     // Invalidate stock list cache on mutation

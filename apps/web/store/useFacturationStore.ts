@@ -13,6 +13,25 @@ import {
   createInvoice, updateInvoiceApi, deleteInvoiceApi, isBackendInvoiceId,
   invoiceDetailToPayload, invoiceApiToDetail,
 } from '@/lib/invoices-api';
+// REST 13/07/2026 — Préfixes de numérotation configurables (Paramètres).
+// Lecture runtime via getState() (pas au chargement) → pas de cycle d'init.
+// Le backend applique les MÊMES préfixes (invoices.service.resolvePrefix) : le
+// preview local et la référence finale sont donc cohérents (plus de « flip »).
+import { useConfigStore } from './useConfigStore';
+
+function numPrefixes() {
+  const n = useConfigStore.getState().numerotation;
+  const pf = (n?.prefixeFacture ?? '').trim() || 'F';
+  const pd = (n?.prefixeDevis ?? '').trim() || 'D';
+  const pa = (n?.prefixeAvoir ?? '').trim() || 'AV';
+  return { pf, pd, pa };
+}
+function invoicePrefix(type: string | undefined): string {
+  const { pf, pa } = numPrefixes();
+  if (type === 'Avoir') return pa;
+  if (type === "Facture d'acompte") return `${pf}A`;
+  return pf;
+}
 
 // Types
 export type InvoiceStatus = 'PAYÉE' | 'EN ATTENTE' | 'ACOMPTE' | 'AVOIR' | 'RETARD';
@@ -175,7 +194,7 @@ export const useFacturationStore = create<FacturationState>()(
 
       addInvoice: (inv) => {
         const year = new Date().getFullYear();
-        const prefix = inv.type === 'Avoir' ? 'AV' : inv.type === "Facture d'acompte" ? 'FA' : 'F';
+        const prefix = invoicePrefix(inv.type);
         const counter = get()._invoiceCounter;
         set(s => ({ _invoiceCounter: s._invoiceCounter + 1 }));
         const ref = `${prefix}-${year}-${String(counter).padStart(3, '0')}`;
@@ -218,7 +237,7 @@ export const useFacturationStore = create<FacturationState>()(
 
       addInvoiceDetail: (inv) => {
         const year = new Date().getFullYear();
-        const prefix = inv.type === 'Avoir' ? 'AV' : inv.type === "Facture d'acompte" ? 'FA' : 'F';
+        const prefix = invoicePrefix(inv.type);
         const counter2 = get()._invoiceCounter;
         set(s => ({ _invoiceCounter: s._invoiceCounter + 1 }));
         const ref = `${prefix}-${year}-${String(counter2).padStart(3, '0')}`;
@@ -287,7 +306,7 @@ export const useFacturationStore = create<FacturationState>()(
         const year = new Date().getFullYear();
         const dCounter = get()._devisCounter;
         set(s => ({ _devisCounter: s._devisCounter + 1 }));
-        const ref = `D-${year}-${String(dCounter).padStart(3, '0')}`;
+        const ref = `${numPrefixes().pd}-${year}-${String(dCounter).padStart(3, '0')}`;
         const id = 'dev' + uid();
         const token = 'tok_' + id.slice(3, 9) + '_' + crypto.randomUUID().replace(/-/g, '').slice(0, 8);
         const totalHT = devis.lignes.reduce((s, l) => s + l.quantite * l.prixUnitaireHT * (1 - l.remise / 100), 0);

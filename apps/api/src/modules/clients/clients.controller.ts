@@ -20,6 +20,7 @@ export class ClientsController {
   ) {}
 
   @Post()
+  @Roles('OWNER', 'ADMIN', 'MEMBER')
   async create(@CurrentUser() user: JwtPayload, @Body() dto: CreateClientDto) {
     const result = await this.clients.create(user.workspaceId, dto);
     // Invalidate clients list cache on mutation

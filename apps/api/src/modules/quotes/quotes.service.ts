@@ -9,10 +9,14 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateQuoteDto, CreateQuoteLineDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
+import { InvoicesService } from '../invoices/invoices.service';
 
 @Injectable()
 export class QuotesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly invoices: InvoicesService,
+  ) {}
 
   /** Mappe une ligne DTO (strings) -> input Prisma avec Decimal. */
   private mapLineCreate(line: CreateQuoteLineDto, index: number) {
@@ -60,10 +64,29 @@ export class QuotesService {
    * - numero base sur le PLUS GRAND existant (delete-safe), pas sur un count().
    * Doit etre appele DANS un $transaction (tx).
    */
-  private async nextReference(tx: any, workspaceId: string): Promise<string> {
+  /**
+   * REST 13/07/2026 — Préfixe devis configurable (Paramètres > Numérotation).
+   * Fallback total sur 'D' (défaut config identique) → non-breaking.
+   */
+  private async resolveDevisPrefix(workspaceId: string): Promise<string> {
+    try {
+      const row = await this.prisma.workspaceSettings.findUnique({
+        where: { workspaceId },
+        select: { extra: true },
+      });
+      const num = (row?.extra as any)?.numerotation;
+      const pd = num && typeof num.prefixeDevis === 'string' && num.prefixeDevis.trim() ? num.prefixeDevis.trim() : 'D';
+      return pd;
+    } catch {
+      return 'D';
+    }
+  }
+
+  private async nextReference(tx: any, workspaceId: string, prefixOverride?: string): Promise<string> {
     const year = new Date().getFullYear();
-    const serie = `D-${year}-`;
-    const lockKey = `quote:${workspaceId}:D:${year}`;
+    const prefix = prefixOverride ?? 'D';
+    const serie = `${prefix}-${year}-`;
+    const lockKey = `quote:${workspaceId}:${prefix}:${year}`;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
     const rows = await tx.quote.findMany({
@@ -96,6 +119,7 @@ export class QuotesService {
   }
 
   async create(workspaceId: string, dto: CreateQuoteDto) {
+    const devisPrefix = await this.resolveDevisPrefix(workspaceId);
     return this.prisma.$transaction(async (tx: any) => {
       // Anti-IDOR : le projet rattaché doit appartenir au workspace.
       if (dto.projectId) {
@@ -104,7 +128,7 @@ export class QuotesService {
       }
       const totals = this.computeTotals(dto.lines);
       // Référence TOUJOURS générée serveur (séquence légale), jamais fournie par le client.
-      const reference = await this.nextReference(tx, workspaceId);
+      const reference = await this.nextReference(tx, workspaceId, devisPrefix);
       return tx.quote.create({
         data: {
           workspaceId,
@@ -185,41 +209,37 @@ export class QuotesService {
     });
   }
 
-  /** Marque le devis comme converti (facture) avec un numero F-{annee}-{NNNN} continu. */
+  /**
+   * Convertit un devis en FACTURE.
+   *
+   * REST 13/07/2026 — Avant, cette méthode « fantôme » se contentait de muter le
+   * devis : elle écrasait sa référence D-{annee}-{NNNN} par une F-{annee}-{NNNN}
+   * et passait son status à INVOICED, SANS jamais créer d'enregistrement Invoice.
+   * Résultat : le devis perdait sa traçabilité et aucune facture réelle n'existait.
+   *
+   * On délègue désormais à la vraie conversion (InvoicesService.convertFromQuote),
+   * qui crée une Invoice liée (quoteId), copie les lignes/montants et génère la
+   * référence via le compteur commun `nextReference` (verrou consultatif). On
+   * marque ensuite le devis INVOICED en CONSERVANT sa référence D-.
+   */
   async convertToInvoice(workspaceId: string, id: string) {
-    return this.prisma.$transaction(async (tx: any) => {
-      const existing = await tx.quote.findFirst({ where: { id, workspaceId } });
-      if (!existing) throw new NotFoundException(`Quote ${id} not found`);
-      // Garde-fou : ne pas reconvertir un devis déjà facturé (évite de ré-incrémenter
-      // le compteur F-{annee}-{NNNN} et d'écraser la référence).
-      if (existing.status === 'INVOICED') {
-        throw new BadRequestException('Ce devis est déjà converti en facture.');
-      }
-
-      const year = new Date().getFullYear();
-      const serie = `F-${year}-`;
-      // Verrou PARTAGE avec InvoicesService.nextReference (meme cle) : les deux
-      // chemins de conversion (quote.convertToInvoice ET invoice.convertFromQuote)
-      // ne peuvent plus emettre le meme numero F-. Max calcule sur les DEUX tables.
-      const lockKey = `invoice:${workspaceId}:F:${year}`;
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
-
-      const [quoteRefs, invoiceRefs] = await Promise.all([
-        tx.quote.findMany({ where: { workspaceId, reference: { startsWith: serie } }, select: { reference: true } }),
-        tx.invoice.findMany({ where: { workspaceId, reference: { startsWith: serie } }, select: { reference: true } }),
-      ]);
-      let max = 0;
-      for (const r of [...quoteRefs, ...invoiceRefs]) {
-        const n = parseInt(String(r.reference).slice(serie.length), 10);
-        if (Number.isFinite(n) && n > max) max = n;
-      }
-      const number = `${serie}${String(max + 1).padStart(4, '0')}`;
-
-      return tx.quote.update({
-        where: { id },
-        data: { status: 'INVOICED', reference: number },
-        include: { lines: { orderBy: { position: 'asc' } } },
-      });
+    const existing = await this.prisma.quote.findFirst({
+      where: { id, workspaceId },
+      select: { id: true, status: true },
     });
+    if (!existing) throw new NotFoundException(`Quote ${id} not found`);
+    if (existing.status === 'INVOICED') {
+      throw new BadRequestException('Ce devis est déjà converti en facture.');
+    }
+
+    const invoice = await this.invoices.convertFromQuote(workspaceId, { quoteId: id } as any);
+
+    // Marque le devis converti — sans toucher à sa référence D-.
+    await this.prisma.quote.update({
+      where: { id },
+      data: { status: 'INVOICED' },
+    });
+
+    return invoice;
   }
 }

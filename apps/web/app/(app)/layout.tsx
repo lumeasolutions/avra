@@ -1,6 +1,7 @@
 'use client';
 
 import nextDynamic from 'next/dynamic';
+import { useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AppGuard } from '@/components/layout/AppGuard';
 import { usePathname } from 'next/navigation';
@@ -9,6 +10,7 @@ import { useAlertEngine } from '@/hooks/useAlertEngine';
 import { useTokenRefresh } from '@/hooks/useTokenRefresh';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { SentryUserProvider } from '@/components/SentryUserProvider';
+import { useDossierStore, useHistoryStore } from '@/store';
 
 /* Dynamic import pour code splitting */
 const AssistantFAB = nextDynamic(() => import('@/components/layout/AssistantFAB').then(mod => mod.AssistantFAB), {
@@ -22,7 +24,22 @@ const AssistantPanel = nextDynamic(() => import('@/components/layout/AssistantPa
   loading: () => null,
 });
 
+/**
+ * REST 13/07/2026 — Moteur de relances enfin branché. `checkAndCreateRelances`
+ * existait mais n'était jamais appelé (fonctionnalité morte). Il scanne les
+ * dossiers signés et crée des relances pour les dates butoires dépassées, les
+ * dépôts en attente > 2 semaines et les confirmations fournisseurs > 1 semaine.
+ * Le store dédoublonne (garde-fous `!existingRelances.some(...)`) → ré-exécution
+ * sans risque à chaque hydratation des dossiers.
+ */
 function RelanceEngineProvider() {
+  const dossiersSignes = useDossierStore((s) => s.dossiersSignes);
+  const checkAndCreateRelances = useHistoryStore((s) => s.checkAndCreateRelances);
+  useEffect(() => {
+    if (Array.isArray(dossiersSignes) && dossiersSignes.length > 0) {
+      checkAndCreateRelances(dossiersSignes);
+    }
+  }, [dossiersSignes, checkAndCreateRelances]);
   return null;
 }
 
