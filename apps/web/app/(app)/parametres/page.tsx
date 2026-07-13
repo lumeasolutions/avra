@@ -35,6 +35,28 @@ const PORTAILS_DEV: Array<{ id: PortalChoiceId; emoji: string; label: string; co
   { id: 'intervenant', emoji: '🔧', label: 'Espace intervenant',      color: '#3D5449', gradient: 'linear-gradient(135deg, #4a6951 0%, #3D5449 50%, #1a2a1e 100%)', href: '/intervenant' },
 ];
 
+// ─── Export CSV (client, sans dépendance, lecture seule) ────────────────────
+function toCSV(rows: any[]): string {
+  if (!rows.length) return '';
+  const headers = Object.keys(rows[0]);
+  const esc = (v: unknown) => {
+    const s = v == null ? '' : String(v);
+    return /["\n;,]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  return [headers.join(';'), ...rows.map((r) => headers.map((h) => esc(r[h])).join(';'))].join('\r\n');
+}
+function downloadCSV(filename: string, rows: any[]) {
+  if (typeof window === 'undefined') return;
+  if (!rows.length) { alert('Aucune donnée à exporter.'); return; }
+  const csv = '﻿' + toCSV(rows); // BOM UTF-8 → accents corrects dans Excel FR
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // ─── Config sections ──────────────────────────────────────────────────────────
 
 const SECTIONS = [
@@ -1498,14 +1520,21 @@ export default function ParametresPage() {
             <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-3">Exporter vos données</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
-                { label: 'Dossiers en cours',    count: dossiers.length,       color: 'bg-[#304035]/8 text-[#304035]' },
-                { label: 'Dossiers signés',       count: dossiersSignes.length, color: 'bg-amber-50 text-amber-700' },
-                { label: 'Factures',              count: invoices.length,       color: 'bg-violet-50 text-violet-700' },
-                { label: 'Devis',                 count: devis.length,          color: 'bg-blue-50 text-blue-700' },
-                { label: 'Catalogue produits',    count: stockItems.length,     color: 'bg-emerald-50 text-emerald-700' },
-                { label: 'Historique complet',    count: null,                  color: 'bg-[#f5eee8] text-[#a67749]' },
+                { label: 'Dossiers en cours', count: dossiers.length, color: 'bg-[#304035]/8 text-[#304035]', file: 'dossiers-en-cours.csv',
+                  rows: () => dossiers.map((d: any) => ({ Nom: d.name, Prenom: d.firstName ?? '', Statut: d.status, 'Cree le': d.createdAt ?? '', Telephone: d.phone ?? '', Email: d.email ?? '', 'Code postal': d.postalCode ?? '' })) },
+                { label: 'Dossiers signés', count: dossiersSignes.length, color: 'bg-amber-50 text-amber-700', file: 'dossiers-signes.csv',
+                  rows: () => dossiersSignes.map((d: any) => ({ Nom: d.name, Statut: d.status ?? '', 'Signe le': d.signedDate ?? '' })) },
+                { label: 'Factures', count: invoices.length, color: 'bg-violet-50 text-violet-700', file: 'factures.csv',
+                  rows: () => invoices.map((i: any) => ({ Reference: i.ref, Client: i.client, Date: i.date, 'Montant HT': i.montantHT, Statut: i.statut, Type: i.type ?? '' })) },
+                { label: 'Devis', count: devis.length, color: 'bg-blue-50 text-blue-700', file: 'devis.csv',
+                  rows: () => devis.map((q: any) => ({ Reference: q.ref, Client: q.client, Date: q.date ?? '', Statut: q.statut ?? '' })) },
+                { label: 'Catalogue produits', count: stockItems.length, color: 'bg-emerald-50 text-emerald-700', file: 'catalogue.csv',
+                  rows: () => stockItems.map((s: any) => ({ Nom: s.name, SKU: s.sku ?? '', Categorie: s.category ?? '', Quantite: s.quantity ?? '', 'Prix achat HT': s.purchasePrice ?? '', 'Prix vente HT': s.salePrice ?? '' })) },
+                { label: 'Historique complet', count: null, color: 'bg-[#f5eee8] text-[#a67749]', file: 'historique.csv',
+                  rows: () => [...dossiers, ...dossiersSignes].map((d: any) => ({ Nom: d.name, Statut: d.status ?? 'signé', 'Cree le': d.createdAt ?? '', 'Signe le': d.signedDate ?? '' })) },
               ].map(item => (
                 <button key={item.label}
+                  onClick={() => downloadCSV(item.file, item.rows())}
                   className={cn('flex items-center justify-between rounded-xl px-4 py-3.5 hover:shadow-md transition-all border border-transparent hover:border-[#304035]/10', item.color, 'bg-opacity-50')}
                 >
                   <div className="flex items-center gap-3">
@@ -1528,7 +1557,16 @@ export default function ParametresPage() {
                 <p className="font-bold text-[#304035] text-sm">Sauvegarde complète (JSON)</p>
                 <p className="text-xs text-[#304035]/50 mt-1">Exporte l'intégralité de vos données AVRA dans un fichier JSON restaurable</p>
               </div>
-              <button className="flex items-center gap-2 rounded-xl bg-[#304035] px-4 py-2 text-xs font-bold text-white hover:bg-[#304035]/90 transition-colors shrink-0 ml-4">
+              <button
+                onClick={() => {
+                  if (typeof window === 'undefined') return;
+                  const data = { exportedAt: new Date().toISOString(), dossiers, dossiersSignes, invoices, devis, stockItems };
+                  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a'); a.href = url; a.download = 'avra-sauvegarde.json';
+                  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-[#304035] px-4 py-2 text-xs font-bold text-white hover:bg-[#304035]/90 transition-colors shrink-0 ml-4">
                 <Download className="h-3.5 w-3.5" /> Télécharger
               </button>
             </div>
