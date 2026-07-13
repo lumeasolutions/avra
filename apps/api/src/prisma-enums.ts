@@ -19,6 +19,23 @@ export const WorkspacePlan = {
 } as const;
 export type WorkspacePlan = typeof WorkspacePlan[keyof typeof WorkspacePlan];
 
+// DATA 13/07/2026 — Miroirs manquants (existaient en base + schema.prisma mais
+// absents ici) → le typage retombait sur des littéraux string non vérifiés.
+export const MembershipStatus = {
+  ACTIVE: 'ACTIVE',
+  SUSPENDED: 'SUSPENDED',
+} as const;
+export type MembershipStatus = typeof MembershipStatus[keyof typeof MembershipStatus];
+
+export const WorkspaceInvitationStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REFUSED: 'REFUSED',
+  EXPIRED: 'EXPIRED',
+  REVOKED: 'REVOKED',
+} as const;
+export type WorkspaceInvitationStatus = typeof WorkspaceInvitationStatus[keyof typeof WorkspaceInvitationStatus];
+
 export const TradeType = {
   ARCHITECTE_INTERIEUR: 'ARCHITECTE_INTERIEUR',
   CUISINISTE: 'CUISINISTE',

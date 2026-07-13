@@ -289,22 +289,22 @@ export default function DevisCuisineGuide() {
 
         <h2 id="taux-signature">Augmenter le taux de signature</h2>
         <p>
-          Un devis conforme protège, un devis bien conçu fait signer. Voici les leviers prouvés sur la base
-          d'un panel de 47 cuisinistes pilotes AVRA :
+          Un devis conforme protège, un devis bien conçu fait signer. Voici les leviers reconnus
+          pour améliorer votre taux de signature :
         </p>
 
         <ChecklistCard
           title="9 leviers d'optimisation du taux de signature"
           items={[
-            { label: 'Inclure un visuel 3D ou photo-réaliste', help: '+18 % de signatures observé. L\'IA AVRA produit ce visuel en 30 secondes.' },
-            { label: 'Détailler 5 à 7 postes plutôt qu\'un seul', help: '+12 % de signatures. Le client comprend ce qu\'il paie.' },
-            { label: 'Ajouter 2 à 3 options visibles', help: '+9 % de signatures. Effet de référence : le client positionne son budget.' },
-            { label: 'Personnaliser l\'introduction', help: 'Mentionner le projet par son nom, des éléments spécifiques au client. +6 %.' },
-            { label: 'Lien de signature électronique', help: 'Réduit le délai entre envoi et signature de 7 jours à 36 heures.' },
-            { label: 'Lien de paiement de l\'acompte intégré', help: '+8 % d\'acomptes payés sous 48 h.' },
+            { label: 'Inclure un visuel 3D ou photo-réaliste', help: 'Le client se projette et signe plus facilement. L\'IA AVRA produit ce visuel en quelques secondes.' },
+            { label: 'Détailler 5 à 7 postes plutôt qu\'un seul', help: 'Le client comprend ce qu\'il paie et perçoit mieux la valeur.' },
+            { label: 'Ajouter 2 à 3 options visibles', help: 'Effet de référence : le client positionne son budget.' },
+            { label: 'Personnaliser l\'introduction', help: 'Mentionner le projet par son nom et des éléments spécifiques au client.' },
+            { label: 'Lien de signature électronique', help: 'Réduit nettement le délai entre l\'envoi et la signature.' },
+            { label: 'Lien de paiement de l\'acompte intégré', help: 'Facilite le paiement de l\'acompte dès la signature.' },
             { label: 'Calendrier prévisionnel visible', help: 'Date estimée de pose + jalons. Rassurant pour le client.' },
-            { label: 'Témoignages ou références', help: 'Mention d\'un projet similaire récent + photo si possible. +4 %.' },
-            { label: 'Offre de financement intégrée', help: 'Pour les cuisines >10 000 €. Accès à un crédit Younited ou Cofidis. +7 %.' },
+            { label: 'Témoignages ou références', help: 'Mention d\'un projet similaire récent + photo si possible.' },
+            { label: 'Offre de financement intégrée', help: 'Pour les cuisines >10 000 €, proposez une solution de crédit à la consommation.' },
           ]}
         />
 

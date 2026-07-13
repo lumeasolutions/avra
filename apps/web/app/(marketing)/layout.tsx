@@ -96,7 +96,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             description: "Logiciel de gestion tout-en-un pour cuisinistes, menuisiers et architectes d'interieur : dossiers, devis, facturation electronique 2026, IA photo-realiste, planning, signature, paiement.",
             offers: {
               '@type': 'Offer',
-              price: '0',
+              price: '149',
               priceCurrency: 'EUR',
               availability: 'https://schema.org/PreOrder',
               description: 'Beta privee jusqu\'au lancement public en janvier 2027',

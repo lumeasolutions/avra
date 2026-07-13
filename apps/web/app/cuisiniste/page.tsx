@@ -109,7 +109,7 @@ export default function CuisinistePage() {
             <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>Vos défis quotidiens</div>
             <h2 style={{ marginBottom: '1rem' }}>Vous reconnaissez-vous ?</h2>
             <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: 600, margin: '0 auto' }}>
-              Les cuisinistes nous disent tous la même chose. Voilà ce qu&apos;AVRA résout.
+              Les cuisinistes nous disent tous la même chose. Voilà ce qu’AVRA résout.
             </p>
           </div>
 
@@ -124,7 +124,7 @@ export default function CuisinistePage() {
               {
                 icon: Clock,
                 title: 'Vous perdez des heures sur les devis',
-                desc: 'Chaque devis cuisine est sur-mesure. Entre les calculs de matériaux, les plans, les délais, c&apos;est un casse-tête.',
+                desc: 'Chaque devis cuisine est sur-mesure. Entre les calculs de matériaux, les plans, les délais, c’est un casse-tête.',
               },
               {
                 icon: FileX,
@@ -138,7 +138,7 @@ export default function CuisinistePage() {
               },
               {
                 icon: TrendingDown,
-                title: 'Vous ne savez pas si vous gagnez de l&apos;argent',
+                title: 'Vous ne savez pas si vous gagnez de l’argent',
                 desc: 'Impossible de suivre les heures réelles vs les devis. Vous sous-facturez probablement.',
               },
             ].map((problem, i) => {
@@ -218,7 +218,7 @@ export default function CuisinistePage() {
               {
                 icon: Calendar,
                 title: 'Planning de pose intelligent',
-                desc: 'Planifiez chaque pose sur le calendrier d&apos;équipe. Gérez les conflits de timing, synchronisez les sous-traitants (électriciens, plombiers).',
+                desc: 'Planifiez chaque pose sur le calendrier d’équipe. Gérez les conflits de timing, synchronisez les sous-traitants (électriciens, plombiers).',
                 features: [
                   'Calendrier équipe intégré',
                   'Gestion des installateurs',
@@ -394,22 +394,12 @@ export default function CuisinistePage() {
                 lineHeight: 1.7,
               }}
             >
-              AVRA m&apos;a permis de passer de 8 à 15 cuisines par mois sans embaucher. Le gain de temps sur
-              l&apos;administratif est énorme. Les rendus IA, c&apos;est une vraie révolution pour convaincre les clients.
+              AVRA réduit le temps passé sur l’administratif pour vous laisser vendre plus de cuisines,
+              et les rendus IA aident à convaincre vos clients dès la première réunion.
             </p>
             <div>
-              <div
-                style={{
-                  fontSize: '.95rem',
-                  fontWeight: 600,
-                  color: 'var(--gold)',
-                  marginBottom: '.25rem',
-                }}
-              >
-                Pierre M.
-              </div>
               <div style={{ fontSize: '.85rem', color: 'rgba(255,255,255,.5)' }}>
-                Cuisiniste indépendant, Bordeaux
+                Conçu pour les cuisinistes — actuellement en bêta
               </div>
             </div>
           </div>
@@ -465,7 +455,7 @@ export default function CuisinistePage() {
           >
             {[
               { href: '/menuisier', label: 'Menuisier' },
-              { href: '/architecte-interieur', label: 'Architecte d&apos;intérieur' },
+              { href: '/architecte-interieur', label: 'Architecte d’intérieur' },
               { href: '/agenceur', label: 'Agenceur' },
               { href: '/metiers', label: 'Tous les métiers' },
             ].map((link) => (

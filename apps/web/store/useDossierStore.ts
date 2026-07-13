@@ -1130,11 +1130,15 @@ export const useDossierStore = create<DossierState>()(
         const dossier = get().dossiers.find(d => d.id === id);
         if (!dossier) return;
         const perdu: DossierPerdu = {
-          id: 'p' + uid(),
+          // FONC 13/07/2026 — On CONSERVE l'id DB (cuid) au lieu de générer un
+          // id local 'p'+uid(). Sinon `restaurerDossierPerdu` reçoit un id local,
+          // `isLocalOnlyId` renvoie true, et la restauration n'est jamais
+          // persistée côté backend (le dossier repassait perdu à la resync).
+          id: dossier.id,
           name: dossier.name,
           reason,
           lostDate: new Date().toLocaleDateString('fr-FR'),
-          montantEstime: 0,
+          montantEstime: (dossier as any).montant ?? (dossier as any).montantEstime ?? 0,
         };
         set(s => ({
           dossiers: s.dossiers.filter(d => d.id !== id),

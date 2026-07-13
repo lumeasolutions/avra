@@ -317,6 +317,9 @@ export default function StockPage() {
         category: editForm.category ?? DEFAULT_CAT,
         purchase: Number(editForm.purchase) || 0,
         sale: editForm.sale !== undefined && editForm.sale !== null ? Number(editForm.sale) : null,
+        // FONC 13/07/2026 — quantity était absent du patch : toute modif de la
+        // quantité en édition inline était silencieusement perdue à la sauvegarde.
+        quantity: Number(editForm.quantity) || 0,
         dot: editForm.dot ?? 'green',
       });
     }
@@ -629,7 +632,12 @@ export default function StockPage() {
                   {/* Modèle */}
                   {isEditing ? (
                     <input
-                      value={(editForm.model ?? '') + (editForm.material ? ' — ' + editForm.material : '')}
+                      /* FONC 13/07/2026 — la valeur concaténait model + material
+                         mais onChange n'écrivait que `model` : chaque édition
+                         dupliquait le matériau (« MODÈLE — MATÉRIAU — MATÉRIAU »).
+                         On édite désormais uniquement le modèle ; le matériau
+                         reste inchangé. */
+                      value={editForm.model ?? ''}
                       onChange={e => setEditForm(f => ({ ...f, model: e.target.value }))}
                       className="w-full rounded-lg border border-[#304035]/20 bg-[#f5eee8]/60 px-2.5 py-1.5 text-sm text-[#304035] focus:outline-none focus:ring-1 focus:ring-[#304035]/30 mr-2"
                     />

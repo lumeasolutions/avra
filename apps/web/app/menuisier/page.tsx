@@ -83,7 +83,7 @@ export default function MenuisierPage() {
             Pour les menuisiers
           </div>
           <h1 style={{ color: 'var(--white)', marginBottom: '1.5rem' }}>
-            L&apos;ERP des menuisiers modernes
+            L’ERP des menuisiers modernes
           </h1>
           <p
             style={{
@@ -124,7 +124,7 @@ export default function MenuisierPage() {
               {
                 icon: FileCheck,
                 title: 'Les devis menuiserie sont trop complexes',
-                desc: 'Chaque projet est unique. Calculer les dimensions, les matériaux, les délais... C&apos;est long et source d&apos;erreurs.',
+                desc: 'Chaque projet est unique. Calculer les dimensions, les matériaux, les délais... C’est long et source d’erreurs.',
               },
               {
                 icon: Package,
@@ -139,7 +139,7 @@ export default function MenuisierPage() {
               {
                 icon: DollarSign,
                 title: 'La facturation e-facture 2026 vous stresse',
-                desc: 'La conformité légale c&apos;est du chinois. Vous avez peur de mal faire et de vous faire pénaliser.',
+                desc: 'La conformité légale c’est du chinois. Vous avez peur de mal faire et de vous faire pénaliser.',
               },
             ].map((problem, i) => {
               const Icon = problem.icon;
@@ -223,7 +223,7 @@ export default function MenuisierPage() {
               {
                 icon: BarChart3,
                 title: 'Facturation e-facture conforme',
-                desc: 'AVRA génère vos factures conformes e-facture 2026. Plus besoin de vous poser la question de la légalité. C&apos;est intégré.',
+                desc: 'AVRA génère vos factures conformes e-facture 2026. Plus besoin de vous poser la question de la légalité. C’est intégré.',
                 features: [
                   'Conformité e-facture',
                   'Numérotation légale',
@@ -451,22 +451,12 @@ export default function MenuisierPage() {
                 lineHeight: 1.7,
               }}
             >
-              La gestion de stock intégrée m&apos;a évité 3 arrêts de chantier faute de matériaux. Et le suivi des marges
-              m&apos;a révélé que je sous-facturais certains travaux de finition. En 3 mois, mon CA a augmenté de 28%.
+              La gestion de stock intégrée aide à éviter les arrêts de chantier faute de matériaux, et
+              le suivi des marges vous montre où vous risquez de sous-facturer vos finitions.
             </p>
             <div>
-              <div
-                style={{
-                  fontSize: '.95rem',
-                  fontWeight: 600,
-                  color: 'var(--gold)',
-                  marginBottom: '.25rem',
-                }}
-              >
-                Julien T.
-              </div>
               <div style={{ fontSize: '.85rem', color: 'rgba(255,255,255,.5)' }}>
-                Menuisier-agenceur, Nantes
+                Conçu pour les menuisiers-agenceurs — actuellement en bêta
               </div>
             </div>
           </div>
@@ -522,7 +512,7 @@ export default function MenuisierPage() {
           >
             {[
               { href: '/cuisiniste', label: 'Cuisiniste' },
-              { href: '/architecte-interieur', label: 'Architecte d&apos;intérieur' },
+              { href: '/architecte-interieur', label: 'Architecte d’intérieur' },
               { href: '/agenceur', label: 'Agenceur' },
               { href: '/metiers', label: 'Tous les métiers' },
             ].map((link) => (

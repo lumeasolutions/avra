@@ -93,7 +93,7 @@ export default function AgenceurPage() {
               margin: '0 auto 2rem',
             }}
           >
-            Gestion multi-sites, coordination fournisseurs, reporting clients professionnels, appels d&apos;offres et
+            Gestion multi-sites, coordination fournisseurs, reporting clients professionnels, appels d’offres et
             portail partenaires. Doublez votre capacité.
           </p>
           <a href="/comment-ca-marche">
@@ -109,7 +109,7 @@ export default function AgenceurPage() {
             <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>Vos défis quotidiens</div>
             <h2 style={{ marginBottom: '1rem' }}>Les agenceurs nous disent</h2>
             <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: 600, margin: '0 auto' }}>
-              Coordonner plusieurs chantiers simultanés, c&apos;est complexe. AVRA simplifie tout.
+              Coordonner plusieurs chantiers simultanés, c’est complexe. AVRA simplifie tout.
             </p>
           </div>
 
@@ -129,7 +129,7 @@ export default function AgenceurPage() {
               {
                 icon: BarChart3,
                 title: 'Les clients exigent un reporting régulier',
-                desc: 'Chaque semaine, générer des rapports d&apos;avancement manuels pour 10 clients corporate. C&apos;est très chronophage.',
+                desc: 'Chaque semaine, générer des rapports d’avancement manuels pour 10 clients corporate. C’est très chronophage.',
               },
               {
                 icon: Network,
@@ -138,8 +138,8 @@ export default function AgenceurPage() {
               },
               {
                 icon: ClipboardList,
-                title: 'Répondre aux appels d&apos;offres rapidement',
-                desc: 'Vous avez 3 jours pour répondre. Chercher vos références, créer un dossier de présentation, c&apos;est trop long.',
+                title: 'Répondre aux appels d’offres rapidement',
+                desc: 'Vous avez 3 jours pour répondre. Chercher vos références, créer un dossier de présentation, c’est trop long.',
               },
             ].map((problem, i) => {
               const Icon = problem.icon;
@@ -201,11 +201,11 @@ export default function AgenceurPage() {
               {
                 icon: BarChart3,
                 title: 'Reporting client automatisé',
-                desc: 'Générateur de rapports d&apos;avancement professionnels en 1 clic. Tableaux de bord, graphiques, photos de chantier. Partagez directement aux clients.',
+                desc: 'Générateur de rapports d’avancement professionnels en 1 clic. Tableaux de bord, graphiques, photos de chantier. Partagez directement aux clients.',
                 features: [
                   'Templates reportings',
                   'Génération automatisée',
-                  'Graphiques d&apos;avancement',
+                  'Graphiques d’avancement',
                   'Export PDF',
                 ],
               },
@@ -222,8 +222,8 @@ export default function AgenceurPage() {
               },
               {
                 icon: Zap,
-                title: 'Génération appels d&apos;offres',
-                desc: 'Convertissez vos réalisations passées en dossiers de présentation pour appels d&apos;offres. Plus rapide, plus professionnel, plus percutant.',
+                title: 'Génération appels d’offres',
+                desc: 'Convertissez vos réalisations passées en dossiers de présentation pour appels d’offres. Plus rapide, plus professionnel, plus percutant.',
                 features: [
                   'Bibliothèque réalisations',
                   'Génération automatique',
@@ -313,7 +313,7 @@ export default function AgenceurPage() {
               <div className="section-label" style={{ marginBottom: '1.5rem' }}>Synchronisation</div>
               <h2 style={{ marginBottom: '1.5rem' }}>Tout le monde sur la même page</h2>
               <p style={{ fontSize: '1.05rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>
-                Clients, artisans, fournisseurs, équipes interne. Tout le monde voit exactement ce qu&apos;il doit voir.
+                Clients, artisans, fournisseurs, équipes interne. Tout le monde voit exactement ce qu’il doit voir.
                 Les réunions de coordination inutiles disparaissent.
               </p>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -366,7 +366,7 @@ export default function AgenceurPage() {
       <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--green-deep)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <h2 style={{ color: 'var(--white)', marginBottom: '1rem' }}>Les résultats parlent d&apos;eux-mêmes</h2>
+            <h2 style={{ color: 'var(--white)', marginBottom: '1rem' }}>Ce qu’AVRA fait pour les agenceurs</h2>
             <p
               style={{
                 color: 'rgba(255,255,255,.75)',
@@ -375,7 +375,7 @@ export default function AgenceurPage() {
                 margin: '0 auto',
               }}
             >
-              Agenceurs qui utilisent AVRA rapportent
+              Une plateforme unique pour piloter tous vos chantiers
             </p>
           </div>
 
@@ -389,10 +389,10 @@ export default function AgenceurPage() {
             }}
           >
             {[
-              { val: '3×', label: 'Plus de projets gérés en simultané' },
-              { val: '-50%', label: 'De réunions de coordination' },
-              { val: '+40%', label: 'De taux de signature appels d\'offres' },
-              { val: '99%', label: 'Des projets livrés dans les délais' },
+              { val: '📋', label: 'Tous vos projets suivis au même endroit' },
+              { val: '🤝', label: 'Coordination des artisans intégrée' },
+              { val: '📄', label: 'Devis & factures conformes e-facture 2026' },
+              { val: '📦', label: 'Suivi des livraisons et du stock' },
             ].map((stat, i) => (
               <div
                 key={i}
@@ -449,22 +449,13 @@ export default function AgenceurPage() {
                 lineHeight: 1.7,
               }}
             >
-              Avec AVRA, on a pu doubler notre capacité de projets simultanés sans embaucher de chef de projet
-              supplémentaire. Le ROI a été immédiat. Nos clients corporate adorent les reportings automatisés.
+              L’objectif d’AVRA : vous permettre de gérer plus de projets en simultané,
+              coordonner vos artisans et automatiser vos devis, factures et reportings — sans
+              multiplier les outils.
             </p>
             <div>
-              <div
-                style={{
-                  fontSize: '.95rem',
-                  fontWeight: 600,
-                  color: 'var(--gold)',
-                  marginBottom: '.25rem',
-                }}
-              >
-                Nathalie P.
-              </div>
               <div style={{ fontSize: '.85rem', color: 'var(--text-muted)' }}>
-                Agenceur, Marseille
+                Conçu pour les agenceurs — actuellement en bêta
               </div>
             </div>
           </div>
@@ -521,7 +512,7 @@ export default function AgenceurPage() {
             {[
               { href: '/cuisiniste', label: 'Cuisiniste' },
               { href: '/menuisier', label: 'Menuisier' },
-              { href: '/architecte-interieur', label: 'Architecte d&apos;intérieur' },
+              { href: '/architecte-interieur', label: 'Architecte d’intérieur' },
               { href: '/metiers', label: 'Tous les métiers' },
             ].map((link) => (
               <a key={link.href} href={link.href}>

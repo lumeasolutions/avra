@@ -272,8 +272,8 @@ export default function CommentCaMarchePage() {
                 }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4caf50', boxShadow: '0 0 8px #4caf50' }} />
                   <div>
-                    <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 700 }}>2 400+ pros actifs</div>
-                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem' }}>Rejoignez-les aujourd&apos;hui</div>
+                    <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 700 }}>Bêta ouverte</div>
+                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem' }}>Rejoignez-nous aujourd&apos;hui</div>
                   </div>
                 </div>
               </div>
@@ -768,8 +768,8 @@ export default function CommentCaMarchePage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
             {[
-              { icon: <MessageCircle size={22} color="#C9A96E" />, title: 'Chat en direct', desc: 'Réponse en temps réel, lun–ven.', bg: 'rgba(201,169,110,0.10)' },
-              { icon: <Download size={22} color="#4A7C59" />, title: 'Email 24/7', desc: 'Réponse garantie en moins de 2h.', bg: 'rgba(74,124,89,0.10)' },
+              { icon: <MessageCircle size={22} color="#C9A96E" />, title: 'Chat', desc: 'Une question ? Écrivez-nous en journée, lun–ven.', bg: 'rgba(201,169,110,0.10)' },
+              { icon: <Download size={22} color="#4A7C59" />, title: 'Support email', desc: 'Nous vous répondons au plus vite.', bg: 'rgba(74,124,89,0.10)' },
               { icon: <BookOpen size={22} color="#1e4d6b" />, title: 'Documentation', desc: 'Articles et guides détaillés.', bg: 'rgba(30,77,107,0.08)' },
               { icon: <Play size={22} color="#7B5EA7" />, title: 'Vidéos tutoriels', desc: 'Suivez chaque fonctionnalité pas à pas.', bg: 'rgba(123,94,167,0.08)' },
             ].map((item, i) => (

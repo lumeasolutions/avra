@@ -107,7 +107,7 @@ export default function AdminNotification({ type, data }: AdminNotificationProps
                 ✉️ Répondre par email
               </Link>
               {'   '}
-              <Link href="https://avra.fr/portail-admin" style={actionLink}>
+              <Link href="https://avra-app.fr/portail-admin" style={actionLink}>
                 📊 Voir le tableau de bord
               </Link>
             </Text>

@@ -103,7 +103,7 @@ export default function DemoRequestConfirmation({
             </Text>
 
             <Section style={buttonContainer}>
-              <Link href="https://avra.fr/fonctionnalites" style={button}>
+              <Link href="https://avra-app.fr/fonctionnalites" style={button}>
                 Découvrir les fonctionnalités →
               </Link>
             </Section>
@@ -114,14 +114,14 @@ export default function DemoRequestConfirmation({
           {/* Pied de page */}
           <Section style={footer}>
             <Text style={footerText}>
-              Cet email vous a été envoyé suite à votre demande de démo sur avra.fr.
+              Cet email vous a été envoyé suite à votre demande de démo sur avra-app.fr.
             </Text>
             <Text style={footerText}>
-              <Link href="https://avra.fr/confidentialite" style={footerLink}>
+              <Link href="https://avra-app.fr/confidentialite" style={footerLink}>
                 Politique de confidentialité
               </Link>
               {' · '}
-              <Link href="https://avra.fr/mentions-legales" style={footerLink}>
+              <Link href="https://avra-app.fr/mentions-legales" style={footerLink}>
                 Mentions légales
               </Link>
             </Text>

@@ -36,6 +36,7 @@ export function clearAllAppStoresHard() {
   if (typeof localStorage === 'undefined') return;
   const storeKeys = [
     'avra-dossier-store',
+    'avra-demande-templates', // STORE 13/07/2026 — sinon fuite inter-comptes
     'avra-planning-store',
     'avra-facturation-store',
     'avra-intervenant-store',

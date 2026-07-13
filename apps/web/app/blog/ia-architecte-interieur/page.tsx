@@ -157,9 +157,9 @@ export default function IAArchitecteInterieur() {
           ]}
         />
 
-        <PullQuote author="Marie L., architecte d'intérieur (Paris 11e)">
-          L'IA m'a rendu mes soirées. Avant, je passais mes nuits sur SketchUp pour des rendus que mes clients
-          regardaient 30 secondes. Aujourd'hui, je leur montre 4 ambiances en 5 minutes pendant le rendez-vous.
+        <PullQuote author="L'équipe AVRA">
+          L'idée du module IA : remplacer les nuits passées sur SketchUp par plusieurs ambiances
+          photo-réalistes générées en quelques minutes, à montrer directement pendant le rendez-vous client.
         </PullQuote>
 
         <h2 id="photo-realisme">1. Photo-réalisme : le rendu en 30 secondes</h2>

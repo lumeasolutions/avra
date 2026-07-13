@@ -4,11 +4,11 @@ import '../marketing.css';
 export const metadata: Metadata = {
   title: 'Témoignages — Ils ont choisi AVRA pour gérer leur activité',
   description:
-    'Découvrez pourquoi cuisinistes, menuisiers et architectes d\'intérieur font confiance à AVRA pour gérer leurs dossiers, facturation et projets.',
+    'AVRA se construit avec ses premiers utilisateurs — cuisinistes, menuisiers et architectes d\'intérieur. Découvrez le programme bêta.',
   alternates: { canonical: 'https://avra-app.fr/temoignages' },
   openGraph: {
-    title: 'Témoignages AVRA — Bêta testeurs satisfaits',
-    description: '94% de satisfaction. Découvrez pourquoi les pros de l\'agencement choisissent AVRA.',
+    title: 'Témoignages AVRA — Programme bêta',
+    description: 'AVRA se construit avec ses premiers utilisateurs. Découvrez le programme bêta pour cuisinistes, menuisiers et architectes d\'intérieur.',
     url: 'https://avra-app.fr/temoignages',
 
     images: ['/opengraph-image.png'],
@@ -21,74 +21,17 @@ import Nav from '../components/Nav';
 import Footer from '../components/Footer';
 import ScrollReveal from '../components/ScrollReveal';
 
-const testimonials = [
-  {
-    initials: 'A.M.',
-    role: 'Cuisiniste',
-    location: 'Toulouse',
-    exp: '11 ans',
-    quote:
-      'J\'ai testé AVRA en tant que bêta testeur et ça m\'a vraiment impressionné. La gestion de mes dossiers clients s\'est simplifiée du jour au lendemain. Je recommande vivement.',
-    metric: '+7h gagnées par semaine',
-    color: 'var(--green-mid)',
-  },
-  {
-    initials: 'S.D.',
-    role: 'Menuisier',
-    location: 'Bordeaux',
-    exp: '8 ans',
-    quote:
-      'Avant de rejoindre le programme bêta, j\'utilisais 3 outils différents. AVRA les remplace tous. C\'est incroyable de pouvoir tout faire au même endroit.',
-    metric: '3 outils remplacés',
-    color: 'var(--gold-dark)',
-  },
-  {
-    initials: 'L.F.',
-    role: 'Architecte d\'intérieur',
-    location: 'Paris',
-    exp: '6 ans',
-    quote:
-      'Le module IA photo-réalisme a changé la donne pour mes présentations. Même en tant que bêta testeur, les rendus étaient bluffants. Mes clients en raffolent.',
-    metric: '+35% de taux de conversion',
-    color: 'var(--green-light)',
-  },
-  {
-    initials: 'B.R.',
-    role: 'Agenceur',
-    location: 'Lyon',
-    exp: '9 ans',
-    quote:
-      'J\'ai participé au programme bêta pour AVRA. L\'interface est intuitive et la facturation automatique m\'a vraiment sauvé. Zéro courbe d\'apprentissage.',
-    metric: '-4h de compta par semaine',
-    color: 'var(--green)',
-  },
-  {
-    initials: 'M.L.',
-    role: 'Cuisiniste',
-    location: 'Marseille',
-    exp: '13 ans',
-    quote:
-      'En tant que bêta testeur, j\'ai adoré voir AVRA évoluer. Le planning partagé avec mon équipe fonctionne parfaitement. Aucune double-réservation depuis.',
-    metric: '0 conflit de planning',
-    color: 'var(--green-mid)',
-  },
-  {
-    initials: 'P.G.',
-    role: 'Menuisier',
-    location: 'Nantes',
-    exp: '19 ans',
-    quote:
-      'Je suis de la vieille école, mais j\'ai testé AVRA en bêta et franchement, c\'est pas compliqué du tout. L\'équipe support est impeccable.',
-    metric: 'Prise en main en 1 journée',
-    color: 'var(--gold-dark)',
-  },
-];
-
-const stats = [
-  { val: '250+', label: 'Bêta testeurs actifs' },
-  { val: '94%', label: 'Taux de satisfaction' },
-  { val: '6h+', label: 'Gagnées par semaine en moyenne' },
-  { val: '94%', label: 'Satisfaction bêta testeurs' },
+// JUR 13/07/2026 — Faux témoignages nominatifs + stats de satisfaction
+// fabriqués retirés (bêta privée : aucun avis réel publiable ; risque DGCCRF
+// « faux avis » art. L.121-4 c. conso). La page présente désormais le
+// programme bêta honnêtement, sans avis ni métrique inventés.
+//
+// Les capacités mises en avant sont des faits produit vérifiables, pas des
+// retours utilisateurs.
+const capabilities = [
+  { val: 'Tout-en-un', label: 'Dossiers, devis, factures, chantiers, SAV' },
+  { val: 'IA', label: 'Extraction de documents & rendus visuels' },
+  { val: 'Bêta', label: 'Tarif fondateur pour les premiers inscrits' },
 ];
 
 export default function TemoignagesPage() {
@@ -119,7 +62,7 @@ export default function TemoignagesPage() {
             className="section-label"
             style={{ margin: '0 auto 1.5rem' }}
           >
-            Ils nous font confiance
+            Programme bêta
           </div>
           <h1
             style={{
@@ -140,36 +83,17 @@ export default function TemoignagesPage() {
             Cuisinistes, menuisiers, architectes d&apos;intérieur, agenceurs — découvrez
             comment AVRA simplifie leur quotidien.
           </p>
-          {/* Stars */}
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              marginBottom: '1rem',
+              display: 'inline-block',
+              color: 'rgba(255,255,255,.85)',
+              fontSize: '1rem',
+              padding: '8px 18px',
+              border: '1px solid rgba(255,255,255,.25)',
+              borderRadius: '100px',
             }}
           >
-            {[1, 2, 3, 4, 5].map((s) => (
-              <span
-                key={s}
-                style={{
-                  fontSize: '1.5rem',
-                  color: 'var(--gold)',
-                }}
-              >
-                ★
-              </span>
-            ))}
-            <span
-              style={{
-                color: 'rgba(255,255,255,.7)',
-                fontSize: '1rem',
-                marginLeft: 4,
-              }}
-            >
-              4.8/5 — 250+ bêta testeurs
-            </span>
+            Programme bêta ouvert — inscriptions en cours
           </div>
         </div>
       </section>
@@ -214,9 +138,10 @@ export default function TemoignagesPage() {
                   margin: 0,
                 }}
               >
-                AVRA est en cours de lancement. Ces témoignages proviennent de nos bêta testeurs qui
-                ont testé le logiciel avant le lancement officiel. Nous valorisons l\'authenticité et la
-                transparence, c\'est pourquoi vous voyez les vrais retours de nos premiers utilisateurs.
+                AVRA est en cours de lancement. Nous avons choisi de ne pas afficher de
+                témoignages tant que nos premiers utilisateurs n&apos;ont pas suffisamment de recul :
+                par souci d&apos;authenticité, cette page ne publiera que de vrais retours, vérifiés,
+                au fur et à mesure du programme bêta.
               </p>
             </div>
           </div>
@@ -235,17 +160,17 @@ export default function TemoignagesPage() {
           className="container stats-band-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4,1fr)',
+            gridTemplateColumns: 'repeat(3,1fr)',
             gap: '32px',
             textAlign: 'center',
           }}
         >
-          {stats.map((s) => (
+          {capabilities.map((s) => (
             <div key={s.label} className="reveal">
               <div
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: '2.8rem',
+                  fontSize: '2rem',
                   fontWeight: 800,
                   color: 'var(--gold)',
                   marginBottom: '.25rem',
@@ -267,117 +192,31 @@ export default function TemoignagesPage() {
         </div>
       </section>
 
-      {/* Testimonials grid */}
+      {/* Témoignages — à venir (aucun avis fabriqué) */}
       <section className="section">
-        <div className="container">
+        <div className="container" style={{ maxWidth: 720, textAlign: 'center' }}>
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns:
-                'repeat(auto-fit,minmax(320px,1fr))',
-              gap: '24px',
-            }}
+            className="card reveal"
+            style={{ padding: '48px 32px' }}
           >
-            {testimonials.map((t) => (
-              <div
-                key={t.initials}
-                className="card reveal"
-                style={{
-                  position: 'relative',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '8px',
-                    marginBottom: '1rem',
-                  }}
-                >
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <span
-                      key={s}
-                      style={{
-                        fontSize: '.9rem',
-                        color: 'var(--gold)',
-                      }}
-                    >
-                      ★
-                    </span>
-                  ))}
-                </div>
-                <blockquote
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '1rem',
-                    fontStyle: 'italic',
-                    color: 'var(--text)',
-                    lineHeight: 1.65,
-                    marginBottom: '1.5rem',
-                  }}
-                >
-                  "{t.quote}"
-                </blockquote>
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    background: 'var(--cream-light)',
-                    borderRadius: 8,
-                    marginBottom: '1.5rem',
-                    borderLeft: '3px solid var(--gold)',
-                    fontSize: '.85rem',
-                    color: 'var(--gold-dark)',
-                    fontWeight: 600,
-                  }}
-                >
-                  Résultat: {t.metric}
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: '50%',
-                      background: `linear-gradient(135deg,${t.color},var(--green-light))`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--white)',
-                      fontWeight: 700,
-                      fontSize: '.9rem',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {t.initials}
-                  </div>
-                  <div>
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        fontSize: '.95rem',
-                        color: 'var(--text)',
-                      }}
-                    >
-                      {t.initials}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '.8rem',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      {t.role} — {t.location} •{' '}
-                      {t.exp} d&apos;expérience
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>💬</div>
+            <h2 style={{ marginBottom: '1rem' }}>
+              Les premiers retours arrivent bientôt
+            </h2>
+            <p
+              style={{
+                fontSize: '1.05rem',
+                color: 'var(--text-muted)',
+                lineHeight: 1.7,
+                margin: '0 auto',
+                maxWidth: 560,
+              }}
+            >
+              AVRA est en bêta privée. Plutôt que d&apos;afficher des avis inventés, nous
+              publierons ici les vrais témoignages de nos utilisateurs dès qu&apos;ils auront
+              assez de recul. Vous voulez en faire partie&nbsp;? Rejoignez la liste
+              d&apos;attente ci-dessous.
+            </p>
           </div>
         </div>
       </section>

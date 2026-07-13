@@ -281,7 +281,7 @@ export default function CuisinisteParis() {
           </h2>
 
           <p style={{ fontSize: '1.2rem', color: 'rgba(249,246,240,0.85)', marginBottom: '32px', maxWidth: '700px', marginLeft: 'auto', marginRight: 'auto' }}>
-            Rejoignez les 500+ cuisinistes, menuisiers et architectes d'intérieur qui font confiance à AVRA.
+            Rejoignez la bêta AVRA — pensée pour les cuisinistes, menuisiers et architectes d&apos;intérieur.
           </p>
 
           <a href="/demo">

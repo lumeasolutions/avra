@@ -13,7 +13,11 @@ export function useStatistiques() {
   const [selectedDossier, setSelectedDossier] = useState<string | null>(null);
 
   const stats = useMemo(() => {
-    const totalCA = invoices.reduce((sum, inv) => sum + (inv.montantHT || 0), 0);
+    // STORE 13/07/2026 — Les avoirs (notes de crédit) ne sont pas du chiffre
+    // d'affaires : les inclure gonflait le CA. On les exclut de la somme.
+    const totalCA = invoices
+      .filter(inv => (inv as any).factureType !== 'AVOIR' && inv.statut !== 'AVOIR')
+      .reduce((sum, inv) => sum + (inv.montantHT || 0), 0);
     const paidCount = invoices.filter(inv => inv.statut === 'PAYÉE').length;
     const totalDevis = devis.length;
     const acceptedDevis = devis.filter(d => d.statut === 'ACCEPTÉ').length;

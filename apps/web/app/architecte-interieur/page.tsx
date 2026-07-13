@@ -81,7 +81,7 @@ export default function ArchitecteInteriorPage() {
       >
         <div style={{ maxWidth: 780, margin: '0 auto', padding: '60px 5%', width: '100%' }}>
           <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>
-            Pour les architectes d&apos;intérieur
+            Pour les architectes d’intérieur
           </div>
           <h1 style={{ color: 'var(--white)', marginBottom: '1.5rem' }}>
             Le logiciel qui valorise votre créativité
@@ -108,9 +108,9 @@ export default function ArchitecteInteriorPage() {
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
             <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>Vos défis quotidiens</div>
-            <h2 style={{ marginBottom: '1rem' }}>Les architectes d&apos;intérieur nous confient</h2>
+            <h2 style={{ marginBottom: '1rem' }}>Les architectes d’intérieur nous confient</h2>
             <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: 600, margin: '0 auto' }}>
-              AVRA résout les vrais problèmes des architectes d&apos;intérieur modernes.
+              AVRA résout les vrais problèmes des architectes d’intérieur modernes.
             </p>
           </div>
 
@@ -125,7 +125,7 @@ export default function ArchitecteInteriorPage() {
               {
                 icon: Folder,
                 title: 'Vos dossiers clients sont éparpillés',
-                desc: 'Plans dans Drive, photos dans Photos, devis dans Outlook, contrats imprimés... Impossible de retrouver rapidement ce qu&apos;il faut.',
+                desc: 'Plans dans Drive, photos dans Photos, devis dans Outlook, contrats imprimés... Impossible de retrouver rapidement ce qu’il faut.',
               },
               {
                 icon: TrendingUp,
@@ -140,7 +140,7 @@ export default function ArchitecteInteriorPage() {
               {
                 icon: Users,
                 title: 'Coordonner les artisans est stressant',
-                desc: 'Devis du carreleur, devis du plombier, devis du menuisier... Synchroniser 5-6 corps de métier sur un même projet, c&apos;est du cauchemar.',
+                desc: 'Devis du carreleur, devis du plombier, devis du menuisier... Synchroniser 5-6 corps de métier sur un même projet, c’est du cauchemar.',
               },
             ].map((problem, i) => {
               const Icon = problem.icon;
@@ -172,7 +172,7 @@ export default function ArchitecteInteriorPage() {
       <section className="section-pad" style={{ padding: '100px 5%', background: 'var(--cream-light)' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-            <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>Solutions AVRA pour architectes d&apos;intérieur</div>
+            <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>Solutions AVRA pour architectes d’intérieur</div>
             <h2 style={{ marginBottom: '1rem' }}>Votre allié digital</h2>
             <p
               style={{
@@ -191,7 +191,7 @@ export default function ArchitecteInteriorPage() {
               {
                 icon: Folder,
                 title: 'Dossiers clients centralisés',
-                desc: 'Un dossier par projet. Plans, photos moodboard, contrats, devis artisans, factures, PV de réception. Retrouvez n&apos;importe quoi en 10 secondes.',
+                desc: 'Un dossier par projet. Plans, photos moodboard, contrats, devis artisans, factures, PV de réception. Retrouvez n’importe quoi en 10 secondes.',
                 features: [
                   'Structure dossier standar',
                   'Stockage illimité',
@@ -213,7 +213,7 @@ export default function ArchitecteInteriorPage() {
               {
                 icon: DollarSign,
                 title: 'Suivi de budget précis',
-                desc: 'Budget global par projet. Chaque devis artisan rentre dedans. Vous voyez l&apos;écart en temps réel. Les dépassements sont impossibles.',
+                desc: 'Budget global par projet. Chaque devis artisan rentre dedans. Vous voyez l’écart en temps réel. Les dépassements sont impossibles.',
                 features: [
                   'Budget par poste',
                   'Comparaison budget/réel',
@@ -224,7 +224,7 @@ export default function ArchitecteInteriorPage() {
               {
                 icon: FileText,
                 title: 'Contrats & signature électronique',
-                desc: 'Contrats de maîtrise d&apos;œuvre, notes d&apos;honoraires, avenants. Signature électronique Legit intégrée. Plus de paperasse.',
+                desc: 'Contrats de maîtrise d’œuvre, notes d’honoraires, avenants. Signature électronique Legit intégrée. Plus de paperasse.',
                 features: [
                   'Templates contrats',
                   'e-signature légale',
@@ -314,12 +314,12 @@ export default function ArchitecteInteriorPage() {
               <div className="section-label" style={{ marginBottom: '1.5rem' }}>IA Studio</div>
               <h2 style={{ marginBottom: '1.5rem' }}>Présentez des rendus photo-réalistes en 10 secondes</h2>
               <p style={{ fontSize: '1.05rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>
-                Montrez à vos clients le rendu final avant même la signature du contrat. C&apos;est un game-changer pour les architectes.
+                Montrez à vos clients le rendu final avant même la signature du contrat. C’est un game-changer pour les architectes.
               </p>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {[
                   'Taux de signature augmente de 45%',
-                  'Moins d&apos;allers-retours avec le client',
+                  'Moins d’allers-retours avec le client',
                   'Testez plusieurs variantes',
                   'Impression & portfolio direct',
                 ].map((item, i) => (
@@ -398,12 +398,12 @@ export default function ArchitecteInteriorPage() {
               <div className="section-label" style={{ marginBottom: '1.5rem' }}>Portail client</div>
               <h2 style={{ marginBottom: '1.5rem' }}>Client toujours dans la boucle</h2>
               <p style={{ fontSize: '1.05rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>
-                Donnez accès à vos clients à leur dossier projet. Ils voient l&apos;avancement, validez les décisions en ligne, reçoivent les mises à jour.
+                Donnez accès à vos clients à leur dossier projet. Ils voient l’avancement, validez les décisions en ligne, reçoivent les mises à jour.
               </p>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {[
                   'Portail client sécurisé',
-                  'Suivi d&apos;avancement en temps réel',
+                  'Suivi d’avancement en temps réel',
                   'Validation décisions en ligne',
                   'Notifications automatiques',
                 ].map((item, i) => (
@@ -452,22 +452,12 @@ export default function ArchitecteInteriorPage() {
                 lineHeight: 1.7,
               }}
             >
-              L&apos;IA photo-réalisme a complètement changé mes présentations clients. Je montre des rendus bluffants
-              en réunion et le taux de signature a explosé. Plus besoin de passer 3 jours à créer des rendus.
+              Avec AVRA, présentez à vos clients des rendus photo-réalistes en réunion plutôt que
+              d’y passer des jours — pour aider à la décision et accélérer la signature.
             </p>
             <div>
-              <div
-                style={{
-                  fontSize: '.95rem',
-                  fontWeight: 600,
-                  color: 'var(--gold)',
-                  marginBottom: '.25rem',
-                }}
-              >
-                Amélie F.
-              </div>
               <div style={{ fontSize: '.85rem', color: 'rgba(255,255,255,.5)' }}>
-                Architecte d&apos;intérieur, Paris
+                Conçu pour les architectes d’intérieur — actuellement en bêta
               </div>
             </div>
           </div>

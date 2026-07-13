@@ -42,18 +42,34 @@ export class AuthService {
     const ok = await bcrypt.compare(dto.password, hashToCompare);
     if (!user || !ok) throw new UnauthorizedException('Identifiants invalides');
 
-    // 🌱 Bêta gate — bloque les connexions non whitelistées pendant la bêta privée.
-    // On vérifie APRÈS le check du mot de passe pour ne pas fuiter l'info
-    // "cet email existe mais n'est pas whitelisté" à un attaquant.
-    if (isBetaGateEnabled() && !isEmailAllowed(user.email)) {
-      throw new ForbiddenException(BETA_GATE_MESSAGE);
-    }
-
+    // Recherche du workspace (compte pro). Les intervenants externes n'en ont
+    // pas : ils sont rattachés via Intervenant.userId → branche dédiée.
     const uw = await this.prisma.userWorkspace.findFirst({
       where: { userId: user.id },
       include: { workspace: true },
     });
-    if (!uw) throw new UnauthorizedException('Aucun espace de travail associé');
+    if (!uw) {
+      // SEC/FONC 13/07/2026 — Auth intervenant externe réparée. Avant, un
+      // intervenant (User sans UserWorkspace) était bloqué ici à chaque
+      // connexion après sa 1ère inscription. On détecte le compte intervenant
+      // et on ouvre une session dédiée (workspaceId null, rôle INTERVENANT).
+      const intervenant = await this.prisma.intervenant.findFirst({
+        where: { userId: user.id, portalEnabled: true },
+        select: { id: true },
+      });
+      if (intervenant) {
+        return this.loginIntervenant(user, intervenant.id);
+      }
+      throw new UnauthorizedException('Aucun espace de travail associé');
+    }
+
+    // 🌱 Bêta gate — s'applique aux comptes pro (workspace). Vérifié APRÈS le
+    // mot de passe pour ne pas fuiter l'existence d'un email non whitelisté.
+    // Les intervenants (branche ci-dessus) en sont exemptés : ils sont
+    // parrainés par le pro qui les a invités.
+    if (isBetaGateEnabled() && !isEmailAllowed(user.email)) {
+      throw new ForbiddenException(BETA_GATE_MESSAGE);
+    }
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -120,7 +136,90 @@ export class AuthService {
     };
   }
 
+  /**
+   * Session de connexion pour un intervenant externe (pas de workspace propre).
+   * Émet un token pair avec rôle INTERVENANT + workspaceId null. Le refresh
+   * token est persisté comme pour un compte normal (même schéma / fallback).
+   */
+  private async loginIntervenant(
+    user: { id: string; email: string; firstName: string | null; lastName: string | null },
+    intervenantId: string,
+  ) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      workspaceId: null,
+      role: 'INTERVENANT',
+    } as unknown as JwtPayload;
+
+    const tokenPair = this.tokenRotation.generateTokenPair(payload);
+    const hashedJti = await this.tokenRotation.hashRefreshToken(tokenPair.refreshTokenJti);
+
+    const data = {
+      refreshTokenJtiHash: hashedJti,
+      refreshToken: hashedJti,
+      refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
+      lastLoginAt: new Date(),
+    };
+    try {
+      await this.prisma.user.update({ where: { id: user.id }, data });
+    } catch (err: any) {
+      const msg = String(err?.message ?? err);
+      if (msg.includes('refreshTokenJtiHash') || msg.includes('P2022')) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            refreshToken: hashedJti,
+            refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
+            lastLoginAt: new Date(),
+          },
+        });
+      } else {
+        throw err;
+      }
+    }
+
+    return {
+      accessToken: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: 'INTERVENANT',
+        workspaceId: null,
+        intervenantId,
+      },
+    };
+  }
+
   async validateUser(payload: JwtPayload) {
+    // FONC 13/07/2026 — Les intervenants externes ont un token sans workspace
+    // (workspaceId null, rôle INTERVENANT). On les valide via Intervenant.userId
+    // plutôt que via UserWorkspace, sinon JwtAuthGuard rejette chaque requête.
+    if ((payload as any).role === 'INTERVENANT' || !payload.workspaceId) {
+      const user = await this.prisma.user.findFirst({
+        where: { id: payload.sub, isActive: true },
+      });
+      if (!user) return null;
+      const intervenant = await this.prisma.intervenant.findFirst({
+        where: { userId: user.id },
+        select: { id: true, workspaceId: true },
+      });
+      if (!intervenant) return null;
+      return {
+        ...user,
+        sub: user.id,
+        role: 'INTERVENANT',
+        workspaceId: null,
+        intervenantId: intervenant.id,
+      };
+    }
+    return this.validateWorkspaceUser(payload);
+  }
+
+  private async validateWorkspaceUser(payload: JwtPayload) {
     const uw = await this.prisma.userWorkspace.findFirst({
       where: { userId: payload.sub, workspaceId: payload.workspaceId },
       include: { user: true, workspace: true },

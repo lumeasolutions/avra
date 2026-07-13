@@ -19,7 +19,7 @@ export class TeamEmailService {
   private readonly logger = new Logger(TeamEmailService.name);
   private readonly apiKey = process.env.RESEND_API_KEY ?? null;
   private readonly from = process.env.EMAIL_FROM ?? 'AVRA <onboarding@resend.dev>';
-  private readonly webUrl = (process.env.WEB_URL ?? 'https://avra.fr').replace(/\/$/, '');
+  private readonly webUrl = (process.env.WEB_URL ?? 'https://avra-app.fr').replace(/\/$/, '');
 
   private get enabled(): boolean {
     return !!this.apiKey;

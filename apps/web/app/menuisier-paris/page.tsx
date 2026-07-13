@@ -281,7 +281,7 @@ export default function MenuisierParis() {
           </h2>
 
           <p style={{ fontSize: '1.2rem', color: 'rgba(249,246,240,0.85)', marginBottom: '32px', maxWidth: '700px', marginLeft: 'auto', marginRight: 'auto' }}>
-            Les menuisiers parisiens gagnent 6h par semaine en moyenne avec AVRA.
+            Automatisez devis, factures et suivi de chantier — et concentrez-vous sur votre atelier.
           </p>
 
           <a href="/demo">

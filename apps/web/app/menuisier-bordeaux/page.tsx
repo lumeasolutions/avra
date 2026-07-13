@@ -97,8 +97,8 @@ export default function MenuisierBordeaux() {
             </div>
 
             <div className="reveal" style={{ padding: '32px', background: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 24px rgba(30,43,34,0.12)', border: '1px solid rgba(201,169,110,0.15)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}><BarChart3 size={32} color="#c9a96e" /><h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: '#1e2b22' }}>ROI prouvé</h3></div>
-              <p style={{ color: '#6b7c70' }}>Nos clients gagnent 6h/semaine en administration et +15% de CA en 6 mois.</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}><BarChart3 size={32} color="#c9a96e" /><h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: '#1e2b22' }}>Gain de temps</h3></div>
+              <p style={{ color: '#6b7c70' }}>Automatisez devis, factures et suivi de chantier pour réduire le temps passé sur l&apos;administratif.</p>
             </div>
 
             <div className="reveal" style={{ padding: '32px', background: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 24px rgba(30,43,34,0.12)', border: '1px solid rgba(201,169,110,0.15)' }}>

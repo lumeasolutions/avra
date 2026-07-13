@@ -137,7 +137,7 @@ export class ICalFeedService {
       const dtend = formatICalDate(end);
       const summary = `${d.type} — ${d.title}`;
       const project = d.project?.name ? `\\nProjet : ${d.project.name}${d.project.reference ? ' (' + d.project.reference + ')' : ''}` : '';
-      const description = `${d.notes ?? ''}${project}\\n\\nVoir sur AVRA : https://avra.fr/intervenant/demandes/${d.id}`;
+      const description = `${d.notes ?? ''}${project}\\n\\nVoir sur AVRA : https://avra-app.fr/intervenant/demandes/${d.id}`;
       const status = d.status === 'ANNULEE' ? 'CANCELLED' : d.status === 'TERMINEE' ? 'CONFIRMED' : 'TENTATIVE';
 
       lines.push(
@@ -149,7 +149,7 @@ export class ICalFeedService {
         `SUMMARY:${escape(summary)}`,
         `DESCRIPTION:${escape(description)}`,
         `STATUS:${status}`,
-        `URL:https://avra.fr/intervenant/demandes/${d.id}`,
+        `URL:https://avra-app.fr/intervenant/demandes/${d.id}`,
         'END:VEVENT',
       );
     }

@@ -26,7 +26,7 @@ const jsonLd = {
   description: "ERP et assistant IA pour les professionnels de l'agencement intérieur",
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
-  offers: { '@type': 'Offer', priceCurrency: 'EUR', price: '49' },
+  offers: { '@type': 'Offer', priceCurrency: 'EUR', price: '149', availability: 'https://schema.org/PreOrder' },
   author: { '@type': 'Organization', name: 'Luméa', url: 'https://avra-app.fr' },
 };
 
@@ -105,9 +105,9 @@ export default function AccueilPage() {
             </div>
             <div style={{ marginTop: '2rem', display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
               {[
-                ['2 400+', 'Professionnels'],
-                ['98%', 'Satisfaction'],
-                ['+40%', 'Taux de conversion'],
+                ['Tout-en-un', 'Dossiers → SAV'],
+                ['IA', 'Extraction & rendus'],
+                ['Bêta', 'Tarif fondateur'],
               ].map(([num, label]) => (
                 <div key={label} style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>{num}</div>
@@ -173,7 +173,7 @@ export default function AccueilPage() {
       <section style={{ padding: '32px 5%', background: 'var(--cream-dark)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
         <div className="container" style={{ display: 'flex', alignItems: 'center', gap: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
           <span style={{ fontSize: '.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em' }}>
-            Ils font confiance à AVRA
+            Conçu pour les métiers de l&apos;agencement
           </span>
           {['Cuisinistes', 'Menuisiers', 'Architectes d\'intérieur', 'Agenceurs', 'Décorateurs'].map((m) => (
             <div key={m} style={{
@@ -364,7 +364,7 @@ export default function AccueilPage() {
           <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>Prêt à transformer votre activité ?</div>
           <h2 style={{ color: 'var(--white)', marginBottom: '1.5rem' }}>Prêt à transformer votre activité ?</h2>
           <p style={{ color: 'rgba(255,255,255,.75)', maxWidth: 560, margin: '0 auto 2.5rem' }}>
-            Découvrez comment AVRA simplifie votre quotidien. Rejoignez les 2 400+ professionnels qui font confiance à AVRA.
+            Découvrez comment AVRA simplifie votre quotidien. Rejoignez la bêta dès aujourd&apos;hui.
           </p>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <a href="/comment-ca-marche"><button className="btn-primary">Demander une démo →</button></a>

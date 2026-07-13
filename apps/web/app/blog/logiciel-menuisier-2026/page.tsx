@@ -100,8 +100,8 @@ const FAQ_ITEMS = [
       <p>
         Plus que vous ne pensez. L'IA photo-realiste produit en 30 secondes un visuel d'agencement bois
         (escalier, dressing, bibliotheque sur mesure) qui aurait pris 2 a 4 heures sur SketchUp. L'IA
-        d'extraction lit un PDF de cahier des charges client et pre-remplit le devis. Gain reel : <strong>8
-        a 12 heures par semaine</strong> sur un atelier independant.
+        d'extraction lit un PDF de cahier des charges client et pre-remplit le devis. De quoi
+        <strong> reduire nettement le temps passe</strong> sur les taches administratives d'un atelier independant.
       </p>
     ),
   },

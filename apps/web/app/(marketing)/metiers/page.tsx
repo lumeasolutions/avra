@@ -44,7 +44,7 @@ const metiers = [
       'Rendus photo IA intégrés',
       'E-paiement / E-signature',
     ],
-    stat: { value: '+42%', label: 'de CA moyen après 6 mois' },
+    stat: { value: 'Tout-en-un', label: 'devis, rendus IA, e-paiement & e-signature' },
   },
   {
     id: 'menuisier',
@@ -63,7 +63,7 @@ const metiers = [
       'Suivi des livraisons sur chantier',
       'Suivi de la pose des chantiers',
     ],
-    stat: { value: '3h', label: 'gagnées par jour en moyenne' },
+    stat: { value: 'Fab. → pose', label: 'suivi du chantier de A à Z' },
   },
   {
     id: 'architecte',
@@ -82,7 +82,7 @@ const metiers = [
       'Rendus IA réalistes des projets',
       'Gestion du stock',
     ],
-    stat: { value: '94%', label: 'de clients satisfaits rapportés' },
+    stat: { value: 'Studio complet', label: 'coordination artisans & rendus IA' },
   },
   {
     id: 'decorateur',
@@ -101,7 +101,7 @@ const metiers = [
       'Devis déco professionnels en quelques clics',
       'Suivi des dossiers client et du stock',
     ],
-    stat: { value: '×3', label: 'plus vite de la déco au bon de commande' },
+    stat: { value: 'Rendus IA', label: 'ambiances photo-réalistes pour vendre' },
   },
 ];
 
@@ -670,14 +670,11 @@ export default function MetiersPage() {
                 boxShadow: '0 16px 48px rgba(30,43,34,0.15)',
                 border: '1px solid rgba(30,43,34,0.06)',
               }}>
-                <div style={{ display: 'flex', gap: '2px', marginBottom: '8px' }}>
-                  {[...Array(5)].map((_, i) => <Star key={i} size={12} color="#C9A96E" fill="#C9A96E" />)}
-                </div>
-                <p style={{ color: '#304035', fontSize: '0.8rem', lineHeight: 1.5, margin: '0 0 6px', fontStyle: 'italic' }}>
-                  &ldquo;AVRA a changé mon quotidien. Je gagne 3h par jour minimum.&rdquo;
+                <p style={{ color: '#304035', fontSize: '0.85rem', lineHeight: 1.5, margin: '0 0 6px', fontWeight: 700 }}>
+                  Dossiers, devis, chantiers &amp; SAV
                 </p>
                 <p style={{ color: '#9aab9e', fontSize: '0.72rem', margin: 0, fontWeight: 600 }}>
-                  Marc D. — Cuisiniste, Lyon
+                  Tout au même endroit, pensé pour votre métier
                 </p>
               </div>
             </div>
@@ -718,7 +715,7 @@ export default function MetiersPage() {
             <span style={{ color: '#C9A96E' }}>AVRA est fait pour vous</span>
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', marginBottom: '44px', lineHeight: 1.7 }}>
-            Rejoignez 2 400+ professionnels de l&apos;agencement qui gagnent du temps chaque jour.
+            Rejoignez la bêta AVRA et gagnez du temps sur chacun de vos dossiers.
           </p>
 
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '32px' }}>

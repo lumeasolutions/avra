@@ -97,8 +97,8 @@ export default function WaitlistConfirmation({
             </Text>
 
             <Section style={buttonContainer}>
-              <Link href="https://avra.fr" style={button}>
-                Visiter avra.fr →
+              <Link href="https://avra-app.fr" style={button}>
+                Visiter avra-app.fr →
               </Link>
             </Section>
           </Section>
@@ -111,11 +111,11 @@ export default function WaitlistConfirmation({
               Cet email vous a été envoyé car vous vous êtes inscrit(e) sur la liste d'attente AVRA.
             </Text>
             <Text style={footerText}>
-              <Link href="https://avra.fr/confidentialite" style={footerLink}>
+              <Link href="https://avra-app.fr/confidentialite" style={footerLink}>
                 Politique de confidentialité
               </Link>
               {' · '}
-              <Link href="https://avra.fr/mentions-legales" style={footerLink}>
+              <Link href="https://avra-app.fr/mentions-legales" style={footerLink}>
                 Mentions légales
               </Link>
             </Text>

@@ -131,6 +131,19 @@ const nextConfig = {
     ];
   },
 
+  // SEO 13/07/2026 — Anciennes pages statiques fantômes (public/landing.html,
+  // public/site/*.html) : contenu obsolète (essai 14 j inexistant, « AVRA SAS »,
+  // mauvais domaine) qui créait du duplicate content indexable. Les redirects
+  // Next passent AVANT les fichiers /public → ces URLs renvoient désormais 301
+  // vers les vraies pages React canoniques.
+  async redirects() {
+    return [
+      { source: '/landing.html', destination: '/', permanent: true },
+      { source: '/site', destination: '/', permanent: true },
+      { source: '/site/:path*', destination: '/', permanent: true },
+    ];
+  },
+
 };
 
 // ── Sentry wrapper ───────────────────────────────────────────────────────────

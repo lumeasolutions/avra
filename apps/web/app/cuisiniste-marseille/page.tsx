@@ -194,10 +194,11 @@ export default function CuisinisteMarseille() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
                 <Award size={32} color="#c9a96e" />
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: '#1e2b22' }}>Qualité prouvée</h3>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: '#1e2b22' }}>Pensé pour votre métier</h3>
               </div>
               <p style={{ color: '#6b7c70', lineHeight: 1.65 }}>
-                Plusde 500 professionnels de l'agencement nous font confiance. Certifications ISO et conformités garanties.
+                AVRA est conçu avec des professionnels de l&apos;agencement et suit les obligations
+                françaises (RGPD, facturation électronique 2026).
               </p>
             </div>
           </div>

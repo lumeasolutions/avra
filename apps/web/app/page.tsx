@@ -99,9 +99,10 @@ export default function HomePage() {
             applicationCategory: 'BusinessApplication',
             operatingSystem: 'Web',
             url: 'https://avra-app.fr',
-            offers: { '@type': 'Offer', priceCurrency: 'EUR', price: '49' },
+            offers: { '@type': 'Offer', priceCurrency: 'EUR', price: '149', availability: 'https://schema.org/PreOrder', description: 'Bêta privée jusqu\'au lancement public en janvier 2027' },
             author: { '@type': 'Organization', name: 'Luméa', url: 'https://avra-app.fr' },
             // aggregateRating retiré : pas d'avis vérifiables réels (bêta privée) → conformité Google/DGCCRF.
+            // JUR 13/07/2026 — prix aligné sur le tarif publié (149€/mois) ; incohérences 0€/49€ supprimées.
           }),
         }}
       />
@@ -341,7 +342,7 @@ export default function HomePage() {
               textAlign: 'center',
             }}
           >
-            Ils font confiance à AVRA
+            Conçu pour les métiers de l&apos;agencement
           </p>
           <div
             style={{
@@ -1158,10 +1159,14 @@ export default function HomePage() {
           }}
         >
           {[
-            { value: '2 400+', label: 'Professionnels actifs', icon: '👥' },
-            { value: '8h/sem', label: 'Gagnées en moyenne', icon: '⏱️' },
-            { value: '98%', label: 'Taux de satisfaction', icon: '⭐' },
-            { value: '< 5 min', label: "Mise en route", icon: '🚀' },
+            // JUR 13/07/2026 — chiffres d'adoption/satisfaction fabriqués retirés
+            // (bêta privée : aucune métrique réelle à afficher — risque DGCCRF,
+            // pratiques commerciales trompeuses). Remplacés par des affirmations
+            // produit véridiques et vérifiables.
+            { value: 'Tout-en-un', label: 'Devis, chantiers, factures, SAV', icon: '🧩' },
+            { value: 'IA intégrée', label: 'Extraction docs & rendus', icon: '✨' },
+            { value: 'Made in France', label: 'Pensé pour les artisans', icon: '🇫🇷' },
+            { value: '< 5 min', label: 'Mise en route', icon: '🚀' },
           ].map(({ value, label, icon }) => (
             <div key={label}>
               <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{icon}</div>
@@ -1673,7 +1678,7 @@ export default function HomePage() {
               margin: '0 auto 3rem',
             }}
           >
-            Découvrez comment AVRA peut transformer votre activité. Rejoignez les 2 400+ professionnels qui font confiance à AVRA.
+            Découvrez comment AVRA peut transformer votre activité. Rejoignez la bêta et prenez une longueur d&apos;avance.
           </p>
 
           <div

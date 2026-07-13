@@ -24,14 +24,42 @@ export default function NotificationsPage() {
     api<any>('/audit-logs?page=1&pageSize=50')
       .then(res => {
         if (cancelled) return;
-        const notifs: Notification[] = (res.data ?? []).map((log: any) => ({
-          id: log.id,
-          type: log.action.includes('créé') ? 'success' : 'info' as any,
-          title: log.action,
-          message: `${log.entityType}: ${log.entityId}`,
-          timestamp: log.createdAt,
-          read: false,
-        }));
+        // FONC 13/07/2026 — AuditLog n'a ni entityType ni entityId (→ affichait
+        // « undefined: undefined »), et `action` est une enum anglaise
+        // (CREATE/UPDATE/... → `.includes('créé')` ne matchait jamais, type
+        // toujours « info »). On mappe proprement action → type + titre FR, et
+        // on construit un message lisible depuis `changes` sans champ undefined.
+        const TYPE_BY_ACTION: Record<string, Notification['type']> = {
+          CREATE: 'success', SIGN: 'success', PAY: 'success',
+          UPLOAD: 'info', UPDATE: 'info', EXPORT: 'info', LOGIN: 'info',
+          DELETE: 'warning',
+        };
+        const TITLE_BY_ACTION: Record<string, string> = {
+          CREATE: 'Création', UPDATE: 'Modification', DELETE: 'Suppression',
+          LOGIN: 'Connexion', EXPORT: 'Export', UPLOAD: 'Import de fichier',
+          SIGN: 'Signature', PAY: 'Paiement',
+        };
+        const describe = (log: any): string => {
+          const c = log?.changes;
+          if (c && typeof c === 'object') {
+            const label = c.name ?? c.title ?? c.reference ?? c.entity ?? c.label;
+            if (typeof label === 'string' && label) return label;
+            const keys = Object.keys(c);
+            if (keys.length) return keys.slice(0, 4).join(', ');
+          }
+          return log?.projectId ? 'Dossier concerné' : 'Activité sur votre espace';
+        };
+        const notifs: Notification[] = (res.data ?? []).map((log: any) => {
+          const action = String(log?.action ?? '').toUpperCase();
+          return {
+            id: log.id,
+            type: TYPE_BY_ACTION[action] ?? 'info',
+            title: TITLE_BY_ACTION[action] ?? (action ? action.toLowerCase() : 'Activité'),
+            message: describe(log),
+            timestamp: log.createdAt,
+            read: false,
+          };
+        });
         setNotifications(notifs);
       })
       .catch(e => {

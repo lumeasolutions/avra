@@ -661,7 +661,7 @@ export default function FonctionnalitesPage() {
             { value: '< 2 min', label: 'Pour créer un devis', sub: 'vs 30 min avant' },
             { value: '< 10 sec', label: 'Pour un rendu IA', sub: 'vs 2-3 jours' },
             { value: '100%', label: 'Conforme e-facture 2026', sub: 'Dès maintenant' },
-            { value: '+40%', label: 'Taux de conversion', sub: 'Clients AVRA' },
+            { value: 'Tout-en-un', label: 'Devis → SAV', sub: 'Une seule app' },
           ].map(({ value, label, sub }) => (
             <div key={label}>
               <div

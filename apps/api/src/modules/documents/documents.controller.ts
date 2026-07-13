@@ -205,14 +205,14 @@ export class DocumentsController {
     @Req() req: Request,
   ) {
     const { ip, userAgent } = clientMeta(req);
-    const { filePath, originalName, mimeType } = await this.documents.downloadAdminDoc(
+    const { buffer, originalName, mimeType } = await this.documents.downloadAdminDoc(
       user.workspaceId, id,
       { userId: user.sub, userEmail: user.email, ip, userAgent },
     );
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(originalName)}"`);
     res.setHeader('Content-Type', mimeType);
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    fs.createReadStream(filePath).pipe(res);
+    res.end(buffer);
   }
 
   /**
@@ -226,12 +226,12 @@ export class DocumentsController {
     @Param('id') id: string,
     @Res() res: Response,
   ) {
-    const { filePath, originalName, mimeType } = await this.documents.previewAdminDoc(user.workspaceId, id);
+    const { buffer, originalName, mimeType } = await this.documents.previewAdminDoc(user.workspaceId, id);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(originalName)}"`);
     res.setHeader('Content-Type', mimeType);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self' data:; object-src 'self'; sandbox;");
-    fs.createReadStream(filePath).pipe(res);
+    res.end(buffer);
   }
 
   // ── Sharing ────────────────────────────────────────────────────────────
@@ -279,10 +279,10 @@ export class SharedDocumentsController {
   @Throttle({ default: { ttl: 60 * 1000, limit: 60 } })
   @Get(':token')
   async getShared(@Param('token') token: string, @Res() res: Response) {
-    const { filePath, originalName, mimeType } = await this.documents.getSharedDocument(token);
+    const { buffer, originalName, mimeType } = await this.documents.getSharedDocument(token);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(originalName)}"`);
     res.setHeader('Content-Type', mimeType);
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    fs.createReadStream(filePath).pipe(res);
+    res.end(buffer);
   }
 }

@@ -17,31 +17,48 @@ import type { NextRequest } from 'next/server';
  *   → Accepté UNIQUEMENT si access_token est absent ET qu'on n'est pas en production
  */
 
-const PUBLIC_PATHS = [
-  '/login',
-  '/register',
-  '/portal-select',
-  '/',
-  '/api',
-  '/_next',
-  '/favicon',
-  '/robots.txt',
-  '/sitemap',
-  // Pages marketing publiques
-  '/accueil',
-  '/fonctionnalites',
-  '/comment-ca-marche',
-  '/temoignages',
-  '/tarifs',
-  '/metiers',
-  '/mentions-legales',
-  '/confidentialite',
-  '/cgv',
-  '/forgot-password',
-  '/reset-password',
+// SEC 13/07/2026 — Bascule allowlist → denylist.
+// L'ancienne logique (`PUBLIC_PATHS.some(p => pathname.startsWith(p))`) était
+// entièrement neutralisée : la présence de `'/'` dans la liste rendait
+// `startsWith('/')` toujours vrai, donc AUCUNE route n'était protégée.
+// De plus l'allowlist « public » ne couvrait pas les dizaines de pages SEO
+// top-level (cuisiniste-paris, agenceur, blog, glossaire…) qui auraient été
+// gatées par erreur si on corrigeait naïvement.
+//
+// Approche robuste : on garde seulement les routes RÉELLEMENT protégées —
+// le groupe applicatif `(app)` — et tout le reste (marketing, SEO, portails
+// token, auth) est public par défaut. Ajouter une nouvelle page d'app =
+// ajouter son préfixe ici.
+const PROTECTED_PREFIXES = [
+  '/admin-docs',
+  '/commandes',
+  '/dashboard',
+  '/demandes',
+  '/dossiers', // couvre aussi /dossiers-signes, /dossiers-perdus
+  '/e-paiement',
+  '/epaiement',
+  '/facturation',
+  '/historique',
+  '/ia-studio',
+  '/intervenants',
+  '/messages-intervenants',
+  '/notifications',
+  '/parametres',
+  '/planning', // couvre aussi /planning-gestion
+  '/portail-architecte',
+  '/portail-cuisiniste',
+  '/portail-menuisier',
+  '/sav',
+  '/signature',
+  '/statistiques',
+  '/stock',
 ];
 
-const PORTAIL_PATHS = ['/portail-architecte', '/portail-menuisier', '/portail-cuisiniste'];
+function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p + '/'),
+  );
+}
 
 // HIGH-002: gate the legacy `logged_in=true` demo cookie on the strictest
 // possible signal. We accept it ONLY when both NODE_ENV says non-prod AND
@@ -154,9 +171,9 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const nonce = freshNonce();
 
-  // Laisser passer les routes publiques
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-  if (isPublic) {
+  // Tout ce qui n'est pas une route applicative `(app)` est public
+  // (marketing, SEO, pages villes, portails token, auth) → CSP + passage.
+  if (!isProtectedPath(pathname)) {
     return applyCspToResponse(request, nextWithNonce(request, nonce), nonce);
   }
 
