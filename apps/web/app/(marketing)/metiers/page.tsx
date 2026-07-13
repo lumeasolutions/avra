@@ -88,7 +88,7 @@ const metiers = [
     id: 'decorateur',
     emoji: '🎨',
     icon: Layout,
-    href: '/decorateur',
+    href: '/demo',
     label: 'Décorateur',
     tagline: 'Ambiances, matières & expérience client',
     desc: "Composez vos univers décoratifs, présentez des ambiances photo-réalistes et gérez vos devis de A à Z — AVRA vous libère du temps pour créer.",

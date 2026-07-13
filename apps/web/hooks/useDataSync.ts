@@ -53,16 +53,6 @@ function mapPriorityToStatus(priority: string, lifecycle: string): 'URGENT' | 'E
 }
 
 // Mapping statuts paiements Prisma → frontend
-function mapPaymentStatus(status: string): 'PAYÉE' | 'EN ATTENTE' | 'ACOMPTE' | 'AVOIR' | 'RETARD' {
-  switch (status) {
-    case 'PAID': return 'PAYÉE';
-    case 'PENDING': return 'EN ATTENTE';
-    case 'FAILED': return 'RETARD';
-    case 'REFUNDED': return 'AVOIR';
-    default: return 'EN ATTENTE';
-  }
-}
-
 function mapPaymentType(type: string): 'Facture' | "Facture d'acompte" | 'Avoir' {
   switch (type) {
     case 'ACOMPTE': return "Facture d'acompte";
