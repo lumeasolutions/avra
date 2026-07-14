@@ -101,7 +101,8 @@ function saveSeen(v: Record<string, string>) {
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 type TLItem =
   | { kind: 'message'; id: string; at: string; role: string; name: string; body: string }
-  | { kind: 'doc'; id: string; at: string; role: string; name: string; att: DemandeAttachment };
+  | { kind: 'doc'; id: string; at: string; role: string; name: string; att: DemandeAttachment }
+  | { kind: 'status'; id: string; at: string; label: string; tone: 'ok' | 'bad' | 'info' };
 
 function buildTimeline(d: Demande | null): TLItem[] {
   if (!d) return [];
@@ -112,6 +113,15 @@ function buildTimeline(d: Demande | null): TLItem[] {
   for (const a of d.attachments ?? []) {
     items.push({ kind: 'doc', id: a.id, at: a.createdAt, role: a.uploadedByRole, name: a.displayName, att: a });
   }
+  // Repères de statut dans le fil : l'intervenant a accepté / refusé / terminé.
+  const st = (at: string | null, label: string, tone: 'ok' | 'bad' | 'info') => {
+    if (at) items.push({ kind: 'status', id: `st-${label}`, at, label, tone });
+  };
+  st(d.acceptedAt, 'Demande acceptée par l’intervenant', 'ok');
+  st(d.refusedAt, 'Demande refusée par l’intervenant', 'bad');
+  st(d.startedAt, 'Intervention démarrée', 'info');
+  st(d.completedAt, 'Marquée comme terminée', 'ok');
+  st(d.cancelledAt, 'Demande annulée', 'bad');
   items.sort((x, y) => new Date(x.at).getTime() - new Date(y.at).getTime());
   return items;
 }
@@ -356,7 +366,21 @@ export default function MessagesIntervenantsPage() {
                           )}
                           {it.kind === 'message'
                             ? <Bubble mine={it.role === 'pro'} name={it.name} time={fmtTime(it.at)} body={it.body} />
-                            : <DocBubble mine={it.role === 'pro'} att={it.att} time={fmtTime(it.at)} classified={classifiedIds.has(it.att.id)} onClassify={() => setClassifyAtt(it.att)} />}
+                            : it.kind === 'doc'
+                            ? <DocBubble mine={it.role === 'pro'} att={it.att} time={fmtTime(it.at)} classified={classifiedIds.has(it.att.id)} onClassify={() => setClassifyAtt(it.att)} />
+                            : (
+                              <div className="flex justify-center my-2">
+                                <span
+                                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold rounded-full px-3 py-1"
+                                  style={{
+                                    background: it.tone === 'ok' ? '#dcfce7' : it.tone === 'bad' ? '#fee2e2' : '#fef3c7',
+                                    color: it.tone === 'ok' ? '#15803d' : it.tone === 'bad' ? '#b91c1c' : '#92400e',
+                                  }}
+                                >
+                                  {it.tone === 'ok' ? '✓' : it.tone === 'bad' ? '✕' : '•'} {it.label} · {fmtTime(it.at)}
+                                </span>
+                              </div>
+                            )}
                         </div>
                       );
                     })}
