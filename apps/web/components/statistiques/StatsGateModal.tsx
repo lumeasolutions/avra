@@ -78,6 +78,11 @@ import { getDocSignedUrl } from '@/lib/dossier-docs-api';
 import { extractDossier } from '@/lib/ai-extract-api';
 import type { Devis } from '@/store/useFacturationStore';
 
+// IA des statistiques MISE DE CÔTÉ (14/07/2026). On masque les boutons
+// d'extraction IA sans supprimer le code (moteur runExtraction, handlers,
+// import extractDossier restent en place). Repasser à `true` pour réactiver.
+const SHOW_AI_EXTRACTION = false;
+
 interface Props {
   /** Dossiers signés qui n'ont pas (ou pas assez de) lignes prix. */
   missingDossiers: DossierSigne[];
@@ -1002,6 +1007,10 @@ export function StatsGateModal({
                 Saisie des prix
               </p>
 
+              {/* IA des statistiques masquée (SHOW_AI_EXTRACTION=false) —
+                  code conservé, réactivable en repassant le flag à true. */}
+              {SHOW_AI_EXTRACTION && (
+              <>
               {/* [IA both] Bouton PRINCIPAL (21/06/2026) — une seule extraction
                   lit le devis ET les factures ; l'IA associe chaque produit à son
                   prix d'achat et de vente (zéro doublon, marge correcte). */}
@@ -1137,6 +1146,8 @@ export function StatsGateModal({
                   <AlertTriangle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
                   <span>{aiError}</span>
                 </div>
+              )}
+              </>
               )}
 
               {/* [A] Bouton d'auto-import (deplace dans col saisie) */}

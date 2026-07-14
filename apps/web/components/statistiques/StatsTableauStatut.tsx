@@ -124,6 +124,19 @@ export function StatsTableauStatut({ dossiers, dossiersSignes, dossiersPerdus }:
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Encart : la saisie manuelle est disponible pour les 3 rubriques. */}
+      <div style={{
+        background: 'rgba(48,64,53,0.04)', border: '1px solid rgba(48,64,53,0.10)',
+        borderRadius: 12, padding: '11px 15px', fontSize: 12.5, color: '#304035', lineHeight: 1.55,
+      }}>
+        <strong style={{ color: '#1a2a1e' }}>Saisie manuelle des marges.</strong>{' '}
+        Chaque rubrique —{' '}
+        <span style={{ color: '#16a34a', fontWeight: 700 }}>Vendu</span>,{' '}
+        <span style={{ color: '#2563eb', fontWeight: 700 }}>En cours</span>,{' '}
+        <span style={{ color: '#dc2626', fontWeight: 700 }}>Perdu</span>{' '}
+        — se remplit à la main : cliquez sur «&nbsp;Renseigner&nbsp;» à droite de la ligne pour
+        repérer chaque dossier et saisir les prix d’achat et de vente (fournisseur par fournisseur).
+      </div>
       {/* Tableau */}
       <div style={{
         background: '#fff', border: '1px solid rgba(48,64,53,0.08)',
