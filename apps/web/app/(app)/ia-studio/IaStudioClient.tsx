@@ -1961,7 +1961,7 @@ export default function IaStudioPage() {
                   <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#2f9e8f]/12 text-[#2f9e8f]">Nouveau · Test</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Colorisation qui <span className="font-semibold text-[#304035]/80">préserve la géométrie</span> — moteur MyArchitectAI.
+                  Colorisation qui <span className="font-semibold text-[#304035]/80">préserve la géométrie</span> d'origine — rapide et fidèle.
                 </p>
                 {tab==='coloriste-tex' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#2f9e8f]">
