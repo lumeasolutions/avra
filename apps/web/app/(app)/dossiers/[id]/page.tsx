@@ -892,7 +892,14 @@ export default function DossierDetailPage() {
                 // Navigation imbriquée : la liste de gauche ne montre QUE les
                 // dossiers de 1er niveau. Les sous-dossiers (label contenant ▸)
                 // s'ouvrent en descendant dans un dossier (drill-down dans la modale).
-                return ordered.filter((it) => !it.sf.label.includes(SEP));
+                // On masque aussi les boîtes de réception système « Reçu de
+                // l'intervenant » et « Dossier - Documents Intervenants ».
+                return ordered.filter((it) => {
+                  if (it.sf.label.includes(SEP)) return false;
+                  const low = it.sf.label.trim().toLowerCase();
+                  if (low === "reçu de l'intervenant" || low.includes('documents intervenants')) return false;
+                  return true;
+                });
               })().map(({ sf, depth }, i) => {
                 // Alerte dynamique : uniquement si le sous-dossier est vide
                 // (aucun document présent ET aucun sous-dossier enfant). Dès
