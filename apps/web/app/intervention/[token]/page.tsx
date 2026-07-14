@@ -16,7 +16,7 @@ interface DemandeView {
   workspaceName: string;
   projectName?: string | null;
   messages?: Array<{ authorRole: string; authorName: string; body: string; createdAt: string }>;
-  attachments?: Array<{ id: string; displayName: string; mimeType?: string | null; createdAt: string }>;
+  attachments?: Array<{ id: string; displayName: string; mimeType?: string | null; createdAt: string; uploadedByRole?: string | null }>;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -222,6 +222,33 @@ export default function InterventionPublicPage() {
   const canComplete = data.status === 'ACCEPTEE' || data.status === 'EN_COURS';
   const terminal = ['REFUSEE', 'TERMINEE', 'ANNULEE'].includes(data.status);
 
+  // Sépare les pièces partagées par le professionnel (ce que l'intervenant
+  // consulte) des pièces que l'intervenant a lui-même envoyées. On ne mélange
+  // plus les deux : les envois de l'intervenant s'affichent sous « Joindre un document ».
+  const allAttachments = data.attachments ?? [];
+  const sharedAttachments = allAttachments.filter((a) => a.uploadedByRole !== 'intervenant');
+  const myAttachments = allAttachments.filter((a) => a.uploadedByRole === 'intervenant');
+
+  const renderAttachment = (att: NonNullable<DemandeView['attachments']>[number]) => {
+    const kind = fileKind(att.mimeType, att.displayName);
+    const badge = FILE_BADGE[kind];
+    return (
+      <a
+        key={att.id}
+        href={`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/attachments/${encodeURIComponent(att.id)}`}
+        target="_blank"
+        rel="noreferrer"
+        style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', background: '#fff', border: '1px solid #ece7df', borderRadius: 10, textDecoration: 'none', color: '#1a2a1e' }}
+      >
+        <span style={{ width: 30, height: 30, borderRadius: 8, background: badge.bg, color: badge.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Ico name={kind} size={17} color={badge.fg} />
+        </span>
+        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500, fontSize: 14 }}>{att.displayName}</span>
+        <span style={{ color: '#a67749', flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><Ico name="download" size={17} color="#a67749" /></span>
+      </a>
+    );
+  };
+
   const btnBase: React.CSSProperties = { flex: 1, borderRadius: 11, padding: '12px 14px', fontWeight: 700, fontSize: 15, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 };
   const btnPrimary: React.CSSProperties = { ...btnBase, background: '#304035', color: '#f3ecd9', border: 'none' };
   const btnOutline: React.CSSProperties = { ...btnBase, background: '#fff', color: '#304035', border: '1px solid rgba(48,64,53,0.25)' };
@@ -257,31 +284,13 @@ export default function InterventionPublicPage() {
               <div style={{ margin: '14px 0 0', whiteSpace: 'pre-wrap', background: '#f7f6f1', padding: '12px 14px', borderRadius: 10, color: '#3D3328', fontSize: 14, lineHeight: 1.55 }}>{data.notes}</div>
             )}
 
-            {data.attachments && data.attachments.length > 0 && (
+            {sharedAttachments.length > 0 && (
               <div style={{ margin: '18px 0 0' }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#7c6c58', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 9 }}>
-                  Pièces jointes · {data.attachments.length}
+                  Pièces jointes · {sharedAttachments.length}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {data.attachments.map((att) => {
-                    const kind = fileKind(att.mimeType, att.displayName);
-                    const badge = FILE_BADGE[kind];
-                    return (
-                      <a
-                        key={att.id}
-                        href={`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/attachments/${encodeURIComponent(att.id)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 12px', background: '#fff', border: '1px solid #ece7df', borderRadius: 10, textDecoration: 'none', color: '#1a2a1e' }}
-                      >
-                        <span style={{ width: 30, height: 30, borderRadius: 8, background: badge.bg, color: badge.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <Ico name={kind} size={17} color={badge.fg} />
-                        </span>
-                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500, fontSize: 14 }}>{att.displayName}</span>
-                        <span style={{ color: '#a67749', flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><Ico name="download" size={17} color="#a67749" /></span>
-                      </a>
-                    );
-                  })}
+                  {sharedAttachments.map(renderAttachment)}
                 </div>
               </div>
             )}
@@ -329,6 +338,17 @@ export default function InterventionPublicPage() {
               <p style={{ margin: '8px 0 0', fontSize: 12, color: '#7c6c58', textAlign: 'center' }}>
                 PDF, photos, plans… (max 25 Mo / fichier). Reçu directement dans le dossier.
               </p>
+            )}
+
+            {myAttachments.length > 0 && (
+              <div style={{ margin: '14px 0 0' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#3b6d4a', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 9, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Ico name="checkCircle" size={14} color="#3b6d4a" /> Vos documents envoyés · {myAttachments.length}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {myAttachments.map(renderAttachment)}
+                </div>
+              </div>
             )}
 
             {data.messages && data.messages.length > 0 && (
