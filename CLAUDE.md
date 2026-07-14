@@ -107,6 +107,8 @@ prisma/schema.prisma              — Schéma DB (Waitlist, DemoRequest, User...
 | `AI_PROVIDER` | `auto` (default) — `openai` / `anthropic` / `mock` pour forcer |
 | `FAL_KEY` | — (génération images Coloriste + Rendu, inchangé) |
 | `MYARCHITECT_API_KEY` | — (module IA Architect / MyArchitectAI ; sans clé → mode démo) |
+| `BREVO_API_KEY` | — (SMS intervenants via Brevo ; sans clé → SMS désactivés, no-op) |
+| `BREVO_SMS_SENDER` | `AVRA` (nom d'expéditeur SMS alphanumérique, max 11 car.) |
 
 ## Utilisateurs bêta actifs en DB
 

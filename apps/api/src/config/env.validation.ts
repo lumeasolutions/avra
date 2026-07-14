@@ -74,6 +74,13 @@ export class EnvironmentVariables {
   @IsString()
   MYARCHITECT_API_KEY?: string;
 
+  // SMS Brevo (notifications intervenants). Optionnel : sans clé, SMS désactivés.
+  @IsString()
+  BREVO_API_KEY?: string;
+
+  @IsString()
+  BREVO_SMS_SENDER?: string;
+
   @IsString()
   GOOGLE_AI_API_KEY?: string;
 
