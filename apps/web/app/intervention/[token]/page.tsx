@@ -85,10 +85,10 @@ export default function InterventionPublicPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
-  const [message, setMessage] = useState('');
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -110,7 +110,7 @@ export default function InterventionPublicPage() {
       const r = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, message: message.trim() || undefined }),
+        body: JSON.stringify({ action }),
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
@@ -123,7 +123,7 @@ export default function InterventionPublicPage() {
     } finally {
       setBusy(false);
     }
-  }, [busy, token, message, load]);
+  }, [busy, token, load]);
 
   const sendReply = useCallback(async () => {
     if (sending || uploading || !reply.trim()) return;
@@ -151,7 +151,7 @@ export default function InterventionPublicPage() {
       setError(`« ${tooBig.name} » dépasse la taille maximale (25 Mo).`);
       return;
     }
-    setUploading(true); setError(null);
+    setUploading(true); setError(null); setUploadSuccess(null);
     try {
       for (const f of files) {
         const mimeType = f.type || 'application/octet-stream';
@@ -181,6 +181,12 @@ export default function InterventionPublicPage() {
         }
       }
       await load();
+      setUploadSuccess(
+        files.length > 1
+          ? `${files.length} documents envoyés au professionnel ✓`
+          : `« ${files[0].name} » envoyé au professionnel ✓`,
+      );
+      setTimeout(() => setUploadSuccess(null), 8000);
     } catch (e: any) {
       setError(e?.message || 'Envoi impossible');
     } finally {
@@ -221,6 +227,13 @@ export default function InterventionPublicPage() {
   const canAcceptRefuse = data.status === 'ENVOYEE' || data.status === 'VUE';
   const canComplete = data.status === 'ACCEPTEE' || data.status === 'EN_COURS';
   const terminal = ['REFUSEE', 'TERMINEE', 'ANNULEE'].includes(data.status);
+
+  // Demandes issues du PLANNING GESTION (types intervention exclusifs au planning :
+  // POSE / LIVRAISON / SAV / MESURE — jamais produits par le flux dossier).
+  // Pour celles-ci : uniquement accepter / refuser, pas de joindre-document ni
+  // de messagerie. Les autres demandes (devis, confirmation…) restent inchangées.
+  const isPlanningIntervention = ['POSE', 'LIVRAISON', 'SAV', 'MESURE'].includes((data.type || '').toUpperCase());
+  const allowDocsAndChat = !isPlanningIntervention;
 
   // Sépare les pièces partagées par le professionnel (ce que l'intervenant
   // consulte) des pièces que l'intervenant a lui-même envoyées. On ne mélange
@@ -281,7 +294,12 @@ export default function InterventionPublicPage() {
             )}
 
             {data.notes && (
-              <div style={{ margin: '14px 0 0', whiteSpace: 'pre-wrap', background: '#f7f6f1', padding: '12px 14px', borderRadius: 10, color: '#3D3328', fontSize: 14, lineHeight: 1.55 }}>{data.notes}</div>
+              <div style={{ margin: '14px 0 0' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#7c6c58', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Ico name="message" size={13} color="#a67749" /> Message de {data.proName}
+                </div>
+                <div style={{ whiteSpace: 'pre-wrap', background: '#f7f6f1', padding: '12px 14px', borderRadius: 10, color: '#3D3328', fontSize: 14, lineHeight: 1.55 }}>{data.notes}</div>
+              </div>
             )}
 
             {sharedAttachments.length > 0 && (
@@ -310,16 +328,7 @@ export default function InterventionPublicPage() {
               </div>
             ) : (
               <>
-                {(canAcceptRefuse || canComplete) && (
-                  <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Message (facultatif) — précision, question…"
-                    rows={2}
-                    style={{ width: '100%', boxSizing: 'border-box', border: '1px solid rgba(48,64,53,0.15)', borderRadius: 10, padding: '10px 12px', fontSize: 14, margin: '16px 0 11px', fontFamily: 'inherit', resize: 'vertical', background: '#fff', color: '#1a2a1e' }}
-                  />
-                )}
-                <div style={{ display: 'flex', gap: 9 }}>
+                <div style={{ display: 'flex', gap: 9, marginTop: 16 }}>
                   {canAcceptRefuse && <button style={btnPrimary} disabled={busy} onClick={() => act('accept')}><Ico name="check" size={17} color="#f3ecd9" /> Accepter</button>}
                   {canAcceptRefuse && <button style={btnOutline} disabled={busy} onClick={() => act('refuse')}><Ico name="x" size={17} color="#304035" /> Refuser</button>}
                   {canComplete && <button style={btnPrimary} disabled={busy} onClick={() => act('complete')}><Ico name="check" size={17} color="#f3ecd9" /> Marquer terminé</button>}
@@ -327,17 +336,22 @@ export default function InterventionPublicPage() {
               </>
             )}
 
-            {!terminal && (
+            {!terminal && allowDocsAndChat && (
               <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: uploading ? 'wait' : 'pointer', marginTop: 9, background: '#fff', color: '#1a2a1e', border: '1px dashed rgba(48,64,53,0.30)', borderRadius: 11, padding: '12px', fontWeight: 600, fontSize: 14 }}>
                 <Ico name="paperclip" size={17} color="#1a2a1e" />
                 {uploading ? 'Envoi en cours…' : 'Joindre un document'}
                 <input type="file" multiple disabled={uploading || sending} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ''; uploadFiles(files); }} style={{ display: 'none' }} />
               </label>
             )}
-            {!terminal && (
+            {!terminal && allowDocsAndChat && (
               <p style={{ margin: '8px 0 0', fontSize: 12, color: '#7c6c58', textAlign: 'center' }}>
                 PDF, photos, plans… (max 25 Mo / fichier). Reçu directement dans le dossier.
               </p>
+            )}
+            {uploadSuccess && (
+              <div style={{ margin: '10px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#e8f3ec', border: '1px solid #bfe0cb', color: '#256b43', borderRadius: 10, padding: '10px 12px', fontSize: 13.5, fontWeight: 600 }}>
+                <Ico name="checkCircle" size={16} color="#256b43" /> {uploadSuccess}
+              </div>
             )}
 
             {myAttachments.length > 0 && (
@@ -368,7 +382,7 @@ export default function InterventionPublicPage() {
               </div>
             )}
 
-            {!terminal && (
+            {!terminal && allowDocsAndChat && (
               <div style={{ marginTop: 16, borderTop: '1px solid rgba(48,64,53,0.1)', paddingTop: 15 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Ico name="message" size={18} color="#a67749" />

@@ -214,6 +214,8 @@ export default function PlanningGestionPage() {
   const [pgDocs, setPgDocs] = useState<PgDoc[] | null>(null);
   const [pgDocsLoading, setPgDocsLoading] = useState(false);
   const [pgSelectedDocIds, setPgSelectedDocIds] = useState<string[]>([]);
+  // Note libre pour l'intervenant, envoyée avec la demande (e-mail + page intervention).
+  const [pgNote, setPgNote] = useState('');
   // Upload d'un fichier depuis l'ordinateur (ajoute au dossier + pre-selectionne).
   const [pgUploading, setPgUploading] = useState(false);
   const [pgUploadError, setPgUploadError] = useState<string | null>(null);
@@ -431,7 +433,7 @@ export default function PlanningGestionPage() {
     return () => { cancelled = true; };
   }, [showAdd, newEvent.intervenantId, pgProjectId]);
   // Reset de la selection a la fermeture de la modale.
-  useEffect(() => { if (!showAdd) { setPgSelectedDocIds([]); setPgUploadError(null); } }, [showAdd]);
+  useEffect(() => { if (!showAdd) { setPgSelectedDocIds([]); setPgUploadError(null); setPgNote(''); } }, [showAdd]);
 
   // Upload d'un fichier depuis l'ordinateur : on l'ajoute au dossier (sous-dossier
   // "Dossier - Documents Intervenants"), on l'insere dans la liste et on le
@@ -491,6 +493,7 @@ export default function PlanningGestionPage() {
         intervenantId: assignedIntervenant.id,
         type: planningTypeToDemandeType(newEvent.type) as any,
         title: `${formatTypeLabel(newEvent.type)} — ${newEvent.client}`.trim(),
+        notes: pgNote.trim() || undefined,
         scheduledFor: when.toISOString(),
         attachments: (pgSelectedDocIds.length && pgDocs)
           ? pgDocs.filter((d) => pgSelectedDocIds.includes(d.id)).map((d) => ({ dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined }))
@@ -1525,6 +1528,24 @@ export default function PlanningGestionPage() {
                   {pgUploadError && (
                     <div className="text-[10px] text-red-500 mt-1">{pgUploadError}</div>
                   )}
+                </div>
+              )}
+
+              {/* Note libre pour l'intervenant — envoyée avec la demande (e-mail +
+                  page d'intervention). Visible dès qu'un intervenant est assigné. */}
+              {newEvent.intervenantId && (
+                <div className="mt-4">
+                  <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">
+                    Note pour l'intervenant <span className="text-[#304035]/40 font-normal normal-case">(optionnel)</span>
+                  </label>
+                  <textarea
+                    value={pgNote}
+                    onChange={(e) => setPgNote(e.target.value)}
+                    rows={3}
+                    placeholder="Précision, consigne, accès au chantier, code portail…"
+                    className="w-full rounded-xl border border-[#304035]/15 px-3 py-2 text-[13px] text-[#304035] bg-white focus:outline-none focus:ring-2 focus:ring-[#a67749]/30 resize-y"
+                  />
+                  <p className="text-[10px] text-[#304035]/40 mt-1">Envoyée avec la demande (e-mail + page d'intervention).</p>
                 </div>
               )}
             </div>
