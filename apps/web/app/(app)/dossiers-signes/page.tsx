@@ -712,41 +712,25 @@ export default function DossiersSignesPage() {
           {/* Légende */}
           <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-800">
             <p className="font-bold mb-1">Commandes fournisseurs</p>
-            <p className="text-xs">Suivi des commandes passées aux fournisseurs pour chaque dossier signé. Cliquez sur un dossier pour gérer ses commandes.</p>
+            <p className="text-xs">Cet espace centralisera vos commandes fournisseurs reçues automatiquement depuis vos logiciels métiers connectés (WinnerFlex et autres). Aucune saisie dossier par dossier.</p>
           </div>
 
-          {/* Vue globale par dossier */}
-          {dossiersSignes.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-[#304035]/8 p-12 text-center">
-              <ShoppingCart className="h-10 w-10 text-[#304035]/20 mx-auto mb-3" />
-              <p className="font-semibold text-[#304035]/50">Aucun dossier signé</p>
-              <p className="text-xs text-[#304035]/35 mt-1">Les commandes fournisseurs apparaîtront ici une fois des dossiers signés.</p>
+          {/* État d'attente — la liste par dossier est remplacée par le futur flux
+              WinnerFlex : les commandes fournisseurs remonteront ici via l'API. */}
+          <div className="bg-white rounded-2xl border border-[#304035]/8 p-12 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50">
+              <ShoppingCart className="h-7 w-7 text-amber-600" />
             </div>
-          ) : (
-            <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
-              {dossiersSignes.map(d => (
-                <button
-                  key={d.id}
-                  onClick={() => router.push(`/dossiers/${d.id}`)}
-                  className="text-left rounded-2xl bg-white border border-[#304035]/8 p-4 hover:border-amber-300 hover:shadow-md transition-all"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-2 rounded-xl bg-amber-50">
-                      <ShoppingCart className="h-4 w-4 text-amber-600" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-[#304035] truncate">{d.name} {d.firstName ?? ''}</p>
-                      <p className="text-xs text-[#304035]/45">Signé le {formatDate(d.signedDate)}</p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-[#304035]/30 shrink-0" />
-                  </div>
-                  <div className="text-xs text-[#304035]/55">
-                    Voir les commandes fournisseurs du dossier
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+            <p className="font-bold text-[#304035]">Connexion WinnerFlex à venir</p>
+            <p className="text-sm text-[#304035]/55 mt-1.5 max-w-md mx-auto">
+              Une fois votre clé API WinnerFlex (ou un autre logiciel) connectée, vos commandes
+              fournisseurs apparaîtront ici automatiquement — celles de tous les intervenants qui
+              utilisent Winner ou un outil compatible. Vous n'aurez rien à saisir manuellement.
+            </p>
+            <span className="inline-flex items-center gap-1.5 mt-4 rounded-full bg-[#304035]/5 px-3 py-1.5 text-xs font-semibold text-[#304035]/60">
+              Intégration en préparation
+            </span>
+          </div>
         </div>
       )}
 
