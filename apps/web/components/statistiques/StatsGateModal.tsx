@@ -649,19 +649,10 @@ export function StatsGateModal({
                 ajouter, <strong style={{ color: '#a67749' }}>Cmd/Ctrl + Entrée</strong> pour passer au suivant.
               </p>
             </div>
-            {/* Bouton X de fermeture (26/05/2026 — fix UX "je ne peux pas quitter").
-                Permet de quitter le gate temporairement et naviguer ailleurs.
-                L'accès aux statistiques reste verrouillé tant que des dossiers
-                manquent — le user verra le placeholder verrouillé au retour. */}
+            {/* Fermeture : la modale est NON bloquante — le X ferme simplement
+                et on reste sur les statistiques (accès libre). */}
             <button
-              onClick={() => {
-                if (window.confirm('Quitter sans compléter ?\n\nL\'accès aux statistiques restera verrouillé tant que tous les dossiers n\'ont pas leurs prix saisis ou ne sont pas reportés.')) {
-                  // Navigation vers le dashboard. Pas d'API à appeler — c'est
-                  // juste un escape hatch UI. La modale reste prête à se rouvrir
-                  // au prochain accès /statistiques tant qu'il manque des prix.
-                  if (typeof window !== 'undefined') window.location.assign('/dashboard');
-                }
-              }}
+              onClick={() => onDone?.()}
               style={{
                 width: 32, height: 32, borderRadius: 10, flexShrink: 0,
                 border: '1px solid rgba(48,64,53,0.15)',
@@ -679,7 +670,7 @@ export function StatsGateModal({
                 e.currentTarget.style.color = 'rgba(48,64,53,0.55)';
                 e.currentTarget.style.borderColor = 'rgba(48,64,53,0.15)';
               }}
-              title="Quitter (l'accès aux stats reste verrouillé)"
+              title="Fermer"
             >
               <X size={16} />
             </button>
@@ -1493,11 +1484,12 @@ export function StatsGateModal({
             fontSize: 11, color: 'rgba(48,64,53,0.6)', flexShrink: 0,
           }}>
             <span>
-              <strong style={{ color: '#92400e' }}>Modale obligatoire</strong> — accès aux
-              stats verrouillé tant que tous les dossiers n'ont pas leurs prix
-              (ou ne sont pas reportés via ⏭).
+              Saisie facultative — les prix affinent le CA et la marge.{' '}
+              {missingDossiers.length > 0 && (
+                <strong style={{ color: '#92400e' }}>{missingDossiers.length} restant{missingDossiers.length > 1 ? 's' : ''}</strong>
+              )}
             </span>
-            {missingDossiers.length === 0 && onDone ? (
+            {onDone && (
               <button
                 onClick={onDone}
                 style={{
@@ -1507,14 +1499,10 @@ export function StatsGateModal({
                   display: 'flex', alignItems: 'center', gap: 6,
                   boxShadow: '0 4px 12px rgba(22,163,74,0.3)',
                 }}
-                title="Tous les prix sont saisis — vérifiez les lignes puis accédez aux statistiques"
+                title="Terminer et voir les statistiques"
               >
-                <CheckCircle2 size={15} /> Voir les statistiques →
+                <CheckCircle2 size={15} /> Terminé
               </button>
-            ) : (
-              <span style={{ fontWeight: 700, color: '#304035' }}>
-                {missingDossiers.length} restant{missingDossiers.length > 1 ? 's' : ''}
-              </span>
             )}
           </div>
         </div>

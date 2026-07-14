@@ -16,8 +16,8 @@
  *      - TABLEAU 3 : par VENDEUR (Cassandra, Sylvie, …) + taux conversion + camembert
  */
 
-import { useMemo, useState, useEffect } from 'react';
-import { BarChart3, Clock, Lock, Table2, Users, Package } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { BarChart3, Clock, AlertTriangle, Table2, Users, Package } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatsGateModal } from '@/components/statistiques/StatsGateModal';
@@ -60,35 +60,104 @@ export default function StatistiquesPage() {
     [dossiersSignes],
   );
 
-  // Le gate s'ouvre s'il manque des prix. MAIS une fois ouvert, on le GARDE
-  // ouvert même quand l'extraction remplit les prix (sinon il se fermait tout
-  // seul et sautait aux stats sans laisser vérifier/corriger les lignes). Il ne
-  // se ferme que sur action explicite (bouton « Voir les statistiques »).
-  const gateNeeded = missingDossiers.length > 0;
-  const [gateOpenedOnce, setGateOpenedOnce] = useState(false);
-  const [gateDismissed, setGateDismissed] = useState(false);
-  useEffect(() => {
-    if (gateNeeded && !gateDismissed) setGateOpenedOnce(true);
-  }, [gateNeeded, gateDismissed]);
-  const isGateOpen = (gateNeeded || gateOpenedOnce) && !gateDismissed;
+  // Plus de blocage : les stats sont toujours accessibles. La saisie des prix
+  // signés (série rapide + auto-import) s'ouvre À LA DEMANDE, non bloquante.
+  const [showSignedGate, setShowSignedGate] = useState(false);
 
   return (
     <div className="space-y-6 pb-8">
       <PageHeader
         icon={<BarChart3 className="h-7 w-7" />}
         title="Statistiques"
-        subtitle={
-          isGateOpen
-            ? `Accès verrouillé — ${missingDossiers.length} dossier${missingDossiers.length > 1 ? 's' : ''} à compléter`
-            : 'Vue d’ensemble de l’activité'
-        }
+        subtitle="Vue d’ensemble de l’activité"
       />
 
-      {/* GATE bloquant — couvre toute la page tant qu'il reste des dossiers
-          signés sans lignes prix saisies. */}
-      {isGateOpen && (
+      {/* Rappel NON bloquant : prix manquants sur des dossiers signés. */}
+      {missingDossiers.length > 0 && (
+        <div className="rounded-2xl border border-amber-300/50 bg-amber-50/60 p-3 px-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-sm">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <span className="text-[#304035]">
+              <strong className="font-bold">{missingDossiers.length} dossier{missingDossiers.length > 1 ? 's' : ''} signé{missingDossiers.length > 1 ? 's' : ''} sans prix</strong>
+              {' '}— renseignez-les pour un CA et une marge exacts.
+            </span>
+          </div>
+          <button
+            onClick={() => setShowSignedGate(true)}
+            className="text-xs font-bold text-amber-800 hover:text-amber-900 underline whitespace-nowrap"
+          >
+            Renseigner →
+          </button>
+        </div>
+      )}
+
+      {/* Dossiers reportés (sans suivi marge). */}
+      {skippedCount > 0 && (
+        <div className="rounded-2xl border border-purple-300/40 bg-purple-50/50 p-3 px-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-sm">
+            <Clock className="h-4 w-4 text-purple-600 shrink-0" />
+            <span className="text-[#304035]">
+              <strong className="font-bold">{skippedCount} dossier{skippedCount > 1 ? 's reportés' : ' reporté'}</strong>
+              {' '}sans suivi marge.
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              dossiersSignes.forEach((d) => { if (d.statsSkipped) setDossierStatsSkipped(d.id, false); });
+              setShowSignedGate(true);
+            }}
+            className="text-xs font-bold text-purple-700 hover:text-purple-900 underline whitespace-nowrap"
+          >
+            Compléter maintenant →
+          </button>
+        </div>
+      )}
+
+      {/* Onglets */}
+      <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-1.5 flex gap-1.5">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                active ? 'bg-[#304035] text-white shadow-md' : 'text-[#304035]/55 hover:text-[#304035] hover:bg-[#304035]/5'
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">{t.label}</span>
+              <span className="sm:hidden">{t.short}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Contenu de l'onglet actif */}
+      {tab === 'statut' && (
+        <StatsOverview
+          dossiers={dossiers}
+          dossiersSignes={dossiersSignes}
+          dossiersPerdus={dossiersPerdus}
+          onRenseignerSignes={() => setShowSignedGate(true)}
+        />
+      )}
+      {tab === 'fournisseur' && (
+        <StatsTableauFournisseur dossiersSignes={dossiersSignes} />
+      )}
+      {tab === 'vendeur' && (
+        <StatsTableauVendeur
+          dossiers={dossiers}
+          dossiersSignes={dossiersSignes}
+          dossiersPerdus={dossiersPerdus}
+        />
+      )}
+
+      {/* Saisie des prix SIGNÉS (série rapide + auto-import), NON bloquante. */}
+      {showSignedGate && (
         <StatsGateModal
-          missingDossiers={missingDossiers}
+          missingDossiers={missingDossiers.length > 0 ? missingDossiers : dossiersSignes}
           allSignes={dossiersSignes}
           allDevis={allDevis}
           onAddLigne={addDossierPrixLigne}
@@ -96,89 +165,8 @@ export default function StatistiquesPage() {
           onUpdateLigne={updateDossierPrixLigne}
           onAddLignesBulk={addDossierPrixLignesBulk}
           onSkipDossier={setDossierStatsSkipped}
-          onDone={() => setGateDismissed(true)}
+          onDone={() => setShowSignedGate(false)}
         />
-      )}
-
-      {/* Si gate ouvert, on affiche un placeholder verrouillé sous le header
-          (la modale capture l'interaction) — sinon les vrais tableaux. */}
-      {isGateOpen ? (
-        <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-10 text-center">
-          <Lock className="h-10 w-10 text-[#a67749]/45 mx-auto mb-3" />
-          <h3 className="font-bold text-[#304035] text-lg">Statistiques verrouillées</h3>
-          <p className="text-sm text-[#304035]/55 mt-1 max-w-md mx-auto">
-            Vous devez renseigner les prix d&apos;achat et de vente de tous vos dossiers
-            signés avant d&apos;accéder aux tableaux statistiques.
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* StatsGate v2 — Banner watermark si des dossiers ont été reportés */}
-          {skippedCount > 0 && (
-            <div className="rounded-2xl border border-purple-300/40 bg-purple-50/50 p-3 px-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 text-sm">
-                <Clock className="h-4 w-4 text-purple-600" />
-                <span className="text-[#304035]">
-                  <strong className="font-bold">{skippedCount} dossier{skippedCount > 1 ? 's reportés' : ' reporté'}</strong>
-                  {' '}sans suivi marge — les statistiques ci-dessous sont basées sur les dossiers complétés uniquement.
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  // Ré-active tous les dossiers reportés pour revenir au gate
-                  dossiersSignes.forEach((d) => {
-                    if (d.statsSkipped) setDossierStatsSkipped(d.id, false);
-                  });
-                }}
-                className="text-xs font-bold text-purple-700 hover:text-purple-900 underline whitespace-nowrap"
-              >
-                Compléter maintenant →
-              </button>
-            </div>
-          )}
-
-          {/* Onglets */}
-          <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-1.5 flex gap-1.5">
-            {TABS.map((t) => {
-              const Icon = t.icon;
-              const active = tab === t.key;
-              return (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                    active
-                      ? 'bg-[#304035] text-white shadow-md'
-                      : 'text-[#304035]/55 hover:text-[#304035] hover:bg-[#304035]/5'
-                  }`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">{t.label}</span>
-                  <span className="sm:hidden">{t.short}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Contenu de l'onglet actif */}
-          {tab === 'statut' && (
-            <StatsOverview
-              dossiers={dossiers}
-              dossiersSignes={dossiersSignes}
-              dossiersPerdus={dossiersPerdus}
-            />
-          )}
-          {tab === 'fournisseur' && (
-            <StatsTableauFournisseur dossiersSignes={dossiersSignes} />
-          )}
-          {tab === 'vendeur' && (
-            <StatsTableauVendeur
-              dossiers={dossiers}
-              dossiersSignes={dossiersSignes}
-              dossiersPerdus={dossiersPerdus}
-            />
-          )}
-        </>
       )}
     </div>
   );

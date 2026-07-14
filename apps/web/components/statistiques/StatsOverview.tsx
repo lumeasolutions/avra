@@ -31,9 +31,11 @@ interface Props {
   dossiers: Dossier[];
   dossiersSignes: DossierSigne[];
   dossiersPerdus: DossierPerdu[];
+  /** Ouvre la modale de saisie « série » (rapide + auto-import) pour les signés. */
+  onRenseignerSignes?: () => void;
 }
 
-export function StatsOverview({ dossiers, dossiersSignes, dossiersPerdus }: Props) {
+export function StatsOverview({ dossiers, dossiersSignes, dossiersPerdus, onRenseignerSignes }: Props) {
   const addDossierPrixLigne = useDossierStore((s) => s.addDossierPrixLigne);
   const removeDossierPrixLigne = useDossierStore((s) => s.removeDossierPrixLigne);
   const updateDossierPrixLigne = useDossierStore((s) => s.updateDossierPrixLigne);
@@ -178,7 +180,7 @@ export function StatsOverview({ dossiers, dossiersSignes, dossiersPerdus }: Prop
 
           {filter === 'VENDU' && (
             <Card>
-              <EditBar color={GREEN} text="Prix des dossiers signés" onEdit={() => setEditing('VENDU')} />
+              <EditBar color={GREEN} text="Prix des dossiers signés" onEdit={onRenseignerSignes ?? (() => setEditing('VENDU'))} />
               {fournisseurRows.length === 0
                 ? <Empty text="Renseignez les prix des dossiers signés pour voir le détail par fournisseur." />
                 : <SimpleTable head={['Fournisseur', 'CA vendu', 'Marge']} rows={fournisseurRows.map((r) => [r.f, eur(r.vente), r.vente > 0 ? `${Math.round((r.marge / r.vente) * 100)}%` : '—'])} />}
