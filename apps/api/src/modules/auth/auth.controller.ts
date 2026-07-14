@@ -323,6 +323,7 @@ export class AuthController {
   // token). Utilisé pour ré-authentifier une action sensible côté client, ex.
   // réinitialiser le code PIN du Dossier administratif. Throttlé (anti-brute).
   @UseGuards(JwtAuthGuard)
+  @SkipCsrf()
   @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 10 } })
   @Post('verify-password')
   async verifyPassword(
