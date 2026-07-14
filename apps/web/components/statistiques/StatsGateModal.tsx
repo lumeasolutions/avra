@@ -577,51 +577,11 @@ export function StatsGateModal({
     return { ratio, tone: 'partial' };
   }, []);
 
-  // Sélecteur 3 rubriques (réutilisé : colonne gauche + état vide).
-  const rubricTabs = (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 12 }}>
-      {([['VENDU', 'Signés', '#16a34a', missingDossiers.length], ['EN_COURS', 'En cours', '#2563eb', enCoursMissing.length], ['PERDU', 'Perdus', '#dc2626', perdusMissing.length]] as [typeof rubric, string, string, number][]).map(([k, label, color, cnt]) => {
-        const on = rubric === k;
-        return (
-          <button key={k} type="button" onClick={() => setRubric(k)}
-            style={{ cursor: 'pointer', textAlign: 'center', border: `1px solid ${on ? color : color + '33'}`, background: on ? color + '18' : '#fff', borderRadius: 12, padding: '8px 4px' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color, lineHeight: 1 }}>{cnt}</div>
-            <div style={{ fontSize: 10, fontWeight: 700, color, marginTop: 2 }}>{label}</div>
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  // Rubrique vide (ex. aucun dossier perdu) : on garde la modale + le sélecteur
-  // pour pouvoir revenir, avec un état vide. Sinon la modale disparaîtrait.
-  if (!selected) {
-    return (
-      <div
-        style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, padding: 16,
-        }}
-      >
-        <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 420, padding: 24, boxShadow: '0 40px 100px rgba(0,0,0,0.4)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#304035' }}>Statistiques</h2>
-            <button onClick={() => onDone?.()} title="Fermer"
-              style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(48,64,53,0.15)', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(48,64,53,0.55)' }}>
-              <X size={16} />
-            </button>
-          </div>
-          {rubricTabs}
-          <p style={{ margin: '14px 0 0', textAlign: 'center', fontSize: 13, color: 'rgba(48,64,53,0.6)' }}>
-            Aucun dossier à compléter dans cette rubrique. 🎉
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   // ── Rendu ───────────────────────────────────────────────────────────────
+  // Rubrique éventuellement vide (ex. aucun perdu) : `selected` peut être null.
+  // On garde TOUJOURS la même grande fenêtre (mêmes dimensions pour les 3
+  // rubriques) et on n'affiche l'état vide que dans la zone détail. La colonne
+  // gauche (sélecteur 3 rubriques + liste) reste toujours visible.
   const importable = confirmsValidees.filter((c) =>
     c.fournisseur && typeof c.montant === 'number' &&
     !selectedLignes.some((l) => l.fournisseur === c.fournisseur && l.prixAchatHT === c.montant)
@@ -819,6 +779,8 @@ export function StatsGateModal({
               </div>
             </div>
 
+            {selected ? (
+            <>
             {/* ─── COLONNE MILIEU : CONSULTATION (options + confirmations) ── */}
             <div style={{ overflowY: 'auto', padding: '18px 22px', borderRight: '1px solid rgba(48,64,53,0.08)' }}>
               {/* Titre dossier + actions [P2] [B] */}
@@ -1545,6 +1507,13 @@ export function StatsGateModal({
                 </div>
               )}
             </div>
+            </>
+            ) : (
+              <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, textAlign: 'center', color: 'rgba(48,64,53,0.55)' }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>🎉</div>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Aucun dossier à compléter dans cette rubrique.</p>
+              </div>
+            )}
           </div>
 
           {/* ─── Footer ─────────────────────────────────────────────── */}
