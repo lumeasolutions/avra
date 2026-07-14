@@ -553,6 +553,8 @@ function ClassifyModal({ att, projectId, onClose, onDone }: {
   useEffect(() => { setSelected(''); setCustom(''); }, [selectedDossierId]);
 
   const target = custom.trim() || selected;
+  const selectedDossierName =
+    [...dossierOptions.encours, ...dossierOptions.signes].find((d) => d.id === selectedDossierId)?.name ?? 'Dossier';
 
   const confirm = async () => {
     if (!target || saving) return;
@@ -568,13 +570,28 @@ function ClassifyModal({ att, projectId, onClose, onDone }: {
 
   return (
     <div onClick={onClose} className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div onClick={e => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-        <div className="px-6 pt-5 pb-4 border-b border-[#304035]/8">
-          <h2 className="text-base font-bold text-[#304035]">Classer le document</h2>
-          <p className="text-[13px] text-[#304035]/55 mt-1 truncate" title={att.displayName}>🗂 {att.displayName}</p>
+      <div onClick={e => e.stopPropagation()} className="bg-white rounded-[18px] w-full max-w-md shadow-2xl overflow-hidden">
+        {/* En-tête vert */}
+        <div className="flex items-center gap-3 px-5 py-4" style={{ background: '#304035' }}>
+          <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 text-lg" style={{ background: 'rgba(255,255,255,0.12)' }}>🗂</div>
+          <div className="min-w-0">
+            <div className="text-[15px] font-bold text-white">Classer le document</div>
+            <div className="text-[12px] truncate" style={{ color: '#cbb98a' }} title={att.displayName}>{att.displayName}</div>
+          </div>
         </div>
 
-        <div className="px-6 py-4 space-y-4">
+        <div className="px-5 py-4 space-y-3.5">
+          {/* Aperçu de destination — mise à jour en direct */}
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-[12.5px]" style={{ background: '#f5eee8', border: '1px solid #ecdcc6', color: '#7a5327' }}>
+            <span>→</span>
+            <span className="truncate">
+              <strong>{selectedDossierName}</strong>{' '}
+              {target
+                ? <span>· {target.split(' ▸ ').pop()}{custom.trim() ? ' (nouveau)' : ''}</span>
+                : <span style={{ color: '#a9906f' }}>· choisissez un sous-dossier</span>}
+            </span>
+          </div>
+
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-[#304035]/50 mb-1.5">Dossier de destination</label>
             <select
@@ -638,7 +655,7 @@ function ClassifyModal({ att, projectId, onClose, onDone }: {
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
 
-        <div className="flex gap-2 px-6 py-4 border-t border-[#304035]/8">
+        <div className="flex gap-2 px-5 py-4 border-t border-[#304035]/8">
           <button onClick={onClose} disabled={saving} className="flex-1 rounded-xl border border-[#304035]/12 px-4 py-2.5 text-sm font-bold text-[#304035]/60 hover:bg-[#304035]/5 disabled:opacity-50">Annuler</button>
           <button onClick={confirm} disabled={!target || saving} className="flex-1 rounded-xl text-white px-4 py-2.5 text-sm font-bold disabled:opacity-40" style={{ background: GOLD }}>
             {saving ? 'Classement…' : 'Classer ici'}
