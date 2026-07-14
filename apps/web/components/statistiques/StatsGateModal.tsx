@@ -106,6 +106,9 @@ interface Props {
    *  reste ouvert après extraction pour laisser vérifier/corriger les lignes ;
    *  il ne se ferme que sur ce clic une fois tous les prix saisis. */
   onDone?: () => void;
+  /** Dossiers EN COURS / PERDUS — pour la saisie par rubrique (3 cartes). */
+  dossiersEnCours?: Array<{ id: string; name: string; prixLignes?: DossierPrixLigne[] }>;
+  dossiersPerdus?: Array<{ id: string; name: string; prixLignes?: DossierPrixLigne[] }>;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -143,9 +146,20 @@ function writeDraft(dossierId: string, draft: Draft): void {
 // ── Composant principal ────────────────────────────────────────────────────
 export function StatsGateModal({
   missingDossiers, allSignes, allDevis, onAddLigne, onRemoveLigne, onUpdateLigne, onAddLignesBulk, onSkipDossier, onDone,
+  dossiersEnCours = [], dossiersPerdus = [],
 }: Props) {
   const router = useRouter();
+  // Rubrique active : Signé (série + auto-import) / En cours / Perdu (saisie simple).
+  const [rubric, setRubric] = useState<'VENDU' | 'EN_COURS' | 'PERDU'>('VENDU');
+  const isSigned = rubric === 'VENDU';
+  const enCoursMissing = useMemo(() => dossiersEnCours.filter((d) => (d.prixLignes?.length ?? 0) === 0), [dossiersEnCours]);
+  const perdusMissing = useMemo(() => dossiersPerdus.filter((d) => (d.prixLignes?.length ?? 0) === 0), [dossiersPerdus]);
+  // Listes de la rubrique courante (castées : id/name/prixLignes suffisent à la saisie).
+  const missing = (rubric === 'VENDU' ? missingDossiers : rubric === 'EN_COURS' ? enCoursMissing : perdusMissing) as unknown as DossierSigne[];
+  const allForRubric = (rubric === 'VENDU' ? allSignes : rubric === 'EN_COURS' ? dossiersEnCours : dossiersPerdus) as unknown as DossierSigne[];
   const [selectedId, setSelectedId] = useState<string | null>(missingDossiers[0]?.id ?? null);
+  // Au changement de rubrique, on sélectionne le 1er dossier de la nouvelle liste.
+  useEffect(() => { setSelectedId(missing[0]?.id ?? null); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [rubric]);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [toast, setToast] = useState<{ message: string; tone: 'ok' | 'info' } | null>(null);
   const fournisseurInputRef = useRef<HTMLInputElement>(null);
@@ -164,20 +178,20 @@ export function StatsGateModal({
   // multi-lignes possible. On n'avance qu'au clic « Suivant ».
   const selected = useMemo(
     () =>
-      allSignes.find((d) => d.id === selectedId) ??
-      missingDossiers.find((d) => d.id === selectedId) ??
-      missingDossiers[0] ?? null,
-    [allSignes, missingDossiers, selectedId],
+      allForRubric.find((d) => d.id === selectedId) ??
+      missing.find((d) => d.id === selectedId) ??
+      missing[0] ?? null,
+    [allForRubric, missing, selectedId],
   );
 
   // Liste de gauche = dossiers à compléter + le dossier courant (même s'il a
   // déjà des lignes), pour qu'il reste visible pendant la saisie.
   const listDossiers = useMemo(() => {
-    if (selected && !missingDossiers.some((d) => d.id === selected.id)) {
-      return [selected, ...missingDossiers];
+    if (selected && !missing.some((d) => d.id === selected.id)) {
+      return [selected, ...missing];
     }
-    return missingDossiers;
-  }, [missingDossiers, selected]);
+    return missing;
+  }, [missing, selected]);
 
   // ── [E] Brouillon : restauration au changement de dossier ───────────────
   useEffect(() => {
@@ -465,10 +479,10 @@ export function StatsGateModal({
 
   const goToNextDossier = useCallback(() => {
     if (!selected) return;
-    const idx = missingDossiers.findIndex((d) => d.id === selected.id);
-    const next = missingDossiers[idx + 1] ?? missingDossiers[0];
+    const idx = missing.findIndex((d) => d.id === selected.id);
+    const next = missing[idx + 1] ?? missing[0];
     if (next && next.id !== selected.id) setSelectedId(next.id);
-  }, [selected, missingDossiers]);
+  }, [selected, missing]);
 
   const handleAddLigne = useCallback((opts?: { goNext?: boolean }) => {
     if (!selected || !draftIsValid) return;
@@ -563,7 +577,49 @@ export function StatsGateModal({
     return { ratio, tone: 'partial' };
   }, []);
 
-  if (!selected) return null;
+  // Sélecteur 3 rubriques (réutilisé : colonne gauche + état vide).
+  const rubricTabs = (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 12 }}>
+      {([['VENDU', 'Signés', '#16a34a', missingDossiers.length], ['EN_COURS', 'En cours', '#2563eb', enCoursMissing.length], ['PERDU', 'Perdus', '#dc2626', perdusMissing.length]] as [typeof rubric, string, string, number][]).map(([k, label, color, cnt]) => {
+        const on = rubric === k;
+        return (
+          <button key={k} type="button" onClick={() => setRubric(k)}
+            style={{ cursor: 'pointer', textAlign: 'center', border: `1px solid ${on ? color : color + '33'}`, background: on ? color + '18' : '#fff', borderRadius: 12, padding: '8px 4px' }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color, lineHeight: 1 }}>{cnt}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color, marginTop: 2 }}>{label}</div>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  // Rubrique vide (ex. aucun dossier perdu) : on garde la modale + le sélecteur
+  // pour pouvoir revenir, avec un état vide. Sinon la modale disparaîtrait.
+  if (!selected) {
+    return (
+      <div
+        style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, padding: 16,
+        }}
+      >
+        <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 420, padding: 24, boxShadow: '0 40px 100px rgba(0,0,0,0.4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#304035' }}>Statistiques</h2>
+            <button onClick={() => onDone?.()} title="Fermer"
+              style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid rgba(48,64,53,0.15)', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(48,64,53,0.55)' }}>
+              <X size={16} />
+            </button>
+          </div>
+          {rubricTabs}
+          <p style={{ margin: '14px 0 0', textAlign: 'center', fontSize: 13, color: 'rgba(48,64,53,0.6)' }}>
+            Aucun dossier à compléter dans cette rubrique. 🎉
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Rendu ───────────────────────────────────────────────────────────────
   const importable = confirmsValidees.filter((c) =>
@@ -644,7 +700,7 @@ export function StatsGateModal({
                 }}>(prix achat / prix vente)</span>
               </h2>
               <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(48,64,53,0.65)' }}>
-                {missingDossiers.length} dossier{missingDossiers.length > 1 ? 's' : ''} à
+                {missing.length} dossier{missing.length > 1 ? 's' : ''} à
                 compléter. Astuce : utilisez <strong style={{ color: '#a67749' }}>Entrée</strong> pour
                 ajouter, <strong style={{ color: '#a67749' }}>Cmd/Ctrl + Entrée</strong> pour passer au suivant.
               </p>
@@ -688,12 +744,25 @@ export function StatsGateModal({
               borderRight: '1px solid rgba(48,64,53,0.08)',
               background: '#fafaf8', overflowY: 'auto', padding: '14px',
             }}>
+              {/* Sélecteur 3 rubriques : Signés / En cours / Perdus. */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 12 }}>
+                {([['VENDU', 'Signés', '#16a34a', missingDossiers.length], ['EN_COURS', 'En cours', '#2563eb', enCoursMissing.length], ['PERDU', 'Perdus', '#dc2626', perdusMissing.length]] as [typeof rubric, string, string, number][]).map(([k, label, color, cnt]) => {
+                  const on = rubric === k;
+                  return (
+                    <button key={k} type="button" onClick={() => setRubric(k)}
+                      style={{ cursor: 'pointer', textAlign: 'center', border: `1px solid ${on ? color : color + '33'}`, background: on ? color + '18' : '#fff', borderRadius: 12, padding: '8px 4px' }}>
+                      <div style={{ fontSize: 17, fontWeight: 800, color, lineHeight: 1 }}>{cnt}</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color, marginTop: 2 }}>{label}</div>
+                    </button>
+                  );
+                })}
+              </div>
               <p style={{
                 margin: '0 0 10px 4px', fontSize: 10, fontWeight: 700,
                 color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase',
                 letterSpacing: '0.08em',
               }}>
-                Dossiers à compléter ({missingDossiers.length})
+                À compléter ({missing.length})
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {listDossiers.map((d) => {
@@ -772,18 +841,20 @@ export function StatsGateModal({
                   >
                     <ExternalLink size={10} /> Ouvrir
                   </button>
-                  <button
-                    onClick={handleSkip}
-                    style={{
-                      padding: '5px 10px', borderRadius: 8, fontSize: 10, fontWeight: 700,
-                      border: '1px solid rgba(120,80,180,0.3)', background: 'rgba(120,80,180,0.06)',
-                      color: '#7850b4', cursor: 'pointer',
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                    }}
-                    title="Reporte ce dossier — vous pourrez le compléter plus tard"
-                  >
-                    <Clock size={10} /> Reporter
-                  </button>
+                  {isSigned && (
+                    <button
+                      onClick={handleSkip}
+                      style={{
+                        padding: '5px 10px', borderRadius: 8, fontSize: 10, fontWeight: 700,
+                        border: '1px solid rgba(120,80,180,0.3)', background: 'rgba(120,80,180,0.06)',
+                        color: '#7850b4', cursor: 'pointer',
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                      }}
+                      title="Reporte ce dossier — vous pourrez le compléter plus tard"
+                    >
+                      <Clock size={10} /> Reporter
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1457,8 +1528,8 @@ export function StatsGateModal({
                     onClick={() => {
                       if (draftIsValid) { handleAddLigne({ goNext: true }); return; }
                       // Message de succès au clic « Suivant » (dossier déjà complété).
-                      const idx = missingDossiers.findIndex((d) => d.id === selected?.id);
-                      const nextD = missingDossiers[idx + 1];
+                      const idx = missing.findIndex((d) => d.id === selected?.id);
+                      const nextD = missing[idx + 1];
                       const hasNext = !!nextD && nextD.id !== selected?.id;
                       setToast({ message: hasNext ? '✓ Dossier complété — au suivant' : '✓ Dernier dossier complété', tone: 'ok' });
                       goToNextDossier();
@@ -1485,8 +1556,8 @@ export function StatsGateModal({
           }}>
             <span>
               Saisie facultative — les prix affinent le CA et la marge.{' '}
-              {missingDossiers.length > 0 && (
-                <strong style={{ color: '#92400e' }}>{missingDossiers.length} restant{missingDossiers.length > 1 ? 's' : ''}</strong>
+              {missing.length > 0 && (
+                <strong style={{ color: '#92400e' }}>{missing.length} restant{missing.length > 1 ? 's' : ''}</strong>
               )}
             </span>
             {onDone && (

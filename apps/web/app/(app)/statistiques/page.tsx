@@ -16,7 +16,7 @@
  *      - TABLEAU 3 : par VENDEUR (Cassandra, Sylvie, …) + taux conversion + camembert
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, Clock, AlertTriangle, Table2, Users, Package } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -61,8 +61,17 @@ export default function StatistiquesPage() {
   );
 
   // Plus de blocage : les stats sont toujours accessibles. La saisie des prix
-  // signés (série rapide + auto-import) s'ouvre À LA DEMANDE, non bloquante.
+  // s'ouvre À LA DEMANDE (non bloquante) OU automatiquement à l'arrivée si des
+  // dossiers signés sont sans prix — mais la modale reste fermable (incitatif,
+  // pas obligatoire). L'auto-ouverture ne se déclenche qu'une seule fois.
   const [showSignedGate, setShowSignedGate] = useState(false);
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!autoOpenedRef.current && missingDossiers.length > 0) {
+      autoOpenedRef.current = true;
+      setShowSignedGate(true);
+    }
+  }, [missingDossiers.length]);
 
   return (
     <div className="space-y-6 pb-8">
@@ -159,6 +168,8 @@ export default function StatistiquesPage() {
         <StatsGateModal
           missingDossiers={missingDossiers.length > 0 ? missingDossiers : dossiersSignes}
           allSignes={dossiersSignes}
+          dossiersEnCours={dossiers}
+          dossiersPerdus={dossiersPerdus}
           allDevis={allDevis}
           onAddLigne={addDossierPrixLigne}
           onRemoveLigne={removeDossierPrixLigne}
