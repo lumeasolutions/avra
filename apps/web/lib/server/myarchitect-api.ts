@@ -391,6 +391,53 @@ export async function generateColoristeRender(
 }
 
 /**
+ * Change Textures (endpoint /change-textures).
+ *
+ * Change les couleurs / matières / textures d'une image EN PRÉSERVANT la
+ * géométrie et le layout (≠ render/interior qui régénère toute la scène). Deux
+ * modes combinables : `prompt` (description de la matière voulue) et/ou
+ * `referenceImage` (échantillon de matière). Réponse : { output: "https://..." }.
+ */
+export function changeTextures(
+  imageUrl: string,
+  prompt: string,
+  referenceImage?: string,
+): Promise<EndpointResult> {
+  const body: Record<string, unknown> = { image: imageUrl, prompt };
+  if (referenceImage) body.referenceImage = referenceImage;
+  return callEndpoint('/change-textures', body);
+}
+
+/**
+ * Coloriste « chirurgical » via MyArchitectAI /change-textures — change les
+ * couleurs/finitions (façades, poignées, plan) en PRÉSERVANT la géométrie et le
+ * layout d'origine (le vrai coloriste, contrairement à generateColoristeRender
+ * qui re-rend toute la pièce). En mode mock (clé absente) : renvoie l'image source.
+ *
+ * @param prompt   Prompt coloriste (construit côté route)
+ * @param imageUrl URL https publique de la photo de cuisine source
+ */
+export async function generateColoristeTextures(
+  prompt: string,
+  imageUrl: string,
+): Promise<ArchitectResult> {
+  if (!isArchitectEnabled()) {
+    return {
+      success: true,
+      imageUrls: [imageUrl],
+      prompt: `${prompt} [MODE DÉMO — clé du moteur de rendu non configurée]`,
+      endpoint: 'mock',
+      upscaled: false,
+    };
+  }
+  const res = await changeTextures(imageUrl, prompt);
+  if (!res.ok) {
+    return { success: false, imageUrls: [], prompt, endpoint: 'change-textures', upscaled: false, error: res.error };
+  }
+  return { success: true, imageUrls: res.outputs, prompt, endpoint: 'change-textures', upscaled: false };
+}
+
+/**
  * Édition ciblée d'une image existante (endpoint /edit-by-prompt).
  *
  * Contrairement à render/interior qui REGÉNÈRE toute la scène, edit-by-prompt

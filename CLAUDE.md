@@ -196,6 +196,13 @@ pré-remplit les champs en un clic. L'utilisateur garde la main.
   + bouton UI dans la modale Validation projet
 - **(juin 2026)** Module IA Architect (MyArchitectAI) : 3e onglet IA Studio,
   route `/api/ia/architect` + wrapper `myarchitect-api.ts` (active via MYARCHITECT_API_KEY)
+- **(juil. 2026)** Module « Coloriste ✨ » (TEST, isolé) : 4e onglet IA Studio,
+  route `/api/ia/coloriste-textures` via MyArchitectAI **`/change-textures`**
+  (recolorise en PRÉSERVANT la géométrie/layout, ≠ render/interior). Wrapper :
+  `changeTextures()` + `generateColoristeTextures()` dans `myarchitect-api.ts`.
+  Réutilise la MÊME clé `MYARCHITECT_API_KEY`. Le Coloriste fal.ai (`/api/ia/coloriste`)
+  et le « Coloriste IA+ » masqué (`/api/ia/coloriste-architect`, render/interior)
+  restent intacts — si le module de test échoue, on ne perd rien.
 
 ### 🔲 P1 restants
 - Playwright E2E (parcours login, waitlist, démo)
