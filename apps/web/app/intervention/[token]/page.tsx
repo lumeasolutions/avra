@@ -90,16 +90,18 @@ export default function InterventionPublicPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true); setError(null);
+  // silent = rafraîchissement en arrière-plan : ne remet PAS l'écran en état
+  // « Chargement… » (évite le flash de rechargement visuel toutes les 20 s).
+  const load = useCallback(async (silent = false) => {
+    if (!silent) { setLoading(true); setError(null); }
     try {
       const r = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}`);
       if (!r.ok) throw new Error('Lien invalide ou expiré');
       setData(await r.json());
     } catch (e: any) {
-      setError(e?.message || 'Lien invalide ou expiré');
+      if (!silent) setError(e?.message || 'Lien invalide ou expiré');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [token]);
 
@@ -201,7 +203,7 @@ export default function InterventionPublicPage() {
     const id = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       if (busy || sending || uploading) return;
-      load();
+      load(true); // silencieux : pas de flash « Chargement… »
     }, 20000);
     return () => clearInterval(id);
   }, [load, busy, sending, uploading]);
