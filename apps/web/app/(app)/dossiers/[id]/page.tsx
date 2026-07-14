@@ -2010,10 +2010,19 @@ export default function DossierDetailPage() {
           <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10">
             <h3 className="text-xl font-bold text-[#304035] mb-2">Marquer le dossier perdu</h3>
             <p className="text-xs text-[#304035]/60 mb-4">Le dossier quittera « En cours » et ira dans « Dossiers perdus ». Réversible (restaurable).</p>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#304035]/50 mb-2">Raison de la perte</div>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {['Budget', 'Délai', 'Concurrent', 'Sans suite', 'Projet annulé'].map((r) => (
+                <button key={r} type="button" onClick={() => setPerduReason(r)}
+                  className={`text-xs font-semibold rounded-full px-3 py-1.5 border transition-all ${perduReason === r ? 'bg-red-600 text-white border-red-600' : 'bg-white text-[#304035]/70 border-[#304035]/15 hover:border-red-300'}`}>
+                  {r}
+                </button>
+              ))}
+            </div>
             <input autoFocus value={perduReason}
               onChange={e => setPerduReason(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handlePerdu()}
-              placeholder="Raison (ex : budget, concurrent, sans suite...)"
+              placeholder="…ou saisissez une autre raison"
               className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-4 py-3 text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-red-300/40 mb-5" />
             <div className="flex gap-3">
               <button onClick={handlePerdu} disabled={!perduReason.trim()} className="flex-1 rounded-xl bg-red-600 py-3 font-bold text-white hover:bg-red-700 disabled:opacity-40 transition-colors">Marquer perdu</button>

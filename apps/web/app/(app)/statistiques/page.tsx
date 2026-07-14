@@ -21,16 +21,16 @@ import { BarChart3, Clock, Lock, Table2, Users, Package } from 'lucide-react';
 import { useDossierStore, useFacturationStore } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatsGateModal } from '@/components/statistiques/StatsGateModal';
-import { StatsTableauStatut } from '@/components/statistiques/StatsTableauStatut';
+import { StatsOverview } from '@/components/statistiques/StatsOverview';
 import { StatsTableauFournisseur } from '@/components/statistiques/StatsTableauFournisseur';
 import { StatsTableauVendeur } from '@/components/statistiques/StatsTableauVendeur';
 
 type TabKey = 'statut' | 'fournisseur' | 'vendeur';
 
 const TABS: { key: TabKey; label: string; short: string; icon: React.ElementType }[] = [
-  { key: 'statut',      label: 'Tableau 1 — Statut',      short: 'Statut',      icon: Table2 },
-  { key: 'fournisseur', label: 'Tableau 2 — Fournisseur', short: 'Fournisseur', icon: Package },
-  { key: 'vendeur',     label: 'Tableau 3 — Vendeur',     short: 'Vendeur',     icon: Users },
+  { key: 'statut',      label: 'Vue d’ensemble',         short: 'Ensemble',    icon: Table2 },
+  { key: 'fournisseur', label: 'Par fournisseur',        short: 'Fournisseur', icon: Package },
+  { key: 'vendeur',     label: 'Par vendeur',            short: 'Vendeur',     icon: Users },
 ];
 
 export default function StatistiquesPage() {
@@ -162,7 +162,7 @@ export default function StatistiquesPage() {
 
           {/* Contenu de l'onglet actif */}
           {tab === 'statut' && (
-            <StatsTableauStatut
+            <StatsOverview
               dossiers={dossiers}
               dossiersSignes={dossiersSignes}
               dossiersPerdus={dossiersPerdus}
