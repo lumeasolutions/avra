@@ -47,6 +47,13 @@ export interface SendToIntervenantPrefill {
   title?: string;
   notes?: string;
   projectId?: string;
+  /**
+   * Restreint le sélecteur de pièces à UN seul sous-dossier (+ ses sous-dossiers).
+   * Utilisé par le bouton « avion » d'une ligne de sous-dossier : on ne propose
+   * QUE ce sous-dossier (pas les autres) et ses documents sont pré-cochés.
+   * Absent → tout le dossier est proposé (sélection multiple, ex. bouton « Nouvelle »).
+   */
+  subfolderLabel?: string;
   eventId?: string;
   scheduledFor?: string;
   attachments?: Array<{
@@ -146,6 +153,35 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
   const [loadingDocs, setLoadingDocs] = useState(false);
   // Set des dossierDocumentId deja inclus dans uploads (pour cocher les checkboxes)
   const includedDocIds = new Set(uploads.map((u) => u.dossierDocumentId).filter(Boolean) as string[]);
+
+  // Restriction a UN sous-dossier (bouton avion). Absent → tout le dossier.
+  const restrictSubfolder = prefill?.subfolderLabel?.trim() || null;
+  // Pieces effectivement proposees : si restreint, uniquement le sous-dossier
+  // cible + ses descendants ; sinon tout le dossier (selection multiple libre).
+  const visibleDocs = useMemo<ProjectDoc[] | null>(() => {
+    if (!projectDocs) return null;
+    if (!restrictSubfolder) return projectDocs;
+    return projectDocs.filter((d) => {
+      const label = d.subfolderLabel || 'Autres';
+      return label === restrictSubfolder || isDescendant(label, restrictSubfolder);
+    });
+  }, [projectDocs, restrictSubfolder]);
+
+  // Mode restreint : on pre-coche les documents du sous-dossier cible (une fois,
+  // au chargement). L'utilisateur reste libre de decocher ensuite.
+  useEffect(() => {
+    if (!open || !restrictSubfolder || !visibleDocs || visibleDocs.length === 0) return;
+    setUploads((u) => {
+      const have = new Set(u.map((x) => x.dossierDocumentId).filter(Boolean) as string[]);
+      const toAdd = visibleDocs.filter((d) => !have.has(d.id));
+      if (toAdd.length === 0) return u;
+      return [
+        ...u,
+        ...toAdd.map((d) => ({ dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined })),
+      ];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, restrictSubfolder, visibleDocs]);
 
   const createInvitationStore = useDemandesStore((s) => s.createInvitation);
 
@@ -633,14 +669,21 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                   Le pro choisit explicitement quels fichiers transmettre —
                   jamais le dossier entier (qui contiendrait des infos
                   confidentielles type prix de vente). */}
-              {prefill?.projectId && projectDocs && projectDocs.length > 0 && (
+              {prefill?.projectId && visibleDocs && visibleDocs.length > 0 && (
                 <div style={{ marginTop: 14 }}>
                   <Label>
-                    Pièces du dossier à partager
+                    {restrictSubfolder ? 'Pièces du sous-dossier à partager' : 'Pièces du dossier à partager'}
                     <span style={{ marginLeft: 8, fontWeight: 400, color: '#7c6c58', fontSize: 11 }}>
-                      ({projectDocs.length} disponibles · cocher pour inclure)
+                      {restrictSubfolder
+                        ? `(${visibleDocs.length} pré-sélectionnée${visibleDocs.length > 1 ? 's' : ''} · décochez au besoin)`
+                        : `(${visibleDocs.length} disponibles · cochez pour inclure)`}
                     </span>
                   </Label>
+                  {restrictSubfolder && (
+                    <p style={{ margin: '2px 2px 8px', fontSize: 11, color: '#7c6c58' }}>
+                      Limité au sous-dossier <strong style={{ color: '#3D5449' }}>{folderDisplayName(restrictSubfolder)}</strong>. Pour envoyer plusieurs sous-dossiers, utilisez « Nouvelle » depuis le dossier.
+                    </p>
+                  )}
                   <div
                     role="group"
                     aria-label="Selecteur de pieces du dossier"
@@ -657,7 +700,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                     }}
                   >
                     {/* Grouper par sous-dossier */}
-                    {Object.entries(projectDocs.reduce<Record<string, ProjectDoc[]>>((acc, d) => {
+                    {Object.entries(visibleDocs.reduce<Record<string, ProjectDoc[]>>((acc, d) => {
                       const k = d.subfolderLabel || 'Autres';
                       if (!acc[k]) acc[k] = [];
                       acc[k].push(d);
@@ -672,7 +715,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                       // Tous les documents sous ce dossier, y compris ses sous-dossiers (récursif).
                       const recursiveDocs = subfolder === 'Autres'
                         ? docs
-                        : projectDocs.filter((d) => (d.subfolderLabel || 'Autres') === subfolder || isDescendant(d.subfolderLabel || '', subfolder));
+                        : visibleDocs.filter((d) => (d.subfolderLabel || 'Autres') === subfolder || isDescendant(d.subfolderLabel || '', subfolder));
                       const hasNested = recursiveDocs.length > docs.length;
                       const indent = depthOf(subfolder) > 1 ? (depthOf(subfolder) - 1) * 12 : 0;
                       const selectRecursive = () => setUploads((u) => {

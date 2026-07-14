@@ -1041,6 +1041,8 @@ export default function DossierDetailPage() {
                         dossierSigned: isSigned,
                         title: `${sf.label} — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
                         projectId: dossier.id,
+                        // Restreint l'envoi à CE sous-dossier uniquement (pas les autres).
+                        subfolderLabel: sf.label,
                         notes: docsCount > 0
                           ? `Sous-dossier : ${sf.label}\n${docsCount} document(s) à transmettre`
                           : `Sous-dossier : ${sf.label}`,
