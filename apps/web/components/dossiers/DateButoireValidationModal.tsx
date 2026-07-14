@@ -1156,16 +1156,16 @@ export function DateButoireValidationModal({
           color: rgba(48,64,53,0.4);
         }
 
-        /* Devis list — 26/05/2026 v2 : on garde le scroll interne (max-height
-           280px) MAIS on ajoute un padding-bottom genereux (24px) pour que le
-           dernier item soit pleinement visible quand on scroll au fond. Avant,
-           le dernier doc etait coupe / colle au bord bas du conteneur. */
+        /* Devis list — 14/07/2026 : on RETIRE le scroll interne (max-height +
+           overflow). Il etait imbrique dans la colonne qui scrolle deja
+           (.dbv-col-left), ce qui creait deux barres de defilement qui se
+           marchaient dessus : la barre interne "descendait trop" et les
+           derniers documents devenaient inatteignables. La liste s'etire
+           desormais naturellement et c'est l'UNIQUE barre de la colonne qui
+           gere tout le defilement. */
         .dbv-devis-list {
           display: flex; flex-direction: column; gap: 6px;
-          padding: 10px 10px 24px;
-          max-height: 280px; overflow-y: auto;
-          /* Scroll snap : le dernier item s'aligne proprement */
-          scroll-padding-bottom: 24px;
+          padding: 10px 10px 14px;
           scrollbar-width: thin;
           scrollbar-color: rgba(166,119,73,0.45) rgba(48,64,53,0.04);
         }
