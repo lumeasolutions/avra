@@ -146,7 +146,6 @@ export default function DossierDetailPage() {
   // (cf. AUDIT_DOSSIERS_DOCUMENTS.md fix #6).
   const addSubfolder      = useDossierStore(s => s.addSubfolder);
   const removeSubfolder   = useDossierStore(s => s.removeSubfolder);
-  const toggleSubfolderValidated = useDossierStore(s => s.toggleSubfolderValidated);
   const addDocumentToSubfolder = useDossierStore(s => s.addDocumentToSubfolder);
   const removeDocumentFromSubfolder = useDossierStore(s => s.removeDocumentFromSubfolder);
   const ensureDefaultSubfolders = useDossierStore(s => s.ensureDefaultSubfolders);
@@ -1056,29 +1055,17 @@ export default function DossierDetailPage() {
                     />
                   </div>
 
-                  {/* Validation sous-dossier — éditeurs uniquement (admin / vendeur proprietaire) */}
-                  {canEditThis && (isValidated ? (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); toggleSubfolderValidated(dossier.id, sf.label); }}
-                      className="flex items-center gap-1.5 shrink-0 transition-all hover:scale-105"
-                      title="Cliquer pour annuler la validation"
-                    >
+                  {/* Validation déplacée au Tableau de bord — plus de bouton « Valider »
+                      ni de bascule sur les lignes de sous-dossiers. On garde juste
+                      une pastille « Validé » en lecture seule quand c'est le cas. */}
+                  {isValidated && (
+                    <span className="flex items-center gap-1.5 shrink-0" title="Validé depuis le tableau de bord">
                       <span className="flex items-center justify-center h-6 w-6 rounded-full bg-green-500 shadow-[0_0_0_3px_rgba(34,197,94,0.18)]">
                         <CheckCircle className="h-4 w-4 text-white" strokeWidth={3} />
                       </span>
                       <span className="text-xs font-bold text-green-600">Validé</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); toggleSubfolderValidated(dossier.id, sf.label); }}
-                      className="px-3 py-1.5 rounded-lg bg-[#304035] text-white text-xs font-bold shrink-0 transition-all hover:bg-[#a67749] hover:shadow-md"
-                      title="Marquer ce sous-dossier comme validé"
-                    >
-                      Valider
-                    </button>
-                  ))}
+                    </span>
+                  )}
 
                   {/* Bouton supprimer — menuisier uniquement, bloqué si des documents sont presents */}
                   {isMenuisier && canEditThis && (
