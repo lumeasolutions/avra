@@ -160,8 +160,14 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
   // cible + ses descendants ; sinon tout le dossier (selection multiple libre).
   const visibleDocs = useMemo<ProjectDoc[] | null>(() => {
     if (!projectDocs) return null;
-    if (!restrictSubfolder) return projectDocs;
-    return projectDocs.filter((d) => {
+    // Exclut partout les boîtes système « Reçu de l'intervenant » et
+    // « Dossier - Documents Intervenants » (jamais proposées au partage).
+    const base = projectDocs.filter((d) => {
+      const low = (d.subfolderLabel || '').trim().toLowerCase();
+      return low !== "reçu de l'intervenant" && !low.includes('documents intervenants');
+    });
+    if (!restrictSubfolder) return base;
+    return base.filter((d) => {
       const label = d.subfolderLabel || 'Autres';
       return label === restrictSubfolder || isDescendant(label, restrictSubfolder);
     });

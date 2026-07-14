@@ -518,8 +518,14 @@ export function DateButoireValidationModal({
       });
     }
 
-    // 4) On retire les groupes vides pour ne pas saturer l'UI
-    return groups.filter((g) => g.docs.length > 0);
+    // 4) On retire les groupes vides + les boîtes système « Reçu de
+    //    l'intervenant » et « Dossier - Documents Intervenants » (masquées partout).
+    return groups.filter((g) => {
+      if (g.docs.length === 0) return false;
+      const low = g.label.trim().toLowerCase();
+      if (low === "reçu de l'intervenant" || low.includes('documents intervenants')) return false;
+      return true;
+    });
   }, [subfolders, profession, validatedSubfolderLabels]);
 
   const totalDocsCount = useMemo(
