@@ -15,6 +15,7 @@ import {
   classifyAttachmentPro, listDossierSubfoldersPro,
   type Demande, type DemandeAttachment,
 } from '@/lib/demandes-api';
+import { useDossierStore } from '@/store';
 
 // ─── Palette ──────────────────────────────────────────────────────────────
 const GREEN = '#304035';
@@ -493,20 +494,36 @@ function DocBubble({ mine, att, time, classified, onClassify }: { mine: boolean;
 function ClassifyModal({ att, projectId, projectName, onClose, onDone }: {
   att: DemandeAttachment; projectId: string; projectName?: string; onClose: () => void; onDone: () => void;
 }) {
-  const [subfolders, setSubfolders] = useState<string[]>([]);
+  const [backendFolders, setBackendFolders] = useState<string[]>([]);
   const [selected, setSelected] = useState<string>('');
   const [custom, setCustom] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // FIX 14/07/2026 — Le backend ne renvoyait que les sous-dossiers CONTENANT
+  // déjà un document. On récupère en plus l'ARBRE COMPLET du dossier depuis le
+  // store (tous les dossiers + sous-dossiers, même vides) pour pouvoir classer
+  // le document n'importe où.
+  const storeFolders = useDossierStore((s) => {
+    const all = [...(s.dossiers ?? []), ...(s.dossiersSignes ?? [])] as any[];
+    const d = all.find((x) => x.id === projectId);
+    return ((d?.subfolders ?? []) as any[]).map((sf) => sf?.label).filter(Boolean) as string[];
+  });
+
   useEffect(() => {
     let cancelled = false;
     listDossierSubfoldersPro(projectId)
-      .then(list => { if (!cancelled) { setSubfolders(list); setLoading(false); } })
+      .then(list => { if (!cancelled) { setBackendFolders(list); setLoading(false); } })
       .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [projectId]);
+
+  // Union store (arbre complet) + backend (labels issus des docs), triée.
+  const subfolders = useMemo(() => {
+    const set = new Set<string>([...storeFolders, ...backendFolders]);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'));
+  }, [storeFolders, backendFolders]);
 
   const target = custom.trim() || selected;
 
