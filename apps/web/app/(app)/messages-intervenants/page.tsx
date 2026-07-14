@@ -505,11 +505,16 @@ function ClassifyModal({ att, projectId, projectName, onClose, onDone }: {
   // déjà un document. On récupère en plus l'ARBRE COMPLET du dossier depuis le
   // store (tous les dossiers + sous-dossiers, même vides) pour pouvoir classer
   // le document n'importe où.
-  const storeFolders = useDossierStore((s) => {
-    const all = [...(s.dossiers ?? []), ...(s.dossiersSignes ?? [])] as any[];
+  // On sélectionne des références STABLES du store (dossiers / dossiersSignes)
+  // puis on dérive la liste dans un useMemo. Un sélecteur qui renverrait un
+  // nouveau tableau à chaque rendu provoquerait une boucle de re-render infinie.
+  const dossiers = useDossierStore((s) => s.dossiers);
+  const dossiersSignes = useDossierStore((s) => s.dossiersSignes);
+  const storeFolders = useMemo(() => {
+    const all = [...(dossiers ?? []), ...(dossiersSignes ?? [])] as any[];
     const d = all.find((x) => x.id === projectId);
     return ((d?.subfolders ?? []) as any[]).map((sf) => sf?.label).filter(Boolean) as string[];
-  });
+  }, [dossiers, dossiersSignes, projectId]);
 
   useEffect(() => {
     let cancelled = false;
