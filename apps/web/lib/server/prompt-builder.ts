@@ -764,6 +764,34 @@ export function buildCountertopRegionPrompt(params: ColoristParams): string {
   return `kitchen countertop in ${material} (${descs})${finishSuffix}, seamless uniform surface, photorealistic high-end material texture, sharp clean edges, subtle natural reflections, premium quality finish`;
 }
 
+/**
+ * Prompt pour l'endpoint MyArchitectAI /change-textures (retexturing).
+ *
+ * Format IMPÉRATIF verbe-en-tête, surface par surface, recommandé par la doc
+ * officielle MyArchitectAI (« replace the countertop material with … »), qui
+ * marche bien mieux que le prompt DESCRIPTIF de rendu pour l'édition de textures.
+ * On termine par « keep everything else unchanged », comme conseillé dans le guide
+ * « Editing best practices ». /change-textures préserve déjà la géométrie : on
+ * n'empile donc pas les lourdes contraintes anti-déformation du coloriste render.
+ */
+export function buildTextureEditPrompt(params: ColoristParams): string {
+  const facadeName   = hexToName(params.facadeHex);
+  const facadeFinish = FINISH_BLOCKS[params.facadeFinish];
+  const handle       = params.handleMaterial ?? `${hexToName(params.poigneeHex)} metal`;
+  const handleFinish = params.poigneeFinish ? `, ${FINISH_BLOCKS[params.poigneeFinish]}` : '';
+  const counter      = params.countertopMaterial ?? `${hexToName(params.planHex)}`;
+  const counterFinish = params.planFinish ? `, ${FINISH_BLOCKS[params.planFinish]}` : '';
+
+  return [
+    `Replace the kitchen cabinet fronts material with a solid uniform ${facadeName}, ${facadeFinish}.`,
+    `Replace the cabinet door handles and knobs with ${handle}${handleFinish}.`,
+    `Replace the countertop and worktop material with ${counter}${counterFinish}.`,
+    `Keep the exact same layout, geometry, shapes, positions and camera angle.`,
+    `Keep the existing lighting of the room unchanged; do not add spotlights, LED strips, lamps or new light fixtures.`,
+    `Do not add or remove any object, appliance or accessory. Keep everything else unchanged.`,
+  ].join(' ');
+}
+
 // ─────────────────────────────────────────── BUILDER COLORISTE — KONTEXT MULTI
 // Flux Kontext Max Multi accepte une liste d'images de référence en `image_urls`.
 // Convention AVRA pour l'index :

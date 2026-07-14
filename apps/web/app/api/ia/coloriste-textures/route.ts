@@ -14,7 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { buildColoristPrompt, type ColoristParams } from '@/lib/server/prompt-builder';
+import { buildTextureEditPrompt, type ColoristParams } from '@/lib/server/prompt-builder';
 import { generateColoristeTextures } from '@/lib/server/myarchitect-api';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
@@ -100,17 +100,11 @@ export async function POST(req: NextRequest) {
     countertopMaterial: str(body.countertopMaterial),
   };
 
-  // Prompt pour /change-textures : cet endpoint PRÉSERVE déjà la géométrie et le
-  // layout — on n'a donc PAS besoin des lourdes contraintes anti-déformation du
-  // coloriste render/interior. On décrit simplement les matières/couleurs cibles.
-  const RECOLOR_DIRECTIVE =
-    'Change the colors, materials and finishes of this kitchen. Apply the new '
-    + 'colors fully and clearly to the cabinet fronts, the handles and the countertop '
-    + '(no leftover original colors). ';
-  const KEEP =
-    ' Keep the exact same lighting as the source: do not add spotlights, LED strips, '
-    + 'lamps or new light fixtures. Photorealistic, sharp, high detail.';
-  const prompt = `${RECOLOR_DIRECTIVE}${buildColoristPrompt(params).prompt}${KEEP}`;
+  // Prompt IMPÉRATIF verbe-en-tête, surface par surface, conforme au guide
+  // officiel MyArchitectAI « Editing best practices » (« Replace the [surface]
+  // material with … keep everything else unchanged »). /change-textures préserve
+  // déjà la géométrie : pas besoin des lourdes contraintes anti-déformation.
+  const prompt = buildTextureEditPrompt(params);
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 
