@@ -433,37 +433,17 @@ export default function DossierDetailPage() {
     })
     .map((sf) => sf.label);
 
-  // Signature DIRECTE (sans passer par l'écran de validation dates butoires).
-  // Les dates butoires restent facultatives et pourront être renseignées plus
-  // tard depuis le tableau de bord. Après signature, on ouvre le dossier signé
-  // (ses sous-dossiers sont alors affichés directement).
-  const signDirectly = async (options: ValidatedOptionSelection[]) => {
-    setSigning(true);
-    try {
-      await signProject(id, options.length > 0 ? options : undefined);
-      setSelectedOptions([]);
-      router.push(`/dossiers/${id}`);
-    } catch (err) {
-      console.warn('[sign] signature directe échouée :', err);
-      alert('La signature du dossier a échoué. Vérifiez votre connexion et réessayez.');
-    } finally {
-      setSigning(false);
-    }
-  };
-
   const handleSigner = () => {
-    // 1 seul candidat (ex. un unique APD) → l'étape « Choisir les options » ET
-    //   l'écran de validation sont inutiles : on signe DIRECTEMENT et on
-    //   affiche le dossier signé avec ses sous-dossiers.
-    // 0 candidat → aucun choix : on passe par les dates butoires (rétrocompat).
-    // 2+ candidats → modale de sélection (choix réel à faire), puis dates.
-    if (validationCandidateLabels.length === 1) {
-      signDirectly([{ sourceLabel: validationCandidateLabels[0], includeSubPaths: undefined }]);
-    } else if (validationCandidateLabels.length === 0) {
+    // S'il existe au moins un candidat (APD / option / projet), on ouvre la
+    // modale de sélection. Quand il n'y en a qu'UN, cette modale l'a déjà
+    // pré-coché (cf. OptionSelectionModal) : l'utilisateur n'a plus qu'à choisir
+    // « Projet complet » ou « Sous-dossiers précis », puis « Continuer ».
+    // Sinon (0 candidat) → directement aux dates butoires (rétrocompat).
+    if (validationCandidateLabels.length > 0) {
+      setShowOptionSelectionModal(true);
+    } else {
       setSelectedOptions([]);
       setShowDateButoiresModal(true);
-    } else {
-      setShowOptionSelectionModal(true);
     }
   };
 

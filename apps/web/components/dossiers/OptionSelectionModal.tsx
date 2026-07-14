@@ -106,8 +106,13 @@ interface Props {
 export function OptionSelectionModal({ dossier, profession, onConfirm, onCancel }: Props) {
   const candidates = useMemo(() => detectCandidates(dossier, profession), [dossier, profession]);
 
-  // État local — par défaut, RIEN de coché (utilisateur doit choisir explicitement)
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  // État local. Cas normal (plusieurs options) → rien de coché, l'utilisateur
+  // choisit. Cas d'UN SEUL candidat (ex. un unique APD) → il est pré-coché :
+  // cocher « le seul choix possible » n'a aucun sens, donc on affiche
+  // directement le choix « Projet complet / Sous-dossiers précis ».
+  const [checked, setChecked] = useState<Record<string, boolean>>(() =>
+    candidates.length === 1 ? { [candidates[0].sourceLabel]: true } : {},
+  );
   const [customNames, setCustomNames] = useState<Record<string, string>>({});
   // Choix du contenu à valider pour chaque option :
   //  - 'full' (défaut) → tout le projet (le dossier + TOUS ses sous-dossiers)
