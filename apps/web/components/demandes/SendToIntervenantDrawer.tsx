@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Mail, UserPlus, CheckCircle2, Paperclip, Trash2, Bookmark } from 'lucide-react';
+import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Folder, Check, Image as ImageIcon, Mail, UserPlus, CheckCircle2, Paperclip, Trash2, Bookmark } from 'lucide-react';
 import { api, apiUpload } from '@/lib/api';
 import { displayName as folderDisplayName, depthOf, isDescendant } from '@/lib/folderTree';
 import { useDemandeTemplatesStore } from '@/store/useDemandeTemplatesStore';
@@ -82,6 +82,17 @@ interface Props {
   onSent?: (demandeId: string) => void;
 }
 
+// Pastille colorée selon le type de fichier (plus lisible / ludique).
+function fileBadge(name?: string, mime?: string | null): { bg: string; fg: string; image: boolean } {
+  const n = (name || '').toLowerCase();
+  const m = (mime || '').toLowerCase();
+  if (m.includes('pdf') || n.endsWith('.pdf')) return { bg: '#fbecec', fg: '#b91c1c', image: false };
+  if (m.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|bmp|tiff?)$/.test(n)) return { bg: '#e8efe6', fg: '#3b6d4a', image: true };
+  if (/\.(docx?|odt|rtf)$/.test(n) || m.includes('word') || m.includes('officedocument.wordprocessing')) return { bg: '#e6f1fb', fg: '#2563eb', image: false };
+  if (/\.(xlsx?|csv|ods)$/.test(n) || m.includes('sheet') || m.includes('excel')) return { bg: '#eaf3de', fg: '#3b6d11', image: false };
+  return { bg: '#f1efe8', fg: '#7c6c58', image: false };
+}
+
 const TYPE_OPTIONS: DemandeType[] = [
   'POSE', 'LIVRAISON', 'SAV', 'MESURE', 'DEVIS',
   'CONFIRMATION_COMMANDE', 'COMPLEMENT', 'AUTRE',
@@ -134,6 +145,8 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
     uploading?: boolean; error?: string;
   }>>(prefill?.attachments ?? []);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  // Sélecteur de pièces : dossiers repliés (par défaut tout est déplié).
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
 
   // SECURITE F-009 : selecteur de pieces du dossier client a inclure dans la
   // demande. Avant : pas de selecteur, le pro pouvait sciemment ou par
@@ -651,35 +664,24 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                   confidentielles type prix de vente). */}
               {prefill?.projectId && visibleDocs && visibleDocs.length > 0 && (
                 <div style={{ marginTop: 14 }}>
-                  <Label>
-                    {restrictSubfolder ? 'Pièces du sous-dossier à partager' : 'Pièces du dossier à partager'}
-                    <span style={{ marginLeft: 8, fontWeight: 400, color: '#7c6c58', fontSize: 11 }}>
-                      {restrictSubfolder
-                        ? `(${visibleDocs.length} pré-sélectionnée${visibleDocs.length > 1 ? 's' : ''} · décochez au besoin)`
-                        : `(${visibleDocs.length} disponibles · cochez pour inclure)`}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                    <Label style={{ marginBottom: 0 }}>
+                      {restrictSubfolder ? 'Pièces du sous-dossier' : 'Pièces à partager'}
+                    </Label>
+                    <span style={{ fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '3px 10px', background: includedDocIds.size > 0 ? '#e8f3ec' : '#f1efe8', color: includedDocIds.size > 0 ? '#1f7a46' : '#7c6c58', whiteSpace: 'nowrap' }}>
+                      {includedDocIds.size} sélectionnée{includedDocIds.size > 1 ? 's' : ''}
                     </span>
-                  </Label>
+                  </div>
                   {restrictSubfolder && (
-                    <p style={{ margin: '2px 2px 8px', fontSize: 11, color: '#7c6c58' }}>
+                    <p style={{ margin: '0 2px 8px', fontSize: 11, color: '#7c6c58' }}>
                       Limité au sous-dossier <strong style={{ color: '#3D5449' }}>{folderDisplayName(restrictSubfolder)}</strong>. Pour envoyer plusieurs sous-dossiers, utilisez « Nouvelle » depuis le dossier.
                     </p>
                   )}
                   <div
                     role="group"
                     aria-label="Selecteur de pieces du dossier"
-                    style={{
-                      maxHeight: 240,
-                      overflowY: 'auto',
-                      background: '#fafaf8',
-                      border: '1px solid #ece7df',
-                      borderRadius: 8,
-                      padding: 8,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 4,
-                    }}
+                    style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 2 }}
                   >
-                    {/* Grouper par sous-dossier */}
                     {Object.entries(visibleDocs.reduce<Record<string, ProjectDoc[]>>((acc, d) => {
                       const k = d.subfolderLabel || 'Autres';
                       if (!acc[k]) acc[k] = [];
@@ -691,109 +693,94 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                         return da !== db ? da - db : a[0].localeCompare(b[0], 'fr', { sensitivity: 'base' });
                       })
                       .map(([subfolder, docs]) => {
-                      const allChecked = docs.every((d) => includedDocIds.has(d.id));
-                      // Tous les documents sous ce dossier, y compris ses sous-dossiers (récursif).
-                      const recursiveDocs = subfolder === 'Autres'
-                        ? docs
-                        : visibleDocs.filter((d) => (d.subfolderLabel || 'Autres') === subfolder || isDescendant(d.subfolderLabel || '', subfolder));
-                      const hasNested = recursiveDocs.length > docs.length;
-                      const indent = depthOf(subfolder) > 1 ? (depthOf(subfolder) - 1) * 12 : 0;
-                      const selectRecursive = () => setUploads((u) => {
-                        const have = new Set(u.map((x) => x.dossierDocumentId));
-                        const toAdd = recursiveDocs.filter((d) => !have.has(d.id));
-                        return [...u, ...toAdd.map((d) => ({ dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined }))];
-                      });
-                      return (
-                        <div key={subfolder} style={{ background: '#fff', borderRadius: 6, padding: 6, border: '1px solid #f0eae0', marginLeft: indent }}>
-                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 4, gap: 6, marginBottom: 4, paddingBottom: 4, borderBottom: '1px solid #f5f1ea' }}>
-                            <input
-                              type="checkbox"
-                              id={`sf-all-${subfolder}`}
-                              checked={allChecked}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                setUploads((u) => {
-                                  if (checked) {
-                                    // Ajouter tous les docs de ce sous-dossier qui ne sont pas deja inclus
-                                    const toAdd = docs.filter((d) => !u.some((x) => x.dossierDocumentId === d.id));
-                                    return [
-                                      ...u,
-                                      ...toAdd.map((d) => ({
-                                        dossierDocumentId: d.id,
-                                        displayName: d.originalName,
-                                        mimeType: d.mimeType ?? undefined,
-                                      })),
-                                    ];
-                                  } else {
-                                    // Retirer tous les docs de ce sous-dossier
-                                    const docIds = new Set(docs.map((d) => d.id));
-                                    return u.filter((x) => !x.dossierDocumentId || !docIds.has(x.dossierDocumentId));
-                                  }
-                                });
-                              }}
-                              style={{ accentColor: '#3D5449', cursor: 'pointer' }}
-                            />
-                            <label
-                              htmlFor={`sf-all-${subfolder}`}
-                              title={subfolder}
-                              style={{ fontSize: 11, fontWeight: 700, color: '#3D5449', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', flex: 1, minWidth: 0, lineHeight: 1.3, wordBreak: 'break-word' }}
+                        const allChecked = docs.every((d) => includedDocIds.has(d.id));
+                        const recursiveDocs = subfolder === 'Autres'
+                          ? docs
+                          : visibleDocs.filter((d) => (d.subfolderLabel || 'Autres') === subfolder || isDescendant(d.subfolderLabel || '', subfolder));
+                        const hasNested = recursiveDocs.length > docs.length;
+                        const nested = depthOf(subfolder) > 1;
+                        const indent = nested ? (depthOf(subfolder) - 1) * 12 : 0;
+                        const collapsed = collapsedFolders.has(subfolder);
+                        const selectRecursive = () => setUploads((u) => {
+                          const have = new Set(u.map((x) => x.dossierDocumentId));
+                          const toAdd = recursiveDocs.filter((d) => !have.has(d.id));
+                          return [...u, ...toAdd.map((d) => ({ dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined }))];
+                        });
+                        const toggleFolderAll = () => setUploads((u) => {
+                          if (allChecked) {
+                            const ids = new Set(docs.map((d) => d.id));
+                            return u.filter((x) => !x.dossierDocumentId || !ids.has(x.dossierDocumentId));
+                          }
+                          const toAdd = docs.filter((d) => !u.some((x) => x.dossierDocumentId === d.id));
+                          return [...u, ...toAdd.map((d) => ({ dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined }))];
+                        });
+                        return (
+                          <div key={subfolder} style={{ marginLeft: indent, border: '1px solid #f0eae0', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+                            {/* En-tête pliable du dossier */}
+                            <div
+                              onClick={() => setCollapsedFolders((prev) => { const n = new Set(prev); if (n.has(subfolder)) n.delete(subfolder); else n.add(subfolder); return n; })}
+                              style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 11px', background: '#faf6ef', cursor: 'pointer' }}
                             >
-                              {depthOf(subfolder) > 1 ? '↳ ' : ''}{subfolder === 'Autres' ? 'Autres' : folderDisplayName(subfolder)} <span style={{ color: '#7c6c58', fontWeight: 400 }}>({docs.length})</span>
-                            </label>
-                            {hasNested && (
+                              <ChevronDown size={15} style={{ color: '#9a8c7a', flexShrink: 0, transition: 'transform .2s', transform: collapsed ? 'rotate(-90deg)' : 'none' }} />
+                              <Folder size={16} style={{ color: '#a67749', flexShrink: 0 }} />
+                              <span title={subfolder} style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 700, color: '#3D5449', textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1.3, wordBreak: 'break-word' }}>
+                                {nested ? '↳ ' : ''}{subfolder === 'Autres' ? 'Autres' : folderDisplayName(subfolder)}
+                              </span>
+                              <span style={{ fontSize: 11, color: '#9a8c7a', flexShrink: 0 }}>{docs.length}</span>
                               <button
                                 type="button"
-                                onClick={selectRecursive}
-                                title="Joindre tout ce dossier, y compris ses sous-dossiers"
-                                style={{ fontSize: 10, fontWeight: 700, color: '#a67749', background: '#fff8ef', border: '1px solid #e7dcc8', borderRadius: 6, padding: '2px 7px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                                onClick={(e) => { e.stopPropagation(); toggleFolderAll(); }}
+                                title={allChecked ? 'Tout retirer de ce dossier' : 'Tout sélectionner dans ce dossier'}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: `1px solid ${allChecked ? '#1f8f4e' : '#e7dcc8'}`, background: allChecked ? '#1f8f4e' : '#fff', color: allChecked ? '#fff' : '#7a5327', borderRadius: 999, padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
                               >
-                                📁 Tout le dossier ({recursiveDocs.length})
+                                {allChecked ? <Check size={13} /> : <Folder size={13} />} Tout
                               </button>
+                            </div>
+                            {!collapsed && (
+                              <div style={{ padding: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {hasNested && (
+                                  <button
+                                    type="button"
+                                    onClick={selectRecursive}
+                                    title="Joindre ce dossier ET ses sous-dossiers"
+                                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 10.5, fontWeight: 700, color: '#a67749', background: '#fff8ef', border: '1px solid #e7dcc8', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                  >
+                                    <Folder size={12} /> Tout le dossier + sous-dossiers ({recursiveDocs.length})
+                                  </button>
+                                )}
+                                {docs.map((d) => {
+                                  const on = includedDocIds.has(d.id);
+                                  const badge = fileBadge(d.originalName, d.mimeType);
+                                  const toggleDoc = () => setUploads((u) => (
+                                    u.some((x) => x.dossierDocumentId === d.id)
+                                      ? u.filter((x) => x.dossierDocumentId !== d.id)
+                                      : [...u, { dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined }]
+                                  ));
+                                  return (
+                                    <div
+                                      key={d.id}
+                                      role="button"
+                                      aria-pressed={on}
+                                      onClick={toggleDoc}
+                                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 9px', borderRadius: 10, cursor: 'pointer', border: `1px solid ${on ? '#bfe0cb' : 'transparent'}`, background: on ? '#eef6f0' : 'transparent', transition: 'background .12s, border-color .12s' }}
+                                    >
+                                      <span style={{ width: 28, height: 28, borderRadius: 8, background: badge.bg, color: badge.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        {badge.image ? <ImageIcon size={15} /> : <FileText size={15} />}
+                                      </span>
+                                      <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#1a2a1e' }}>
+                                        {d.originalName}
+                                      </span>
+                                      <span style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${on ? '#1f8f4e' : '#cfc8ba'}`, background: on ? '#1f8f4e' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .12s' }}>
+                                        {on && <Check size={12} style={{ color: '#fff' }} />}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             )}
                           </div>
-                          {docs.map((d) => (
-                            <label
-                              key={d.id}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 8,
-                                padding: '4px 6px',
-                                fontSize: 12,
-                                cursor: 'pointer',
-                                color: '#1a2a1e',
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={includedDocIds.has(d.id)}
-                                onChange={(e) => {
-                                  const checked = e.target.checked;
-                                  setUploads((u) => {
-                                    if (checked) {
-                                      return [
-                                        ...u,
-                                        {
-                                          dossierDocumentId: d.id,
-                                          displayName: d.originalName,
-                                          mimeType: d.mimeType ?? undefined,
-                                        },
-                                      ];
-                                    }
-                                    return u.filter((x) => x.dossierDocumentId !== d.id);
-                                  });
-                                }}
-                                style={{ accentColor: '#3D5449', cursor: 'pointer' }}
-                              />
-                              <FileText size={12} style={{ color: '#7c6c58', flexShrink: 0 }} />
-                              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {d.originalName}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
                 </div>
               )}
