@@ -285,6 +285,7 @@ function schedulePersist(snapshot: () => ConfigState) {
       relanceConfig: s.relanceConfig,
       alertesConfig: s.alertesConfig,
       iaConfig: s.iaConfig,
+      adminDocsPin: s.adminDocsPin,
     }).catch((e: any) => console.warn('[config] saveSettings échec, gardé en local:', e?.message || e));
   }, 800);
 }
@@ -300,6 +301,8 @@ interface ConfigState {
   alertesConfig: AlertesConfig;
   members: UserMember[];
   iaConfig: IAConfig;
+  /** Code PIN à 4 chiffres du Dossier administratif (null = non défini). Synchronisé au compte. */
+  adminDocsPin: string | null;
 
   // Actions
   updateSociete: (data: Partial<Societe>) => void;
@@ -310,6 +313,7 @@ interface ConfigState {
   updateFacturationConfig: (data: Partial<FacturationConfig>) => void;
   updateNotifConfig: (data: Partial<NotifConfig>) => void;
   updateIAConfig: (data: Partial<IAConfig>) => void;
+  setAdminDocsPin: (pin: string | null) => void;
 
   // Hydratation depuis le backend (sans re-déclencher de write-through)
   _hydrateFromBackend: (config: Partial<{
@@ -321,6 +325,7 @@ interface ConfigState {
     relanceConfig: RelanceConfig;
     alertesConfig: AlertesConfig;
     iaConfig: IAConfig;
+    adminDocsPin: string | null;
   }>) => void;
 
   // Members actions
@@ -345,6 +350,7 @@ export const useConfigStore = create<ConfigState>()(
       alertesConfig: INITIAL_ALERTES,
       members: INITIAL_MEMBERS,
       iaConfig: INITIAL_IA,
+      adminDocsPin: null,
 
       updateSociete: (data) => {
         set(s => ({ societe: { ...s.societe, ...data } }));
@@ -386,6 +392,11 @@ export const useConfigStore = create<ConfigState>()(
         schedulePersist(get);
       },
 
+      setAdminDocsPin: (pin) => {
+        set({ adminDocsPin: pin });
+        schedulePersist(get);
+      },
+
       // Applique la config venue du backend SANS re-pousser (pas de schedulePersist).
       _hydrateFromBackend: (config) => {
         if (!config) return;
@@ -398,6 +409,7 @@ export const useConfigStore = create<ConfigState>()(
           relanceConfig:     config.relanceConfig       ? { ...s.relanceConfig, ...config.relanceConfig } : s.relanceConfig,
           alertesConfig:     config.alertesConfig       ? { ...(s.alertesConfig ?? INITIAL_ALERTES), ...config.alertesConfig } : s.alertesConfig,
           iaConfig:          config.iaConfig            ? { ...s.iaConfig, ...config.iaConfig } : s.iaConfig,
+          adminDocsPin:      config.adminDocsPin !== undefined ? config.adminDocsPin : s.adminDocsPin,
         }));
       },
 

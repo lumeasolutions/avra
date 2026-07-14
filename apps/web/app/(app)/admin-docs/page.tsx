@@ -51,6 +51,7 @@ import { AdminDocVersionsModal } from '@/components/admin-docs/AdminDocVersionsM
 import { AdminDocShareModal } from '@/components/admin-docs/AdminDocShareModal';
 import { AdminDocsDashboardPanel } from '@/components/admin-docs/AdminDocsDashboardPanel';
 import { AdminDocsAuditPanel } from '@/components/admin-docs/AdminDocsAuditPanel';
+import { AdminDocsPinGate } from '@/components/admin-docs/AdminDocsPinGate';
 
 // ─── Catégories ─────────────────────────────────────────────────────────────
 //
@@ -186,7 +187,7 @@ type SortDir = 'asc' | 'desc';
 
 // ─── Page principale ─────────────────────────────────────────────────────────
 
-export default function AdminDocsPage() {
+function AdminDocsPageInner() {
   const {
     docs, stats, audit, auditTotal,
     loading, uploading, loadingStats, loadingAudit, error,
@@ -1188,5 +1189,18 @@ export default function AdminDocsPage() {
         onClose={() => setShowAudit(false)}
       />
     </div>
+  );
+}
+
+/**
+ * Export par défaut : la page est protégée par un code à 4 chiffres
+ * (AdminDocsPinGate). Tant que le code n'est pas saisi, le contenu du dossier
+ * administratif n'est ni rendu ni monté.
+ */
+export default function AdminDocsPage() {
+  return (
+    <AdminDocsPinGate>
+      <AdminDocsPageInner />
+    </AdminDocsPinGate>
   );
 }

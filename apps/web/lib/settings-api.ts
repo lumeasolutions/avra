@@ -19,6 +19,8 @@ export interface SettingsConfig {
   relanceConfig?: any;
   alertesConfig?: any;
   iaConfig?: any;
+  /** Code PIN à 4 chiffres du Dossier administratif (synchronisé au compte). */
+  adminDocsPin?: string | null;
 }
 
 export const getSettings = () => api<{ config: SettingsConfig | null }>('/settings');

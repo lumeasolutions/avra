@@ -194,6 +194,21 @@ export class AuthService {
     };
   }
 
+  /**
+   * Vérifie le mot de passe d'un utilisateur (par id) sans aucun effet de bord.
+   * Retourne simplement true/false. Sert à ré-authentifier une action sensible
+   * (ex. réinitialiser le code PIN du Dossier administratif).
+   */
+  async verifyPassword(userId: string, password: string): Promise<boolean> {
+    if (!userId || !password) return false;
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, isActive: true },
+      select: { passwordHash: true },
+    });
+    if (!user?.passwordHash) return false;
+    return bcrypt.compare(password, user.passwordHash);
+  }
+
   async validateUser(payload: JwtPayload) {
     // FONC 13/07/2026 — Les intervenants externes ont un token sans workspace
     // (workspaceId null, rôle INTERVENANT). On les valide via Intervenant.userId

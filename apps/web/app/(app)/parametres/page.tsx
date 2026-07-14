@@ -12,12 +12,14 @@ import {
   Hash, Banknote, SlidersHorizontal, RefreshCw, Download, Upload,
   AlertTriangle, Shield, Percent, UserCheck, Users, TrendingUp, Sparkles,
   Bot, Brain, Mic, MessageSquare, Database, Zap, Repeat, Archive, ArchiveRestore,
+  Lock,
 } from 'lucide-react';
 import type { Apporteur } from '@/store';
 import { useConfigStore, useDossierStore, useFacturationStore, useHistoryStore, useStockStore } from '@/store';
 import { useAuthStore, type Profession } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { AdminDocsPinSettings } from '@/components/admin-docs/AdminDocsPinSettings';
 
 // TEMPORARY DEV — voir DevPortalSwitcher panel ci-dessous
 const ADMIN_EMAILS = ['lumeasolutionsss@outlook.fr', 'cgdesignplan@gmail.com'];
@@ -66,6 +68,7 @@ const SECTIONS = [
   { id: 'preferences',    icon: SlidersHorizontal,  label: 'Préférences',              desc: 'TVA, langue, format, affichage' },
   { id: 'commissions',    icon: Percent,            label: 'Apporteurs & Commissions', desc: 'Apporteurs d\'affaires, taux, calcul auto' },
   { id: 'equipe',         icon: Shield,             label: 'Équipe & Accès',           desc: 'Membres, rôles, invitations' },
+  { id: 'securite-admin', icon: Lock,               label: 'Code Dossier administratif', desc: 'Verrou à 4 chiffres du dossier administratif' },
   { id: 'relances',       icon: Bell,               label: 'Relances automatiques',    desc: 'Délais, fréquences et modèles SMS/email' },
   { id: 'notifications',  icon: Bell,               label: 'Notifications',            desc: 'Activer/désactiver chaque alerte' },
   { id: 'alertes',        icon: AlertTriangle,      label: 'Délais & seuils d\'alerte', desc: 'Personnaliser chaque délai et activer/désactiver chaque alerte' },
@@ -602,6 +605,23 @@ export default function ParametresPage() {
           </div>
 
           <SaveButton saved={!!savedMap['numerotation']} onClick={() => { updateNumerotation(numForm); flash('numerotation'); }} />
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          PANEL : CODE DOSSIER ADMINISTRATIF
+      ══════════════════════════════════════════════════════════════════════ */}
+      {active === 'securite-admin' && (
+        <div className="rounded-2xl bg-white shadow-md border border-[#304035]/8 p-6 space-y-5">
+          <h3 className="font-bold text-[#304035] text-base flex items-center gap-2">
+            <Lock className="h-5 w-5" /> Code d’accès du Dossier administratif
+          </h3>
+          <p className="text-sm text-[#304035]/55 leading-relaxed">
+            Protégez l’accès au Dossier administratif par un code à 4 chiffres. Le code
+            vous est demandé à chaque ouverture, en plus de votre connexion. Sa
+            réinitialisation nécessite votre mot de passe de compte.
+          </p>
+          <AdminDocsPinSettings />
         </div>
       )}
 

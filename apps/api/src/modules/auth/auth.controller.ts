@@ -318,4 +318,19 @@ export class AuthController {
       workspace: (full as { workspace?: { name: string } }).workspace,
     };
   }
+
+  // Vérifie le mot de passe du compte SANS effet de bord (pas de rotation de
+  // token). Utilisé pour ré-authentifier une action sensible côté client, ex.
+  // réinitialiser le code PIN du Dossier administratif. Throttlé (anti-brute).
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { ttl: 15 * 60 * 1000, limit: 10 } })
+  @Post('verify-password')
+  async verifyPassword(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: { password?: string },
+  ) {
+    const userId = (user as any)?.sub ?? (user as any)?.id ?? '';
+    const valid = await this.auth.verifyPassword(userId, dto?.password ?? '');
+    return { valid };
+  }
 }
