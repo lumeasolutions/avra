@@ -709,12 +709,6 @@ export default function DossiersSignesPage() {
       {/* ── CONTENU ONGLET COMMANDE FOURNISSEUR ── */}
       {activeTab === 'commande-fournisseur' && (
         <div className="space-y-4">
-          {/* Légende */}
-          <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-800">
-            <p className="font-bold mb-1">Commandes fournisseurs</p>
-            <p className="text-xs">Cet espace centralisera vos commandes fournisseurs reçues automatiquement depuis vos logiciels métiers connectés (WinnerFlex et autres). Aucune saisie dossier par dossier.</p>
-          </div>
-
           {/* État d'attente — la liste par dossier est remplacée par le futur flux
               WinnerFlex : les commandes fournisseurs remonteront ici via l'API. */}
           <div className="bg-white rounded-2xl border border-[#304035]/8 p-12 text-center">
