@@ -1439,13 +1439,28 @@ export default function PlanningGestionPage() {
                   </select>
                 )}
               </div>
-              {/* Documents a joindre (optionnel) : visible si un intervenant est
-                  assigne ET le client correspond a un dossier connu. */}
-              {newEvent.intervenantId && pgProjectId && (
+              {/* Documents a joindre (optionnel) : visible dès qu'un intervenant est
+                  assigne. Si le client ne correspond a aucun dossier connu, on
+                  montre quand même l'option — désactivée + explication (demande
+                  cofondatrice : ne pas laisser croire qu'il n'y a rien à joindre). */}
+              {newEvent.intervenantId && (
                 <div>
                   <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2 mt-4">
                     Documents à joindre <span className="text-[#304035]/40 font-normal normal-case">(optionnel)</span>
                   </label>
+                  {!pgProjectId ? (
+                    <div title="Sélectionnez un dossier client existant pour pouvoir joindre des documents">
+                      <div className="flex items-center justify-center gap-2 text-[11px] font-semibold rounded-xl border border-dashed border-[#304035]/20 text-[#304035]/35 px-3 py-2 cursor-not-allowed select-none">
+                        <Paperclip className="w-3.5 h-3.5" />
+                        Joindre un document
+                      </div>
+                      <p className="mt-1.5 flex items-start gap-1.5 text-[10px] text-[#a67749] leading-snug">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                        Aucun dossier lié à ce client. Sélectionnez un dossier existant dans « Client / Dossier » ci-dessus pour pouvoir joindre des documents.
+                      </p>
+                    </div>
+                  ) : (
+                  <>
                   {pgDocsLoading ? (
                     <div className="text-[11px] text-[#304035]/45 italic">Chargement des documents…</div>
                   ) : !pgDocs || pgDocs.length === 0 ? (
@@ -1527,6 +1542,8 @@ export default function PlanningGestionPage() {
                   </label>
                   {pgUploadError && (
                     <div className="text-[10px] text-red-500 mt-1">{pgUploadError}</div>
+                  )}
+                  </>
                   )}
                 </div>
               )}
