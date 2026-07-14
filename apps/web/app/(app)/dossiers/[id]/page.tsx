@@ -1529,6 +1529,22 @@ export default function DossierDetailPage() {
             <div className={`w-full ${docsViewMode === 'grid' ? 'max-w-3xl' : 'max-w-lg'} rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10 transition-all`} onClick={e => e.stopPropagation()}>
               <div className="flex items-start justify-between mb-5 gap-3">
                 <div className="min-w-0">
+                  {/* Bouton Retour : remonte d'un niveau (ou au dossier racine)
+                      sans devoir fermer la modale. */}
+                  {(() => {
+                    const parentSegs = splitPath(openedSubfolder).slice(0, -1);
+                    const parentPath = parentSegs.length ? joinPath(parentSegs) : null;
+                    const parentLabel = parentSegs.length ? folderDisplayName(joinPath(parentSegs)) : dossier.name;
+                    return (
+                      <button
+                        onClick={() => setOpenedSubfolder(parentPath)}
+                        className="inline-flex items-center gap-1.5 mb-2 rounded-lg border border-[#304035]/12 px-2.5 py-1 text-[11px] font-bold text-[#304035]/70 hover:bg-[#304035]/5 hover:text-[#a67749] transition-colors"
+                        title={`Retour à ${parentLabel}`}
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5" /> Retour
+                      </button>
+                    );
+                  })()}
                   <div className="flex items-center gap-1 text-[11px] text-[#304035]/45 mb-1 flex-wrap">
                     <button onClick={() => setOpenedSubfolder(null)} className="hover:text-[#a67749] font-semibold">📁 {dossier.name}</button>
                     {splitPath(openedSubfolder).map((seg, i, arr) => {
