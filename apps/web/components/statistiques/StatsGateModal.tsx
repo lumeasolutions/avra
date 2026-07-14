@@ -1452,7 +1452,15 @@ export function StatsGateModal({
                     </p>
                   </div>
                   <button
-                    onClick={() => { if (draftIsValid) handleAddLigne({ goNext: true }); else goToNextDossier(); }}
+                    onClick={() => {
+                      if (draftIsValid) { handleAddLigne({ goNext: true }); return; }
+                      // Message de succès au clic « Suivant » (dossier déjà complété).
+                      const idx = missingDossiers.findIndex((d) => d.id === selected?.id);
+                      const nextD = missingDossiers[idx + 1];
+                      const hasNext = !!nextD && nextD.id !== selected?.id;
+                      setToast({ message: hasNext ? '✓ Dossier complété — au suivant' : '✓ Dernier dossier complété', tone: 'ok' });
+                      goToNextDossier();
+                    }}
                     title={draftIsValid ? "Ajoute la ligne en cours puis passe au dossier suivant" : "Passe au dossier suivant"}
                     style={{
                       padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700,
