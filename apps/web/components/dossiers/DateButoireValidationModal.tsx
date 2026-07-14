@@ -2065,7 +2065,6 @@ function CommandesAccessPanel({
 }: CommandesAccessPanelProps) {
   const [draftFournisseur, setDraftFournisseur] = useState('');
   const [draftDate, setDraftDate] = useState('');
-  const [draftMontant, setDraftMontant] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -2085,15 +2084,12 @@ function CommandesAccessPanel({
   const handleAdd = () => {
     const f = draftFournisseur.trim();
     if (!f) return;
-    const m = parseFloat(draftMontant.replace(',', '.'));
     onAdd({
       fournisseur: f,
       dateButoir: draftDate || '',
-      montant: Number.isFinite(m) && m > 0 ? m : undefined,
     });
     setDraftFournisseur('');
     setDraftDate('');
-    setDraftMontant('');
     setShowSuggestions(false);
   };
 
@@ -2398,17 +2394,6 @@ function CommandesAccessPanel({
                   aria-label="Fournisseur"
                 />
                 <input
-                  type="number"
-                  className="cap-row-montant"
-                  value={entry.montant ?? ''}
-                  min={0}
-                  step="0.01"
-                  placeholder="€ HT"
-                  onChange={(e) => onUpdate(entry.id, { montant: e.target.value ? Number(e.target.value) : undefined })}
-                  disabled={disabled}
-                  aria-label={`Montant HT pour ${entry.fournisseur}`}
-                />
-                <input
                   type="date"
                   className="cap-row-date"
                   value={entry.dateButoir}
@@ -2457,18 +2442,6 @@ function CommandesAccessPanel({
             onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
             disabled={disabled}
             aria-label={fournisseurAria}
-          />
-          <input
-            type="number"
-            className="cap-add-montant"
-            placeholder="€ HT"
-            value={draftMontant}
-            min={0}
-            step="0.01"
-            onChange={(e) => setDraftMontant(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
-            disabled={disabled}
-            aria-label="Montant HT (optionnel)"
           />
           <input
             type="date"
