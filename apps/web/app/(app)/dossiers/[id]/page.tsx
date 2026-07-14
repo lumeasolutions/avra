@@ -905,7 +905,13 @@ export default function DossierDetailPage() {
                 );
                 const isEmpty = (!sf.documents || sf.documents.length === 0) && !hasChildren;
                 const isValidated = !!sf.validated;
-                const docsCount = sf.documents?.length ?? 0;
+                // FIX 14/07/2026 — Compteur RÉCURSIF : un dossier parent affichait
+                // « 0 document » alors qu'un de ses sous-dossiers en contenait.
+                // On additionne les documents du dossier ET de tous ses descendants
+                // (labels commençant par « <label> ▸ »).
+                const docsCount = dossier.subfolders
+                  .filter((o) => o.label === sf.label || o.label.startsWith(sf.label + ' ▸ '))
+                  .reduce((sum, o) => sum + (o.documents?.length ?? 0), 0);
                 // Date affichée : dernière modif du sous-dossier, sinon date de création du dossier
                 const displayDate = sf.date ?? dossier.createdAt;
                 const isChildVersion = depth > 0;
