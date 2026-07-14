@@ -736,7 +736,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                             <label
                               htmlFor={`sf-all-${subfolder}`}
                               title={subfolder}
-                              style={{ fontSize: 11, fontWeight: 700, color: '#3D5449', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                              style={{ fontSize: 11, fontWeight: 700, color: '#3D5449', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', flex: 1, minWidth: 0, lineHeight: 1.3, wordBreak: 'break-word' }}
                             >
                               {depthOf(subfolder) > 1 ? '↳ ' : ''}{subfolder === 'Autres' ? 'Autres' : folderDisplayName(subfolder)} <span style={{ color: '#7c6c58', fontWeight: 400 }}>({docs.length})</span>
                             </label>
