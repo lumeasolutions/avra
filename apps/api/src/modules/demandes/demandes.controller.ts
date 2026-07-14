@@ -256,9 +256,9 @@ export class DemandesController {
   classifyAttachment(
     @CurrentUser() user: JwtPayload,
     @Param('attachmentId') attachmentId: string,
-    @Body() body: { subfolderLabel: string },
+    @Body() body: { subfolderLabel: string; projectId?: string },
   ) {
-    return this.demandes.classifyAttachment(user.workspaceId, attachmentId, body?.subfolderLabel);
+    return this.demandes.classifyAttachment(user.workspaceId, attachmentId, body?.subfolderLabel, body?.projectId);
   }
 
   /** Liste les sous-dossiers existants d'un dossier (pour le selecteur de classement). */

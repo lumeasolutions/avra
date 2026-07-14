@@ -291,10 +291,11 @@ export async function postMessagePro(id: string, body: string): Promise<DemandeM
 export async function classifyAttachmentPro(
   attachmentId: string,
   subfolderLabel: string,
-): Promise<{ ok: boolean; subfolderLabel: string }> {
+  projectId?: string,
+): Promise<{ ok: boolean; subfolderLabel: string; projectId?: string }> {
   return api(`/demandes/attachments/${encodeURIComponent(attachmentId)}/classify`, {
     method: 'PATCH',
-    body: JSON.stringify({ subfolderLabel }),
+    body: JSON.stringify({ subfolderLabel, projectId }),
   });
 }
 

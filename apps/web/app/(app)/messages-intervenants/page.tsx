@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   listDemandesPro, getDemandePro, postMessagePro,
-  classifyAttachmentPro, listDossierSubfoldersPro,
+  classifyAttachmentPro,
   type Demande, type DemandeAttachment,
 } from '@/lib/demandes-api';
 import { useDossierStore } from '@/store';
@@ -515,44 +515,42 @@ function DocBubble({ mine, att, time, classified, onClassify }: { mine: boolean;
   );
 }
 
-function ClassifyModal({ att, projectId, projectName, onClose, onDone }: {
+function ClassifyModal({ att, projectId, onClose, onDone }: {
   att: DemandeAttachment; projectId: string; projectName?: string; onClose: () => void; onDone: () => void;
 }) {
-  const [backendFolders, setBackendFolders] = useState<string[]>([]);
+  // Références STABLES du store (évite une boucle de re-render).
+  const dossiers = useDossierStore((s) => s.dossiers);
+  const dossiersSignes = useDossierStore((s) => s.dossiersSignes);
+
+  // On peut classer dans N'IMPORTE QUEL dossier (en cours ou signé) + sous-dossier.
+  const [selectedDossierId, setSelectedDossierId] = useState<string>(projectId);
   const [selected, setSelected] = useState<string>('');
   const [custom, setCustom] = useState('');
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // FIX 14/07/2026 — Le backend ne renvoyait que les sous-dossiers CONTENANT
-  // déjà un document. On récupère en plus l'ARBRE COMPLET du dossier depuis le
-  // store (tous les dossiers + sous-dossiers, même vides) pour pouvoir classer
-  // le document n'importe où.
-  // On sélectionne des références STABLES du store (dossiers / dossiersSignes)
-  // puis on dérive la liste dans un useMemo. Un sélecteur qui renverrait un
-  // nouveau tableau à chaque rendu provoquerait une boucle de re-render infinie.
-  const dossiers = useDossierStore((s) => s.dossiers);
-  const dossiersSignes = useDossierStore((s) => s.dossiersSignes);
-  const storeFolders = useMemo(() => {
-    const all = [...(dossiers ?? []), ...(dossiersSignes ?? [])] as any[];
-    const d = all.find((x) => x.id === projectId);
-    return ((d?.subfolders ?? []) as any[]).map((sf) => sf?.label).filter(Boolean) as string[];
-  }, [dossiers, dossiersSignes, projectId]);
+  const nameOf = (d: any) => [d?.name, d?.firstName].filter(Boolean).join(' ').trim() || 'Dossier';
+  const dossierOptions = useMemo(() => ({
+    encours: (dossiers ?? []).map((d: any) => ({ id: d.id, name: nameOf(d) })),
+    signes: (dossiersSignes ?? []).map((d: any) => ({ id: d.id, name: nameOf(d) })),
+  }), [dossiers, dossiersSignes]);
 
-  useEffect(() => {
-    let cancelled = false;
-    listDossierSubfoldersPro(projectId)
-      .then(list => { if (!cancelled) { setBackendFolders(list); setLoading(false); } })
-      .catch(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [projectId]);
-
-  // Union store (arbre complet) + backend (labels issus des docs), triée.
+  // Arbre complet du dossier sélectionné (store), boîtes système intervenant exclues.
   const subfolders = useMemo(() => {
-    const set = new Set<string>([...storeFolders, ...backendFolders]);
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr'));
-  }, [storeFolders, backendFolders]);
+    const all = [...(dossiers ?? []), ...(dossiersSignes ?? [])] as any[];
+    const d = all.find((x) => x.id === selectedDossierId);
+    const labels = ((d?.subfolders ?? []) as any[]).map((sf) => sf?.label).filter(Boolean) as string[];
+    const clean = labels.filter((l) => {
+      const low = l.trim().toLowerCase();
+      return low !== "reçu de l'intervenant" && !low.includes('documents intervenants');
+    });
+    return Array.from(new Set(clean)).sort((a, b) => {
+      const da = a.split(' ▸ ').length, db = b.split(' ▸ ').length;
+      return da !== db ? da - db : a.localeCompare(b, 'fr');
+    });
+  }, [dossiers, dossiersSignes, selectedDossierId]);
+
+  useEffect(() => { setSelected(''); setCustom(''); }, [selectedDossierId]);
 
   const target = custom.trim() || selected;
 
@@ -560,7 +558,7 @@ function ClassifyModal({ att, projectId, projectName, onClose, onDone }: {
     if (!target || saving) return;
     setSaving(true); setError(null);
     try {
-      await classifyAttachmentPro(att.id, target);
+      await classifyAttachmentPro(att.id, target, selectedDossierId);
       onDone();
     } catch (e: any) {
       setError(e?.message || 'Classement impossible');
@@ -570,44 +568,79 @@ function ClassifyModal({ att, projectId, projectName, onClose, onDone }: {
 
   return (
     <div onClick={onClose} className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div onClick={e => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <h2 className="text-lg font-bold text-[#304035]">Classer le document</h2>
-        <p className="text-sm text-[#304035]/60 mt-0.5 mb-4">
-          <span className="font-semibold text-[#1a2a1e]">{att.displayName}</span>
-          {projectName ? <> → dossier <span className="font-semibold text-[#a67749]">{projectName}</span></> : null}
-        </p>
+      <div onClick={e => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="px-6 pt-5 pb-4 border-b border-[#304035]/8">
+          <h2 className="text-base font-bold text-[#304035]">Classer le document</h2>
+          <p className="text-[13px] text-[#304035]/55 mt-1 truncate" title={att.displayName}>🗂 {att.displayName}</p>
+        </div>
 
-        <div className="text-xs font-bold uppercase tracking-wider text-[#304035]/50 mb-2">Choisir un sous-dossier</div>
-        {loading ? (
-          <div className="text-sm text-[#304035]/45 py-3">Chargement…</div>
-        ) : (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {subfolders.length === 0 && <span className="text-sm text-[#304035]/45">Aucun sous-dossier existant — créez-en un ci-dessous.</span>}
-            {subfolders.map(s => (
-              <button
-                key={s}
-                onClick={() => { setSelected(s); setCustom(''); }}
-                className={`text-sm font-semibold rounded-full px-3 py-1.5 border transition-all ${selected === s && !custom ? 'bg-[#304035] text-white border-[#304035]' : 'bg-white text-[#304035]/70 border-[#304035]/15 hover:border-[#304035]/40'}`}
-              >
-                {s}
-              </button>
-            ))}
+        <div className="px-6 py-4 space-y-4">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#304035]/50 mb-1.5">Dossier de destination</label>
+            <select
+              value={selectedDossierId}
+              onChange={(e) => setSelectedDossierId(e.target.value)}
+              className="w-full rounded-xl border border-[#304035]/15 bg-white px-3 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#a67749]/30"
+            >
+              {dossierOptions.encours.length > 0 && (
+                <optgroup label="Dossiers en cours">
+                  {dossierOptions.encours.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </optgroup>
+              )}
+              {dossierOptions.signes.length > 0 && (
+                <optgroup label="Dossiers signés">
+                  {dossierOptions.signes.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </optgroup>
+              )}
+            </select>
           </div>
-        )}
 
-        <div className="text-xs font-bold uppercase tracking-wider text-[#304035]/50 mb-1.5 mt-3">…ou nouveau sous-dossier</div>
-        <input
-          value={custom}
-          onChange={e => { setCustom(e.target.value); if (e.target.value) setSelected(''); }}
-          placeholder="Ex : Relevés de mesures"
-          className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#304035]/15"
-        />
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#304035]/50 mb-1.5">Sous-dossier</label>
+            {subfolders.length === 0 ? (
+              <div className="text-[13px] text-[#304035]/45 italic rounded-xl border border-dashed border-[#304035]/15 px-3 py-2.5">
+                Aucun sous-dossier dans ce dossier — créez-en un ci-dessous.
+              </div>
+            ) : (
+              <div className="max-h-52 overflow-y-auto rounded-xl border border-[#304035]/12 p-1.5 space-y-1 bg-[#faf8f4]">
+                {subfolders.map((s) => {
+                  const on = selected === s && !custom;
+                  const depth = s.split(' ▸ ').length;
+                  const nested = depth > 1;
+                  const leaf = s.split(' ▸ ').pop() ?? s;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => { setSelected(s); setCustom(''); }}
+                      style={nested ? { marginLeft: (depth - 1) * 12 } : undefined}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-all ${on ? 'bg-[#304035] text-white' : 'bg-white hover:bg-[#a67749]/8 text-[#304035] border border-[#f0eae0]'}`}
+                    >
+                      <span className={on ? 'text-[#d9b38a]' : 'text-[#a67749]'}>{nested ? '↳' : '📁'}</span>
+                      <span className="flex-1 text-[13px] font-semibold truncate" title={s}>{nested ? leaf : s}</span>
+                      {on && <span className="text-[#d9b38a]">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-        {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#304035]/50 mb-1.5">…ou nouveau sous-dossier</label>
+            <input
+              value={custom}
+              onChange={e => { setCustom(e.target.value); if (e.target.value) setSelected(''); }}
+              placeholder="Ex : Relevés de mesures"
+              className="w-full rounded-xl border border-[#304035]/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#a67749]/30"
+            />
+          </div>
 
-        <div className="flex gap-2 mt-5">
-          <button onClick={onClose} disabled={saving} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60 disabled:opacity-50">Annuler</button>
-          <button onClick={confirm} disabled={!target || saving} className="flex-1 rounded-lg text-white px-4 py-2 text-sm font-bold disabled:opacity-40" style={{ background: GOLD }}>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
+
+        <div className="flex gap-2 px-6 py-4 border-t border-[#304035]/8">
+          <button onClick={onClose} disabled={saving} className="flex-1 rounded-xl border border-[#304035]/12 px-4 py-2.5 text-sm font-bold text-[#304035]/60 hover:bg-[#304035]/5 disabled:opacity-50">Annuler</button>
+          <button onClick={confirm} disabled={!target || saving} className="flex-1 rounded-xl text-white px-4 py-2.5 text-sm font-bold disabled:opacity-40" style={{ background: GOLD }}>
             {saving ? 'Classement…' : 'Classer ici'}
           </button>
         </div>
