@@ -682,7 +682,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                       });
                       return (
                         <div key={subfolder} style={{ background: '#fff', borderRadius: 6, padding: 6, border: '1px solid #f0eae0', marginLeft: indent }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, paddingBottom: 4, borderBottom: '1px solid #f5f1ea' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 4, gap: 6, marginBottom: 4, paddingBottom: 4, borderBottom: '1px solid #f5f1ea' }}>
                             <input
                               type="checkbox"
                               id={`sf-all-${subfolder}`}
@@ -713,7 +713,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                             <label
                               htmlFor={`sf-all-${subfolder}`}
                               title={subfolder}
-                              style={{ fontSize: 11, fontWeight: 700, color: '#3D5449', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                              style={{ fontSize: 11, fontWeight: 700, color: '#3D5449', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                             >
                               {depthOf(subfolder) > 1 ? '↳ ' : ''}{subfolder === 'Autres' ? 'Autres' : folderDisplayName(subfolder)} <span style={{ color: '#7c6c58', fontWeight: 400 }}>({docs.length})</span>
                             </label>
@@ -722,7 +722,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                                 type="button"
                                 onClick={selectRecursive}
                                 title="Joindre tout ce dossier, y compris ses sous-dossiers"
-                                style={{ fontSize: 10, fontWeight: 700, color: '#a67749', background: '#fff8ef', border: '1px solid #e7dcc8', borderRadius: 6, padding: '2px 7px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                style={{ fontSize: 10, fontWeight: 700, color: '#a67749', background: '#fff8ef', border: '1px solid #e7dcc8', borderRadius: 6, padding: '2px 7px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
                               >
                                 📁 Tout le dossier ({recursiveDocs.length})
                               </button>
