@@ -611,33 +611,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
               />
 
               {/* Notes */}
-              <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <Label style={{ marginBottom: 0 }}>Notes / instructions</Label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Demande au store assistant d'ouvrir avec un prompt
-                    // structure pour rediger la demande.
-                    if (typeof window !== 'undefined') {
-                      const inter = selectedIntervenant?.companyName
-                        ?? [selectedIntervenant?.firstName, selectedIntervenant?.lastName].filter(Boolean).join(' ')
-                        ?? 'l\'intervenant';
-                      const prompt = `Aide-moi a rediger une demande "${DEMANDE_TYPE_LABELS[type]}" pour ${inter}${selectedIntervenant?.type ? ` (${selectedIntervenant.type})` : ''}. Titre actuel : "${title || '(vide)'}". Notes actuelles : "${notes || '(vides)'}". Propose un titre clair et des instructions concises et professionnelles.`;
-                      window.dispatchEvent(new CustomEvent('avra:assistant-seed', { detail: { prompt } }));
-                    }
-                  }}
-                  style={{
-                    background: 'transparent', border: '1px solid #ddd5c7',
-                    borderRadius: 6, padding: '3px 10px',
-                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                    color: '#3D5449',
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                  }}
-                  title="Demander a l'assistant AVRA de rediger pour vous"
-                >
-                  ✨ Suggerer
-                </button>
-              </div>
+              <Label style={{ marginTop: 14, marginBottom: 6 }}>Notes / instructions</Label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
