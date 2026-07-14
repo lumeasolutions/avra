@@ -421,24 +421,49 @@ export default function DossierDetailPage() {
   // Detection des candidats options/projet/version selon profession — utilise
   // pour decider si on ouvre l'OptionSelectionModal ou si on saute direct
   // aux dates butoires (cas "0 option" → pas de choix a faire).
-  const hasValidationCandidates = (dossier?.subfolders ?? []).some((sf) => {
-    if (profession === 'cuisiniste') return CUISINISTE_OPTION_REGEX.test(sf.label);
-    if (profession === 'menuisier') return MENUISIER_PROJET_REGEX.test(sf.label);
-    if (profession === 'architecte') {
-      const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
-      return m !== null && m[2]?.toUpperCase() === 'APD';
+  const validationCandidateLabels = (dossier?.subfolders ?? [])
+    .filter((sf) => {
+      if (profession === 'cuisiniste') return CUISINISTE_OPTION_REGEX.test(sf.label);
+      if (profession === 'menuisier') return MENUISIER_PROJET_REGEX.test(sf.label);
+      if (profession === 'architecte') {
+        const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
+        return m !== null && m[2]?.toUpperCase() === 'APD';
+      }
+      return false;
+    })
+    .map((sf) => sf.label);
+
+  // Signature DIRECTE (sans passer par l'écran de validation dates butoires).
+  // Les dates butoires restent facultatives et pourront être renseignées plus
+  // tard depuis le tableau de bord. Après signature, on ouvre le dossier signé
+  // (ses sous-dossiers sont alors affichés directement).
+  const signDirectly = async (options: ValidatedOptionSelection[]) => {
+    setSigning(true);
+    try {
+      await signProject(id, options.length > 0 ? options : undefined);
+      setSelectedOptions([]);
+      router.push(`/dossiers/${id}`);
+    } catch (err) {
+      console.warn('[sign] signature directe échouée :', err);
+      alert('La signature du dossier a échoué. Vérifiez votre connexion et réessayez.');
+    } finally {
+      setSigning(false);
     }
-    return false;
-  });
+  };
 
   const handleSigner = () => {
-    // Si le dossier contient des options, on ouvre la modale de sélection.
-    // Sinon, on saute directement aux dates butoires (rétrocompat).
-    if (hasValidationCandidates) {
-      setShowOptionSelectionModal(true);
-    } else {
+    // 1 seul candidat (ex. un unique APD) → l'étape « Choisir les options » ET
+    //   l'écran de validation sont inutiles : on signe DIRECTEMENT et on
+    //   affiche le dossier signé avec ses sous-dossiers.
+    // 0 candidat → aucun choix : on passe par les dates butoires (rétrocompat).
+    // 2+ candidats → modale de sélection (choix réel à faire), puis dates.
+    if (validationCandidateLabels.length === 1) {
+      signDirectly([{ sourceLabel: validationCandidateLabels[0], includeSubPaths: undefined }]);
+    } else if (validationCandidateLabels.length === 0) {
       setSelectedOptions([]);
       setShowDateButoiresModal(true);
+    } else {
+      setShowOptionSelectionModal(true);
     }
   };
 
