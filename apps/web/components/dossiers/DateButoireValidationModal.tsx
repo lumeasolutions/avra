@@ -1030,10 +1030,27 @@ export function DateButoireValidationModal({
         /* 19/05/2026 : barre laterale visible entre les 2 colonnes (demande asso).
            Ligne 2px + degrade vertical doux pour un separateur premium. */
         .dbv-col-left {
-          display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto;
+          display: flex; flex-direction: column; gap: 12px; padding: 16px;
+          /* La colonne ne scrolle plus elle-même : chaque section gère sa hauteur.
+             Le planning reste lisible (hauteur fixe) et les documents prennent le
+             reste avec LEUR PROPRE scroll → les derniers docs sont toujours atteignables. */
+          overflow: hidden; min-height: 0;
           border-right: 2px solid transparent;
           border-image: linear-gradient(180deg, rgba(166,119,73,0) 0%, rgba(166,119,73,0.35) 18%, rgba(166,119,73,0.35) 82%, rgba(166,119,73,0) 100%) 1;
           box-shadow: inset -1px 0 0 rgba(48,64,53,0.04);
+        }
+        /* Planning : hauteur naturelle, ne se fait pas écraser par les documents. */
+        .dbv-section-plan { flex-shrink: 0; }
+        /* Documents : prennent tout l'espace restant + scroll interne. */
+        .dbv-section-docs {
+          flex: 1 1 0; min-height: 0;
+          display: flex; flex-direction: column;
+        }
+        @media (max-width: 900px) {
+          /* En 1 colonne (mobile/tablette étroite), on laisse la colonne scroller
+             normalement et les sections reprennent une hauteur naturelle. */
+          .dbv-col-left { overflow-y: auto; }
+          .dbv-section-docs { flex: 0 0 auto; }
         }
         .dbv-col-right { display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
         @media (max-width: 900px) {
@@ -1084,8 +1101,9 @@ export function DateButoireValidationModal({
           grid-template-columns: 36px repeat(7, minmax(0, 1fr));
           background: #fafaf7;
           font-size: 10px;
-          /* Hauteur bornée + scroll interne pour ne pas étirer la section. */
-          max-height: 260px;
+          /* Hauteur bornée + scroll interne : planning lisible sans écraser
+             la liste des documents en dessous. */
+          max-height: 190px;
           overflow-y: auto;
           scrollbar-width: thin;
           scrollbar-color: rgba(166,119,73,0.45) rgba(48,64,53,0.04);
@@ -1165,9 +1183,16 @@ export function DateButoireValidationModal({
            gere tout le defilement. */
         .dbv-devis-list {
           display: flex; flex-direction: column; gap: 6px;
-          padding: 10px 10px 14px;
+          padding: 10px 10px 18px;
+          /* Prend toute la hauteur restante de la section et scrolle en interne :
+             les derniers documents restent toujours atteignables et complets. */
+          flex: 1 1 0; min-height: 0; overflow-y: auto;
           scrollbar-width: thin;
           scrollbar-color: rgba(166,119,73,0.45) rgba(48,64,53,0.04);
+        }
+        @media (max-width: 900px) {
+          /* En 1 colonne : la liste reprend une hauteur naturelle (la colonne scrolle). */
+          .dbv-devis-list { flex: 0 0 auto; }
         }
         .dbv-devis-list::-webkit-scrollbar { width: 8px; }
         .dbv-devis-list::-webkit-scrollbar-track {
@@ -1725,7 +1750,7 @@ export function DateButoireValidationModal({
                 </div>
               ) : (
               <>
-              <div className="dbv-section">
+              <div className="dbv-section dbv-section-plan">
                 <div className="dbv-section-head">
                   <span className="dbv-section-title">
                     <CalendarDays style={{ width: 13, height: 13 }} />
@@ -1782,7 +1807,7 @@ export function DateButoireValidationModal({
                 </div>
               </div>
 
-              <div className="dbv-section">
+              <div className="dbv-section dbv-section-docs">
                 <div className="dbv-section-head">
                   <span className="dbv-section-title">
                     <Receipt style={{ width: 13, height: 13 }} />
