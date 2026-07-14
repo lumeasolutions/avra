@@ -88,7 +88,13 @@ export default function InterventionPublicPage() {
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  // Toast de confirmation unifié (message / document / action) — non bloquant,
+  // disparaît tout seul. Aucun rechargement de page.
+  const [toast, setToast] = useState<string | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast((t) => (t === msg ? null : t)), 3500);
+  }, []);
 
   // silent = rafraîchissement en arrière-plan : ne remet PAS l'écran en état
   // « Chargement… » (évite le flash de rechargement visuel toutes les 20 s).
@@ -119,31 +125,39 @@ export default function InterventionPublicPage() {
         throw new Error(j?.message || 'Action impossible');
       }
       setDone(action);
-      await load();
+      showToast(action === 'accept' ? 'Demande acceptée ✓' : action === 'refuse' ? 'Demande refusée' : 'Marqué comme terminé ✓');
+      await load(true); // silencieux : aucun rechargement d'écran
     } catch (e: any) {
       setError(e?.message || 'Action impossible');
     } finally {
       setBusy(false);
     }
-  }, [busy, token, load]);
+  }, [busy, token, load, showToast]);
 
   const sendReply = useCallback(async () => {
-    if (sending || uploading || !reply.trim()) return;
+    const body = reply.trim();
+    if (sending || uploading || !body) return;
     setSending(true); setError(null);
+    // Optimiste : le message apparaît IMMÉDIATEMENT dans le fil (zéro attente,
+    // zéro rechargement). On réconcilie ensuite en silence avec le serveur.
+    setReply('');
+    setData((d) => d ? { ...d, messages: [...(d.messages ?? []), { authorRole: 'intervenant', authorName: 'Vous', body, createdAt: new Date().toISOString() }] } : d);
     try {
       const r = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/message`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: reply.trim() }),
+        body: JSON.stringify({ message: body }),
       });
       if (!r.ok) throw new Error('Envoi impossible');
-      setReply('');
-      await load();
+      showToast('Message envoyé ✓');
+      await load(true); // silencieux
     } catch (e: any) {
       setError(e?.message || 'Envoi impossible');
+      setReply(body);   // on restaure le texte pour réessayer
+      await load(true); // retire le message optimiste
     } finally {
       setSending(false);
     }
-  }, [sending, uploading, reply, token, load]);
+  }, [sending, uploading, reply, token, load, showToast]);
 
   const uploadFiles = useCallback(async (files: File[]) => {
     if (!files || files.length === 0) return;
@@ -153,7 +167,7 @@ export default function InterventionPublicPage() {
       setError(`« ${tooBig.name} » dépasse la taille maximale (25 Mo).`);
       return;
     }
-    setUploading(true); setError(null); setUploadSuccess(null);
+    setUploading(true); setError(null);
     try {
       for (const f of files) {
         const mimeType = f.type || 'application/octet-stream';
@@ -182,19 +196,14 @@ export default function InterventionPublicPage() {
           throw new Error(j?.message || `Enregistrement de « ${f.name} » impossible`);
         }
       }
-      await load();
-      setUploadSuccess(
-        files.length > 1
-          ? `${files.length} documents envoyés au professionnel ✓`
-          : `« ${files[0].name} » envoyé au professionnel ✓`,
-      );
-      setTimeout(() => setUploadSuccess(null), 8000);
+      await load(true); // silencieux
+      showToast(files.length > 1 ? `${files.length} documents envoyés ✓` : 'Document envoyé ✓');
     } catch (e: any) {
       setError(e?.message || 'Envoi impossible');
     } finally {
       setUploading(false);
     }
-  }, [token, load, sending]);
+  }, [token, load, sending, showToast]);
 
   useEffect(() => { load(); }, [load]);
   // Rafraîchissement périodique : voir les réponses du pro / pièces reçues par e-mail
@@ -270,6 +279,12 @@ export default function InterventionPublicPage() {
 
   return (
     <div style={page}>
+      {/* Toast de confirmation — flottant, sans rechargement, disparaît seul. */}
+      {toast && (
+        <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#256b43', color: '#fff', padding: '11px 18px', borderRadius: 999, fontSize: 14, fontWeight: 600, boxShadow: '0 8px 24px rgba(48,64,53,0.22)', display: 'inline-flex', alignItems: 'center', gap: 8, maxWidth: '92vw' }}>
+          <Ico name="checkCircle" size={17} color="#fff" /> {toast}
+        </div>
+      )}
       <div style={wrap}>
         {brand}
         <div style={card}>
@@ -349,11 +364,6 @@ export default function InterventionPublicPage() {
               <p style={{ margin: '8px 0 0', fontSize: 12, color: '#7c6c58', textAlign: 'center' }}>
                 PDF, photos, plans… (max 25 Mo / fichier). Reçu directement dans le dossier.
               </p>
-            )}
-            {uploadSuccess && (
-              <div style={{ margin: '10px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#e8f3ec', border: '1px solid #bfe0cb', color: '#256b43', borderRadius: 10, padding: '10px 12px', fontSize: 13.5, fontWeight: 600 }}>
-                <Ico name="checkCircle" size={16} color="#256b43" /> {uploadSuccess}
-              </div>
             )}
 
             {myAttachments.length > 0 && (
