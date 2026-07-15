@@ -208,7 +208,10 @@ export default function PlanningGestionPage() {
   const [showOccasionalLegend, setShowOccasionalLegend] = useState(false);
   // Modale création métier custom (19/05/2026, demande asso)
   const [showCustomTypeModal, setShowCustomTypeModal] = useState(false);
-  const [newEvent,   setNewEvent]     = useState<{ type: string; client: string; duration: number; intervenantId: string | null }>({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null });
+  // intervenantId = intervenant « principal » (= 1er de intervenantIds), gardé
+  // pour le snapshot event + le chargement des docs. intervenantIds = sélection
+  // MULTIPLE : une demande/e-mail est envoyée à CHAQUE intervenant coché.
+  const [newEvent,   setNewEvent]     = useState<{ type: string; client: string; duration: number; intervenantId: string | null; intervenantIds: string[] }>({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null, intervenantIds: [] });
   // Pieces du dossier client a joindre a la demande (optionnel) lors de l'assignation d'un intervenant.
   type PgDoc = { id: string; subfolderLabel: string; originalName: string; mimeType: string | null };
   const [pgDocs, setPgDocs] = useState<PgDoc[] | null>(null);
@@ -321,7 +324,7 @@ export default function PlanningGestionPage() {
     setModalMinute(snapToQuarter(minute));
     setCalYear(cellDate.getFullYear());
     setCalMonth(cellDate.getMonth());
-    setNewEvent({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null });
+    setNewEvent({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null, intervenantIds: [] });
     setShowAdd(true);
   };
 
@@ -335,6 +338,7 @@ export default function PlanningGestionPage() {
       client: ev.client,
       duration: ev.duration,
       intervenantId: ev.intervenantId ?? null,
+      intervenantIds: ev.intervenantId ? [ev.intervenantId] : [],
     });
     // Calcule la date réelle (jour + weekOffset)
     const eventDates = getWeekDates(ev.weekOffset ?? 0);
@@ -481,25 +485,41 @@ export default function PlanningGestionPage() {
       client: newEvent.client,
       weekOffset: diffWeeks,
       intervenantId: assignedIntervenant?.id,
-      intervenantName: assignedIntervenant?.name,
+      intervenantName: assignedIntervenant
+        ? (newEvent.intervenantIds.length > 1
+            ? `${assignedIntervenant.name} +${newEvent.intervenantIds.length - 1}`
+            : assignedIntervenant.name)
+        : undefined,
       intervenantType: assignedIntervenant?.type,
     });
     // Agenda -> e-mail automatique : si un intervenant est assigné, on crée une
     // demande, ce qui lui envoie un e-mail (avec lien d'action sans login).
-    if (assignedIntervenant?.id) {
+    // Une demande (donc un e-mail) par intervenant sélectionné.
+    const targetIds = newEvent.intervenantIds.length > 0
+      ? newEvent.intervenantIds
+      : (assignedIntervenant?.id ? [assignedIntervenant.id] : []);
+    if (targetIds.length > 0) {
       const when = new Date(modalDate + 'T00:00:00');
       when.setHours(modalHour, modalMinute, 0, 0);
-      createDemande({
-        intervenantId: assignedIntervenant.id,
-        type: planningTypeToDemandeType(newEvent.type) as any,
-        title: `${formatTypeLabel(newEvent.type)} — ${newEvent.client}`.trim(),
-        notes: pgNote.trim() || undefined,
-        scheduledFor: when.toISOString(),
-        attachments: (pgSelectedDocIds.length && pgDocs)
-          ? pgDocs.filter((d) => pgSelectedDocIds.includes(d.id)).map((d) => ({ dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined }))
-          : undefined,
-      })
-        .then(() => { setIntervSent(assignedIntervenant.name ?? 'L’intervenant'); setTimeout(() => setIntervSent(null), 6000); })
+      const atts = (pgSelectedDocIds.length && pgDocs)
+        ? pgDocs.filter((d) => pgSelectedDocIds.includes(d.id)).map((d) => ({ dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined }))
+        : undefined;
+      Promise.all(targetIds.map((id) =>
+        createDemande({
+          intervenantId: id,
+          type: planningTypeToDemandeType(newEvent.type) as any,
+          title: `${formatTypeLabel(newEvent.type)} — ${newEvent.client}`.trim(),
+          notes: pgNote.trim() || undefined,
+          scheduledFor: when.toISOString(),
+          attachments: atts,
+        }),
+      ))
+        .then(() => {
+          const label = targetIds.length > 1
+            ? `${targetIds.length} intervenants`
+            : (assignedIntervenant?.name ?? 'L’intervenant');
+          setIntervSent(label); setTimeout(() => setIntervSent(null), 6000);
+        })
         .catch(() => { setIntervSent('__error__'); setTimeout(() => setIntervSent(null), 6000); });
     }
     setWeekOffset(diffWeeks);
@@ -1416,27 +1436,40 @@ export default function PlanningGestionPage() {
                   le choix sur le terrain. Le metier est snapshote dans l'event. */}
               <div>
                 <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">
-                  Intervenant assigné <span className="text-[#304035]/40 font-normal normal-case">(optionnel)</span>
+                  Intervenant(s) assigné(s) <span className="text-[#304035]/40 font-normal normal-case">(un ou plusieurs, optionnel)</span>
+                  {newEvent.intervenantIds.length > 0 && (
+                    <span className="ml-2 text-[#a67749] font-bold normal-case">· {newEvent.intervenantIds.length} sélectionné{newEvent.intervenantIds.length > 1 ? 's' : ''}</span>
+                  )}
                 </label>
                 {intervenantsList.length === 0 ? (
                   <div className="text-[11px] text-[#304035]/45 italic rounded-xl border border-dashed border-[#304035]/20 px-3 py-2">
                     Aucun intervenant disponible. Ajoutez-en depuis <a href="/intervenants" className="underline text-[#a67749] hover:text-[#86592e]">la page Intervenants</a>.
                   </div>
                 ) : (
-                  <select
-                    value={newEvent.intervenantId ?? ''}
-                    onChange={(e) => setNewEvent(p => ({ ...p, intervenantId: e.target.value || null }))}
-                    aria-label="Choisir un intervenant"
-                    className="w-full rounded-xl border border-[#304035]/20 bg-white px-3 py-2 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#a67749]/40"
-                  >
-                    <option value="">— Aucun intervenant —</option>
-                    {intervenantsList.map((iv) => (
-                      <option key={iv.id} value={iv.id}>
-                        {iv.name || 'Sans nom'}
-                        {iv.type ? ` · ${formatTypeLabel(iv.type)}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="rounded-xl border border-[#304035]/20 bg-white p-2 flex flex-col gap-1" style={{ maxHeight: 190, overflowY: 'auto' }}>
+                    {intervenantsList.map((iv) => {
+                      const checked = newEvent.intervenantIds.includes(iv.id);
+                      return (
+                        <label key={iv.id} className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${checked ? 'bg-[#a67749]/10' : 'hover:bg-[#304035]/5'}`}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setNewEvent(p => {
+                              const ids = p.intervenantIds.includes(iv.id)
+                                ? p.intervenantIds.filter(x => x !== iv.id)
+                                : [...p.intervenantIds, iv.id];
+                              return { ...p, intervenantIds: ids, intervenantId: ids[0] ?? null };
+                            })}
+                            className="h-4 w-4 accent-[#a67749] shrink-0"
+                          />
+                          <span className="text-sm text-[#304035] truncate">
+                            {iv.name || 'Sans nom'}
+                            {iv.type ? <span className="text-[#304035]/50"> · {formatTypeLabel(iv.type)}</span> : null}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
               {/* Documents a joindre (optionnel) : visible dès qu'un intervenant est
