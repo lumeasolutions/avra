@@ -216,7 +216,6 @@ const DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'RELEVE DE MESURES' },
   { label: 'OPTION 1' },
   { label: 'OPTION 2' },
-  { label: 'DEVIS ARTISANS' },
 ];
 
 export const ARCHITECTE_DEFAULT_SUBFOLDERS: SubFolder[] = [
@@ -225,7 +224,6 @@ export const ARCHITECTE_DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'RELEVE DE MESURES' },
   { label: 'PROJET VERSION 1 – APS' },
   { label: 'PROJET VERSION 1 – APD' },
-  { label: 'DEVIS ARTISANS' },
 ];
 
 export const MENUISIER_DEFAULT_SUBFOLDERS: SubFolder[] = [
@@ -233,7 +231,6 @@ export const MENUISIER_DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
   { label: 'RELEVE DE MESURES' },
   { label: 'PROJET 1' },
-  { label: 'DEVIS ARTISANS' },
 ];
 
 /** Regex pour détecter les sous-dossiers "PROJET N" (menuisier) */
@@ -738,6 +735,31 @@ function pushDossierData(get: () => DossierState, dossierId: string): void {
       }),
     )
     .catch(() => { /* fire-and-forget */ });
+}
+
+/**
+ * Migration v2 — retire le sous-dossier « DEVIS ARTISANS » (et ses éventuels
+ * enfants imbriqués) de TOUS les dossiers existants. Il a été supprimé des
+ * templates par défaut ; cette migration nettoie les dossiers déjà créés en
+ * local (les sous-dossiers ne vivent qu'en local, cf. persistVersioning.ts).
+ */
+function stripDevisArtisansSubfolder(state: unknown): DossierState {
+  const s = (state ?? {}) as DossierState;
+  const isDevisArtisans = (label: string) => {
+    const l = (label ?? '').trim().toUpperCase();
+    return l === 'DEVIS ARTISANS' || l.startsWith('DEVIS ARTISANS ▸');
+  };
+  const clean = <T extends { subfolders?: SubFolder[] }>(list?: T[]): T[] =>
+    (list ?? []).map((d) => ({
+      ...d,
+      subfolders: (d.subfolders ?? []).filter((sf) => !isDevisArtisans(sf.label)),
+    }));
+  return {
+    ...s,
+    dossiers: clean(s.dossiers),
+    dossiersSignes: clean(s.dossiersSignes),
+    dossiersPerdus: clean(s.dossiersPerdus),
+  };
 }
 
 export const useDossierStore = create<DossierState>()(
@@ -1265,7 +1287,8 @@ export const useDossierStore = create<DossierState>()(
     {
       name: 'avra-dossier-store',
       version: STORE_VERSION,
-      migrate: preservingMigrate<DossierState>(),
+      // v2 : retrait du sous-dossier « DEVIS ARTISANS » des dossiers existants.
+      migrate: preservingMigrate<DossierState>({ 2: stripDevisArtisansSubfolder }),
     }
   )
 );

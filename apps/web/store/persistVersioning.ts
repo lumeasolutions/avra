@@ -23,7 +23,7 @@
  * Version courante des stores de données persistés.
  * ⚠️ Incrémenter à CHAQUE rupture de forme d'un store (renommage/typage/structure).
  */
-export const STORE_VERSION = 1;
+export const STORE_VERSION = 2;
 
 /**
  * Fabrique un `migrate` sûr pour un store persisté.
