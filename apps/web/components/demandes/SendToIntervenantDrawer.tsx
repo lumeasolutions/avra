@@ -716,7 +716,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                           return [...u, ...toAdd.map((d) => ({ dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined }))];
                         });
                         return (
-                          <div key={subfolder} style={{ marginLeft: indent, border: '1px solid #f0eae0', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+                          <div key={subfolder} style={{ marginLeft: indent, flexShrink: 0, border: '1px solid #f0eae0', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
                             {/* En-tête pliable du dossier */}
                             <div
                               onClick={() => setCollapsedFolders((prev) => { const n = new Set(prev); if (n.has(subfolder)) n.delete(subfolder); else n.add(subfolder); return n; })}
