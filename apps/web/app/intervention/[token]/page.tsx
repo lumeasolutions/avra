@@ -346,8 +346,8 @@ export default function InterventionPublicPage() {
             ) : (
               <>
                 <div style={{ display: 'flex', gap: 9, marginTop: 16 }}>
-                  {canAcceptRefuse && <button style={btnPrimary} disabled={busy} onClick={() => act('accept')}><Ico name="check" size={17} color="#f3ecd9" /> Accepter</button>}
-                  {canAcceptRefuse && <button style={btnOutline} disabled={busy} onClick={() => act('refuse')}><Ico name="x" size={17} color="#304035" /> Refuser</button>}
+                  {isPlanningIntervention && canAcceptRefuse && <button style={btnPrimary} disabled={busy} onClick={() => act('accept')}><Ico name="check" size={17} color="#f3ecd9" /> Accepter</button>}
+                  {isPlanningIntervention && canAcceptRefuse && <button style={btnOutline} disabled={busy} onClick={() => act('refuse')}><Ico name="x" size={17} color="#304035" /> Refuser</button>}
                   {canComplete && <button style={btnPrimary} disabled={busy} onClick={() => act('complete')}><Ico name="check" size={17} color="#f3ecd9" /> Marquer terminé</button>}
                 </div>
               </>
