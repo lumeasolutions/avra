@@ -434,11 +434,28 @@ export async function generateColoristeTextures(
       upscaled: false,
     };
   }
+  // Essai principal : /change-textures (préserve la géométrie + accepte une
+  // texture de référence). NB : cet endpoint est documenté mais peut ne pas être
+  // encore déployé (404). Dans ce cas, on retombe sur /edit-by-prompt, qui
+  // retexture par prompt en gardant le reste identique (sans image de référence).
   const res = await changeTextures(imageUrl, prompt, referenceImage);
-  if (!res.ok) {
-    return { success: false, imageUrls: [], prompt, endpoint: 'change-textures', upscaled: false, error: res.error };
+  if (res.ok) {
+    return { success: true, imageUrls: res.outputs, prompt, endpoint: 'change-textures', upscaled: false };
   }
-  return { success: true, imageUrls: res.outputs, prompt, endpoint: 'change-textures', upscaled: false };
+
+  const unavailable = /404|not found|introuvable|endpoint/i.test(res.error ?? '');
+  if (unavailable) {
+    // edit-by-prompt ne prend pas d'image de référence : on retire la phrase qui
+    // y fait référence pour ne pas dérouter le modèle.
+    const fbPrompt = prompt.replace(/Apply the exact material shown in the attached reference image[^.]*\.\s*/i, '');
+    const fb = await editByPrompt(imageUrl, fbPrompt);
+    if (fb.ok) {
+      return { success: true, imageUrls: fb.outputs, prompt: fbPrompt, endpoint: 'edit-by-prompt', upscaled: false };
+    }
+    return { success: false, imageUrls: [], prompt: fbPrompt, endpoint: 'edit-by-prompt', upscaled: false, error: fb.error };
+  }
+
+  return { success: false, imageUrls: [], prompt, endpoint: 'change-textures', upscaled: false, error: res.error };
 }
 
 /**
