@@ -1808,7 +1808,7 @@ export default function DossierDetailPage() {
                                 <SendToIntervenantButton
                                   variant="icon"
                                   style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #1a2a1e 0%, #3D5449 100%)', color: '#cbb98a', border: 'none', boxShadow: '0 2px 6px rgba(26,42,30,0.28)' }}
-                                  prefill={{ projectId: id, attachments: [{ dossierDocumentId: doc.docId, displayName: doc.name, mimeType: doc.type ?? undefined }] }}
+                                  prefill={{ projectId: id, dossierSigned: isSigned, attachments: [{ dossierDocumentId: doc.docId, displayName: doc.name, mimeType: doc.type ?? undefined }] }}
                                 />
                               )}
                               {canEditThis && (
@@ -2066,10 +2066,13 @@ export default function DossierDetailPage() {
         />
       )}
 
-      {/* Drawer d'envoi d'un sous-dossier (ouvert après préparation des pièces). */}
+      {/* Drawer d'envoi d'un sous-dossier (ouvert après préparation des pièces).
+          dossierSigned transmis pour n'afficher que les 4 types « dossier »
+          (Devis / Compte rendu / Confirmation / Envoi document), comme l'envoi
+          du dossier entier — pas la liste complète des types d'intervention. */}
       <SendToIntervenantDrawer
         open={!!sendFolderAtts}
-        prefill={{ projectId: id, attachments: sendFolderAtts ?? [] }}
+        prefill={{ projectId: id, dossierSigned: isSigned, attachments: sendFolderAtts ?? [] }}
         onClose={() => setSendFolderAtts(null)}
       />
 
