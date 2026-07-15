@@ -178,7 +178,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
     // « Dossier - Documents Intervenants » (jamais proposées au partage).
     const base = projectDocs.filter((d) => {
       const low = (d.subfolderLabel || '').trim().toLowerCase();
-      return low !== "reçu de l'intervenant" && !low.includes('documents intervenants');
+      return !((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant'));
     });
     if (!restrictSubfolder) return base;
     return base.filter((d) => {

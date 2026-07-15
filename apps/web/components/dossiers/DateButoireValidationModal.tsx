@@ -523,7 +523,7 @@ export function DateButoireValidationModal({
     return groups.filter((g) => {
       if (g.docs.length === 0) return false;
       const low = g.label.trim().toLowerCase();
-      if (low === "reçu de l'intervenant" || low.includes('documents intervenants')) return false;
+      if ((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant')) return false;
       return true;
     });
   }, [subfolders, profession, validatedSubfolderLabels]);

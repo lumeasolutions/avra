@@ -587,7 +587,7 @@ function ClassifyModal({ att, projectId, onClose, onDone }: {
     const labels = ((d?.subfolders ?? []) as any[]).map((sf) => sf?.label).filter(Boolean) as string[];
     const clean = labels.filter((l) => {
       const low = l.trim().toLowerCase();
-      return low !== "reçu de l'intervenant" && !low.includes('documents intervenants');
+      return !((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant'));
     });
     return Array.from(new Set(clean)).sort((a, b) => {
       const da = a.split(' ▸ ').length, db = b.split(' ▸ ').length;

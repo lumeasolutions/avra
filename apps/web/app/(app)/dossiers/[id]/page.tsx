@@ -407,8 +407,13 @@ export default function DossierDetailPage() {
   };
   // Progression reelle : ratio de sous-dossiers valides sur le total.
   // PROGRESS_MAP servait de fallback simule quand il n'y avait pas encore de validations.
-  const totalSubs = dossier.subfolders.length;
-  const validatedSubs = dossier.subfolders.filter(sf => sf.validated).length;
+  // Exclut les boîtes système (« Reçu / Documents intervenants ») du calcul.
+  const progressSubs = dossier.subfolders.filter((sf) => {
+    const low = sf.label.trim().toLowerCase();
+    return !((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant'));
+  });
+  const totalSubs = progressSubs.length;
+  const validatedSubs = progressSubs.filter(sf => sf.validated).length;
   const progress = totalSubs === 0
     ? (PROGRESS_MAP[dossier.status] ?? 0)
     : Math.round((validatedSubs / totalSubs) * 100);
@@ -902,7 +907,7 @@ export default function DossierDetailPage() {
                 return ordered.filter((it) => {
                   if (it.sf.label.includes(SEP)) return false;
                   const low = it.sf.label.trim().toLowerCase();
-                  if (low === "reçu de l'intervenant" || low.includes('documents intervenants')) return false;
+                  if ((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant')) return false;
                   return true;
                 });
               })().map(({ sf, depth }, i) => {
@@ -2287,7 +2292,12 @@ export default function DossierDetailPage() {
       )}
       {showDashboard && !isSigned && (() => {
         // Calculs : progression + listes valide / en attente
-        const allSubs = dossier.subfolders;
+        // Masque les boîtes système « Reçu de l'intervenant » / « Documents
+        // Intervenants » du tableau de bord (comme dans la liste des dossiers).
+        const allSubs = dossier.subfolders.filter((sf) => {
+          const low = sf.label.trim().toLowerCase();
+          return !((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant'));
+        });
         const totalSubs = allSubs.length;
         const validatedSubs = allSubs.filter(sf => sf.validated);
         const pendingSubs = allSubs.filter(sf => !sf.validated);

@@ -41,7 +41,12 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
   const NEST = ' ▸ ';
   // Regroupement au niveau PARENT : un sous-dossier imbriqué (ex. "X ▸ Y") est
   // compté dans son parent, jamais affiché comme une entrée séparée.
-  const topSubfolders = subfolders.filter((sf) => !sf.label.includes(NEST));
+  const topSubfolders = subfolders.filter((sf) => {
+    if (sf.label.includes(NEST)) return false;
+    // Masque les boîtes système « Reçu / Documents intervenants ».
+    const low = sf.label.trim().toLowerCase();
+    return !((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant'));
+  });
   const folderDocCount = (label: string) =>
     subfolders.reduce(
       (sum, sf) =>
