@@ -749,16 +749,13 @@ function stripDevisArtisansSubfolder(state: unknown): DossierState {
     const l = (label ?? '').trim().toUpperCase();
     return l === 'DEVIS ARTISANS' || l.startsWith('DEVIS ARTISANS ▸');
   };
-  const clean = <T extends { subfolders?: SubFolder[] }>(list?: T[]): T[] =>
-    (list ?? []).map((d) => ({
-      ...d,
-      subfolders: (d.subfolders ?? []).filter((sf) => !isDevisArtisans(sf.label)),
-    }));
+  const cleanSubs = (subs?: SubFolder[]): SubFolder[] =>
+    (subs ?? []).filter((sf) => !isDevisArtisans(sf.label));
   return {
     ...s,
-    dossiers: clean(s.dossiers),
-    dossiersSignes: clean(s.dossiersSignes),
-    dossiersPerdus: clean(s.dossiersPerdus),
+    dossiers: (s.dossiers ?? []).map((d) => ({ ...d, subfolders: cleanSubs(d.subfolders) })),
+    dossiersSignes: (s.dossiersSignes ?? []).map((d) => ({ ...d, subfolders: cleanSubs(d.subfolders) })),
+    dossiersPerdus: (s.dossiersPerdus ?? []).map((d) => ({ ...d, subfolders: cleanSubs(d.subfolders) })),
   };
 }
 
