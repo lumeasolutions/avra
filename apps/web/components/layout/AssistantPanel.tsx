@@ -1,19 +1,48 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Image from 'next/image';
-import { X, Send, AlertTriangle, XCircle, Clock, Info, ChevronDown, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { X, Send, AlertTriangle, XCircle, Clock, Info, ChevronDown, Mic, MicOff, Volume2, VolumeX, MessageSquare } from 'lucide-react';
 import { useDossierStore, useFacturationStore, useUIStore, useConfigStore, useIntervenantStore } from '@/store';
 import { useAssistantStore } from '@/store/useAssistantStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { createQuote, quoteToDevis, type QuoteLineApi } from '@/lib/quotes-api';
 import { createInvoice, invoiceApiToBase, invoiceApiToDetail } from '@/lib/invoices-api';
-import { createDemande } from '@/lib/demandes-api';
+import { createDemande, listDemandesPro, type Demande } from '@/lib/demandes-api';
 import { api } from '@/lib/api';
 import { MicPermissionHelpModal } from './MicPermissionHelpModal';
 import Link from 'next/link';
 import { isRetardAlert, isUrgentAlert } from '@/lib/alertClassify';
+
+// ── Messagerie intervenants : suivi « vu » ────────────────────────────────────
+// MÊME clé localStorage que la page /messages-intervenants → non-lus synchronisés
+// entre l'assistant et la page. Non-lu = seen[demandeId] !== demande.updatedAt.
+const AP_MSG_SEEN_KEY = 'avra-msg-seen';
+function apLoadSeen(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try { return JSON.parse(localStorage.getItem(AP_MSG_SEEN_KEY) || '{}'); } catch { return {}; }
+}
+function apSaveSeen(v: Record<string, string>) {
+  try { localStorage.setItem(AP_MSG_SEEN_KEY, JSON.stringify(v)); } catch { /* noop */ }
+}
+function intervenantLabel(d: Demande): string {
+  const iv = d.intervenant;
+  if (!iv) return 'Intervenant';
+  return iv.companyName || [iv.firstName, iv.lastName].filter(Boolean).join(' ') || 'Intervenant';
+}
+function relTime(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return '';
+  const diff = Date.now() - t;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "à l'instant";
+  if (m < 60) return `il y a ${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `il y a ${h} h`;
+  const j = Math.floor(h / 24);
+  return `il y a ${j} j`;
+}
 
 // ── Rendu Markdown léger ──────────────────────────────────────────────────────
 
@@ -137,9 +166,41 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
   const dossiersSignes = useDossierStore(s => s.dossiersSignes);
   const invoices      = useFacturationStore(s => s.invoices);
 
-  const [tab, setTab] = useState<'alerts'|'chat'>('alerts');
+  const [tab, setTab] = useState<'alerts'|'chat'|'messages'>('alerts');
   // Filtre des alertes par catégorie (clic sur une carte KPI). 'all' = défaut.
   const [alertFilter, setAlertFilter] = useState<'all'|'urgent'|'retard'|'encours'>('all');
+
+  // ── Messagerie intervenants : données + non-lus (polling léger) ──────────────
+  const [msgDemandes, setMsgDemandes] = useState<Demande[]>([]);
+  const [msgSeenTick, setMsgSeenTick] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const page = await listDemandesPro({ pageSize: 100 });
+        if (!alive) return;
+        const list = (page.data ?? []).filter((d) => d.intervenantId);
+        // Premier passage (seen vide) : on marque tout comme lu pour ne pas
+        // tout afficher en non-lu (aligné sur /messages-intervenants).
+        const seen = apLoadSeen();
+        if (Object.keys(seen).length === 0 && list.length > 0) {
+          const init: Record<string, string> = {};
+          list.forEach((d) => { init[d.id] = d.updatedAt; });
+          apSaveSeen(init);
+        }
+        setMsgDemandes(list);
+      } catch { /* silencieux — pas de clé/API : on n'affiche rien */ }
+    };
+    load();
+    const iv = setInterval(load, 45000);
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
+
+  const unreadMsgCount = useMemo(() => {
+    void msgSeenTick;
+    const seen = apLoadSeen();
+    return msgDemandes.filter((d) => seen[d.id] !== d.updatedAt).length;
+  }, [msgDemandes, msgSeenTick]);
   const activeAlerts  = alerts.filter(a => !a.dismissed);
   // Classifieurs URGENT/RETARD importés depuis @/lib/alertClassify — SOURCE DE
   // VÉRITÉ UNIQUE, partagée avec les badges « ! » sur les dossiers.
@@ -258,23 +319,39 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
           </div>
         </div>
 
-        {/* ── TABS ── */}
-        <div className="flex flex-shrink-0" style={{ background: '#F5F2EE', padding: '0 12px', gap: 4 }}>
-          {(['alerts','chat'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{
+        {/* ── TABS : Chat IA pleine largeur en haut ; Alertes | Messagerie dessous ── */}
+        <div className="flex flex-col flex-shrink-0" style={{ background: '#F5F2EE', padding: '0 12px' }}>
+          <button onClick={() => setTab('chat')} style={{
+            width: '100%', padding: '10px 0', fontSize: 11, fontWeight: 700,
+            border: 'none', background: 'transparent', cursor: 'pointer',
+            color: tab === 'chat' ? '#3D5449' : '#A8A29E',
+            borderBottom: tab === 'chat' ? '2.5px solid #4A6358' : '2.5px solid transparent',
+            transition: 'all 0.2s', letterSpacing: '0.04em',
+          }}>Chat IA</button>
+          <div className="flex" style={{ gap: 4 }}>
+            <button onClick={() => setTab('alerts')} style={{
               flex: 1, padding: '10px 0', fontSize: 11, fontWeight: 700,
               border: 'none', background: 'transparent', cursor: 'pointer',
-              color: tab === t ? '#3D5449' : '#A8A29E',
-              borderBottom: tab === t ? '2.5px solid #4A6358' : '2.5px solid transparent',
+              color: tab === 'alerts' ? '#3D5449' : '#A8A29E',
+              borderBottom: tab === 'alerts' ? '2.5px solid #4A6358' : '2.5px solid transparent',
               transition: 'all 0.2s', letterSpacing: '0.04em',
             }}>
-              {t === 'alerts' ? (
-                <span>Alertes{activeAlerts.length > 0 &&
-                  <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', background:'#C0392B', color:'white', fontSize:9, fontWeight:800, width:16, height:16, borderRadius:'50%', marginLeft:5, verticalAlign:'middle' }}>{activeAlerts.length}</span>
-                }</span>
-              ) : 'Chat IA'}
+              <span>Alertes{activeAlerts.length > 0 &&
+                <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', background:'#C0392B', color:'white', fontSize:9, fontWeight:800, width:16, height:16, borderRadius:'50%', marginLeft:5, verticalAlign:'middle' }}>{activeAlerts.length}</span>
+              }</span>
             </button>
-          ))}
+            <button onClick={() => setTab('messages')} style={{
+              flex: 1, padding: '10px 0', fontSize: 11, fontWeight: 700,
+              border: 'none', background: 'transparent', cursor: 'pointer',
+              color: tab === 'messages' ? '#3D5449' : '#A8A29E',
+              borderBottom: tab === 'messages' ? '2.5px solid #4A6358' : '2.5px solid transparent',
+              transition: 'all 0.2s', letterSpacing: '0.04em',
+            }}>
+              <span>Messagerie{unreadMsgCount > 0 &&
+                <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', background:'#C0392B', color:'white', fontSize:9, fontWeight:800, width:16, height:16, borderRadius:'50%', marginLeft:5, verticalAlign:'middle' }}>{unreadMsgCount}</span>
+              }</span>
+            </button>
+          </div>
         </div>
 
         {/* ── VUE ALERTES ── */}
@@ -402,8 +479,77 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
 
         {/* ── VUE CHAT ── */}
         {tab === 'chat' && <ChatView owlB64={OWL_B64}/>}
+
+        {/* ── VUE MESSAGERIE INTERVENANTS ── */}
+        {tab === 'messages' && <MessagesView demandes={msgDemandes} onSeen={() => setMsgSeenTick(t => t + 1)} />}
       </div>
     </>
+  );
+}
+
+// ── Vue « Messagerie » : conversations avec les intervenants + non-lus ─────────
+function MessagesView({ demandes, onSeen }: { demandes: Demande[]; onSeen: () => void }) {
+  const seen = apLoadSeen();
+  const sorted = [...demandes].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
+  const markSeen = (d: Demande) => {
+    const s = apLoadSeen();
+    s[d.id] = d.updatedAt;
+    apSaveSeen(s);
+    onSeen();
+  };
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden" style={{ position: 'relative' }}>
+      <div className="ap-scroll flex-1 overflow-y-auto" style={{ padding: '10px 12px 8px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {sorted.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '28px 12px', color: '#9A9590', fontWeight: 600, fontSize: 13 }}>
+            Aucun échange avec un intervenant pour l’instant.
+          </div>
+        ) : sorted.map((d) => {
+          const unread = seen[d.id] !== d.updatedAt;
+          return (
+            <Link
+              key={d.id}
+              href="/messages-intervenants"
+              onClick={() => markSeen(d)}
+              className="ap-card"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none',
+                background: 'white', borderRadius: 14, padding: '10px 11px',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.07)', color: 'inherit',
+                border: unread ? '1.5px solid #a67749' : '1.5px solid transparent',
+              }}
+            >
+              <div style={{ position: 'relative', width: 34, height: 34, borderRadius: 11, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: unread ? '#f3e9dc' : '#F1EFEA' }}>
+                <MessageSquare className="h-4 w-4" style={{ color: unread ? '#a67749' : '#9A9590' }} />
+                {unread && <span style={{ position: 'absolute', top: -3, right: -3, width: 10, height: 10, borderRadius: '50%', background: '#C0392B', border: '2px solid white' }} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: unread ? 800 : 700, color: '#1a2a1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {intervenantLabel(d)}
+                  </span>
+                  <span style={{ fontSize: 9.5, color: '#B0AB9F', flexShrink: 0 }}>{relTime(d.updatedAt)}</span>
+                </div>
+                <div style={{ fontSize: 11, color: unread ? '#3D3328' : '#9A9590', fontWeight: unread ? 600 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {d.project?.name ? `${d.project.name} · ` : ''}{d.title}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+      <div style={{ padding: '8px 12px 12px', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+        <Link href="/messages-intervenants" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          textDecoration: 'none', background: '#4A6358', color: 'white',
+          borderRadius: 12, padding: '10px', fontSize: 12, fontWeight: 700,
+        }}>
+          <MessageSquare className="h-4 w-4" /> Ouvrir la messagerie
+        </Link>
+      </div>
+    </div>
   );
 }
 
