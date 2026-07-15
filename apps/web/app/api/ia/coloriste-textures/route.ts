@@ -111,8 +111,18 @@ export async function POST(req: NextRequest) {
   // officiel MyArchitectAI « Editing best practices » (« Replace the [surface]
   // material with … keep everything else unchanged »). /change-textures préserve
   // déjà la géométrie : pas besoin des lourdes contraintes anti-déformation.
+  // Surface cible de la texture importée (le prompt dit au moteur OÙ l'appliquer).
+  const REF_TARGET_PHRASES: Record<string, string> = {
+    facades: 'the kitchen cabinet fronts (doors and drawer fronts)',
+    plan: 'the countertop / worktop surface',
+    poignees: 'the cabinet door handles and knobs',
+    sol: 'the floor',
+    credence: 'the backsplash',
+  };
+  const refTarget = str(body.referenceTarget) ?? 'facades';
+  const refPhrase = REF_TARGET_PHRASES[refTarget] ?? REF_TARGET_PHRASES.facades;
   const prompt = referenceImageDataUrl
-    ? `${buildTextureEditPrompt(params)} Use the material shown in the attached reference image for the cabinet fronts.`
+    ? `${buildTextureEditPrompt(params)} Apply the exact material shown in the attached reference image to ${refPhrase}; keep all other surfaces as described above.`
     : buildTextureEditPrompt(params);
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;

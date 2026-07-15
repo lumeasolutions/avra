@@ -316,7 +316,7 @@ async function callColoristeTexturesAPI(params: {
   facadeFinish: FinishType; lightingStyle: LightingType;
   poigneeFinish?: FinishType; planFinish?: FinishType;
   handleMaterial?: string; countertopMaterial?: string;
-  sourceImageDataUrl: string; referenceImageDataUrl?: string; projectId?: string | null;
+  sourceImageDataUrl: string; referenceImageDataUrl?: string; referenceTarget?: string; projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste-textures', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params),
@@ -1181,6 +1181,8 @@ export default function IaStudioPage() {
   // Échantillon de matière importé (optionnel) : la texture réelle appliquée.
   const [colorTexRefFile, setColorTexRefFile] = useState<File|null>(null);
   const colorTexRefURL = useMemo(() => (colorTexRefFile ? URL.createObjectURL(colorTexRefFile) : null), [colorTexRefFile]);
+  // Surface à laquelle appliquer la texture importée.
+  const [colorTexRefTarget, setColorTexRefTarget] = useState<'facades'|'plan'|'poignees'|'sol'|'credence'>('facades');
 
   /* ── RENDU — état */
   // Image de référence (plan WinnerFlex, photo d'inspiration, sketch).
@@ -1603,6 +1605,7 @@ export default function IaStudioPage() {
         lightingStyle:      colorLight,
         sourceImageDataUrl,
         referenceImageDataUrl,
+        referenceTarget:    referenceImageDataUrl ? colorTexRefTarget : undefined,
         projectId:          dossierId || null,
       });
       if (result.error) { setColorTexError(result.error); setColorTexLoading(false); return; }
@@ -3439,6 +3442,22 @@ export default function IaStudioPage() {
                         className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm">
                         <X className="h-3.5 w-3.5" />
                       </button>
+                    </div>
+                  )}
+                  {colorTexRefFile && (
+                    <div className="mt-3">
+                      <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-wide mb-1.5">Appliquer cette texture à</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([['facades','Façades'],['plan','Plan de travail'],['poignees','Poignées'],['sol','Sol'],['credence','Crédence']] as const).map(([val,label]) => {
+                          const on = colorTexRefTarget === val;
+                          return (
+                            <button key={val} type="button" onClick={() => setColorTexRefTarget(val)}
+                              className={`text-[11px] font-semibold rounded-full px-2.5 py-1 border transition-colors ${on ? 'bg-[#2f9e8f] text-white border-[#2f9e8f]' : 'bg-white text-[#304035]/70 border-[#304035]/15 hover:border-[#2f9e8f]/40'}`}>
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
