@@ -52,6 +52,21 @@ export function clearAllAppStoresHard() {
 
 export type Profession = 'architecte' | 'menuisier' | 'cuisiniste' | null;
 
+/**
+ * Comptes « multi-métier » : ils peuvent accéder à TOUS les portails/modules et
+ * changer de métier librement (le verrou one-time du portail ne s'applique pas).
+ * Utilisé pour les comptes fondateurs (démo/gestion), pas pour les clients.
+ */
+const MULTI_METIER_EMAILS = [
+  'lumeasolutionsss@outlook.fr', // Lumea Solutions — Esteve
+  'cgdesignplan@gmail.com',      // CGDesign — Cassandra
+];
+
+export function isMultiMetierEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return MULTI_METIER_EMAILS.includes(email.trim().toLowerCase());
+}
+
 interface User {
   id: string;
   email: string;
@@ -96,9 +111,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setProfession: (p) => {
-        // Le portail est définitif — on ne peut le changer qu'une seule fois (à l'inscription)
+        // Le portail est définitif — on ne peut le changer qu'une seule fois (à
+        // l'inscription). EXCEPTION : les comptes multi-métier (fondateurs)
+        // peuvent en changer librement pour accéder à tous les modules.
         const current = get().profession;
-        if (current && p !== null) return; // Déjà défini, on bloque
+        const multi = isMultiMetierEmail(get().user?.email);
+        if (current && p !== null && !multi) return; // Déjà défini, on bloque (sauf multi-métier)
         set({ profession: p });
       },
 
@@ -106,7 +124,9 @@ export const useAuthStore = create<AuthState>()(
       // F19: neutralisé en production pour ne pas pouvoir contourner le verrou
       // de portail (one-time) une fois en prod/GA.
       _devForceProfession: (p) => {
-        if (process.env.NODE_ENV === 'production') return;
+        // En prod, le switch reste neutralisé SAUF pour les comptes multi-métier
+        // (fondateurs) autorisés à basculer entre tous les portails.
+        if (process.env.NODE_ENV === 'production' && !isMultiMetierEmail(get().user?.email)) return;
         set({ profession: p });
       },
 

@@ -115,6 +115,16 @@ prisma/schema.prisma              — Schéma DB (Waitlist, DemoRequest, User...
 - `lumeasolutionsss@outlook.fr` — Esteve Boucheret
 - `cgdesignplan@gmail.com` — Cassandra Gouna
 
+### Comptes « multi-métier » (accès à tous les portails)
+
+Ces deux comptes fondateurs peuvent changer de métier librement (le verrou
+one-time du portail ne s'applique pas) et accéder à TOUS les modules
+(cuisiniste / menuisier / architecte). Whitelist : `MULTI_METIER_EMAILS` dans
+`apps/web/store/useAuthStore.ts` + helper `isMultiMetierEmail()`. Branché dans :
+`setProfession` (déblocage du verrou), `_devForceProfession` (actif en prod pour
+eux), et `usePortailGuard` (pas de redirection). Le switch se fait via Paramètres
+→ « Changer de portail ». Pour un client normal, le verrou reste actif.
+
 ## Règles de travail
 
 - Français dans les échanges, code en anglais
