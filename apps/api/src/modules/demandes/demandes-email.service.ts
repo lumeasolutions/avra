@@ -117,6 +117,17 @@ export class DemandesEmailService {
       ? `<p style="margin:12px 0;color:#1a2a1e"><strong>Dossier :</strong> ${escapeHtml(params.projectName)}</p>`
       : '';
 
+    // Accepter / Refuser uniquement pour les demandes Planning Gestion
+    // (intervention à planifier : POSE / LIVRAISON / SAV / MESURE). Pour les
+    // autres (devis, envoi de documents, compte rendu…), seul « Voir & répondre »
+    // est proposé — l'intervenant n'a pas à accepter/refuser un simple envoi.
+    const isPlanning = ['POSE', 'LIVRAISON', 'SAV', 'MESURE'].includes((params.type || '').toUpperCase());
+    const acceptRefuseBtns = isPlanning
+      ? `<a href="${base}?do=accept" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;margin:0 8px 8px 0">Accepter</a>
+            <a href="${base}?do=refuse" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;margin:0 8px 8px 0">Refuser</a>
+            `
+      : '';
+
     const html = baseLayout({
       title: 'Nouvelle demande',
       preheader: `${params.proName} vous a envoye une demande : ${params.title}`,
@@ -135,11 +146,9 @@ export class DemandesEmailService {
         ${notesStr}
         ${params.publicToken ? `
           <div style="margin:18px 0">
-            <a href="${base}?do=accept" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;margin:0 8px 8px 0">Accepter</a>
-            <a href="${base}?do=refuse" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;margin:0 8px 8px 0">Refuser</a>
-            <a href="${base}" style="display:inline-block;background:#1a2a1e;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;margin:0 8px 8px 0">Voir &amp; répondre</a>
+            ${acceptRefuseBtns}<a href="${base}" style="display:inline-block;background:#1a2a1e;color:#fff;text-decoration:none;font-weight:700;padding:11px 20px;border-radius:10px;margin:0 8px 8px 0">Voir &amp; répondre</a>
           </div>
-          <p style="font-size:12px;color:#7c6c58;margin-top:8px">Aucun compte n'est nécessaire : cliquez simplement sur un bouton ci-dessus.</p>
+          <p style="font-size:12px;color:#7c6c58;margin-top:8px">Aucun compte n'est nécessaire : cliquez sur le bouton ci-dessus.</p>
         ` : ctaButton(link, cta)}
       `,
     });
