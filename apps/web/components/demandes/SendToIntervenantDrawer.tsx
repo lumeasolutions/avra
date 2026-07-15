@@ -122,6 +122,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
           { type: 'DEVIS', label: DEMANDE_TYPE_LABELS.DEVIS },
           { type: 'AUTRE', label: 'Compte rendu chantier', titlePrefix: 'Compte rendu chantier — ' },
           { type: 'CONFIRMATION_COMMANDE', label: DEMANDE_TYPE_LABELS.CONFIRMATION_COMMANDE },
+          { type: 'COMPLEMENT', label: 'Envoi document', titlePrefix: 'Envoi document — ' },
         ]
       : TYPE_OPTIONS.map((t) => ({ type: t, label: DEMANDE_TYPE_LABELS[t] }));
   const [title, setTitle] = useState(prefill?.title ?? '');
