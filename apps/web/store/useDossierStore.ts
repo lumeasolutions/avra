@@ -751,11 +751,12 @@ function stripDevisArtisansSubfolder(state: unknown): DossierState {
   };
   const cleanSubs = (subs?: SubFolder[]): SubFolder[] =>
     (subs ?? []).filter((sf) => !isDevisArtisans(sf.label));
+  // NB : DossierPerdu n'a pas de sous-dossiers (id/name/reason/lostDate) — rien à
+  // nettoyer, et il n'a jamais contenu « DEVIS ARTISANS ».
   return {
     ...s,
     dossiers: (s.dossiers ?? []).map((d) => ({ ...d, subfolders: cleanSubs(d.subfolders) })),
     dossiersSignes: (s.dossiersSignes ?? []).map((d) => ({ ...d, subfolders: cleanSubs(d.subfolders) })),
-    dossiersPerdus: (s.dossiersPerdus ?? []).map((d) => ({ ...d, subfolders: cleanSubs(d.subfolders) })),
   };
 }
 
