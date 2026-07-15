@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import {
@@ -316,7 +316,7 @@ async function callColoristeTexturesAPI(params: {
   facadeFinish: FinishType; lightingStyle: LightingType;
   poigneeFinish?: FinishType; planFinish?: FinishType;
   handleMaterial?: string; countertopMaterial?: string;
-  sourceImageDataUrl: string; projectId?: string | null;
+  sourceImageDataUrl: string; referenceImageDataUrl?: string; projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste-textures', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params),
@@ -1178,6 +1178,9 @@ export default function IaStudioPage() {
   const [colorTexLoading, setColorTexLoading] = useState(false);
   const [colorTexResult,  setColorTexResult]  = useState<Item|null>(null);
   const [colorTexError,   setColorTexError]   = useState<string|null>(null);
+  // Échantillon de matière importé (optionnel) : la texture réelle appliquée.
+  const [colorTexRefFile, setColorTexRefFile] = useState<File|null>(null);
+  const colorTexRefURL = useMemo(() => (colorTexRefFile ? URL.createObjectURL(colorTexRefFile) : null), [colorTexRefFile]);
 
   /* ── RENDU — état */
   // Image de référence (plan WinnerFlex, photo d'inspiration, sketch).
@@ -1582,6 +1585,12 @@ export default function IaStudioPage() {
       let sourceImageDataUrl: string;
       try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280); }
       catch { setColorTexError('Impossible de lire la photo. Réessayez avec un autre fichier.'); setColorTexLoading(false); return; }
+      // Échantillon de matière (optionnel) — non bloquant si illisible.
+      let referenceImageDataUrl: string | undefined;
+      if (colorTexRefFile) {
+        try { referenceImageDataUrl = await compressImageToDataUrl(colorTexRefFile, 1024); }
+        catch { referenceImageDataUrl = undefined; }
+      }
       const result = await callColoristeTexturesAPI({
         facadeHex:          preset?.facade   ?? facadeCol,
         poigneeHex:         preset?.poignee  ?? poigneeCol,
@@ -1593,6 +1602,7 @@ export default function IaStudioPage() {
         countertopMaterial: preset?.countertopMaterial,
         lightingStyle:      colorLight,
         sourceImageDataUrl,
+        referenceImageDataUrl,
         projectId:          dossierId || null,
       });
       if (result.error) { setColorTexError(result.error); setColorTexLoading(false); return; }
@@ -3413,6 +3423,25 @@ export default function IaStudioPage() {
                     </button>
                   </div>
                 )}
+
+                {/* Échantillon de matière (optionnel) — /change-textures applique la matière réelle importée. */}
+                <div className="mt-4">
+                  <p className="text-[11px] font-bold text-[#304035]/60 mb-1.5 uppercase tracking-wide">
+                    Échantillon de matière <span className="normal-case font-normal text-[#304035]/40">(optionnel)</span>
+                  </p>
+                  <Drop label="" sub="Importer une texture (bois, pierre, tissu…)"
+                    onFile={setColorTexRefFile} file={colorTexRefFile} accent="#2f9e8f"
+                    tips={['Photo nette de la matière voulue', 'Haute résolution = meilleur rendu']} />
+                  {colorTexRefFile && colorTexRefURL && (
+                    <div className="mt-3 relative rounded-xl overflow-hidden">
+                      <Image src={colorTexRefURL} alt="Texture" width={500} height={120} loading="lazy" className="w-full max-h-32 object-cover" />
+                      <button onClick={() => setColorTexRefFile(null)}
+                        className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Aperçu résultat */}

@@ -414,12 +414,16 @@ export function changeTextures(
  * layout d'origine (le vrai coloriste, contrairement à generateColoristeRender
  * qui re-rend toute la pièce). En mode mock (clé absente) : renvoie l'image source.
  *
- * @param prompt   Prompt coloriste (construit côté route)
- * @param imageUrl URL https publique de la photo de cuisine source
+ * @param prompt         Prompt coloriste (construit côté route)
+ * @param imageUrl       URL https publique de la photo de cuisine source
+ * @param referenceImage URL https publique d'un échantillon de matière importé
+ *                       (optionnel). Quand présent, /change-textures applique
+ *                       CETTE matière réelle plutôt qu'une couleur décrite.
  */
 export async function generateColoristeTextures(
   prompt: string,
   imageUrl: string,
+  referenceImage?: string,
 ): Promise<ArchitectResult> {
   if (!isArchitectEnabled()) {
     return {
@@ -430,7 +434,7 @@ export async function generateColoristeTextures(
       upscaled: false,
     };
   }
-  const res = await changeTextures(imageUrl, prompt);
+  const res = await changeTextures(imageUrl, prompt, referenceImage);
   if (!res.ok) {
     return { success: false, imageUrls: [], prompt, endpoint: 'change-textures', upscaled: false, error: res.error };
   }

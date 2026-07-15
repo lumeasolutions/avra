@@ -87,6 +87,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Échantillon de matière importé (optionnel) : /change-textures appliquera
+  // CETTE matière réelle au lieu (ou en plus) d'une couleur décrite.
+  const referenceImageDataUrl =
+    typeof body.referenceImageDataUrl === 'string' && body.referenceImageDataUrl.startsWith('data:')
+      ? body.referenceImageDataUrl
+      : null;
+
   const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
   const params: ColoristParams = {
     facadeHex: String(facadeHex),
@@ -104,7 +111,9 @@ export async function POST(req: NextRequest) {
   // officiel MyArchitectAI « Editing best practices » (« Replace the [surface]
   // material with … keep everything else unchanged »). /change-textures préserve
   // déjà la géométrie : pas besoin des lourdes contraintes anti-déformation.
-  const prompt = buildTextureEditPrompt(params);
+  const prompt = referenceImageDataUrl
+    ? `${buildTextureEditPrompt(params)} Use the material shown in the attached reference image for the cabinet fronts.`
+    : buildTextureEditPrompt(params);
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 
@@ -170,8 +179,24 @@ export async function POST(req: NextRequest) {
       return fail(502, 'Impossible de préparer la photo source. Réessayez dans un instant.');
     }
 
+    // ── 5b) Upload de l'échantillon de matière (optionnel) → URL signée
+    let referenceSignedUrl: string | undefined;
+    if (referenceImageDataUrl) {
+      try {
+        const { buffer, contentType } = dataUrlToBuffer(referenceImageDataUrl);
+        const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+        const refPath = `${workspaceId}/${job.id}/reference.${ext}`;
+        await uploadToIaRenders(refPath, buffer, contentType);
+        referenceSignedUrl = await createIaRendersSignedUrl(refPath);
+      } catch (refErr) {
+        // Non bloquant : si l'échantillon échoue, on colorise quand même par prompt.
+        console.warn('[API /ia/coloriste-textures] upload référence échec:',
+          refErr instanceof Error ? refErr.message : refErr);
+      }
+    }
+
     // ── 6) Colorisation MyArchitectAI /change-textures
-    const result = await generateColoristeTextures(prompt, sourceSignedUrl);
+    const result = await generateColoristeTextures(prompt, sourceSignedUrl, referenceSignedUrl);
     if (!result.success || result.imageUrls.length === 0) {
       const err = (result.error ?? '').toLowerCase();
       const status = err.includes('délai') || err.includes('aucune image') ? 504 : 502;
