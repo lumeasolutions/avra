@@ -448,17 +448,14 @@ export async function generateColoristeTextures(
     .replace(/Only change the area inside the provided mask[^.]*\.\s*/i, '');
 
   if (mask) {
-    // Fidélité de la texture : /change-textures a tendance à « s'inspirer » de
-    // l'échantillon plutôt qu'à le reproduire. On décrit donc la matière EN MOTS
-    // (auto-prompt sur l'échantillon) et on l'injecte → le moteur a l'image ET le
-    // texte, et reproduit fidèlement au lieu d'inventer un motif.
-    let texPrompt = prompt;
-    if (referenceImage) {
-      const refDesc = await autoPrompt(referenceImage);
-      if (refDesc) {
-        texPrompt = `${prompt} The reference material is: ${refDesc}. Reproduce this exact material — its colours, pattern and finish — faithfully; do not invent a different pattern or different colours.`;
-      }
-    }
+    // IMPORTANT : quand une TEXTURE de référence est fournie, c'est ELLE qui doit
+    // piloter la matière. /change-textures génère à partir du `prompt` quand il est
+    // détaillé → un prompt bavard fait INVENTER une texture au lieu de copier la
+    // référence. On envoie donc un prompt MINIMAL (voire vide) pour que le moteur
+    // s'appuie sur `referenceImage`. Sans référence : on garde le prompt couleurs.
+    const texPrompt = referenceImage
+      ? 'Apply the material and texture from the reference image to the masked area; keep everything outside the mask unchanged.'
+      : prompt;
     const res = await changeTextures(imageUrl, texPrompt, referenceImage, mask);
     if (res.ok) {
       return { success: true, imageUrls: res.outputs, prompt: texPrompt, endpoint: 'change-textures', upscaled: false };
