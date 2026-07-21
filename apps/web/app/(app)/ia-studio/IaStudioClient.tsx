@@ -317,7 +317,7 @@ async function callColoristeTexturesAPI(params: {
   facadeFinish: FinishType; lightingStyle: LightingType;
   poigneeFinish?: FinishType; planFinish?: FinishType;
   handleMaterial?: string; countertopMaterial?: string;
-  sourceImageDataUrl: string; referenceImageDataUrl?: string; referenceTarget?: string; maskDataUrl?: string; projectId?: string | null;
+  sourceImageDataUrl: string; referenceImageDataUrl?: string; referenceTarget?: string; maskDataUrl?: string; maskMode?: 'auto' | 'brush'; projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste-textures', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params),
@@ -1186,6 +1186,9 @@ export default function IaStudioPage() {
   const [colorTexRefTarget, setColorTexRefTarget] = useState<'facades'|'plan'|'poignees'|'sol'|'credence'>('facades');
   // Masque peint (zone à retexturer) + source aux mêmes dimensions.
   const [colorTexMask, setColorTexMask] = useState<MaskResult|null>(null);
+  // Mode de sélection de la zone : 'auto' (détection IA de la surface) ou 'manuel'
+  // (pinceau / lasso via le canevas). Auto par défaut = zéro coloriage.
+  const [colorTexMaskMode, setColorTexMaskMode] = useState<'auto'|'manuel'>('auto');
 
   /* ── RENDU — état */
   // Image de référence (plan WinnerFlex, photo d'inspiration, sketch).
@@ -1587,12 +1590,14 @@ export default function IaStudioPage() {
     if (!photoFile) { setColorTexError('Photo de la cuisine requise.'); return; }
     setColorTexLoading(true); setColorTexResult(null); setColorTexError(null);
     try {
-      // Si une zone a été peinte, on envoie la source + le masque du canevas
-      // (mêmes dimensions) → change-textures. Sinon, la photo compressée → edit-by-prompt.
+      // Mode MANUEL : on envoie le masque du canevas (pinceau/lasso) + sa source
+      // aux mêmes dimensions. Mode AUTO : on envoie la photo compressée, le
+      // serveur détecte la surface (EVF-SAM) → masque. maskMode='auto' sinon 'brush'.
+      const useManualMask = colorTexMaskMode === 'manuel' && !!colorTexMask;
       let sourceImageDataUrl: string;
-      const maskDataUrl = colorTexMask?.maskDataUrl;
-      if (colorTexMask) {
-        sourceImageDataUrl = colorTexMask.sourceDataUrl;
+      const maskDataUrl = useManualMask ? colorTexMask!.maskDataUrl : undefined;
+      if (useManualMask) {
+        sourceImageDataUrl = colorTexMask!.sourceDataUrl;
       } else {
         try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280); }
         catch { setColorTexError('Impossible de lire la photo. Réessayez avec un autre fichier.'); setColorTexLoading(false); return; }
@@ -1615,8 +1620,10 @@ export default function IaStudioPage() {
         lightingStyle:      colorLight,
         sourceImageDataUrl,
         referenceImageDataUrl,
-        referenceTarget:    referenceImageDataUrl ? colorTexRefTarget : undefined,
+        // La surface pilote la détection auto (SAM) ET la cible de la texture.
+        referenceTarget:    colorTexRefTarget,
         maskDataUrl,
+        maskMode:           colorTexMaskMode === 'auto' ? 'auto' : 'brush',
         projectId:          dossierId || null,
       });
       if (result.error) { setColorTexError(result.error); setColorTexLoading(false); return; }
@@ -3517,18 +3524,52 @@ export default function IaStudioPage() {
               </div>
             </div>
 
-            {/* Zone à recoloriser — pinceau (produit le masque requis par change-textures) */}
+            {/* Zone à changer — 2 modes : détection auto (SAM) ou manuel (lasso/pinceau) */}
             {photoFile && (
-              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-2">
+              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Paintbrush className="h-4 w-4 text-[#2f9e8f]" />
-                  <p className="font-bold text-[#304035]">Zone à recoloriser</p>
-                  {colorTexMask
-                    ? <span className="text-[10px] font-bold text-[#2f9e8f] bg-[#2f9e8f]/10 rounded-full px-2 py-0.5 align-middle">Zone définie ✓</span>
-                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Optionnel</span>}
+                  <p className="font-bold text-[#304035]">Zone à changer</p>
+                  {colorTexMaskMode === 'auto'
+                    ? <span className="text-[10px] font-bold text-[#2f9e8f] bg-[#2f9e8f]/10 rounded-full px-2 py-0.5 align-middle">Détection auto</span>
+                    : colorTexMask
+                      ? <span className="text-[10px] font-bold text-[#2f9e8f] bg-[#2f9e8f]/10 rounded-full px-2 py-0.5 align-middle">Zone définie ✓</span>
+                      : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">À dessiner</span>}
                 </div>
-                <p className="text-xs text-[#304035]/50">Peignez la surface à changer (façades, plan, poignées…). Sans sélection, toute la cuisine est recolorisée à partir des couleurs choisies.</p>
-                <ColoristeMaskCanvas file={photoFile} accent="#2f9e8f" onChange={setColorTexMask} />
+
+                {/* Bascule de mode */}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setColorTexMaskMode('auto')}
+                    className={`flex-1 text-xs font-bold rounded-xl px-3 py-2 border transition-colors ${colorTexMaskMode==='auto' ? 'bg-[#2f9e8f] text-white border-[#2f9e8f]' : 'bg-white text-[#304035]/70 border-[#304035]/15 hover:border-[#2f9e8f]/40'}`}>
+                    🎯 Détection auto
+                  </button>
+                  <button type="button" onClick={() => setColorTexMaskMode('manuel')}
+                    className={`flex-1 text-xs font-bold rounded-xl px-3 py-2 border transition-colors ${colorTexMaskMode==='manuel' ? 'bg-[#2f9e8f] text-white border-[#2f9e8f]' : 'bg-white text-[#304035]/70 border-[#304035]/15 hover:border-[#2f9e8f]/40'}`}>
+                    ✏️ Lasso / Pinceau
+                  </button>
+                </div>
+
+                {colorTexMaskMode === 'auto' ? (
+                  <>
+                    <p className="text-xs text-[#304035]/50">Choisissez la surface : l’IA la détecte automatiquement au pixel près, sans coloriage.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {([['facades','Façades'],['plan','Plan de travail'],['poignees','Poignées'],['sol','Sol'],['credence','Crédence']] as const).map(([val,label]) => {
+                        const on = colorTexRefTarget === val;
+                        return (
+                          <button key={val} type="button" onClick={() => setColorTexRefTarget(val)}
+                            className={`text-[11px] font-semibold rounded-full px-2.5 py-1 border transition-colors ${on ? 'bg-[#2f9e8f] text-white border-[#2f9e8f]' : 'bg-white text-[#304035]/70 border-[#304035]/15 hover:border-[#2f9e8f]/40'}`}>
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-[#304035]/50">Entourez la zone au <b>lasso</b> (contour net, recommandé) ou peignez-la au <b>pinceau</b>. La gomme corrige les débordements.</p>
+                    <ColoristeMaskCanvas file={photoFile} accent="#2f9e8f" onChange={setColorTexMask} />
+                  </>
+                )}
               </div>
             )}
 

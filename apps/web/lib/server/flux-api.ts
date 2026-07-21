@@ -255,6 +255,60 @@ async function inpaintRegion(
   }
 }
 
+// ─────────────────────────────────────────── DÉTECTION AUTO DE SURFACE (Coloriste textures)
+//
+// Expose EVF-SAM comme sélecteur automatique de surface pour le module
+// « Coloriste ✨ » (MyArchitectAI /change-textures). L'utilisateur choisit une
+// surface (façades, plan, poignées, sol, crédence) ; on renvoie l'URL d'un
+// masque PNG où la surface détectée est BLANCHE — exactement la convention
+// attendue par /change-textures (blanc = zone à changer, noir = garder).
+
+export type SegmentSurface = 'facades' | 'plan' | 'poignees' | 'sol' | 'credence';
+
+const SURFACE_SAM_CONFIG: Record<SegmentSurface, { primary: string; fallback: string; opts: SegmentOptions }> = {
+  facades: {
+    primary: 'all kitchen cabinet doors and drawer fronts, upper and lower cabinets',
+    fallback: 'kitchen cabinets',
+    opts: { expandMask: 3, blurMask: 3 },
+  },
+  plan: {
+    primary: 'kitchen countertop horizontal worktop surface',
+    fallback: 'kitchen countertop',
+    opts: {
+      expandMask: 1, blurMask: 3,
+      negativePrompt: 'backsplash, wall, tile, splashback, vertical surface, kitchen appliances, oven, microwave, sink',
+    },
+  },
+  poignees: {
+    primary: 'cabinet handles and knobs and drawer pulls',
+    fallback: 'cabinet handles',
+    opts: { expandMask: 2, blurMask: 2 },
+  },
+  sol: {
+    primary: 'kitchen floor flooring surface',
+    fallback: 'floor',
+    opts: { expandMask: 2, blurMask: 3 },
+  },
+  credence: {
+    primary: 'kitchen backsplash splashback behind the countertop and under the wall cabinets',
+    fallback: 'backsplash',
+    opts: { expandMask: 2, blurMask: 3 },
+  },
+};
+
+/**
+ * Détecte automatiquement une surface de cuisine et renvoie l'URL d'un masque
+ * PNG (blanc = surface, noir = reste). Compatible /change-textures directement.
+ * Renvoie null si SAM ne détecte rien (l'appelant retombe alors sur un autre mode).
+ *
+ * @param imageUrl URL https publique de la photo (déjà uploadée)
+ * @param surface  Surface cible (facades | plan | poignees | sol | credence)
+ */
+export async function segmentSurfaceMask(imageUrl: string, surface: string): Promise<string | null> {
+  const cfg = SURFACE_SAM_CONFIG[surface as SegmentSurface] ?? SURFACE_SAM_CONFIG.facades;
+  return segmentRegionWithRetry(imageUrl, cfg.primary, cfg.fallback, cfg.opts);
+}
+
 // ─────────────────────────────────────────── COLORISTE SAM + INPAINT (mode pro)
 
 /**

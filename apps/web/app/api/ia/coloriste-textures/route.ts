@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildTextureEditPrompt, type ColoristParams } from '@/lib/server/prompt-builder';
 import { generateColoristeTextures } from '@/lib/server/myarchitect-api';
+import { segmentSurfaceMask } from '@/lib/server/flux-api';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
 import { prisma } from '@/lib/server/prisma';
@@ -101,6 +102,13 @@ export async function POST(req: NextRequest) {
       ? body.maskDataUrl
       : null;
 
+  // Mode de sélection de la zone :
+  //  - 'auto'  → EVF-SAM détecte la surface choisie (referenceTarget) côté serveur.
+  //  - 'brush' → l'utilisateur a fourni un masque (pinceau ou lasso) via maskDataUrl.
+  // On considère qu'on AURA un masque si auto est demandé OU si un masque manuel est fourni.
+  const autoMask = body.maskMode === 'auto';
+  const willHaveMask = autoMask || !!maskDataUrl;
+
   const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
   const params: ColoristParams = {
     facadeHex: String(facadeHex),
@@ -132,12 +140,12 @@ export async function POST(req: NextRequest) {
   // peinte, c'est la MATIÈRE DE RÉFÉRENCE qui gagne — on ne décrit AUCUNE couleur
   // (sinon la couleur écraserait la texture, cf. bug « ça met le vert, pas le cuir »).
   let prompt: string;
-  if (referenceImageDataUrl && maskDataUrl) {
+  if (referenceImageDataUrl && willHaveMask) {
     prompt =
       'Replace the material of the masked region with the exact material, colour, pattern and finish '
       + 'shown in the attached reference image; reproduce the reference material faithfully. '
       + 'Keep everything outside the mask exactly unchanged. Photorealistic, sharp, high detail.';
-  } else if (maskDataUrl) {
+  } else if (willHaveMask) {
     // Zone peinte sans texture → couleurs choisies, limitées à la zone peinte.
     prompt = `${buildTextureEditPrompt(params)} Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.`;
   } else if (referenceImageDataUrl) {
@@ -228,9 +236,25 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 5c) Upload du masque (zone à retexturer) → URL signée
+    // ── 5c) Masque (zone à retexturer) → URL signée / URL fal
     let maskSignedUrl: string | undefined;
-    if (maskDataUrl) {
+    if (autoMask) {
+      // Mode AUTO : EVF-SAM détecte la surface choisie sur la photo source.
+      // Renvoie une URL de masque (fal CDN, blanc = surface) directement
+      // fetchable par MyArchitectAI. Si SAM échoue → pas de masque (repli).
+      try {
+        const samMaskUrl = await segmentSurfaceMask(sourceSignedUrl, refTarget);
+        if (samMaskUrl) {
+          maskSignedUrl = samMaskUrl;
+        } else {
+          console.warn('[API /ia/coloriste-textures] SAM: aucune surface détectée pour', refTarget);
+        }
+      } catch (samErr) {
+        console.warn('[API /ia/coloriste-textures] SAM échec:',
+          samErr instanceof Error ? samErr.message : samErr);
+      }
+    } else if (maskDataUrl) {
+      // Mode MANUEL (pinceau / lasso) : masque peint par l'utilisateur.
       try {
         const { buffer, contentType } = dataUrlToBuffer(maskDataUrl);
         const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';

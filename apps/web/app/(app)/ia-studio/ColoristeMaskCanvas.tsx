@@ -16,7 +16,7 @@
  */
 
 import { useRef, useEffect, useState, useCallback, type PointerEvent as ReactPointerEvent, type CSSProperties } from 'react';
-import { Brush, Eraser, Undo2, Trash2 } from 'lucide-react';
+import { Brush, Eraser, Undo2, Trash2, Lasso } from 'lucide-react';
 
 const MAX_DIM = 1280;
 
@@ -38,9 +38,10 @@ export function ColoristeMaskCanvas({ file, accent = '#2f9e8f', onChange }: Prop
   const undoRef = useRef<ImageData[]>([]);
   const tmpRef = useRef<HTMLCanvasElement | null>(null); // canvas de teinte réutilisé (évite les réallocs)
   const rafRef = useRef<number | null>(null);
+  const lassoRef = useRef<{ x: number; y: number }[]>([]); // points du tracé lasso en cours
 
   const [brush, setBrush] = useState(48);
-  const [mode, setMode] = useState<'brush' | 'eraser'>('brush');
+  const [mode, setMode] = useState<'brush' | 'eraser' | 'lasso'>('lasso');
   const [hasStrokes, setHasStrokes] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -72,6 +73,19 @@ export function ColoristeMaskCanvas({ file, accent = '#2f9e8f', onChange }: Prop
       ctx.globalAlpha = 0.45;
       ctx.drawImage(tmp, 0, 0);
       ctx.globalAlpha = 1;
+    }
+    // Aperçu du tracé lasso en cours : contour pointillé accent.
+    const pts = lassoRef.current;
+    if (pts.length > 1) {
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]);
+      ctx.strokeStyle = accent;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+      ctx.restore();
     }
   }, [accent]);
 
@@ -170,6 +184,23 @@ export function ColoristeMaskCanvas({ file, accent = '#2f9e8f', onChange }: Prop
     });
   };
 
+  // Remplit le polygone tracé au lasso dans le masque (blanc opaque) → zone nette.
+  const fillLasso = () => {
+    const pts = lassoRef.current;
+    const mc = maskRef.current;
+    const ctx = mc?.getContext('2d');
+    if (mc && ctx && pts.length >= 3) {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = 'rgba(255,255,255,1)';
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+      ctx.fill();
+    }
+    lassoRef.current = [];
+  };
+
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!ready) return;
     e.preventDefault();
@@ -183,19 +214,31 @@ export function ColoristeMaskCanvas({ file, accent = '#2f9e8f', onChange }: Prop
     paintingRef.current = true;
     const p = getPos(e);
     lastRef.current = p;
-    strokeTo(p, p);
+    if (mode === 'lasso') {
+      lassoRef.current = [p];
+      requestRender();
+    } else {
+      strokeTo(p, p);
+    }
   };
   const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!paintingRef.current) return;
     e.preventDefault();
     const p = getPos(e);
-    strokeTo(lastRef.current ?? p, p);
-    lastRef.current = p;
+    if (mode === 'lasso') {
+      lassoRef.current.push(p);
+      requestRender();
+    } else {
+      strokeTo(lastRef.current ?? p, p);
+      lastRef.current = p;
+    }
   };
   const onPointerUp = () => {
     if (!paintingRef.current) return;
     paintingRef.current = false;
     lastRef.current = null;
+    if (mode === 'lasso') fillLasso();
+    render();
     emit();
   };
 
@@ -238,23 +281,28 @@ export function ColoristeMaskCanvas({ file, accent = '#2f9e8f', onChange }: Prop
         />
         {!hasStrokes && (
           <div style={{ position: 'absolute', left: 10, bottom: 10, background: 'rgba(26,42,30,0.72)', color: '#fff', fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 999, pointerEvents: 'none' }}>
-            ✏️ Peignez la surface à changer
+            {mode === 'lasso' ? '⭕ Entourez la zone à changer' : '✏️ Peignez la surface à changer'}
           </div>
         )}
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10 }}>
+        <button type="button" onClick={() => setMode('lasso')} style={toolBtn(mode === 'lasso')}>
+          <Lasso size={14} /> Lasso
+        </button>
         <button type="button" onClick={() => setMode('brush')} style={toolBtn(mode === 'brush')}>
           <Brush size={14} /> Pinceau
         </button>
         <button type="button" onClick={() => setMode('eraser')} style={toolBtn(mode === 'eraser')}>
           <Eraser size={14} /> Gomme
         </button>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 600, color: 'rgba(48,64,53,0.7)' }}>
-          Taille
-          <input type="range" min={10} max={140} value={brush} onChange={(e) => setBrush(Number(e.target.value))}
-            style={{ accentColor: accent, width: 110 }} />
-        </label>
+        {mode !== 'lasso' && (
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 600, color: 'rgba(48,64,53,0.7)' }}>
+            Taille
+            <input type="range" min={10} max={140} value={brush} onChange={(e) => setBrush(Number(e.target.value))}
+              style={{ accentColor: accent, width: 110 }} />
+          </label>
+        )}
         <button type="button" onClick={undo} style={{ ...toolBtn(false), marginLeft: 'auto' }}>
           <Undo2 size={14} /> Annuler
         </button>
