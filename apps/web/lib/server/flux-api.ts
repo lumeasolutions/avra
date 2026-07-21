@@ -290,9 +290,14 @@ const SURFACE_SAM_CONFIG: Record<SegmentSurface, { primary: string; fallback: st
     opts: { expandMask: 2, blurMask: 3 },
   },
   credence: {
-    primary: 'kitchen backsplash splashback behind the countertop and under the wall cabinets',
-    fallback: 'backsplash',
-    opts: { expandMask: 2, blurMask: 3 },
+    primary: 'the backsplash: the vertical wall strip directly above the countertop and below the upper wall cabinets',
+    fallback: 'backsplash splashback wall strip above the worktop',
+    opts: {
+      expandMask: 1, blurMask: 3,
+      // Écarte fortement les meubles (hauts + bas) et le plan : EVF-SAM confond
+      // sinon la crédence avec la bande de meubles hauts au-dessus.
+      negativePrompt: 'upper wall cabinets, cabinet doors, drawer fronts, lower cabinets, countertop, worktop, floor, window, sink, appliances, hood',
+    },
   },
 };
 
