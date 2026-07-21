@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { ColoristeMaskCanvas, type MaskResult } from './ColoristeMaskCanvas';
 import Image from 'next/image';
 import {
   Sparkles, Loader2, Plus, X, Check, Upload,
@@ -316,7 +317,7 @@ async function callColoristeTexturesAPI(params: {
   facadeFinish: FinishType; lightingStyle: LightingType;
   poigneeFinish?: FinishType; planFinish?: FinishType;
   handleMaterial?: string; countertopMaterial?: string;
-  sourceImageDataUrl: string; referenceImageDataUrl?: string; referenceTarget?: string; projectId?: string | null;
+  sourceImageDataUrl: string; referenceImageDataUrl?: string; referenceTarget?: string; maskDataUrl?: string; projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste-textures', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params),
@@ -1183,6 +1184,8 @@ export default function IaStudioPage() {
   const colorTexRefURL = useMemo(() => (colorTexRefFile ? URL.createObjectURL(colorTexRefFile) : null), [colorTexRefFile]);
   // Surface à laquelle appliquer la texture importée.
   const [colorTexRefTarget, setColorTexRefTarget] = useState<'facades'|'plan'|'poignees'|'sol'|'credence'>('facades');
+  // Masque peint (zone à retexturer) + source aux mêmes dimensions.
+  const [colorTexMask, setColorTexMask] = useState<MaskResult|null>(null);
 
   /* ── RENDU — état */
   // Image de référence (plan WinnerFlex, photo d'inspiration, sketch).
@@ -1584,9 +1587,16 @@ export default function IaStudioPage() {
     if (!photoFile) { setColorTexError('Photo de la cuisine requise.'); return; }
     setColorTexLoading(true); setColorTexResult(null); setColorTexError(null);
     try {
+      // Si une zone a été peinte, on envoie la source + le masque du canevas
+      // (mêmes dimensions) → change-textures. Sinon, la photo compressée → edit-by-prompt.
       let sourceImageDataUrl: string;
-      try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280); }
-      catch { setColorTexError('Impossible de lire la photo. Réessayez avec un autre fichier.'); setColorTexLoading(false); return; }
+      const maskDataUrl = colorTexMask?.maskDataUrl;
+      if (colorTexMask) {
+        sourceImageDataUrl = colorTexMask.sourceDataUrl;
+      } else {
+        try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280); }
+        catch { setColorTexError('Impossible de lire la photo. Réessayez avec un autre fichier.'); setColorTexLoading(false); return; }
+      }
       // Échantillon de matière (optionnel) — non bloquant si illisible.
       let referenceImageDataUrl: string | undefined;
       if (colorTexRefFile) {
@@ -1606,6 +1616,7 @@ export default function IaStudioPage() {
         sourceImageDataUrl,
         referenceImageDataUrl,
         referenceTarget:    referenceImageDataUrl ? colorTexRefTarget : undefined,
+        maskDataUrl,
         projectId:          dossierId || null,
       });
       if (result.error) { setColorTexError(result.error); setColorTexLoading(false); return; }
@@ -3505,6 +3516,21 @@ export default function IaStudioPage() {
                 )}
               </div>
             </div>
+
+            {/* Zone à recoloriser — pinceau (produit le masque requis par change-textures) */}
+            {photoFile && (
+              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <Paintbrush className="h-4 w-4 text-[#2f9e8f]" />
+                  <p className="font-bold text-[#304035]">Zone à recoloriser</p>
+                  {colorTexMask
+                    ? <span className="text-[10px] font-bold text-[#2f9e8f] bg-[#2f9e8f]/10 rounded-full px-2 py-0.5 align-middle">Zone définie ✓</span>
+                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Optionnel</span>}
+                </div>
+                <p className="text-xs text-[#304035]/50">Peignez la surface à changer (façades, plan, poignées…). Sans sélection, toute la cuisine est recolorisée à partir des couleurs choisies.</p>
+                <ColoristeMaskCanvas file={photoFile} accent="#2f9e8f" onChange={setColorTexMask} />
+              </div>
+            )}
 
             {/* Palettes + couleurs */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
