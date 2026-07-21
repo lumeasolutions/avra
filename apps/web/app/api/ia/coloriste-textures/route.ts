@@ -94,6 +94,13 @@ export async function POST(req: NextRequest) {
       ? body.referenceImageDataUrl
       : null;
 
+  // Masque (optionnel mais REQUIS par /change-textures) : image noir/blanc de la
+  // zone à retexturer, peinte par l'utilisateur. Sans masque → repli edit-by-prompt.
+  const maskDataUrl =
+    typeof body.maskDataUrl === 'string' && body.maskDataUrl.startsWith('data:')
+      ? body.maskDataUrl
+      : null;
+
   const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
   const params: ColoristParams = {
     facadeHex: String(facadeHex),
@@ -121,9 +128,19 @@ export async function POST(req: NextRequest) {
   };
   const refTarget = str(body.referenceTarget) ?? 'facades';
   const refPhrase = REF_TARGET_PHRASES[refTarget] ?? REF_TARGET_PHRASES.facades;
-  const prompt = referenceImageDataUrl
-    ? `${buildTextureEditPrompt(params)} Apply the exact material shown in the attached reference image to ${refPhrase}; keep all other surfaces as described above.`
-    : buildTextureEditPrompt(params);
+  // Construction du prompt selon 2 axes : texture importée (référence) et masque.
+  // Avec masque : le moteur n'édite QUE la zone peinte → on cible « the masked
+  // region » et on renforce « keep everything outside the mask unchanged ».
+  // Sans masque : on cible la surface choisie via le chip (refPhrase).
+  let prompt = buildTextureEditPrompt(params);
+  if (referenceImageDataUrl) {
+    prompt += maskDataUrl
+      ? ' Apply the exact material shown in the attached reference image to the masked region.'
+      : ` Apply the exact material shown in the attached reference image to ${refPhrase}; keep all other surfaces as described above.`;
+  }
+  if (maskDataUrl) {
+    prompt += ' Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.';
+  }
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 
@@ -205,8 +222,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── 5c) Upload du masque (zone à retexturer) → URL signée
+    let maskSignedUrl: string | undefined;
+    if (maskDataUrl) {
+      try {
+        const { buffer, contentType } = dataUrlToBuffer(maskDataUrl);
+        const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+        const maskPath = `${workspaceId}/${job.id}/mask.${ext}`;
+        await uploadToIaRenders(maskPath, buffer, contentType);
+        maskSignedUrl = await createIaRendersSignedUrl(maskPath);
+      } catch (maskErr) {
+        // Non bloquant : sans masque, le moteur retombe sur edit-by-prompt.
+        console.warn('[API /ia/coloriste-textures] upload masque échec:',
+          maskErr instanceof Error ? maskErr.message : maskErr);
+      }
+    }
+
     // ── 6) Colorisation MyArchitectAI /change-textures
-    const result = await generateColoristeTextures(prompt, sourceSignedUrl, referenceSignedUrl);
+    const result = await generateColoristeTextures(prompt, sourceSignedUrl, referenceSignedUrl, maskSignedUrl);
     if (!result.success || result.imageUrls.length === 0) {
       const err = (result.error ?? '').toLowerCase();
       const status = err.includes('délai') || err.includes('aucune image') ? 504 : 502;

@@ -402,8 +402,12 @@ export function changeTextures(
   imageUrl: string,
   prompt: string,
   referenceImage?: string,
+  mask?: string,
 ): Promise<EndpointResult> {
+  // NB : l'endpoint déployé exige un `mask` (image noir/blanc de la zone à
+  // retexturer), en plus de `image`. `prompt` et `referenceImage` sont optionnels.
   const body: Record<string, unknown> = { image: imageUrl, prompt };
+  if (mask) body.mask = mask;
   if (referenceImage) body.referenceImage = referenceImage;
   return callEndpoint('/change-textures', body);
 }
@@ -424,6 +428,7 @@ export async function generateColoristeTextures(
   prompt: string,
   imageUrl: string,
   referenceImage?: string,
+  mask?: string,
 ): Promise<ArchitectResult> {
   if (!isArchitectEnabled()) {
     return {
@@ -434,28 +439,33 @@ export async function generateColoristeTextures(
       upscaled: false,
     };
   }
-  // Essai principal : /change-textures (préserve la géométrie + accepte une
-  // texture de référence). NB : cet endpoint est documenté mais peut ne pas être
-  // encore déployé (404). Dans ce cas, on retombe sur /edit-by-prompt, qui
-  // retexture par prompt en gardant le reste identique (sans image de référence).
-  const res = await changeTextures(imageUrl, prompt, referenceImage);
-  if (res.ok) {
-    return { success: true, imageUrls: res.outputs, prompt, endpoint: 'change-textures', upscaled: false };
-  }
 
-  const unavailable = /404|not found|introuvable|endpoint/i.test(res.error ?? '');
-  if (unavailable) {
-    // edit-by-prompt ne prend pas d'image de référence : on retire la phrase qui
-    // y fait référence pour ne pas dérouter le modèle.
-    const fbPrompt = prompt.replace(/Apply the exact material shown in the attached reference image[^.]*\.\s*/i, '');
+  // /change-textures EXIGE un masque (zone à retexturer). On ne l'appelle donc
+  // QUE si un masque est fourni ; sinon on va directement sur /edit-by-prompt
+  // (retexture par prompt sur toute l'image, sans masque ni image de référence).
+  const fbPrompt = prompt
+    .replace(/Apply the exact material shown in the attached reference image[^.]*\.\s*/i, '')
+    .replace(/Only change the area inside the provided mask[^.]*\.\s*/i, '');
+
+  if (mask) {
+    const res = await changeTextures(imageUrl, prompt, referenceImage, mask);
+    if (res.ok) {
+      return { success: true, imageUrls: res.outputs, prompt, endpoint: 'change-textures', upscaled: false };
+    }
+    // Repli : si change-textures échoue (indispo, etc.), on tente edit-by-prompt.
     const fb = await editByPrompt(imageUrl, fbPrompt);
     if (fb.ok) {
       return { success: true, imageUrls: fb.outputs, prompt: fbPrompt, endpoint: 'edit-by-prompt', upscaled: false };
     }
-    return { success: false, imageUrls: [], prompt: fbPrompt, endpoint: 'edit-by-prompt', upscaled: false, error: fb.error };
+    return { success: false, imageUrls: [], prompt, endpoint: 'change-textures', upscaled: false, error: res.error };
   }
 
-  return { success: false, imageUrls: [], prompt, endpoint: 'change-textures', upscaled: false, error: res.error };
+  // Pas de masque → edit-by-prompt directement.
+  const fb = await editByPrompt(imageUrl, fbPrompt);
+  if (fb.ok) {
+    return { success: true, imageUrls: fb.outputs, prompt: fbPrompt, endpoint: 'edit-by-prompt', upscaled: false };
+  }
+  return { success: false, imageUrls: [], prompt: fbPrompt, endpoint: 'edit-by-prompt', upscaled: false, error: fb.error };
 }
 
 /**
