@@ -16,7 +16,7 @@
  */
 
 import { useRef, useEffect, useState, useCallback, type PointerEvent as ReactPointerEvent, type CSSProperties } from 'react';
-import { Brush, Eraser, Undo2, Trash2 } from 'lucide-react';
+import { Brush, Eraser, Undo2, Trash2, FlipHorizontal2 } from 'lucide-react';
 
 const MAX_DIM = 1280;
 
@@ -43,6 +43,9 @@ export function ColoristeMaskCanvas({ file, accent = '#2f9e8f', onChange }: Prop
   const [mode, setMode] = useState<'brush' | 'eraser'>('brush');
   const [hasStrokes, setHasStrokes] = useState(false);
   const [ready, setReady] = useState(false);
+  // Sens du masque : false = zone peinte À CHANGER (blanc) ; true = inversé
+  // (zone peinte GARDÉE). Selon la convention de l'API, l'un des deux est le bon.
+  const [invert, setInvert] = useState(false);
 
   // ── Rendu du canvas visible : photo + surlignage teal de la sélection ──────
   const render = useCallback(() => {
@@ -141,7 +144,9 @@ export function ColoristeMaskCanvas({ file, accent = '#2f9e8f', onChange }: Prop
   };
 
   // ── Émet {mask, source} si non vide, sinon null ────────────────────────────
-  const emit = () => {
+  // `inv` = sens du masque. Par défaut on lit l'état `invert` ; le bouton passe
+  // la valeur cible directement pour ré-émettre sans attendre le re-render.
+  const emit = (inv: boolean = invert) => {
     const mc = maskRef.current, img = imgRef.current;
     if (!mc || !img) { onChange(null); return; }
     const { w, h } = dimsRef.current;
@@ -152,16 +157,31 @@ export function ColoristeMaskCanvas({ file, accent = '#2f9e8f', onChange }: Prop
     for (let i = 3; i < data.length; i += 4) { if (data[i] > 10) { painted = true; break; } }
     if (!painted) { setHasStrokes(false); onChange(null); return; }
     setHasStrokes(true);
-    // Masque exporté : fond noir + traits blancs.
     const me = document.createElement('canvas'); me.width = w; me.height = h;
     const mectx = me.getContext('2d');
     // Source exportée aux mêmes dimensions.
     const se = document.createElement('canvas'); se.width = w; se.height = h;
     const sectx = se.getContext('2d');
     if (!mectx || !sectx) { onChange(null); return; }
-    mectx.fillStyle = '#000';
-    mectx.fillRect(0, 0, w, h);
-    mectx.drawImage(mc, 0, 0);
+    if (inv) {
+      // Inversé : fond BLANC + zone peinte NOIRE (zone peinte = gardée).
+      mectx.fillStyle = '#fff';
+      mectx.fillRect(0, 0, w, h);
+      const blk = document.createElement('canvas'); blk.width = w; blk.height = h;
+      const bctx = blk.getContext('2d');
+      if (bctx) {
+        bctx.drawImage(mc, 0, 0);
+        bctx.globalCompositeOperation = 'source-in';
+        bctx.fillStyle = '#000';
+        bctx.fillRect(0, 0, w, h);
+        mectx.drawImage(blk, 0, 0);
+      }
+    } else {
+      // Normal : fond NOIR + zone peinte BLANCHE (zone peinte = à changer).
+      mectx.fillStyle = '#000';
+      mectx.fillRect(0, 0, w, h);
+      mectx.drawImage(mc, 0, 0);
+    }
     sectx.drawImage(img, 0, 0, w, h);
     onChange({
       maskDataUrl: me.toDataURL('image/png'),
@@ -254,13 +274,25 @@ export function ColoristeMaskCanvas({ file, accent = '#2f9e8f', onChange }: Prop
           <input type="range" min={10} max={140} value={brush} onChange={(e) => setBrush(Number(e.target.value))}
             style={{ accentColor: accent, width: 110 }} />
         </label>
-        <button type="button" onClick={undo} style={{ ...toolBtn(false), marginLeft: 'auto' }}>
+        <button
+          type="button"
+          onClick={() => { const nv = !invert; setInvert(nv); emit(nv); }}
+          style={{ ...toolBtn(invert), marginLeft: 'auto' }}
+          title="Si la mauvaise zone change, cliquez ici pour inverser la sélection."
+        >
+          <FlipHorizontal2 size={14} /> {invert ? 'Zone inversée' : 'Inverser'}
+        </button>
+        <button type="button" onClick={undo} style={toolBtn(false)}>
           <Undo2 size={14} /> Annuler
         </button>
         <button type="button" onClick={clearAll} style={toolBtn(false)}>
           <Trash2 size={14} /> Effacer
         </button>
       </div>
+      <p style={{ margin: '8px 2px 0', fontSize: 11, color: 'rgba(48,64,53,0.55)', lineHeight: 1.4 }}>
+        Astuce : si c'est la <strong>mauvaise surface</strong> qui change dans le résultat,
+        cliquez sur <strong>« Inverser »</strong> puis relancez.
+      </p>
     </div>
   );
 }
