@@ -128,18 +128,24 @@ export async function POST(req: NextRequest) {
   };
   const refTarget = str(body.referenceTarget) ?? 'facades';
   const refPhrase = REF_TARGET_PHRASES[refTarget] ?? REF_TARGET_PHRASES.facades;
-  // Construction du prompt selon 2 axes : texture importée (référence) et masque.
-  // Avec masque : le moteur n'édite QUE la zone peinte → on cible « the masked
-  // region » et on renforce « keep everything outside the mask unchanged ».
-  // Sans masque : on cible la surface choisie via le chip (refPhrase).
-  let prompt = buildTextureEditPrompt(params);
-  if (referenceImageDataUrl) {
-    prompt += maskDataUrl
-      ? ' Apply the exact material shown in the attached reference image to the masked region.'
-      : ` Apply the exact material shown in the attached reference image to ${refPhrase}; keep all other surfaces as described above.`;
-  }
-  if (maskDataUrl) {
-    prompt += ' Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.';
+  // Construction du prompt. RÈGLE CLÉ : si une TEXTURE est importée + une zone
+  // peinte, c'est la MATIÈRE DE RÉFÉRENCE qui gagne — on ne décrit AUCUNE couleur
+  // (sinon la couleur écraserait la texture, cf. bug « ça met le vert, pas le cuir »).
+  let prompt: string;
+  if (referenceImageDataUrl && maskDataUrl) {
+    prompt =
+      'Replace the material of the masked region with the exact material, colour, pattern and finish '
+      + 'shown in the attached reference image; reproduce the reference material faithfully. '
+      + 'Keep everything outside the mask exactly unchanged. Photorealistic, sharp, high detail.';
+  } else if (maskDataUrl) {
+    // Zone peinte sans texture → couleurs choisies, limitées à la zone peinte.
+    prompt = `${buildTextureEditPrompt(params)} Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.`;
+  } else if (referenceImageDataUrl) {
+    // Texture SANS zone peinte : change-textures exige un masque → on retombera sur
+    // edit-by-prompt (qui ne sait pas lire la texture) et on applique les couleurs.
+    prompt = `${buildTextureEditPrompt(params)} Apply the exact material shown in the attached reference image to ${refPhrase}; keep all other surfaces as described above.`;
+  } else {
+    prompt = buildTextureEditPrompt(params);
   }
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
