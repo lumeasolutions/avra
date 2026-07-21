@@ -176,7 +176,13 @@ export function ColoristeMaskCanvas({ file, accent = '#2f9e8f', onChange }: Prop
     if (!mectx || !sectx) { onChange(null); return; }
     mectx.fillStyle = '#000';
     mectx.fillRect(0, 0, w, h);
+    // Bords ADOUCIS : un léger flou sur le masque évite la couture dure /
+    // l'effet « sticker » et fond la nouvelle matière proprement dans la scène
+    // (même principe que le blur_mask de la détection auto). Rayon proportionnel.
+    const feather = Math.max(2, Math.round(Math.max(w, h) / 320));
+    mectx.filter = `blur(${feather}px)`;
     mectx.drawImage(mc, 0, 0);
+    mectx.filter = 'none';
     sectx.drawImage(img, 0, 0, w, h);
     onChange({
       maskDataUrl: me.toDataURL('image/png'),
@@ -194,7 +200,14 @@ export function ColoristeMaskCanvas({ file, accent = '#2f9e8f', onChange }: Prop
       ctx.fillStyle = 'rgba(255,255,255,1)';
       ctx.beginPath();
       ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      // Tracé LISSÉ : courbes quadratiques passant par les milieux de segments
+      // (au lieu de segments droits) → contour doux, pas de zigzag de la main.
+      for (let i = 1; i < pts.length - 1; i++) {
+        const mx = (pts[i].x + pts[i + 1].x) / 2;
+        const my = (pts[i].y + pts[i + 1].y) / 2;
+        ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+      }
+      ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
       ctx.closePath();
       ctx.fill();
     }
