@@ -404,11 +404,20 @@ export function changeTextures(
   referenceImage?: string,
   mask?: string,
 ): Promise<EndpointResult> {
-  // NB : l'endpoint déployé exige un `mask` (image noir/blanc de la zone à
-  // retexturer), en plus de `image`. `prompt` et `referenceImage` sont optionnels.
-  const body: Record<string, unknown> = { image: imageUrl, prompt };
+  // Spec officielle /change-textures :
+  //  - `image` requis, `mask` requis (blanc = zone à changer, noir = garder).
+  //  - Modes MUTUELLEMENT EXCLUSIFS : SOIT `referenceImage`, SOIT `prompt`.
+  //    Envoyer les DEUX → l'API renvoie 400 « providing both is rejected ».
+  //    (C'était notre bug : on envoyait prompt + referenceImage ensemble, la
+  //     requête était rejetée et on retombait en fallback edit-by-prompt sans
+  //     masque ni référence → mosaïque générique.)
+  const body: Record<string, unknown> = { image: imageUrl };
   if (mask) body.mask = mask;
-  if (referenceImage) body.referenceImage = referenceImage;
+  if (referenceImage) {
+    body.referenceImage = referenceImage; // mode référence : PAS de prompt
+  } else {
+    body.prompt = prompt;                 // mode prompt : PAS de referenceImage
+  }
   return callEndpoint('/change-textures', body);
 }
 
