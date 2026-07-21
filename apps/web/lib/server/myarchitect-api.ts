@@ -448,16 +448,27 @@ export async function generateColoristeTextures(
     .replace(/Only change the area inside the provided mask[^.]*\.\s*/i, '');
 
   if (mask) {
-    const res = await changeTextures(imageUrl, prompt, referenceImage, mask);
+    // Fidélité de la texture : /change-textures a tendance à « s'inspirer » de
+    // l'échantillon plutôt qu'à le reproduire. On décrit donc la matière EN MOTS
+    // (auto-prompt sur l'échantillon) et on l'injecte → le moteur a l'image ET le
+    // texte, et reproduit fidèlement au lieu d'inventer un motif.
+    let texPrompt = prompt;
+    if (referenceImage) {
+      const refDesc = await autoPrompt(referenceImage);
+      if (refDesc) {
+        texPrompt = `${prompt} The reference material is: ${refDesc}. Reproduce this exact material — its colours, pattern and finish — faithfully; do not invent a different pattern or different colours.`;
+      }
+    }
+    const res = await changeTextures(imageUrl, texPrompt, referenceImage, mask);
     if (res.ok) {
-      return { success: true, imageUrls: res.outputs, prompt, endpoint: 'change-textures', upscaled: false };
+      return { success: true, imageUrls: res.outputs, prompt: texPrompt, endpoint: 'change-textures', upscaled: false };
     }
     // Repli : si change-textures échoue (indispo, etc.), on tente edit-by-prompt.
     const fb = await editByPrompt(imageUrl, fbPrompt);
     if (fb.ok) {
       return { success: true, imageUrls: fb.outputs, prompt: fbPrompt, endpoint: 'edit-by-prompt', upscaled: false };
     }
-    return { success: false, imageUrls: [], prompt, endpoint: 'change-textures', upscaled: false, error: res.error };
+    return { success: false, imageUrls: [], prompt: texPrompt, endpoint: 'change-textures', upscaled: false, error: res.error };
   }
 
   // Pas de masque → edit-by-prompt directement.
