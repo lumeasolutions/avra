@@ -841,9 +841,13 @@ function BeforeAfterSlider({ beforeUrl, afterUrl }: { beforeUrl: string; afterUr
   );
 }
 
-function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, beforeUrl }: {
+function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, editing, icon: Icon, beforeUrl }: {
   item: Item; accentColor: string;
   onSave: () => void; onRegenerate: () => void;
+  /** Si fourni, affiche un bouton « Modifier » qui reprend CE résultat comme base. */
+  onEdit?: () => void;
+  /** Chargement du bouton « Modifier » (récupération du résultat). */
+  editing?: boolean;
   icon: React.ElementType;
   /** Si fourni (cas coloriste), affiche un slider avant/après au lieu de l'image seule */
   beforeUrl?: string | null;
@@ -982,6 +986,14 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, icon: Icon, befor
             style={{background:`linear-gradient(135deg,${accentColor},${accentColor}cc)`}}>
             {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             {downloading ? 'Téléchargement…' : "Télécharger l'image"}
+          </button>
+        )}
+        {onEdit && !isMock && (
+          <button onClick={onEdit} disabled={editing}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-bold transition-colors hover:bg-[#f5eee8] disabled:opacity-60 disabled:cursor-wait"
+            style={{borderColor:`${accentColor}`, color:accentColor}}>
+            {editing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paintbrush className="h-4 w-4" />}
+            {editing ? 'Chargement…' : 'Modifier ce résultat'}
           </button>
         )}
         <div className="grid grid-cols-2 gap-2.5">
@@ -1641,6 +1653,30 @@ export default function IaStudioPage() {
       setColorTexError(msg && !msg.includes('fetch') ? msg : 'La génération a pris trop de temps ou la connexion s\'est interrompue. Réessayez.');
     }
     setColorTexLoading(false);
+  };
+
+  // « Modifier ce résultat » : reprend l'image générée comme NOUVELLE photo source,
+  // pour enchaîner une retouche (autre surface, autre texture, ou couleurs).
+  // On passe par le proxy same-origin /api/ia/download pour éviter tout souci CORS.
+  const [colorTexEditing, setColorTexEditing] = useState(false);
+  const modifierColoristeTextures = async () => {
+    const url = colorTexResult?.imageUrl;
+    if (!url) return;
+    setColorTexEditing(true);
+    try {
+      const proxied = `/api/ia/download?url=${encodeURIComponent(url)}&name=retouche.jpg`;
+      const resp = await fetch(proxied);
+      if (!resp.ok) throw new Error('proxy');
+      const blob = await resp.blob();
+      const file = new File([blob], `retouche-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+      setPhotoFile(file);            // le résultat devient la base
+      setColorTexMask(null);         // on repart d'une sélection vierge
+      setColorTexResult(null);       // on revient en mode édition
+      setColorTexError(null);
+    } catch {
+      setColorTexError('Impossible de reprendre ce résultat comme base. Réessayez.');
+    }
+    setColorTexEditing(false);
   };
 
   const saveColoristeTextures = () => {
@@ -3512,7 +3548,7 @@ export default function IaStudioPage() {
                   </div>
                 )}
                 {colorTexResult && !colorTexLoading && (
-                  <ResultCard item={colorTexResult} accentColor="#2f9e8f" icon={Paintbrush} onSave={saveColoristeTextures} onRegenerate={runColoristeTextures} />
+                  <ResultCard item={colorTexResult} accentColor="#2f9e8f" icon={Paintbrush} onSave={saveColoristeTextures} onRegenerate={runColoristeTextures} onEdit={modifierColoristeTextures} editing={colorTexEditing} />
                 )}
                 {!colorTexLoading && !colorTexResult && (
                   <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#2f9e8f]/20 bg-gradient-to-br from-[#2f9e8f]/5 to-white p-12 text-center lg:min-h-[400px]">
