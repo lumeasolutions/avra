@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useDossierStore } from '@/store';
+import { useVisibleDossiersSignes } from '@/store';
 
 export function useDossiersSignes() {
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiersSignes = useVisibleDossiersSignes();
   const [selectedDossier, setSelectedDossier] = useState<string | null>(null);
   const [showDateModal, setShowDateModal] = useState(false);
   const [showBoardModal, setShowBoardModal] = useState(false);

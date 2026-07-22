@@ -18,7 +18,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, Clock, AlertTriangle, Table2, Users, Package } from 'lucide-react';
-import { useDossierStore, useFacturationStore } from '@/store';
+import { useDossierStore, useFacturationStore, useVisibleDossiers, useVisibleDossiersSignes, useVisibleDossiersPerdus } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatsGateModal } from '@/components/statistiques/StatsGateModal';
 import { StatsOverview } from '@/components/statistiques/StatsOverview';
@@ -34,9 +34,9 @@ const TABS: { key: TabKey; label: string; short: string; icon: React.ElementType
 ];
 
 export default function StatistiquesPage() {
-  const dossiers       = useDossierStore((s) => s.dossiers);
-  const dossiersSignes = useDossierStore((s) => s.dossiersSignes);
-  const dossiersPerdus = useDossierStore((s) => s.dossiersPerdus);
+  const dossiers       = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
+  const dossiersPerdus = useVisibleDossiersPerdus();
   const addDossierPrixLigne     = useDossierStore((s) => s.addDossierPrixLigne);
   const removeDossierPrixLigne  = useDossierStore((s) => s.removeDossierPrixLigne);
   const updateDossierPrixLigne  = useDossierStore((s) => s.updateDossierPrixLigne);

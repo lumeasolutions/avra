@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { X, Send, AlertTriangle, XCircle, Clock, Info, ChevronDown, Mic, MicOff, Volume2, VolumeX, MessageSquare } from 'lucide-react';
-import { useDossierStore, useFacturationStore, useUIStore, useConfigStore, useIntervenantStore } from '@/store';
+import { useDossierStore, useFacturationStore, useUIStore, useConfigStore, useIntervenantStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { useAssistantStore } from '@/store/useAssistantStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useProjectActions } from '@/hooks/useProjectActions';
@@ -162,8 +162,8 @@ interface Props { open: boolean; onClose: () => void; permanent?: boolean; }
 export function AssistantPanel({ open, onClose, permanent = false }: Props) {
   const alerts        = useUIStore(s => s.alerts);
   const dismissAlert  = useUIStore(s => s.dismissAlert);
-  const dossiers      = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers      = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
   const invoices      = useFacturationStore(s => s.invoices);
 
   const [tab, setTab] = useState<'alerts'|'chat'|'messages'>('alerts');
@@ -554,8 +554,8 @@ function MessagesView({ demandes, onSeen }: { demandes: Demande[]; onSeen: () =>
 }
 
 function ChatView({ owlB64 }: { owlB64: string }) {
-  const dossiers       = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers       = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
   const invoices       = useFacturationStore(s => s.invoices);
   const alerts         = useUIStore(s => s.alerts);
   // Volets 2-4 (28/05/2026) : reglages IA reels (personnalite, acces, actions).

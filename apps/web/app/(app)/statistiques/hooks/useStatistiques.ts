@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useDossierStore, useFacturationStore } from '@/store';
+import { useFacturationStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 
 export function useStatistiques() {
   const invoices = useFacturationStore(s => s.invoices);
   const devis = useFacturationStore(s => s.devis);
-  const dossiers = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
 
   const [period, setPeriod] = useState('month'); // 'month' | 'quarter' | 'year'
   const [selectedDossier, setSelectedDossier] = useState<string | null>(null);

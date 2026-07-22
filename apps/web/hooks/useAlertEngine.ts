@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { useUIStore } from '@/store/useUIStore';
-import { useDossierStore } from '@/store/useDossierStore';
+import { useDossierStore, filterDossiersByProfession } from '@/store/useDossierStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useFacturationStore } from '@/store/useFacturationStore';
 import { usePlanningStore } from '@/store/usePlanningStore';
 import { useStockStore } from '@/store/useStockStore';
@@ -84,7 +85,16 @@ function computeAlerts(): RawAlert[] {
   const now = today();
 
   // ── Récupérer tous les états ──
-  const { dossiers, dossiersSignes, datesButoiresSignes, echeancesValidees, commandesAccess } = useDossierStore.getState();
+  const rawDossiers = useDossierStore.getState();
+  const { datesButoiresSignes, echeancesValidees, commandesAccess } = rawDossiers;
+  // P0 cloisonnement (juillet 2026) : `computeAlerts` lit le store en dehors
+  // du cycle de rendu React (via getState()), donc pas d'accès aux hooks
+  // `useVisibleDossiers*`. On applique le même filtrage manuellement, sinon
+  // un compte multi-métier verrait des alertes pointant vers des dossiers
+  // d'un AUTRE portail que celui actuellement ouvert.
+  const activeProfession = useAuthStore.getState().profession;
+  const dossiers = filterDossiersByProfession(rawDossiers.dossiers, activeProfession);
+  const dossiersSignes = filterDossiersByProfession(rawDossiers.dossiersSignes, activeProfession);
   const { invoices, invoiceDetails, devis, payments } = useFacturationStore.getState();
   const { planningEvents, gestEvents } = usePlanningStore.getState();
   const { stockItems, commandes } = useStockStore.getState();

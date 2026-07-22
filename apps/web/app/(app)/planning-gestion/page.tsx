@@ -7,7 +7,7 @@ import {
   AlertTriangle, CheckCircle, Clock, ChevronDown,
   Pencil, Trash2, Paperclip,
 } from 'lucide-react';
-import { useDossierStore, usePlanningStore } from '@/store';
+import { usePlanningStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { createDemande } from '@/lib/demandes-api';
 import { uploadDossierDocDirect } from '@/lib/dossier-docs-api';
@@ -180,8 +180,8 @@ function daysInMonth(year: number, month: number) {
 
 /* ── COMPOSANT PRINCIPAL ── */
 export default function PlanningGestionPage() {
-  const dossiers        = useDossierStore(s => s.dossiers);
-  const dossiersSignes  = useDossierStore(s => s.dossiersSignes);
+  const dossiers        = useVisibleDossiers();
+  const dossiersSignes  = useVisibleDossiersSignes();
   const gestEvents      = usePlanningStore(s => s.gestEvents);
   const addGestEvent    = usePlanningStore(s => s.addGestEvent);
   const updateGestEvent = usePlanningStore(s => s.updateGestEvent);

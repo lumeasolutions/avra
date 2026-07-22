@@ -16,7 +16,9 @@ import {
   useDossierStore,
   getDefaultSubfoldersForProfession,
   buildSignedSubfoldersForProfession,
+  mapTradeTypeToProfession,
   type Dossier as DossierType,
+  type DossierProfession,
 } from '@/store/useDossierStore';
 import { usePlanningStore } from '@/store/usePlanningStore';
 import { useFacturationStore } from '@/store/useFacturationStore';
@@ -181,17 +183,27 @@ export function useDataSync() {
       const localActiveById = new Map(store.dossiers.map((d) => [d.id, d]));
       const localSignedById = new Map(store.dossiersSignes.map((d) => [d.id, d]));
 
+      // Métier de CHAQUE dossier — P0 cloisonnement (juillet 2026) : on ne se
+      // fie plus à la profession courante du compte (un compte multi-métier
+      // navigue entre les 3 portails avec le même workspace) mais au
+      // `tradeType` fiable du Project côté backend, fixé à sa création.
+      // Fallback sur la profession courante uniquement si le projet n'a pas
+      // de tradeType mappable (AGENCEUR/DECORATEUR/PROMOTEUR/AUTRE, ou
+      // dossier créé avant l'introduction de tradeType) — pour ne PAS casser
+      // l'affichage des comptes mono-métier existants.
+      const professionFor = (p: any): DossierProfession =>
+        mapTradeTypeToProfession(p?.tradeType) ?? (profession as DossierProfession) ?? null;
+
       // Sous-dossiers par défaut pour un dossier "frais" venu du backend sans
-      // état local. On respecte la profession courante de l'utilisateur :
-      //  - architecte : 5 items (PROJET VERSION 1 APS + APD, sans v2)
-      //  - cuisiniste : 6 items (workflow APS / V2 / APD)
-      //  - menuisier : 3 items (renseignement + relevé + PROJET 1)
-      const DEFAULT_SUBFOLDERS = getDefaultSubfoldersForProfession(profession);
+      // état local — dépendent du métier DU DOSSIER, pas du portail courant :
+      //  - architecte : PROJET VERSION 1 – APS / APD
+      //  - cuisiniste : OPTION 1
+      //  - menuisier : PROJET 1
       // Helper : construit la liste de sous-dossiers signés profession-aware
-      // depuis un dossier source (en cours OU signé). Si on n'a pas le local,
-      // on utilise les DEFAULT_SUBFOLDERS comme stand-in pour la fonction
-      // (elle a juste besoin du `.subfolders` du source pour archiver).
-      const buildSignedFor = (sourceLocal: DossierType | undefined): import('@/store/useDossierStore').SubFolder[] => {
+      // depuis un dossier source (en cours OU signé) et le métier du projet.
+      // Si on n'a pas le local, un dossier "vide" sert de stand-in (la
+      // fonction n'a besoin que du `.subfolders` du source pour archiver).
+      const buildSignedFor = (sourceLocal: DossierType | undefined, projectProfession: DossierProfession): import('@/store/useDossierStore').SubFolder[] => {
         const sourceDossier: DossierType = sourceLocal ?? ({
           id: '',
           name: '',
@@ -199,19 +211,22 @@ export function useDataSync() {
           createdAt: '',
           subfolders: [],
         } as DossierType);
-        return buildSignedSubfoldersForProfession(sourceDossier, profession);
+        return buildSignedSubfoldersForProfession(sourceDossier, projectProfession);
       };
 
       // Dossiers actifs — merge : champs serveur-vrai (name/firstName/phone/email/createdAt/status)
       // écrasent le local ; champs client-only (subfolders/notes/address/tva/...) préservés.
       const dossiers = activeProjects.map((p) => {
         const local = localActiveById.get(p.id) || localSignedById.get(p.id);
+        const dossierProfession = professionFor(p);
         return {
           id: p.id,
           name: p.client?.lastName || p.name || 'Sans nom',
           firstName: p.client?.firstName || '',
           phone: p.client?.phone || '',
           email: p.client?.email || '',
+          // Métier propriétaire du dossier — cloisonnement inter-portails (P0).
+          profession: dossierProfession,
           // Champs préservés du local si dispo, sinon défaut vide
           address: local?.address ?? '',
           siteAddress: local?.siteAddress,
@@ -224,7 +239,7 @@ export function useDataSync() {
           createdAt: new Date(p.createdAt).toLocaleDateString('fr-FR'),
           subfolders: local?.subfolders && local.subfolders.length > 0
             ? local.subfolders
-            : DEFAULT_SUBFOLDERS.map((sf) => ({ ...sf })),
+            : getDefaultSubfoldersForProfession(dossierProfession).map((sf) => ({ ...sf })),
           notes: local?.notes ?? '',
           // VAGUE 2 (28/05/2026) : ces champs sont maintenant PERSISTES en base.
           // On prefere donc la valeur API (source de verite multi-device) et on
@@ -239,15 +254,16 @@ export function useDataSync() {
 
       const dossiersSignes = signedProjects.map((p) => {
         const local = localSignedById.get(p.id) || localActiveById.get(p.id);
+        const dossierProfession = professionFor(p);
         // FIX 30/04/2026 : on calcule la liste signée profession-aware ici.
         // Si on a deja des signedSubfolders en local (sign() recent), on les
-        // garde. Sinon on construit la liste en fonction de la profession
-        // courante de l'utilisateur (architecte → ARCHITECTE_SIGNED_SUBFOLDERS,
-        // menuisier → MENUISIER_SIGNED_SUBFOLDERS, cuisiniste → CUISINISTE).
+        // garde. Sinon on construit la liste en fonction du métier DU PROJET
+        // (architecte → ARCHITECTE_SIGNED_SUBFOLDERS, menuisier →
+        // MENUISIER_SIGNED_SUBFOLDERS, cuisiniste → CUISINISTE).
         const localSignedSubs = (local as any)?.signedSubfolders;
         const computedSigned = (localSignedSubs && localSignedSubs.length > 0)
           ? localSignedSubs
-          : buildSignedFor(local);
+          : buildSignedFor(local, dossierProfession);
         // La page /dossiers/[id] rend `dossier.subfolders` partout — pour
         // les dossiers signés on aligne donc subfolders sur la liste signée.
         return {
@@ -256,6 +272,8 @@ export function useDataSync() {
           firstName: p.client?.firstName || '',
           phone: p.client?.phone || '',
           email: p.client?.email || '',
+          // Métier propriétaire du dossier — cloisonnement inter-portails (P0).
+          profession: dossierProfession,
           address: local?.address ?? '',
           siteAddress: local?.siteAddress,
           postalCode: local?.postalCode,
@@ -294,6 +312,8 @@ export function useDataSync() {
         reason: p.description || 'Raison non spécifiée',
         lostDate: new Date(p.updatedAt).toLocaleDateString('fr-FR'),
         montantEstime: p.saleAmount || 0,
+        // Métier propriétaire du dossier — cloisonnement inter-portails (P0).
+        profession: professionFor(p),
       }));
 
       // Remplacer les données de démo par les données réelles

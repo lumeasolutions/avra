@@ -12,7 +12,7 @@ import {
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
 import { splitPath, joinPath, displayName as folderDisplayName, childFolders, sanitizeFolderName, isDescendant } from '@/lib/folderTree';
-import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION } from '@/store/useDossierStore';
+import { MENUISIER_PROJET_REGEX, MENUISIER_MAX_PROJET, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
 import { uploadDossierDoc, uploadDossierDocDirect, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
@@ -1032,6 +1032,45 @@ export default function DossierDetailPage() {
                     );
                   })()}
 
+                  {/* Menuisier : bouton + pour créer le projet suivant (PROJET N+1).
+                   *  Même mécanique que cuisiniste (OPTION)/architecte (VERSION) —
+                   *  visible uniquement sur le PROJET le plus haut, jusqu'au plafond.
+                   *  Remplace l'ancien bouton pleine largeur en bas de liste, qui
+                   *  restait affiché ("Créer PROJET 1") même sur un dossier signé
+                   *  faute de garde `!isSigned` — ici, comme pour les 2 autres
+                   *  métiers, l'absence de correspondance de regex sur les labels
+                   *  d'un dossier signé fait naturellement disparaître le bouton. */}
+                  {isMenuisier && (() => {
+                    const m = sf.label.match(MENUISIER_PROJET_REGEX);
+                    if (!m) return null;
+                    const currentProjet = parseInt(m[1], 10);
+                    if (!Number.isFinite(currentProjet)) return null;
+                    if (currentProjet >= MENUISIER_MAX_PROJET) return null;
+                    let maxProjet = 0;
+                    for (const other of dossier.subfolders) {
+                      const om = other.label.match(MENUISIER_PROJET_REGEX);
+                      if (!om) continue;
+                      const v = parseInt(om[1], 10);
+                      if (Number.isFinite(v) && v > maxProjet) maxProjet = v;
+                    }
+                    if (currentProjet !== maxProjet) return null;
+                    const nextLabel = `PROJET ${currentProjet + 1}`;
+                    return (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addSubfolder(id, nextLabel);
+                        }}
+                        className="flex items-center justify-center h-7 w-7 rounded-full bg-[#a67749]/12 text-[#a67749] hover:bg-[#a67749] hover:text-white hover:shadow-md transition-all shrink-0 group"
+                        title={`Créer ${nextLabel}`}
+                        aria-label={`Créer ${nextLabel}`}
+                      >
+                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" strokeWidth={2.5} />
+                      </button>
+                    );
+                  })()}
+
                   {/* Créer un sous-dossier imbriqué ici (organisation libre par l'utilisateur) */}
                   {canEditThis && (
                     <button
@@ -1084,8 +1123,9 @@ export default function DossierDetailPage() {
                     </span>
                   )}
 
-                  {/* Bouton supprimer — menuisier uniquement, bloqué si des documents sont presents */}
-                  {isMenuisier && canEditThis && (
+                  {/* Bouton supprimer — parité juillet 2026 : disponible sur les 3 métiers
+                      (auparavant menuisier uniquement), bloqué si des documents sont présents */}
+                  {canEditThis && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -1109,30 +1149,6 @@ export default function DossierDetailPage() {
                   Aucun fichier — commencez par créer un devis
                 </div>
               )}
-
-              {/* Bouton "Creer projet N+1" - menuisier uniquement */}
-              {isMenuisier && (() => {
-                const nextN = dossier.subfolders.reduce((max, sf) => {
-                  const m = sf.label.match(MENUISIER_PROJET_REGEX);
-                  if (!m) return max;
-                  const n = parseInt(m[1], 10);
-                  return Number.isFinite(n) && n > max ? n : max;
-                }, 0) + 1;
-                const nextLabel = `PROJET ${nextN}`;
-                return (
-                  <button
-                    type="button"
-                    onClick={() => addSubfolder(id, nextLabel)}
-                    className="w-full flex items-center justify-center gap-2 px-5 py-3.5 text-sm font-bold text-[#a67749] bg-gradient-to-r from-[#a67749]/5 via-[#d9b38a]/10 to-[#a67749]/5 hover:from-[#a67749]/10 hover:via-[#d9b38a]/20 hover:to-[#a67749]/10 border-t border-dashed border-[#a67749]/30 transition-all group"
-                    title={`Créer ${nextLabel}`}
-                  >
-                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#a67749] text-white shadow-md group-hover:rotate-90 transition-transform duration-300">
-                      <Plus className="h-3.5 w-3.5" strokeWidth={3} />
-                    </span>
-                    Créer {nextLabel}
-                  </button>
-                );
-              })()}
             </div>
           </div>
 

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { useFacturationStore, useDossierStore, type Devis, type LigneDocument } from '@/store';
+import { useFacturationStore, useVisibleDossiers, useVisibleDossiersSignes, type Devis, type LigneDocument } from '@/store';
 import { calcLignes } from '../lib/utils';
 import { LignesEditor } from './LignesEditor';
 
@@ -16,8 +16,8 @@ interface ModalDevisProps {
 export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit, prefill }: ModalDevisProps) {
   const addDevis = useFacturationStore(s => s.addDevis);
   const updateDevis = useFacturationStore(s => s.updateDevis);
-  const dossiers = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
   const allDossiers = [...dossiers, ...dossiersSignes];
 
   const [form, setForm] = useState({

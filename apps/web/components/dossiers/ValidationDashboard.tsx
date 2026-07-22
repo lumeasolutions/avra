@@ -17,7 +17,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Clock3, Sparkles, TrendingUp, ArrowUpRight, PartyPopper } from 'lucide-react';
-import { useDossierStore } from '@/store';
+import { useVisibleDossiers } from '@/store';
 import { useAssistantStore } from '@/store/useAssistantStore';
 
 function useAnimatedNumber(target: number, duration = 800) {
@@ -41,7 +41,7 @@ function useAnimatedNumber(target: number, duration = 800) {
 }
 
 export function ValidationDashboard() {
-  const dossiers = useDossierStore((s) => s.dossiers);
+  const dossiers = useVisibleDossiers();
   const openWithPrompt = useAssistantStore((s) => s.openWithPrompt);
 
   const stats = useMemo(() => {

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { useFacturationStore, useDossierStore, type Invoice, type Devis, type LigneDocument, type InvoiceDetail, type FactureDetailType } from '@/store';
+import { useFacturationStore, useVisibleDossiers, useVisibleDossiersSignes, type Invoice, type Devis, type LigneDocument, type InvoiceDetail, type FactureDetailType } from '@/store';
 import { cn } from '@/lib/utils';
 import { LignesEditor } from './LignesEditor';
 
@@ -13,8 +13,8 @@ interface ModalFactureProps {
 
 export const ModalFacture = React.memo(function ModalFacture({ onClose, devisSource }: ModalFactureProps) {
   const addInvoiceDetail = useFacturationStore(s => s.addInvoiceDetail);
-  const dossiers = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
   const allDossiers = [...dossiers, ...dossiersSignes];
 
   const [form, setForm] = useState({

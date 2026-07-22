@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 
-import { useDossierStore, useFacturationStore, useUIStore } from '@/store';
+import { useFacturationStore, useUIStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { AssistantPanel } from './AssistantPanel';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useDemandesStore } from '@/store/useDemandesStore';
@@ -18,8 +18,8 @@ const PROFESSION_LABELS: Record<string, { label: string; emoji: string; color: s
 
 export function Sidebar() {
   const pathname = usePathname() ?? '';
-  const dossiers = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
   const invoices = useFacturationStore(s => s.invoices);
   const devis = useFacturationStore(s => s.devis);
   const alerts = useUIStore(s => s.alerts);

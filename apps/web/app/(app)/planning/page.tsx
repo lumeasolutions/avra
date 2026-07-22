@@ -8,7 +8,7 @@ import {
   MapPin, User, ArrowRight, TrendingUp, Target, Wrench,
   Pencil, Trash2,
 } from 'lucide-react';
-import { useDossierStore, usePlanningStore } from '@/store';
+import { usePlanningStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { useDemandesStore } from '@/store/useDemandesStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import Link from 'next/link';
@@ -207,8 +207,8 @@ function daysUntil(dateStr: string): number {
 /* ── COMPOSANT PRINCIPAL ── */
 export default function PlanningPage() {
   const router = useRouter();
-  const dossiers        = useDossierStore(s => s.dossiers);
-  const dossiersSignes  = useDossierStore(s => s.dossiersSignes);
+  const dossiers        = useVisibleDossiers();
+  const dossiersSignes  = useVisibleDossiersSignes();
   const planningEvents  = usePlanningStore(s => s.planningEvents);
   const addPlanningEvent   = usePlanningStore(s => s.addPlanningEvent);
   const updatePlanningEvent = usePlanningStore(s => s.updatePlanningEvent);

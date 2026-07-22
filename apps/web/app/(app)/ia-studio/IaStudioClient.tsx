@@ -14,7 +14,7 @@ import {
   Sun, Lamp, Monitor, Home, Building2,
   Download, Maximize2, MousePointerClick,
 } from 'lucide-react';
-import { useDossierStore, useHistoryStore, useAuthStore } from '@/store';
+import { useDossierStore, useHistoryStore, useAuthStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
 import HistoryPanel, { type IaJobRow } from './HistoryPanel';
 
@@ -1097,8 +1097,8 @@ function GalleryCard({ gallery }: { gallery: Item[] }) {
 
 /* ─────────────────────────────────────────── PAGE */
 export default function IaStudioPage() {
-  const dossiers       = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers       = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
   const addLog         = useHistoryStore(s => s.addLog);
   // 19/05/2026 : attache l'image générée au dossier sélectionné via le store
   // Zustand (mémoire client + persist localStorage). Crée un sous-dossier

@@ -2,10 +2,12 @@
  * Store Dossiers — gestion des dossiers clients
  * États: EN COURS, URGENT, FINITION, A VALIDER, SIGNÉ, PERDU
  */
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { STORE_VERSION, preservingMigrate } from './persistVersioning';
 import { SEP, isDescendant } from '@/lib/folderTree';
+import { useAuthStore } from './useAuthStore';
 
 // Types (extraits du store global)
 export type DossierStatus = 'URGENT' | 'EN COURS' | 'FINITION' | 'A VALIDER';
@@ -51,6 +53,20 @@ export interface SubFolder {
   validated?: boolean;
 }
 
+/**
+ * Métier propriétaire du dossier — dérivé de `Project.tradeType` (backend,
+ * fiable et fixé à la création, cf. `mapTradeTypeToProfession`). Sert à
+ * cloisonner l'affichage entre les 3 portails (un dossier menuisier ne doit
+ * JAMAIS apparaître dans le portail cuisiniste, et inversement), y compris
+ * pour les comptes "multi-métier" qui naviguent entre les 3 portails avec le
+ * même compte (cf. MULTI_METIER_EMAILS dans useAuthStore.ts).
+ * `null`/`undefined` = métier inconnu (tradeType non mappé, ex. AGENCEUR,
+ * DECORATEUR, PROMOTEUR, AUTRE, ou dossier créé avant l'introduction de ce
+ * champ) → par sécurité pour ne PAS faire disparaître de données réelles, ces
+ * dossiers restent visibles dans les 3 portails plutôt que d'être masqués.
+ */
+export type DossierProfession = 'menuisier' | 'cuisiniste' | 'architecte' | null;
+
 export interface Dossier {
   id: string;
   name: string;
@@ -68,6 +84,8 @@ export interface Dossier {
   createdAt: string;
   subfolders: SubFolder[];
   notes?: string;
+  /** Métier propriétaire (cloisonnement inter-modules) — voir DossierProfession. */
+  profession?: DossierProfession;
   /**
    * Vendeur attribué au dossier (snapshot du nom). Utilisé par le TABLEAU 3
    * "Par vendeur" des statistiques (compte les dossiers en cours / signés /
@@ -200,22 +218,23 @@ export interface DossierPerdu {
    * un post-mortem ("combien j'ai loupé ?").
    */
   prixLignes?: DossierPrixLigne[];
+  /** Métier propriétaire (cloisonnement inter-modules) — voir DossierProfession. */
+  profession?: DossierProfession;
 }
 
 // Données initiales — sous-dossiers par défaut selon la profession.
-// Pour le portail menuisier on a un jeu volontairement simple :
-// renseignement → relevé de mesure & photos existants → projet 1,
-// puis l'utilisateur ajoute "projet 2", "projet 3"… via le bouton "+ Créer projet".
-//
-// Cuisiniste = workflow OPTION : 2 options par defaut, l'utilisateur peut
-// monter jusqu'a OPTION 5 via le bouton +.
-// Architecte = workflow simplifie : 1 APS + 1 APD, jusqu'a 5 versions par phase.
-const DEFAULT_SUBFOLDERS: SubFolder[] = [
+// Les 3 métiers partagent EXACTEMENT le même mécanisme (sous-dossiers +
+// bouton "+" inline plafonné) : renseignement → relevé de mesure & photos
+// existants → 1 seul "slot" de départ, que l'utilisateur peut ensuite
+// démultiplier via le "+" (parité demandée — seule la terminologie change) :
+//   - menuisier  : "PROJET 1"                    → jusqu'à PROJET 5
+//   - cuisiniste : "OPTION 1"                     → jusqu'à OPTION 5
+//   - architecte : "PROJET VERSION 1 – APS/APD"   → jusqu'à VERSION 5 par phase
+const CUISINISTE_DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER RENSEIGNEMENT' },
   { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
   { label: 'RELEVE DE MESURES' },
   { label: 'OPTION 1' },
-  { label: 'OPTION 2' },
 ];
 
 export const ARCHITECTE_DEFAULT_SUBFOLDERS: SubFolder[] = [
@@ -235,6 +254,8 @@ export const MENUISIER_DEFAULT_SUBFOLDERS: SubFolder[] = [
 
 /** Regex pour détecter les sous-dossiers "PROJET N" (menuisier) */
 export const MENUISIER_PROJET_REGEX = /^PROJET\s+(\d+)$/i;
+/** Plafond de projets côté menuisier — parité avec CUISINISTE_MAX_OPTION / ARCHITECTE_MAX_VERSION. */
+export const MENUISIER_MAX_PROJET = 5;
 
 /**
  * Regex pour détecter les sous-dossiers "PROJET VERSION N – APS" / "– APD" (architecte).
@@ -254,7 +275,28 @@ export const CUISINISTE_MAX_OPTION = 5;
 export function getDefaultSubfoldersForProfession(profession?: string | null): SubFolder[] {
   if (profession === 'menuisier') return MENUISIER_DEFAULT_SUBFOLDERS;
   if (profession === 'architecte') return ARCHITECTE_DEFAULT_SUBFOLDERS;
-  return DEFAULT_SUBFOLDERS;
+  if (profession === 'cuisiniste') return CUISINISTE_DEFAULT_SUBFOLDERS;
+  // Métier inconnu (compte non encore rattaché à un portail) : fallback neutre.
+  return CUISINISTE_DEFAULT_SUBFOLDERS;
+}
+
+/**
+ * Mappe le `tradeType` backend (Prisma, fixé de façon fiable à la création du
+ * projet — voir `projects.service.ts#createWithClient`) vers la `profession`
+ * frontend. C'est la SEULE source de vérité pour rattacher un dossier à un
+ * métier : ne jamais utiliser le `profession` du compte connecté pour cet
+ * usage (un compte multi-métier navigue entre les 3 portails, mais chaque
+ * DOSSIER, lui, appartient à un seul métier, fixé pour toujours à sa création).
+ */
+export function mapTradeTypeToProfession(tradeType?: string | null): DossierProfession {
+  switch (tradeType) {
+    case 'MENUISIER': return 'menuisier';
+    case 'CUISINISTE': return 'cuisiniste';
+    case 'ARCHITECTE_INTERIEUR': return 'architecte';
+    // AGENCEUR, DECORATEUR, PROMOTEUR, AUTRE, ou valeur inconnue/absente :
+    // pas de métier cloisonné identifiable → visible dans les 3 portails.
+    default: return null;
+  }
 }
 
 export const SIGNED_SUBFOLDERS: SubFolder[] = [
@@ -789,6 +831,10 @@ export const useDossierStore = create<DossierState>()(
           status: 'EN COURS',
           createdAt: new Date().toLocaleDateString('fr-FR'),
           subfolders: getDefaultSubfoldersForProfession(data.profession).map(sf => ({ ...sf })),
+          // Rattachement fiable du dossier à son métier (cloisonnement inter-portails).
+          // `data.profession` vient du portail actif au moment de la création — c'est
+          // fiable ici car géré côté serveur en parallèle (tradeType du Project).
+          profession: (data.profession as DossierProfession) ?? null,
           // Multi-vendeur (26/05/2026) : auto-assign à la création.
           // Le caller passe le nom du user connecté (récupéré depuis useAuthStore).
           // Si non fourni, le dossier reste "Sans vendeur attribué" jusqu'à
@@ -1290,3 +1336,61 @@ export const useDossierStore = create<DossierState>()(
     }
   )
 );
+
+// ─────────────────────────────────────────────────────────────────────────
+// Cloisonnement inter-métiers (P0, juillet 2026)
+// ─────────────────────────────────────────────────────────────────────────
+// Un compte "multi-métier" (cf. isMultiMetierEmail dans useAuthStore.ts) peut
+// naviguer librement entre les 3 portails avec le MÊME workspace — or l'API
+// `/projects` renvoie TOUS les dossiers du workspace, tous métiers confondus.
+// Sans filtre, un dossier créé dans "cuisiniste" apparaissait aussi dans
+// "menuisier"/"architecte" pour ces comptes. Chaque dossier porte désormais
+// un `profession` fiable (dérivé de `tradeType`, cf. mapTradeTypeToProfession),
+// et ces sélecteurs filtrent la liste sur le portail actuellement actif.
+//
+// Permissif par design : un dossier dont le métier est inconnu (`profession`
+// null/undefined — ancien dossier créé avant ce champ, ou tradeType non
+// mappé type AGENCEUR/DECORATEUR/PROMOTEUR/AUTRE) reste visible dans les 3
+// portails plutôt que de disparaître silencieusement.
+function belongsToProfession<T extends { profession?: DossierProfession }>(
+  item: T,
+  activeProfession: string | null | undefined,
+): boolean {
+  if (!activeProfession) return true; // pas de portail actif connu → ne rien masquer
+  if (!item.profession) return true; // métier du dossier inconnu → ne rien masquer
+  return item.profession === activeProfession;
+}
+
+export function filterDossiersByProfession<T extends { profession?: DossierProfession }>(
+  list: T[],
+  activeProfession: string | null | undefined,
+): T[] {
+  return list.filter((item) => belongsToProfession(item, activeProfession));
+}
+
+/** Dossiers "en cours" du portail actif uniquement (cloisonnement inter-métiers). */
+export function useVisibleDossiers(): Dossier[] {
+  const dossiers = useDossierStore((s) => s.dossiers);
+  const profession = useAuthStore((s) => s.profession);
+  return useMemo(() => filterDossiersByProfession(dossiers, profession), [dossiers, profession]);
+}
+
+/** Dossiers signés du portail actif uniquement (cloisonnement inter-métiers). */
+export function useVisibleDossiersSignes(): DossierSigne[] {
+  const dossiersSignes = useDossierStore((s) => s.dossiersSignes);
+  const profession = useAuthStore((s) => s.profession);
+  return useMemo(() => filterDossiersByProfession(dossiersSignes, profession), [dossiersSignes, profession]);
+}
+
+/**
+ * Dossiers perdus du portail actif uniquement (`profession` alimenté par
+ * useDataSync.ts). Les entrées créées avant l'introduction de ce champ n'en
+ * ont pas et restent visibles partout (comportement permissif ci-dessus),
+ * ce qui est correct : mieux vaut sur-afficher un vieux dossier perdu que
+ * d'en perdre la trace.
+ */
+export function useVisibleDossiersPerdus(): DossierPerdu[] {
+  const dossiersPerdus = useDossierStore((s) => s.dossiersPerdus);
+  const profession = useAuthStore((s) => s.profession);
+  return useMemo(() => filterDossiersByProfession(dossiersPerdus, profession), [dossiersPerdus, profession]);
+}

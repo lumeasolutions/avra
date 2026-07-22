@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { VendeurBadge } from '@/components/vendeur/VendeurBadge';
-import { useDossierStore, useFacturationStore, type ConfirmationFournisseur, type CommandeType, type CommandeAccessEntry } from '@/store';
+import { useDossierStore, useFacturationStore, useVisibleDossiersSignes, type ConfirmationFournisseur, type CommandeType, type CommandeAccessEntry } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -251,7 +251,7 @@ function ConfirmationsPanel({ dossierId, confirmations = [] }: { dossierId: stri
 
 export default function DossiersSignesPage() {
   const router = useRouter();
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiersSignes = useVisibleDossiersSignes();
   const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
   const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
   const invoices = useFacturationStore(s => s.invoices);

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useDossierStore, useFacturationStore, usePlanningStore } from '@/store';
+import { useDossierStore, useFacturationStore, usePlanningStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useMemo, useState } from 'react';
@@ -25,8 +25,8 @@ const getStatusColor = (status: string) => {
 
 export default function PortailMenuisierPage() {
   usePortailGuard('menuisier');
-  const dossiers = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
   const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
   const invoices = useFacturationStore(s => s.invoices);
   const planningEvents = usePlanningStore(s => s.planningEvents);

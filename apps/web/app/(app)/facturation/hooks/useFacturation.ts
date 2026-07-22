@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { useDossierStore, useFacturationStore, type LigneDocument } from '@/store';
+import { useFacturationStore, useVisibleDossiers, useVisibleDossiersSignes, type LigneDocument } from '@/store';
 
 export function useFacturation() {
   const invoices = useFacturationStore(s => s.invoices);
   const devis = useFacturationStore(s => s.devis);
-  const dossiers = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
 
   const [activeTab, setActiveTab] = useState<'devis' | 'factures' | 'e-facturation'>('factures');
   const [copiedToken, setCopiedToken] = useState('');

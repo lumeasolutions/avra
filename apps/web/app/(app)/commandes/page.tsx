@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ShoppingCart, TrendingUp, Plus, Trash2, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { useDossierStore } from '@/store/useDossierStore';
+import { useVisibleDossiers, useVisibleDossiersSignes } from '@/store/useDossierStore';
 import {
   listOrders, createOrder, deleteOrder, orderTotal,
   type OrderApi, type OrderLineInput,
@@ -22,8 +22,8 @@ export default function CommandesPage() {
   const [err, setErr] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const dossiers = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
   const allDossiers = useMemo(
     () => [...dossiers, ...dossiersSignes],
     [dossiers, dossiersSignes],

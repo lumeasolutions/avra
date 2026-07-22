@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useDossierStore } from '@/store';
+import { useVisibleDossiersPerdus } from '@/store';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { ArrowLeft, RotateCcw, AlertTriangle } from 'lucide-react';
 
@@ -10,7 +10,7 @@ import { ArrowLeft, RotateCcw, AlertTriangle } from 'lucide-react';
  * Affiche la raison + date, et permet de RESTAURER (repasse en "En cours").
  */
 export default function DossiersPerdusPage() {
-  const dossiersPerdus = useDossierStore((s) => s.dossiersPerdus);
+  const dossiersPerdus = useVisibleDossiersPerdus();
   const { restoreLostProject } = useProjectActions();
 
   return (

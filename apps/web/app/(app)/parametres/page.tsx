@@ -15,7 +15,7 @@ import {
   Lock,
 } from 'lucide-react';
 import type { Apporteur } from '@/store';
-import { useConfigStore, useDossierStore, useFacturationStore, useHistoryStore, useStockStore } from '@/store';
+import { useConfigStore, useDossierStore, useFacturationStore, useHistoryStore, useStockStore, useVisibleDossiersSignes, useVisibleDossiersPerdus } from '@/store';
 import { useAuthStore, type Profession } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -179,7 +179,9 @@ export default function ParametresPage() {
   const relanceConfig       = useConfigStore(s => s.relanceConfig);
   const updateRelanceConfig = useConfigStore(s => s.updateRelanceConfig);
   // (Équipe & Accès : géré via le backend team — voir handlers reloadTeam/handleInvite…)
-  const dossiersPerdus      = useDossierStore(s => s.dossiersPerdus);
+  // Filtré par métier actif (cloisonnement inter-métiers, P0 juillet 2026) — panel
+  // "Dossiers perdus" ci-dessous n'affiche que ceux du portail courant.
+  const dossiersPerdus      = useVisibleDossiersPerdus();
   const stockItems          = useStockStore(s => s.stockItems);
   const preferences         = useConfigStore(s => s.preferences) ?? { langue: 'fr', devise: 'EUR', tvaDefaut: 20, formatDate: 'dd/mm/yyyy', fuseauHoraire: 'Europe/Paris', modeCompact: false };
   const updatePreferences   = useConfigStore(s => s.updatePreferences);
@@ -198,8 +200,16 @@ export default function ParametresPage() {
   const updateApporteur     = useFacturationStore(s => s.updateApporteur);
   const deleteApporteur     = useFacturationStore(s => s.deleteApporteur);
   const toggleApporteurActif = useFacturationStore(s => s.toggleApporteurActif);
+  // NB : ce panel Paramètres mélange 2 usages qui doivent rester distincts :
+  //  - affichage (commissions apporteurs, archives dossiers signés) → filtré
+  //    par métier actif (dossiersSignes / dossiersPerdus) ;
+  //  - export/sauvegarde (panel Import/Export ci-dessous) → volontairement
+  //    NON filtré (dossiers / allDossiersSignes bruts), car "Exporter vos
+  //    données" / "Sauvegarde complète (JSON)" doivent contenir l'intégralité
+  //    du workspace, tous métiers confondus, pas seulement le portail actif.
   const dossiers            = useDossierStore(s => s.dossiers);
-  const dossiersSignes      = useDossierStore(s => s.dossiersSignes);
+  const allDossiersSignes   = useDossierStore(s => s.dossiersSignes);
+  const dossiersSignes      = useVisibleDossiersSignes();
   const restoreDossierSigne = useDossierStore(s => s.restoreDossierSigne);
   const invoices            = useFacturationStore(s => s.invoices);
   const devis               = useFacturationStore(s => s.devis);
@@ -1542,8 +1552,8 @@ export default function ParametresPage() {
               {[
                 { label: 'Dossiers en cours', count: dossiers.length, color: 'bg-[#304035]/8 text-[#304035]', file: 'dossiers-en-cours.csv',
                   rows: () => dossiers.map((d: any) => ({ Nom: d.name, Prenom: d.firstName ?? '', Statut: d.status, 'Cree le': d.createdAt ?? '', Telephone: d.phone ?? '', Email: d.email ?? '', 'Code postal': d.postalCode ?? '' })) },
-                { label: 'Dossiers signés', count: dossiersSignes.length, color: 'bg-amber-50 text-amber-700', file: 'dossiers-signes.csv',
-                  rows: () => dossiersSignes.map((d: any) => ({ Nom: d.name, Statut: d.status ?? '', 'Signe le': d.signedDate ?? '' })) },
+                { label: 'Dossiers signés', count: allDossiersSignes.length, color: 'bg-amber-50 text-amber-700', file: 'dossiers-signes.csv',
+                  rows: () => allDossiersSignes.map((d: any) => ({ Nom: d.name, Statut: d.status ?? '', 'Signe le': d.signedDate ?? '' })) },
                 { label: 'Factures', count: invoices.length, color: 'bg-violet-50 text-violet-700', file: 'factures.csv',
                   rows: () => invoices.map((i: any) => ({ Reference: i.ref, Client: i.client, Date: i.date, 'Montant HT': i.montantHT, Statut: i.statut, Type: i.type ?? '' })) },
                 { label: 'Devis', count: devis.length, color: 'bg-blue-50 text-blue-700', file: 'devis.csv',
@@ -1551,7 +1561,7 @@ export default function ParametresPage() {
                 { label: 'Catalogue produits', count: stockItems.length, color: 'bg-emerald-50 text-emerald-700', file: 'catalogue.csv',
                   rows: () => stockItems.map((s: any) => ({ Nom: s.name, SKU: s.sku ?? '', Categorie: s.category ?? '', Quantite: s.quantity ?? '', 'Prix achat HT': s.purchasePrice ?? '', 'Prix vente HT': s.salePrice ?? '' })) },
                 { label: 'Historique complet', count: null, color: 'bg-[#f5eee8] text-[#a67749]', file: 'historique.csv',
-                  rows: () => [...dossiers, ...dossiersSignes].map((d: any) => ({ Nom: d.name, Statut: d.status ?? 'signé', 'Cree le': d.createdAt ?? '', 'Signe le': d.signedDate ?? '' })) },
+                  rows: () => [...dossiers, ...allDossiersSignes].map((d: any) => ({ Nom: d.name, Statut: d.status ?? 'signé', 'Cree le': d.createdAt ?? '', 'Signe le': d.signedDate ?? '' })) },
               ].map(item => (
                 <button key={item.label}
                   onClick={() => downloadCSV(item.file, item.rows())}
@@ -1580,7 +1590,7 @@ export default function ParametresPage() {
               <button
                 onClick={() => {
                   if (typeof window === 'undefined') return;
-                  const data = { exportedAt: new Date().toISOString(), dossiers, dossiersSignes, invoices, devis, stockItems };
+                  const data = { exportedAt: new Date().toISOString(), dossiers, dossiersSignes: allDossiersSignes, invoices, devis, stockItems };
                   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a'); a.href = url; a.download = 'avra-sauvegarde.json';

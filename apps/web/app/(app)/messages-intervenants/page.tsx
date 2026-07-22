@@ -15,7 +15,7 @@ import {
   classifyAttachmentPro, DEMANDE_TYPE_LABELS,
   type Demande, type DemandeAttachment,
 } from '@/lib/demandes-api';
-import { useDossierStore } from '@/store';
+import { useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 
 // ─── Palette ──────────────────────────────────────────────────────────────
 const GREEN = '#304035';
@@ -563,9 +563,10 @@ function DocBubble({ mine, att, time, classified, onClassify }: { mine: boolean;
 function ClassifyModal({ att, projectId, onClose, onDone }: {
   att: DemandeAttachment; projectId: string; projectName?: string; onClose: () => void; onDone: () => void;
 }) {
-  // Références STABLES du store (évite une boucle de re-render).
-  const dossiers = useDossierStore((s) => s.dossiers);
-  const dossiersSignes = useDossierStore((s) => s.dossiersSignes);
+  // Références STABLES du store (évite une boucle de re-render). Filtrées par
+  // métier actif (cloisonnement inter-métiers, P0 juillet 2026).
+  const dossiers = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
 
   // On peut classer dans N'IMPORTE QUEL dossier (en cours ou signé) + sous-dossier.
   const [selectedDossierId, setSelectedDossierId] = useState<string>(projectId);

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, Circle, Phone, Mail, MapPin, FolderOpen, LayoutGrid, List, Trash2, LayoutDashboard } from 'lucide-react';
 import { VendeurBadge } from '@/components/vendeur/VendeurBadge';
-import { useDossierStore } from '@/store';
+import { useDossierStore, useVisibleDossiers, useVisibleDossiersPerdus } from '@/store';
 import { ValidationDashboard } from '@/components/dossiers/ValidationDashboard';
 import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
 import { OngoingDossierDashboardModal } from '@/components/dossiers/OngoingDossierDashboardModal';
@@ -93,8 +93,8 @@ function avatarColor(name: string) {
 }
 
 export default function DossiersPage() {
-  const dossiers = useDossierStore(s => s.dossiers);
-  const dossiersPerdus = useDossierStore(s => s.dossiersPerdus);
+  const dossiers = useVisibleDossiers();
+  const dossiersPerdus = useVisibleDossiersPerdus();
   // Droits : admin = tout ; vendeur = ses propres dossiers uniquement.
   const { canEditDossier } = useDossierPermissions();
   const [search, setSearch] = useState('');

@@ -8,7 +8,7 @@ import {
   Building2, CreditCard, Mail, Globe, MoreVertical,
   ArrowRight, Percent, X, PlusCircle, Edit2,
 } from 'lucide-react';
-import { useFacturationStore, useDossierStore, useConfigStore, useUIStore, type Invoice, type InvoiceStatus, type Devis, type DevisStatus, type LigneDocument, type InvoiceDetail, type FactureDetailType } from '@/store';
+import { useFacturationStore, useConfigStore, useUIStore, useVisibleDossiers, useVisibleDossiersSignes, type Invoice, type InvoiceStatus, type Devis, type DevisStatus, type LigneDocument, type InvoiceDetail, type FactureDetailType } from '@/store';
 import { Pen, Paperclip, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -159,8 +159,8 @@ function LignesEditor({ lignes, onChange }: { lignes: LigneDocument[]; onChange:
 function ModalDevis({ onClose, devisToEdit }: { onClose: () => void; devisToEdit?: Devis }) {
   const addDevis = useFacturationStore(s => s.addDevis);
   const updateDevis = useFacturationStore(s => s.updateDevis);
-  const dossiers = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
   const allDossiers = [...dossiers, ...dossiersSignes];
 
   const [form, setForm] = useState({
@@ -313,8 +313,8 @@ function ModalDevis({ onClose, devisToEdit }: { onClose: () => void; devisToEdit
 
 function ModalFacture({ onClose, devisSource }: { onClose: () => void; devisSource?: Devis }) {
   const addInvoiceDetail = useFacturationStore(s => s.addInvoiceDetail);
-  const dossiers = useDossierStore(s => s.dossiers);
-  const dossiersSignes = useDossierStore(s => s.dossiersSignes);
+  const dossiers = useVisibleDossiers();
+  const dossiersSignes = useVisibleDossiersSignes();
   const allDossiers = [...dossiers, ...dossiersSignes];
 
   const [form, setForm] = useState({
