@@ -1,13 +1,13 @@
 /**
  * POST /api/ia/coloriste-textures
  *
- * Coloriste « chirurgical » via MyArchitectAI /change-textures (≠ /coloriste
- * qui tourne sur Flux/fal.ai, et ≠ /coloriste-architect qui utilise
- * render/interior). L'endpoint /change-textures change les couleurs / matières
- * (façades / poignées / plan de travail) EN PRÉSERVANT la géométrie et le layout
- * d'origine — c'est le vrai comportement « coloriste » qui manquait.
+ * Coloriste « chirurgical » via MyArchitectAI /change-textures : applique une
+ * MATIÈRE importée (mode référence) OU des COULEURS choisies (mode prompt) sur
+ * la zone SÉLECTIONNÉE AU CLIC (masque SAM2), en préservant la géométrie.
  *
- * Module de TEST isolé : s'il échoue, le Coloriste fal.ai reste intact.
+ * Sélection unique = clic (SAM2, /api/ia/segment-point). Le front nous transmet
+ * l'URL du masque (blanc = zone à changer) + l'URL de la source (même image →
+ * alignement garanti). On recopie le masque sur Supabase pour une URL stable.
  *
  * ⚙️  Activation : MYARCHITECT_API_KEY (Vercel). Sans clé → mode démo (renvoie
  *     l'image source).
@@ -16,7 +16,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildTextureEditPrompt, type ColoristParams } from '@/lib/server/prompt-builder';
 import { generateColoristeTextures } from '@/lib/server/myarchitect-api';
-import { segmentSurfaceMask } from '@/lib/server/flux-api';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
 import { prisma } from '@/lib/server/prisma';
@@ -77,37 +76,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Source : URL déjà uploadée (sélection au clic) OU data URL directe (fallback).
   const sourceImageDataUrl =
     typeof body.sourceImageDataUrl === 'string' && body.sourceImageDataUrl.startsWith('data:')
       ? body.sourceImageDataUrl
       : null;
-  if (!sourceImageDataUrl) {
+  const providedSourceUrl =
+    typeof body.sourceUrl === 'string' && (body.sourceUrl as string).startsWith('http')
+      ? (body.sourceUrl as string)
+      : null;
+  if (!sourceImageDataUrl && !providedSourceUrl) {
     return NextResponse.json(
       { error: 'Photo de la cuisine requise (importez une image).' },
       { status: 400 },
     );
   }
 
-  // Échantillon de matière importé (optionnel) : /change-textures appliquera
-  // CETTE matière réelle au lieu (ou en plus) d'une couleur décrite.
+  // Échantillon de matière importé (optionnel). Présent → mode RÉFÉRENCE (la
+  // matière réelle est reproduite). Absent → mode COULEURS (prompt).
   const referenceImageDataUrl =
     typeof body.referenceImageDataUrl === 'string' && body.referenceImageDataUrl.startsWith('data:')
       ? body.referenceImageDataUrl
       : null;
 
-  // Masque (optionnel mais REQUIS par /change-textures) : image noir/blanc de la
-  // zone à retexturer, peinte par l'utilisateur. Sans masque → repli edit-by-prompt.
-  const maskDataUrl =
-    typeof body.maskDataUrl === 'string' && body.maskDataUrl.startsWith('data:')
-      ? body.maskDataUrl
+  // Masque de la zone à changer (sélection au clic SAM2, blanc = zone à changer).
+  const providedMaskUrl =
+    typeof body.maskUrl === 'string' && (body.maskUrl as string).startsWith('http')
+      ? (body.maskUrl as string)
       : null;
-
-  // Mode de sélection de la zone :
-  //  - 'auto'  → EVF-SAM détecte la surface choisie (referenceTarget) côté serveur.
-  //  - 'brush' → l'utilisateur a fourni un masque (pinceau ou lasso) via maskDataUrl.
-  // On considère qu'on AURA un masque si auto est demandé OU si un masque manuel est fourni.
-  const autoMask = body.maskMode === 'auto';
-  const willHaveMask = autoMask || !!maskDataUrl;
 
   const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
   const params: ColoristParams = {
@@ -122,39 +118,17 @@ export async function POST(req: NextRequest) {
     countertopMaterial: str(body.countertopMaterial),
   };
 
-  // Prompt IMPÉRATIF verbe-en-tête, surface par surface, conforme au guide
-  // officiel MyArchitectAI « Editing best practices » (« Replace the [surface]
-  // material with … keep everything else unchanged »). /change-textures préserve
-  // déjà la géométrie : pas besoin des lourdes contraintes anti-déformation.
-  // Surface cible de la texture importée (le prompt dit au moteur OÙ l'appliquer).
-  const REF_TARGET_PHRASES: Record<string, string> = {
-    facades: 'the kitchen cabinet fronts (doors and drawer fronts)',
-    plan: 'the countertop / worktop surface',
-    poignees: 'the cabinet door handles and knobs',
-    sol: 'the floor',
-    credence: 'the backsplash',
-  };
-  const refTarget = str(body.referenceTarget) ?? 'facades';
-  const refPhrase = REF_TARGET_PHRASES[refTarget] ?? REF_TARGET_PHRASES.facades;
-  // Construction du prompt. RÈGLE CLÉ : si une TEXTURE est importée + une zone
-  // peinte, c'est la MATIÈRE DE RÉFÉRENCE qui gagne — on ne décrit AUCUNE couleur
-  // (sinon la couleur écraserait la texture, cf. bug « ça met le vert, pas le cuir »).
-  let prompt: string;
-  if (referenceImageDataUrl && willHaveMask) {
-    prompt =
-      'Replace the material of the masked region with the exact material, colour, pattern and finish '
-      + 'shown in the attached reference image; reproduce the reference material faithfully. '
-      + 'Keep everything outside the mask exactly unchanged. Photorealistic, sharp, high detail.';
-  } else if (willHaveMask) {
-    // Zone peinte sans texture → couleurs choisies, limitées à la zone peinte.
-    prompt = `${buildTextureEditPrompt(params)} Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.`;
-  } else if (referenceImageDataUrl) {
-    // Texture SANS zone peinte : change-textures exige un masque → on retombera sur
-    // edit-by-prompt (qui ne sait pas lire la texture) et on applique les couleurs.
-    prompt = `${buildTextureEditPrompt(params)} Apply the exact material shown in the attached reference image to ${refPhrase}; keep all other surfaces as described above.`;
-  } else {
-    prompt = buildTextureEditPrompt(params);
-  }
+  // Prompt. /change-textures est mutuellement exclusif (référence OU prompt) :
+  //  - Référence + masque → matière réelle, AUCUNE couleur décrite (sinon la
+  //    couleur écraserait la texture). Le prompt est de toute façon ignoré côté
+  //    wrapper quand une référence est fournie ; on le garde pour la traçabilité.
+  //  - Couleurs + masque → couleurs limitées à la zone.
+  const prompt = referenceImageDataUrl
+    ? 'Replace the material of the masked region with the exact material, colour, pattern and finish '
+      + 'shown in the attached reference image; reproduce it faithfully. Keep everything outside the '
+      + 'mask unchanged. Photorealistic, sharp, high detail.'
+    : `${buildTextureEditPrompt(params)} Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.`;
+
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 
@@ -171,6 +145,7 @@ export async function POST(req: NextRequest) {
         modelsUsed: ['myarchitectai/change-textures'],
         params: {
           engine: 'myarchitectai-textures',
+          mode: referenceImageDataUrl ? 'reference' : 'colors',
           facadeHex: params.facadeHex,
           poigneeHex: params.poigneeHex,
           planHex: params.planHex,
@@ -202,25 +177,39 @@ export async function POST(req: NextRequest) {
   try {
     await prisma.iaJob.update({ where: { id: job.id }, data: { status: 'PROCESSING' } });
 
-    // ── 5) Upload de la photo source → Supabase (URL signée fetchable par MyArchitectAI)
+    // ── 5) Photo source → URL fetchable par MyArchitectAI
+    // Sélection au clic : on RÉUTILISE l'URL déjà uploadée (même image que le
+    // masque SAM2 → alignement pixel garanti). Sinon on upload le data URL.
     let sourceSignedUrl: string;
-    try {
-      const { buffer, contentType } = dataUrlToBuffer(sourceImageDataUrl);
-      const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
-      const sourcePath = `${workspaceId}/${job.id}/source.${ext}`;
-      await uploadToIaRenders(sourcePath, buffer, contentType);
-      sourceSignedUrl = await createIaRendersSignedUrl(sourcePath);
-      await prisma.iaJob.update({
-        where: { id: job.id },
-        data: { inputImageUrls: { source: sourceSignedUrl } },
-      });
-    } catch (uploadErr) {
-      console.warn('[API /ia/coloriste-textures] upload source échec:',
-        uploadErr instanceof Error ? uploadErr.message : uploadErr);
-      return fail(502, 'Impossible de préparer la photo source. Réessayez dans un instant.');
+    if (providedSourceUrl) {
+      sourceSignedUrl = providedSourceUrl;
+      try {
+        await prisma.iaJob.update({
+          where: { id: job.id },
+          data: { inputImageUrls: { source: sourceSignedUrl } },
+        });
+      } catch { /* best-effort */ }
+    } else if (sourceImageDataUrl) {
+      try {
+        const { buffer, contentType } = dataUrlToBuffer(sourceImageDataUrl);
+        const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+        const sourcePath = `${workspaceId}/${job.id}/source.${ext}`;
+        await uploadToIaRenders(sourcePath, buffer, contentType);
+        sourceSignedUrl = await createIaRendersSignedUrl(sourcePath);
+        await prisma.iaJob.update({
+          where: { id: job.id },
+          data: { inputImageUrls: { source: sourceSignedUrl } },
+        });
+      } catch (uploadErr) {
+        console.warn('[API /ia/coloriste-textures] upload source échec:',
+          uploadErr instanceof Error ? uploadErr.message : uploadErr);
+        return fail(502, 'Impossible de préparer la photo source. Réessayez dans un instant.');
+      }
+    } else {
+      return fail(400, 'Photo source manquante.');
     }
 
-    // ── 5b) Upload de l'échantillon de matière (optionnel) → URL signée
+    // ── 5b) Échantillon de matière (optionnel) → URL signée
     let referenceSignedUrl: string | undefined;
     if (referenceImageDataUrl) {
       try {
@@ -230,41 +219,25 @@ export async function POST(req: NextRequest) {
         await uploadToIaRenders(refPath, buffer, contentType);
         referenceSignedUrl = await createIaRendersSignedUrl(refPath);
       } catch (refErr) {
-        // Non bloquant : si l'échantillon échoue, on colorise quand même par prompt.
         console.warn('[API /ia/coloriste-textures] upload référence échec:',
           refErr instanceof Error ? refErr.message : refErr);
       }
     }
 
-    // ── 5c) Masque (zone à retexturer) → URL signée / URL fal
+    // ── 5c) Masque SAM2 → recopié sur Supabase (URL stable même origine que la source)
     let maskSignedUrl: string | undefined;
-    if (autoMask) {
-      // Mode AUTO : EVF-SAM détecte la surface choisie sur la photo source.
-      // Renvoie une URL de masque (fal CDN, blanc = surface) directement
-      // fetchable par MyArchitectAI. Si SAM échoue → pas de masque (repli).
+    if (providedMaskUrl) {
       try {
-        const samMaskUrl = await segmentSurfaceMask(sourceSignedUrl, refTarget);
-        if (samMaskUrl) {
-          maskSignedUrl = samMaskUrl;
-        } else {
-          console.warn('[API /ia/coloriste-textures] SAM: aucune surface détectée pour', refTarget);
-        }
-      } catch (samErr) {
-        console.warn('[API /ia/coloriste-textures] SAM échec:',
-          samErr instanceof Error ? samErr.message : samErr);
-      }
-    } else if (maskDataUrl) {
-      // Mode MANUEL (pinceau / lasso) : masque peint par l'utilisateur.
-      try {
-        const { buffer, contentType } = dataUrlToBuffer(maskDataUrl);
-        const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
-        const maskPath = `${workspaceId}/${job.id}/mask.${ext}`;
-        await uploadToIaRenders(maskPath, buffer, contentType);
-        maskSignedUrl = await createIaRendersSignedUrl(maskPath);
+        const { signedUrl } = await copyExternalImageToIaRenders(
+          providedMaskUrl,
+          `${workspaceId}/${job.id}/mask.png`,
+        );
+        maskSignedUrl = signedUrl;
       } catch (maskErr) {
-        // Non bloquant : sans masque, le moteur retombe sur edit-by-prompt.
-        console.warn('[API /ia/coloriste-textures] upload masque échec:',
+        // Repli : à défaut de copie, on tente l'URL d'origine directement.
+        console.warn('[API /ia/coloriste-textures] copie masque échec, URL directe:',
           maskErr instanceof Error ? maskErr.message : maskErr);
+        maskSignedUrl = providedMaskUrl;
       }
     }
 

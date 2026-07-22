@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { ColoristeMaskCanvas, type MaskResult } from './ColoristeMaskCanvas';
+import { ColoristeClickSelect, type ClickSelectResult } from './ColoristeClickSelect';
 import Image from 'next/image';
 import {
   Sparkles, Loader2, Plus, X, Check, Upload,
@@ -12,7 +12,7 @@ import {
   Image as ImageIcon, CheckCircle2, ScanLine,
   Lightbulb, Target, Award, AlertTriangle,
   Sun, Lamp, Monitor, Home, Building2,
-  Download, Maximize2,
+  Download, Maximize2, MousePointerClick,
 } from 'lucide-react';
 import { useDossierStore, useHistoryStore, useAuthStore } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -317,7 +317,7 @@ async function callColoristeTexturesAPI(params: {
   facadeFinish: FinishType; lightingStyle: LightingType;
   poigneeFinish?: FinishType; planFinish?: FinishType;
   handleMaterial?: string; countertopMaterial?: string;
-  sourceImageDataUrl: string; referenceImageDataUrl?: string; referenceTarget?: string; maskDataUrl?: string; maskMode?: 'auto' | 'brush'; projectId?: string | null;
+  sourceImageDataUrl?: string; referenceImageDataUrl?: string; maskUrl?: string; sourceUrl?: string; projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste-textures', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params),
@@ -1194,13 +1194,8 @@ export default function IaStudioPage() {
   // Échantillon de matière importé (optionnel) : la texture réelle appliquée.
   const [colorTexRefFile, setColorTexRefFile] = useState<File|null>(null);
   const colorTexRefURL = useMemo(() => (colorTexRefFile ? URL.createObjectURL(colorTexRefFile) : null), [colorTexRefFile]);
-  // Surface à laquelle appliquer la texture importée.
-  const [colorTexRefTarget, setColorTexRefTarget] = useState<'facades'|'plan'|'poignees'|'sol'|'credence'>('facades');
-  // Masque peint (zone à retexturer) + source aux mêmes dimensions.
-  const [colorTexMask, setColorTexMask] = useState<MaskResult|null>(null);
-  // Mode de sélection de la zone : 'auto' (détection IA de la surface) ou 'manuel'
-  // (pinceau / lasso via le canevas). Auto par défaut = zéro coloriage.
-  const [colorTexMaskMode, setColorTexMaskMode] = useState<'auto'|'manuel'>('auto');
+  // Sélection au clic (SAM2) : { maskUrl, sourceUrl } déjà segmentés côté serveur.
+  const [colorTexClick, setColorTexClick] = useState<ClickSelectResult|null>(null);
 
   /* ── RENDU — état */
   // Image de référence (plan WinnerFlex, photo d'inspiration, sketch).
@@ -1597,24 +1592,13 @@ export default function IaStudioPage() {
     openSaveModal(colorArchResult, 'Coloriste IA', '🎨', () => setColorArchResult(null));
   };
 
-  /* ── Coloriste ✨ (/change-textures) : lancer (mêmes couleurs, préserve la géométrie) */
+  /* ── Coloriste ✨ (/change-textures) : lancer sur la zone sélectionnée au clic */
   const runColoristeTextures = async () => {
     if (!photoFile) { setColorTexError('Photo de la cuisine requise.'); return; }
+    if (!colorTexClick) { setColorTexError('Cliquez d\'abord la surface à changer sur la photo.'); return; }
     setColorTexLoading(true); setColorTexResult(null); setColorTexError(null);
     try {
-      // Mode MANUEL : on envoie le masque du canevas (pinceau/lasso) + sa source
-      // aux mêmes dimensions. Mode AUTO : on envoie la photo compressée, le
-      // serveur détecte la surface (EVF-SAM) → masque. maskMode='auto' sinon 'brush'.
-      const useManualMask = colorTexMaskMode === 'manuel' && !!colorTexMask;
-      let sourceImageDataUrl: string;
-      const maskDataUrl = useManualMask ? colorTexMask!.maskDataUrl : undefined;
-      if (useManualMask) {
-        sourceImageDataUrl = colorTexMask!.sourceDataUrl;
-      } else {
-        try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280); }
-        catch { setColorTexError('Impossible de lire la photo. Réessayez avec un autre fichier.'); setColorTexLoading(false); return; }
-      }
-      // Échantillon de matière (optionnel) — non bloquant si illisible.
+      // Échantillon de matière (optionnel) — présent = mode référence.
       let referenceImageDataUrl: string | undefined;
       if (colorTexRefFile) {
         try { referenceImageDataUrl = await compressImageToDataUrl(colorTexRefFile, 1024); }
@@ -1630,12 +1614,10 @@ export default function IaStudioPage() {
         handleMaterial:     preset?.handleMaterial,
         countertopMaterial: preset?.countertopMaterial,
         lightingStyle:      colorLight,
-        sourceImageDataUrl,
         referenceImageDataUrl,
-        // La surface pilote la détection auto (SAM) ET la cible de la texture.
-        referenceTarget:    colorTexRefTarget,
-        maskDataUrl,
-        maskMode:           colorTexMaskMode === 'auto' ? 'auto' : 'brush',
+        // Sélection au clic (SAM2) : masque + source déjà segmentés côté serveur.
+        maskUrl:            colorTexClick.maskUrl,
+        sourceUrl:          colorTexClick.sourceUrl,
         projectId:          dossierId || null,
       });
       if (result.error) { setColorTexError(result.error); setColorTexLoading(false); return; }
@@ -1670,7 +1652,7 @@ export default function IaStudioPage() {
       const blob = await resp.blob();
       const file = new File([blob], `retouche-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
       setPhotoFile(file);            // le résultat devient la base
-      setColorTexMask(null);         // on repart d'une sélection vierge
+      setColorTexClick(null);        // on repart d'une sélection vierge
       setColorTexResult(null);       // on revient en mode édition
       setColorTexError(null);
     } catch {
@@ -3499,20 +3481,9 @@ export default function IaStudioPage() {
                     </div>
                   )}
                   {colorTexRefFile && (
-                    <div className="mt-3">
-                      <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-wide mb-1.5">Appliquer cette texture à</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {([['facades','Façades'],['plan','Plan de travail'],['poignees','Poignées'],['sol','Sol'],['credence','Crédence']] as const).map(([val,label]) => {
-                          const on = colorTexRefTarget === val;
-                          return (
-                            <button key={val} type="button" onClick={() => setColorTexRefTarget(val)}
-                              className={`text-[11px] font-semibold rounded-full px-2.5 py-1 border transition-colors ${on ? 'bg-[#2f9e8f] text-white border-[#2f9e8f]' : 'bg-white text-[#304035]/70 border-[#304035]/15 hover:border-[#2f9e8f]/40'}`}>
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <p className="mt-2 text-[11px] text-[#304035]/50 leading-relaxed">
+                      La matière sera appliquée à la zone que vous <b>cliquez</b> ci-dessous.
+                    </p>
                   )}
                 </div>
               </div>
@@ -3562,50 +3533,16 @@ export default function IaStudioPage() {
 
             {/* Zone à changer — 2 modes : détection auto (SAM) ou manuel (lasso/pinceau) */}
             {photoFile && (
-              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-3">
+              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-2">
                 <div className="flex items-center gap-2 mb-1">
-                  <Paintbrush className="h-4 w-4 text-[#2f9e8f]" />
+                  <MousePointerClick className="h-4 w-4 text-[#2f9e8f]" />
                   <p className="font-bold text-[#304035]">Zone à changer</p>
-                  {colorTexMaskMode === 'auto'
-                    ? <span className="text-[10px] font-bold text-[#2f9e8f] bg-[#2f9e8f]/10 rounded-full px-2 py-0.5 align-middle">Détection auto</span>
-                    : colorTexMask
-                      ? <span className="text-[10px] font-bold text-[#2f9e8f] bg-[#2f9e8f]/10 rounded-full px-2 py-0.5 align-middle">Zone définie ✓</span>
-                      : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">À dessiner</span>}
+                  {colorTexClick
+                    ? <span className="text-[10px] font-bold text-[#2f9e8f] bg-[#2f9e8f]/10 rounded-full px-2 py-0.5 align-middle">Zone sélectionnée ✓</span>
+                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Cliquez la surface</span>}
                 </div>
-
-                {/* Bascule de mode */}
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => setColorTexMaskMode('auto')}
-                    className={`flex-1 text-xs font-bold rounded-xl px-3 py-2 border transition-colors ${colorTexMaskMode==='auto' ? 'bg-[#2f9e8f] text-white border-[#2f9e8f]' : 'bg-white text-[#304035]/70 border-[#304035]/15 hover:border-[#2f9e8f]/40'}`}>
-                    🎯 Détection auto
-                  </button>
-                  <button type="button" onClick={() => setColorTexMaskMode('manuel')}
-                    className={`flex-1 text-xs font-bold rounded-xl px-3 py-2 border transition-colors ${colorTexMaskMode==='manuel' ? 'bg-[#2f9e8f] text-white border-[#2f9e8f]' : 'bg-white text-[#304035]/70 border-[#304035]/15 hover:border-[#2f9e8f]/40'}`}>
-                    ✏️ Lasso / Pinceau
-                  </button>
-                </div>
-
-                {colorTexMaskMode === 'auto' ? (
-                  <>
-                    <p className="text-xs text-[#304035]/50">Choisissez la surface : l’IA la détecte automatiquement au pixel près, sans coloriage.</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {([['facades','Façades'],['plan','Plan de travail'],['poignees','Poignées'],['sol','Sol'],['credence','Crédence']] as const).map(([val,label]) => {
-                        const on = colorTexRefTarget === val;
-                        return (
-                          <button key={val} type="button" onClick={() => setColorTexRefTarget(val)}
-                            className={`text-[11px] font-semibold rounded-full px-2.5 py-1 border transition-colors ${on ? 'bg-[#2f9e8f] text-white border-[#2f9e8f]' : 'bg-white text-[#304035]/70 border-[#304035]/15 hover:border-[#2f9e8f]/40'}`}>
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-xs text-[#304035]/50">Entourez la zone au <b>lasso</b> (contour net, recommandé) ou peignez-la au <b>pinceau</b>. La gomme corrige les débordements.</p>
-                    <ColoristeMaskCanvas file={photoFile} accent="#2f9e8f" onChange={setColorTexMask} />
-                  </>
-                )}
+                <p className="text-xs text-[#304035]/50">Cliquez sur la surface à changer — l’IA sélectionne l’objet exact. Cliquez d’autres points pour ajouter, « Retirer » pour enlever.</p>
+                <ColoristeClickSelect file={photoFile} accent="#2f9e8f" onChange={setColorTexClick} />
               </div>
             )}
 
@@ -3656,8 +3593,8 @@ export default function IaStudioPage() {
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <DossierPicker />
               <button onClick={runColoristeTextures}
-                disabled={colorTexLoading || !photoFile}
-                title={!photoFile ? 'Importez la photo de la cuisine' : undefined}
+                disabled={colorTexLoading || !photoFile || !colorTexClick}
+                title={!photoFile ? 'Importez la photo de la cuisine' : !colorTexClick ? 'Cliquez la surface à changer' : undefined}
                 className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{background:'linear-gradient(135deg,#2f9e8f 0%,#247a6f 100%)'}}>
                 <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
@@ -3665,7 +3602,9 @@ export default function IaStudioPage() {
                     ? <><Loader2 className="h-4 w-4 animate-spin" />Colorisation…</>
                     : !photoFile
                       ? <><FileImage className="h-4 w-4" />Importez d'abord la photo</>
-                      : <><Paintbrush className="h-4 w-4" />Coloriser<ArrowRight className="h-4 w-4 ml-1" /></>
+                      : !colorTexClick
+                        ? <><MousePointerClick className="h-4 w-4" />Cliquez la surface à changer</>
+                        : <><Paintbrush className="h-4 w-4" />Coloriser<ArrowRight className="h-4 w-4 ml-1" /></>
                   }
                 </span>
               </button>

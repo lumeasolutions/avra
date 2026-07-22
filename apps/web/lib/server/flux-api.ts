@@ -255,63 +255,51 @@ async function inpaintRegion(
   }
 }
 
-// ─────────────────────────────────────────── DÉTECTION AUTO DE SURFACE (Coloriste textures)
+// ─────────────────────────────────────────── SÉLECTION AU CLIC (SAM2 par points)
 //
-// Expose EVF-SAM comme sélecteur automatique de surface pour le module
-// « Coloriste ✨ » (MyArchitectAI /change-textures). L'utilisateur choisit une
-// surface (façades, plan, poignées, sol, crédence) ; on renvoie l'URL d'un
-// masque PNG où la surface détectée est BLANCHE — exactement la convention
-// attendue par /change-textures (blanc = zone à changer, noir = garder).
+// SAM2 « interactif » : l'utilisateur clique sur une surface, on segmente l'objet
+// EXACT sous le clic (contours parfaits). Bien plus fiable que la détection par
+// mot-clé (EVF-SAM) pour les cas ambigus (crédence, poignées, une porte précise).
 
-export type SegmentSurface = 'facades' | 'plan' | 'poignees' | 'sol' | 'credence';
+const SAM2_MODEL = 'fal-ai/sam2/image';
 
-const SURFACE_SAM_CONFIG: Record<SegmentSurface, { primary: string; fallback: string; opts: SegmentOptions }> = {
-  facades: {
-    primary: 'all kitchen cabinet doors and drawer fronts, upper and lower cabinets',
-    fallback: 'kitchen cabinets',
-    opts: { expandMask: 3, blurMask: 3 },
-  },
-  plan: {
-    primary: 'kitchen countertop horizontal worktop surface',
-    fallback: 'kitchen countertop',
-    opts: {
-      expandMask: 1, blurMask: 3,
-      negativePrompt: 'backsplash, wall, tile, splashback, vertical surface, kitchen appliances, oven, microwave, sink',
-    },
-  },
-  poignees: {
-    primary: 'cabinet handles and knobs and drawer pulls',
-    fallback: 'cabinet handles',
-    opts: { expandMask: 2, blurMask: 2 },
-  },
-  sol: {
-    primary: 'kitchen floor flooring surface',
-    fallback: 'floor',
-    opts: { expandMask: 2, blurMask: 3 },
-  },
-  credence: {
-    primary: 'the backsplash: the vertical wall strip directly above the countertop and below the upper wall cabinets',
-    fallback: 'backsplash splashback wall strip above the worktop',
-    opts: {
-      expandMask: 1, blurMask: 3,
-      // Écarte fortement les meubles (hauts + bas) et le plan : EVF-SAM confond
-      // sinon la crédence avec la bande de meubles hauts au-dessus.
-      negativePrompt: 'upper wall cabinets, cabinet doors, drawer fronts, lower cabinets, countertop, worktop, floor, window, sink, appliances, hood',
-    },
-  },
-};
+export interface SamPoint {
+  x: number;
+  y: number;
+  /** 1 = ajouter (avant-plan) ; 0 = retirer (arrière-plan). */
+  label: 0 | 1;
+}
 
 /**
- * Détecte automatiquement une surface de cuisine et renvoie l'URL d'un masque
- * PNG (blanc = surface, noir = reste). Compatible /change-textures directement.
- * Renvoie null si SAM ne détecte rien (l'appelant retombe alors sur un autre mode).
+ * Segmente une image à partir de points cliqués (SAM2). Renvoie l'URL d'un
+ * masque PNG (blanc = zone sélectionnée = à changer) — convention identique à
+ * /change-textures. null si SAM2 ne renvoie rien.
  *
- * @param imageUrl URL https publique de la photo (déjà uploadée)
- * @param surface  Surface cible (facades | plan | poignees | sol | credence)
+ * Tous les points label=1 sont fusionnés en une seule sélection ; les points
+ * label=0 retirent des morceaux. Les coordonnées sont en pixels de l'image.
  */
-export async function segmentSurfaceMask(imageUrl: string, surface: string): Promise<string | null> {
-  const cfg = SURFACE_SAM_CONFIG[surface as SegmentSurface] ?? SURFACE_SAM_CONFIG.facades;
-  return segmentRegionWithRetry(imageUrl, cfg.primary, cfg.fallback, cfg.opts);
+export async function segmentByPoints(imageUrl: string, points: SamPoint[]): Promise<string | null> {
+  ensureConfigured();
+  if (!points.length) return null;
+  const t0 = Date.now();
+  try {
+    const result = await fal.subscribe(SAM2_MODEL, {
+      input: {
+        image_url: imageUrl,
+        prompts: points.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y), label: p.label })),
+        // apply_mask=false → renvoie le MASQUE (blanc sur noir), pas l'image découpée.
+        apply_mask: false,
+        output_format: 'png',
+      } as never,
+      logs: false,
+    });
+    const maskUrl = extractMaskUrl(result.data);
+    console.log(`[SAM2] ${points.length} pt(s) → ${maskUrl ? 'OK' : 'NO MASK'} en ${Date.now() - t0}ms`);
+    return maskUrl;
+  } catch (err) {
+    console.warn('[SAM2] échec:', err instanceof Error ? err.message : err);
+    return null;
+  }
 }
 
 // ─────────────────────────────────────────── COLORISTE SAM + INPAINT (mode pro)
