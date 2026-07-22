@@ -9,7 +9,7 @@
 
 import { useCallback } from 'react';
 import { api } from '@/lib/api';
-import { useDossierStore, getDefaultSubfoldersForProfession, type ValidatedOptionSelection } from '@/store/useDossierStore';
+import { useDossierStore, getDefaultSubfoldersForProfession, type ValidatedOptionSelection, type DossierProfession } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useConfigStore } from '@/store/useConfigStore';
 
@@ -151,6 +151,14 @@ export function useProjectActions() {
               notes: '',
               // Multi-vendeur (26/05/2026) — auto-assign à la création
               vendeurName: resolveCurrentVendeurName(),
+              // FIX P0 (22/07/2026) — sans ce champ, le dossier restait
+              // profession: undefined en local (le tradeType envoyé a l'API
+              // etait correct, mais l'ajout optimiste local ne le portait pas).
+              // belongsToProfession() traite profession manquante comme
+              // "visible partout" -> fuite immediate du dossier fraichement
+              // cree vers les 2 autres portails jusqu'au prochain reload
+              // (seul useDataSync recalculait profession depuis tradeType).
+              profession: profession as DossierProfession,
             },
           ],
         };
