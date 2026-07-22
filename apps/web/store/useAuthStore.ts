@@ -58,8 +58,8 @@ export type Profession = 'architecte' | 'menuisier' | 'cuisiniste' | null;
  * Utilisé pour les comptes fondateurs (démo/gestion), pas pour les clients.
  */
 const MULTI_METIER_EMAILS = [
-  'lumeasolutionsss@outlook.fr', // Lumea Solutions — Esteve
-  'cgdesignplan@gmail.com',      // CGDesign — Cassandra
+  'lumeasolutions@outlook.fr', // Lumea Solutions — Esteve (fix coquille "sss" -> "s", juillet 2026)
+  'cgdesignplan@gmail.com',   // CGDesign — Cassandra
 ];
 
 export function isMultiMetierEmail(email?: string | null): boolean {

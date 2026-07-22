@@ -46,7 +46,7 @@ Le frontend Next.js ET l'API NestJS sont tous les deux sur Vercel :
 ## Bêta gate
 
 - `BETA_GATE_ENABLED=true` → whitelist active
-- `BETA_ADMIN_EMAILS=lumeasolutionsss@outlook.fr,cgdesignplan@gmail.com`
+- `BETA_ADMIN_EMAILS=lumeasolutions@outlook.fr,cgdesignplan@gmail.com`
 - Logique : `apps/api/src/common/security/beta-gate.ts`
 - Branché dans : `auth.service.ts` (login ligne ~46, register ligne ~229)
 - `/register` redirige vers `/rejoindre` pendant la bêta
@@ -92,7 +92,7 @@ prisma/schema.prisma              — Schéma DB (Waitlist, DemoRequest, User...
 | Variable | Valeur |
 |----------|--------|
 | `BETA_GATE_ENABLED` | `true` |
-| `BETA_ADMIN_EMAILS` | `lumeasolutionsss@outlook.fr,cgdesignplan@gmail.com` |
+| `BETA_ADMIN_EMAILS` | `lumeasolutions@outlook.fr,cgdesignplan@gmail.com` |
 | `RESEND_API_KEY` | `re_***` |
 | `ADMIN_NOTIFICATION_EMAIL` | `lumeasolutions@outlook.fr` |
 | `NEXT_PUBLIC_API_URL` | (pointe vers `/api/v1`) |
@@ -112,7 +112,7 @@ prisma/schema.prisma              — Schéma DB (Waitlist, DemoRequest, User...
 
 ## Utilisateurs bêta actifs en DB
 
-- `lumeasolutionsss@outlook.fr` — Esteve Boucheret
+- `lumeasolutions@outlook.fr` — Esteve Boucheret
 - `cgdesignplan@gmail.com` — Cassandra Gouna
 
 ### Comptes « multi-métier » (accès à tous les portails)

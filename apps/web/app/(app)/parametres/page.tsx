@@ -22,7 +22,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { AdminDocsPinSettings } from '@/components/admin-docs/AdminDocsPinSettings';
 
 // TEMPORARY DEV — voir DevPortalSwitcher panel ci-dessous
-const ADMIN_EMAILS = ['lumeasolutionsss@outlook.fr', 'cgdesignplan@gmail.com'];
+// Fix coquille "sss" -> "s" (juillet 2026) : ne matchait pas l'email réel d'Esteve,
+// ce qui neutralisait silencieusement le switcher de portail en prod.
+const ADMIN_EMAILS = ['lumeasolutions@outlook.fr', 'cgdesignplan@gmail.com'];
 
 /**
  * Liste des destinations du switcher.
