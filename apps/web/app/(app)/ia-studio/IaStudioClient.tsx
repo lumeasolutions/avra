@@ -1723,15 +1723,18 @@ export default function IaStudioPage() {
     openSaveModal(colorTexResult, 'Coloriste IA', '🎨', () => setColorTexResult(null));
   };
 
-  /* ── Coloriste test (5e module, isolé) : lancer sur la zone sélectionnée
-   * au clic. Différences volontaires avec runColoristeTextures ci-dessus :
+  /* ── Coloriste test (5e module, isolé). Différences volontaires avec
+   * runColoristeTextures ci-dessus :
    *  - endpoint /api/ia/coloriste-test (masque affiné + compositing pixel-safe
    *    côté serveur, voir coloriste-test-compositor.ts) ;
-   *  - masque OBLIGATOIRE (la route refuse explicitement sans sélection,
-   *    jamais de repli silencieux vers un edit non masqué). */
+   *  - clic OBLIGATOIRE uniquement si une texture est importée (retour
+   *    utilisateur juillet 2026 : le mode couleurs pur ne doit pas exiger de
+   *    sélection — la route bascule alors sur un edit par prompt sans masque) ;
+   *  - jamais de repli SILENCIEUX : si une texture est fournie sans sélection,
+   *    ou si la sélection/génération échoue, erreur explicite. */
   const runColoristeTest = async () => {
     if (!photoFile) { setColorTestError('Photo requise.'); return; }
-    if (!colorTestClick) { setColorTestError('Cliquez d\'abord la surface à changer sur la photo.'); return; }
+    if (colorTestRefFile && !colorTestClick) { setColorTestError('Cliquez d\'abord la surface où appliquer la texture importée.'); return; }
     setColorTestLoading(true); setColorTestResult(null); setColorTestError(null);
     try {
       // Retour utilisateur (juillet 2026, test live) : une texture importée
@@ -1749,28 +1752,43 @@ export default function IaStudioPage() {
           return;
         }
       }
+      // Sans clic (mode couleurs pur), on envoie la photo directement en data
+      // URL — colorTestClick.sourceUrl n'existe que si une sélection a été
+      // faite (elle vient de la segmentation SAM2 côté /api/ia/segment-point).
+      let sourceImageDataUrl: string | undefined;
+      if (!colorTestClick) {
+        try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280); }
+        catch {
+          setColorTestError('Impossible de lire la photo. Réessayez avec un autre fichier.');
+          setColorTestLoading(false);
+          return;
+        }
+      }
+      // Pas de presets dans cet onglet (retirés à la demande) : on ignore
+      // volontairement `preset` (état partagé avec les autres onglets Coloriste,
+      // pourrait rester positionné depuis un autre onglet) et on n'utilise que
+      // les couleurs choisies ici (façade/poignée/plan de travail).
       const result = await callColoristeTestAPI({
-        facadeHex:          preset?.facade   ?? facadeCol,
-        poigneeHex:         preset?.poignee  ?? poigneeCol,
-        planHex:            preset?.plan     ?? planCol,
-        facadeFinish:       preset?.finish   ?? facadeFinish,
+        facadeHex:          facadeCol,
+        poigneeHex:         poigneeCol,
+        planHex:            planCol,
+        facadeFinish,
         poigneeFinish:      poigneeFinish ?? undefined,
         planFinish:         planFinish ?? undefined,
-        handleMaterial:     preset?.handleMaterial,
-        countertopMaterial: preset?.countertopMaterial,
         lightingStyle:      colorLight,
         referenceImageDataUrl,
-        maskUrl:            colorTestClick.maskUrl,
-        sourceUrl:          colorTestClick.sourceUrl,
+        sourceImageDataUrl,
+        maskUrl:            colorTestClick?.maskUrl,
+        sourceUrl:          colorTestClick?.sourceUrl,
         projectId:          dossierId || null,
       });
       if (result.error) { setColorTestError(result.error); setColorTestLoading(false); return; }
       setIaHistoryRefresh(n => n + 1);
-      const desc = preset ? `${preset.name} — ${preset.desc}` : `Façades ${facadeCol} ${facadeFinish}`;
+      const desc = `Façades ${facadeCol} ${facadeFinish}`;
       setColorTestResult({
         id: uid(), module: 'coloriste-test', prompt: desc, dossier: dossierName,
         ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
-        color: preset?.facade ?? facadeCol,
+        color: facadeCol,
         imageUrl: result.imageUrl ?? undefined,
         imageUrls: result.imageUrls ?? (result.imageUrl ? [result.imageUrl] : []),
       });
@@ -3810,11 +3828,11 @@ export default function IaStudioPage() {
                 <ShieldCheck className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-[#304035]">Détection affinée + zéro déformation garantie</p>
+                <p className="text-sm font-black text-[#304035]">Couleurs sans clic, texture avec sélection précise</p>
                 <p className="text-xs text-[#304035]/60 leading-relaxed mt-0.5">
-                  Le masque de votre clic est <b>dilaté puis adouci</b> (fini les liserés non traités), et le résultat final est
-                  <b> recomposé pixel par pixel</b> avec votre photo d'origine : tout ce qui est hors de la zone choisie reste
-                  strictement identique, même si le moteur distant dérive sur le reste de l'image.
+                  Pour un changement de <b>couleurs</b> (façade, poignée, plan de travail), lancez directement — aucune sélection requise.
+                  Si vous importez une <b>texture</b>, une zone à cliquer apparaît : son masque est <b>dilaté puis adouci</b>, et le résultat
+                  final est <b>recomposé pixel par pixel</b> avec votre photo d'origine — le reste de l'image reste garanti identique.
                 </p>
               </div>
             </div>
@@ -3909,35 +3927,33 @@ export default function IaStudioPage() {
                   <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#a67749]/20 bg-gradient-to-br from-[#a67749]/5 to-white p-12 text-center lg:min-h-[400px]">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#a67749]/10"><Sparkles className="h-7 w-7 text-[#a67749]/60" /></div>
                     <p className="font-bold text-[#304035] mb-1.5">Votre colorisation apparaîtra ici</p>
-                    <p className="text-xs text-[#304035]/50 leading-relaxed">Importez une photo, cliquez la surface et lancez la colorisation.</p>
+                    <p className="text-xs text-[#304035]/50 leading-relaxed">Importez une photo, choisissez vos couleurs et lancez la colorisation.</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Zone à changer — clic affiné (dilatation + adoucissement du masque) */}
-            {photoFile && (
+            {/* Zone à changer — UNIQUEMENT si une texture est importée (retour
+                utilisateur juillet 2026 : le mode couleurs façade/poignée/plan
+                de travail n'a besoin d'aucune sélection, il fonctionne déjà
+                tel quel sur toute l'image). */}
+            {photoFile && colorTestRefFile && (
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-2">
                 <div className="flex items-center gap-2 mb-1">
                   <MousePointerClick className="h-4 w-4 text-[#a67749]" />
-                  <p className="font-bold text-[#304035]">Zone à changer</p>
+                  <p className="font-bold text-[#304035]">Zone à changer <span className="ml-1 rounded-full bg-[#a67749]/10 text-[#a67749] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS AVEC TEXTURE</span></p>
                   {colorTestClick
                     ? <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Zone sélectionnée ✓</span>
                     : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Cliquez la surface</span>}
                 </div>
-                <p className="text-xs text-[#304035]/50">Cliquez <b>une fois</b> sur une surface — le contour <span className="font-semibold" style={{color:'#00b8d4'}}>cyan</span> affiche exactement la zone qui sera modifiée. <b>Si le contour déborde sur une autre surface</b> (ex : crédence collée à une façade de même teinte), cliquez « Retirer » puis touchez la zone à exclure — vérifiez avant de générer.</p>
+                <p className="text-xs text-[#304035]/50">Une texture a été importée — indiquez où l'appliquer. Cliquez <b>une fois</b> sur une surface — le contour <span className="font-semibold" style={{color:'#00b8d4'}}>cyan</span> affiche exactement la zone qui sera modifiée. <b>Si le contour déborde sur une autre surface</b> (ex : crédence collée à une façade de même teinte), cliquez « Retirer » puis touchez la zone à exclure — vérifiez avant de générer.</p>
                 <ColoristeTestClickSelect file={photoFile} accent="#a67749" onChange={setColorTestClick} />
               </div>
             )}
 
             {/* Palettes + couleurs */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
-              <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#a67749]" /><p className="font-bold text-[#304035]">Palettes & couleurs</p></div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {PRESETS.map(pr => (
-                  <PresetCard key={pr.name} p={pr} active={preset?.name === pr.name} onClick={() => applyPreset(pr)} />
-                ))}
-              </div>
+              <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#a67749]" /><p className="font-bold text-[#304035]">Couleurs</p></div>
               <div className="grid grid-cols-3 gap-3">
                 {([
                   { label: 'Façades',        val: facadeCol,  set: setFacadeCol },
@@ -3976,9 +3992,12 @@ export default function IaStudioPage() {
             {/* Dossier + CTA */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <DossierPicker />
+              {/* Le clic n'est requis QUE si une texture est importée (retour
+                  utilisateur juillet 2026) : en mode couleurs pur, on peut
+                  générer dès qu'une photo est présente. */}
               <button onClick={runColoristeTest}
-                disabled={colorTestLoading || !photoFile || !colorTestClick}
-                title={!photoFile ? 'Importez la photo de la cuisine' : !colorTestClick ? 'Cliquez la surface à changer' : undefined}
+                disabled={colorTestLoading || !photoFile || (!!colorTestRefFile && !colorTestClick)}
+                title={!photoFile ? 'Importez la photo de la cuisine' : (colorTestRefFile && !colorTestClick) ? 'Cliquez la surface où appliquer la texture' : undefined}
                 className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{background:'linear-gradient(135deg,#a67749 0%,#8a5f38 100%)'}}>
                 <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
@@ -3986,8 +4005,8 @@ export default function IaStudioPage() {
                     ? <><Loader2 className="h-4 w-4 animate-spin" />Colorisation…</>
                     : !photoFile
                       ? <><FileImage className="h-4 w-4" />Importez d'abord la photo</>
-                      : !colorTestClick
-                        ? <><MousePointerClick className="h-4 w-4" />Cliquez la surface à changer</>
+                      : (colorTestRefFile && !colorTestClick)
+                        ? <><MousePointerClick className="h-4 w-4" />Cliquez la surface pour la texture</>
                         : <><Sparkles className="h-4 w-4" />Coloriser<ArrowRight className="h-4 w-4 ml-1" /></>
                   }
                 </span>

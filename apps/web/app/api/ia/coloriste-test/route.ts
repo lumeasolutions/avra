@@ -6,21 +6,30 @@
  * utilisateur sur le Coloriste ✨ actuel : détection imprécise + résultats
  * parfois déformés.
  *
- * Même principe que Coloriste ✨ (clic → SAM2 → MyArchitectAI /change-textures)
- * MAIS avec deux garde-fous ajoutés ici (voir coloriste-test-compositor.ts) :
+ * DEUX MODES (retour utilisateur juillet 2026 : la sélection au clic ne doit
+ * être demandée QUE pour appliquer une texture importée — pas pour un simple
+ * changement de couleurs) :
  *
- *   1. Le masque SAM2 brut (transmis par le front, sélection au clic, via la
- *      route EXISTANTE /api/ia/segment-point — réutilisée en LECTURE SEULE,
- *      non modifiée) est RAFFINÉ (dilaté puis adouci) avant d'être envoyé au
- *      moteur — corrige les bords non couverts / trop durs.
- *   2. Le résultat n'est JAMAIS renvoyé tel quel : on le RECOMPOSE nous-mêmes
- *      avec l'image source (original hors-masque, généré dans le masque
- *      affiné) → garantie mathématique que rien ne bouge hors de la zone
- *      choisie, quel que soit le comportement du moteur distant.
- *   3. Pas de repli silencieux vers /edit-by-prompt (sans masque) : si le
- *      masque est absent ou si /change-textures échoue, on ÉCHOUE
- *      explicitement avec un message clair plutôt que de renvoyer un résultat
- *      non maîtrisé en silence.
+ *   A. MODE TEXTURE (referenceImageDataUrl fourni) — masque OBLIGATOIRE (clic
+ *      sur la photo) : clic → SAM2 → MyArchitectAI /change-textures, avec deux
+ *      garde-fous (voir coloriste-test-compositor.ts) :
+ *        1. Le masque SAM2 brut (transmis par le front via la route EXISTANTE
+ *           /api/ia/segment-point — réutilisée en LECTURE SEULE, non modifiée)
+ *           est RAFFINÉ (dilaté puis adouci) avant d'être envoyé au moteur —
+ *           corrige les bords non couverts / trop durs.
+ *        2. Le résultat n'est JAMAIS renvoyé tel quel : on le RECOMPOSE
+ *           nous-mêmes avec l'image source (original hors-masque, généré dans
+ *           le masque affiné) → garantie mathématique que rien ne bouge hors
+ *           de la zone choisie, quel que soit le comportement du moteur.
+ *      Pas de repli silencieux vers /edit-by-prompt dans ce mode : si le
+ *      masque est absent ou si /change-textures échoue, échec EXPLICITE.
+ *
+ *   B. MODE COULEURS (façade/poignée/plan de travail, pas de texture) — AUCUNE
+ *      sélection requise : édition directe via MyArchitectAI /edit-by-prompt
+ *      sur toute l'image, avec un prompt qui nomme précisément chaque surface
+ *      à changer et demande explicitement de garder le reste identique (cf.
+ *      buildTextureEditPrompt). Un clic optionnel reste possible (bascule
+ *      alors sur le pipeline masqué + compositing du mode A, plus précis).
  *
  * ⚙️  Réutilise MYARCHITECT_API_KEY (même clé que Coloriste ✨ / IA Architect).
  *     Sans clé → mode démo (renvoie l'image source, aucun appel externe).
@@ -28,7 +37,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { buildTextureEditPrompt, type ColoristParams } from '@/lib/server/prompt-builder';
-import { changeTextures, isArchitectEnabled } from '@/lib/server/myarchitect-api';
+import { changeTextures, editByPrompt, isArchitectEnabled } from '@/lib/server/myarchitect-api';
 import {
   fetchImageBuffer,
   refineSelectionMask,
@@ -112,16 +121,20 @@ export async function POST(req: NextRequest) {
       ? body.referenceImageDataUrl
       : null;
 
-  // Masque OBLIGATOIRE ici (pas de repli sans masque, contrairement à
-  // generateColoristeTextures côté Coloriste ✨) : sans sélection, on refuse
-  // plutôt que de risquer un edit non maîtrisé sur toute l'image.
   const providedMaskUrl =
     typeof body.maskUrl === 'string' && (body.maskUrl as string).startsWith('http')
       ? (body.maskUrl as string)
       : null;
-  if (!providedMaskUrl) {
+
+  // Retour utilisateur (juillet 2026) : le masque n'est OBLIGATOIRE que pour
+  // appliquer une TEXTURE importée (il faut savoir où la coller). En mode
+  // couleurs pur (façade/poignée/plan de travail), aucune sélection n'est
+  // requise — comme le système couleurs existant ailleurs dans l'app — on
+  // repart alors sur un edit par prompt sur toute l'image (pas de masque à
+  // raffiner ni à composer).
+  if (referenceImageDataUrl && !providedMaskUrl) {
     return NextResponse.json(
-      { error: 'Sélectionnez d\'abord une surface (clic sur la photo) avant de générer.' },
+      { error: 'Sélectionnez une zone (clic sur la photo) pour appliquer la texture importée.' },
       { status: 400 },
     );
   }
@@ -143,7 +156,13 @@ export async function POST(req: NextRequest) {
     ? 'Replace the material of the masked region with the exact material, colour, pattern and finish '
       + 'shown in the attached reference image; reproduce it faithfully. Keep everything outside the '
       + 'mask unchanged. Photorealistic, sharp, high detail.'
-    : `${buildTextureEditPrompt(params)} Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.`;
+    : providedMaskUrl
+      ? `${buildTextureEditPrompt(params)} Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.`
+      // Mode couleurs sans sélection : edit par prompt sur toute l'image — pas de
+      // masque. buildTextureEditPrompt() nomme déjà précisément chaque surface à
+      // changer (façade/poignée/plan) et demande explicitement de garder le reste
+      // identique (layout, éclairage, accessoires).
+      : buildTextureEditPrompt(params);
 
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
@@ -160,10 +179,13 @@ export async function POST(req: NextRequest) {
         projectId,
         type: 'COLOR_VARIATION',
         status: 'QUEUED',
-        modelsUsed: ['myarchitectai/change-textures', 'coloriste-test-compositor'],
+        modelsUsed: providedMaskUrl
+          ? ['myarchitectai/change-textures', 'coloriste-test-compositor']
+          : ['myarchitectai/edit-by-prompt'],
         params: {
           engine: 'coloriste-test',
           mode: referenceImageDataUrl ? 'reference' : 'colors',
+          hasMask: !!providedMaskUrl,
           facadeHex: params.facadeHex,
           poigneeHex: params.poigneeHex,
           planHex: params.planHex,
@@ -262,20 +284,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 5c) Masque SAM2 brut → téléchargé + RAFFINÉ (dilate + feather) →
-    //       re-uploadé sur Supabase pour une URL stable envoyée au moteur.
-    let refinedMaskBuffer: Buffer;
-    let maskSignedUrl: string;
-    try {
-      const rawMaskBuffer = await fetchImageBuffer(providedMaskUrl);
-      refinedMaskBuffer = await refineSelectionMask(rawMaskBuffer);
-      const maskPath = `${workspaceId}/${job.id}/mask-refined.png`;
-      await uploadToIaRenders(maskPath, refinedMaskBuffer, 'image/png');
-      maskSignedUrl = await createIaRendersSignedUrl(maskPath);
-    } catch (maskErr) {
-      console.warn('[API /ia/coloriste-test] affinage masque échec:',
-        maskErr instanceof Error ? maskErr.message : maskErr);
-      return fail(502, 'Impossible de traiter la sélection. Réessayez de cliquer sur la surface.');
+    // ── 5c) Masque (optionnel désormais) : si fourni (texture importée, ou clic
+    //       en mode couleurs), le masque SAM2 brut est téléchargé + RAFFINÉ
+    //       (dilate + feather) → re-uploadé sur Supabase pour une URL stable
+    //       envoyée au moteur. Absent en mode couleurs pur sans sélection.
+    let refinedMaskBuffer: Buffer | undefined;
+    let maskSignedUrl: string | undefined;
+    if (providedMaskUrl) {
+      try {
+        const rawMaskBuffer = await fetchImageBuffer(providedMaskUrl);
+        refinedMaskBuffer = await refineSelectionMask(rawMaskBuffer);
+        const maskPath = `${workspaceId}/${job.id}/mask-refined.png`;
+        await uploadToIaRenders(maskPath, refinedMaskBuffer, 'image/png');
+        maskSignedUrl = await createIaRendersSignedUrl(maskPath);
+      } catch (maskErr) {
+        console.warn('[API /ia/coloriste-test] affinage masque échec:',
+          maskErr instanceof Error ? maskErr.message : maskErr);
+        return fail(502, 'Impossible de traiter la sélection. Réessayez de cliquer sur la surface.');
+      }
     }
 
     // ── 6) Mode démo (pas de clé) → renvoie la source telle quelle, sans appel externe.
@@ -304,32 +330,62 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ── 7) Génération MyArchitectAI /change-textures — appel DIRECT (pas
-    //      generateColoristeTextures) : on veut un échec EXPLICITE, jamais de
-    //      repli silencieux vers /edit-by-prompt (sans masque).
-    const texPrompt = referenceSignedUrl
-      ? 'Apply the material and texture from the reference image to the masked area; keep everything outside the mask unchanged.'
-      : prompt;
-    const genResult = await changeTextures(sourceSignedUrl, texPrompt, referenceSignedUrl, maskSignedUrl);
-    if (!genResult.ok || genResult.outputs.length === 0) {
-      const status = (genResult.error ?? '').toLowerCase().includes('délai') ? 504 : 502;
-      return fail(status, genResult.error ?? 'Le moteur n\'a renvoyé aucun résultat.');
-    }
-
-    // ── 8) Compositing pixel-safe : hors-masque = pixels ORIGINAUX garantis,
-    //      quel que soit le comportement du moteur sur le reste de l'image.
     let finalBuffer: Buffer;
-    try {
-      const generatedBuffer = await fetchImageBuffer(genResult.outputs[0]);
-      finalBuffer = await compositeMaskedResult({
-        originalBuffer: sourceBuffer,
-        generatedBuffer,
-        maskBuffer: refinedMaskBuffer,
-      });
-    } catch (compErr) {
-      console.error('[API /ia/coloriste-test] compositing échec:',
-        compErr instanceof Error ? compErr.message : compErr);
-      return fail(500, 'La recomposition finale de l\'image a échoué. Réessayez.');
+    let endpointTag: string;
+    let finalPrompt: string;
+
+    if (providedMaskUrl && maskSignedUrl && refinedMaskBuffer) {
+      // ── 7a) Zone sélectionnée (texture importée, ou clic optionnel en mode
+      //       couleurs) : MyArchitectAI /change-textures — appel DIRECT (pas
+      //       generateColoristeTextures) : on veut un échec EXPLICITE, jamais de
+      //       repli silencieux vers /edit-by-prompt sans masque dans CE cas.
+      const texPrompt = referenceSignedUrl
+        ? 'Apply the material and texture from the reference image to the masked area; keep everything outside the mask unchanged.'
+        : prompt;
+      const genResult = await changeTextures(sourceSignedUrl, texPrompt, referenceSignedUrl, maskSignedUrl);
+      if (!genResult.ok || genResult.outputs.length === 0) {
+        const status = (genResult.error ?? '').toLowerCase().includes('délai') ? 504 : 502;
+        return fail(status, genResult.error ?? 'Le moteur n\'a renvoyé aucun résultat.');
+      }
+
+      // ── 8a) Compositing pixel-safe : hors-masque = pixels ORIGINAUX garantis,
+      //       quel que soit le comportement du moteur sur le reste de l'image.
+      try {
+        const generatedBuffer = await fetchImageBuffer(genResult.outputs[0]);
+        finalBuffer = await compositeMaskedResult({
+          originalBuffer: sourceBuffer,
+          generatedBuffer,
+          maskBuffer: refinedMaskBuffer,
+        });
+      } catch (compErr) {
+        console.error('[API /ia/coloriste-test] compositing échec:',
+          compErr instanceof Error ? compErr.message : compErr);
+        return fail(500, 'La recomposition finale de l\'image a échoué. Réessayez.');
+      }
+      endpointTag = 'change-textures+composite';
+      finalPrompt = texPrompt;
+    } else {
+      // ── 7b) Mode couleurs pur, SANS sélection (retour utilisateur juillet
+      //       2026 : le clic ne doit pas être requis quand on choisit juste des
+      //       couleurs) : edit par prompt sur toute l'image — buildTextureEditPrompt()
+      //       nomme précisément chaque surface (façade/poignée/plan) et demande
+      //       explicitement de garder le reste identique. Pas de masque ici →
+      //       pas de garantie de compositing pixel-safe possible dans ce mode,
+      //       comme le système couleurs existant ailleurs dans l'app.
+      const genResult = await editByPrompt(sourceSignedUrl, prompt);
+      if (!genResult.ok || genResult.outputs.length === 0) {
+        const status = (genResult.error ?? '').toLowerCase().includes('délai') ? 504 : 502;
+        return fail(status, genResult.error ?? 'Le moteur n\'a renvoyé aucun résultat.');
+      }
+      try {
+        finalBuffer = await fetchImageBuffer(genResult.outputs[0]);
+      } catch (dlErr) {
+        console.warn('[API /ia/coloriste-test] téléchargement résultat échec:',
+          dlErr instanceof Error ? dlErr.message : dlErr);
+        return fail(502, 'Impossible de récupérer le résultat généré. Réessayez.');
+      }
+      endpointTag = 'edit-by-prompt';
+      finalPrompt = prompt;
     }
 
     // ── 9) Upload résultat final → Supabase
@@ -342,11 +398,11 @@ export async function POST(req: NextRequest) {
       where: { id: job.id },
       data: {
         status: 'DONE',
-        prompt: texPrompt,
+        prompt: finalPrompt,
         resultImageUrls: {
           paths: [finalPath],
           signedUrls: [finalSignedUrl],
-          meta: { engine: 'coloriste-test', endpoint: 'change-textures+composite' },
+          meta: { engine: 'coloriste-test', endpoint: endpointTag },
         },
         durationMs: Date.now() - tStart,
         costEUR: 0.03,
@@ -358,7 +414,7 @@ export async function POST(req: NextRequest) {
       jobId: job.id,
       imageUrl: finalSignedUrl,
       imageUrls: [finalSignedUrl],
-      engine: 'change-textures+composite',
+      engine: endpointTag,
       durationMs: Date.now() - tStart,
       rateLimit: { remaining: rateResult.remaining, resetAt: rateResult.resetAt },
     });
