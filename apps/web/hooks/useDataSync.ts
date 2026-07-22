@@ -196,9 +196,10 @@ export function useDataSync() {
 
       // Sous-dossiers par défaut pour un dossier "frais" venu du backend sans
       // état local — dépendent du métier DU DOSSIER, pas du portail courant :
-      //  - architecte : PROJET VERSION 1 – APS / APD
-      //  - cuisiniste : OPTION 1
-      //  - menuisier : PROJET 1
+      //  - architecte : PROJET – APS / PROJET – APD
+      //  - cuisiniste : OPTION
+      //  - menuisier : PROJET
+      // (FIX 22/07/2026 — plus de numérotation par défaut, cf. useDossierStore.ts)
       // Helper : construit la liste de sous-dossiers signés profession-aware
       // depuis un dossier source (en cours OU signé) et le métier du projet.
       // Si on n'a pas le local, un dossier "vide" sert de stand-in (la

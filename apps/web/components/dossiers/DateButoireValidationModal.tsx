@@ -463,21 +463,24 @@ export function DateButoireValidationModal({
       let bestVersion = -1;
       for (const sf of subfolders) {
         let version: number | null = null;
+        // FIX 22/07/2026 : m[1] (numero) est desormais optionnel (nouveau
+        // defaut sans "+" ni numero) — on retombe sur 0 plutot que NaN pour
+        // que le sous-dossier unique soit quand meme repere comme prioritaire.
         if (profession === 'architecte') {
           const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
-          if (m && m[2].toUpperCase() === 'APD') version = parseInt(m[1], 10);
+          if (m && m[2].toUpperCase() === 'APD') version = m[1] ? parseInt(m[1], 10) : 0;
         } else if (profession === 'cuisiniste') {
           const m = sf.label.match(CUISINISTE_OPTION_REGEX);
-          if (m) version = parseInt(m[1], 10);
+          if (m) version = m[1] ? parseInt(m[1], 10) : 0;
         } else if (profession === 'menuisier') {
           const m = sf.label.match(MENUISIER_PROJET_REGEX);
-          if (m) version = parseInt(m[1], 10);
+          if (m) version = m[1] ? parseInt(m[1], 10) : 0;
         } else {
           const m =
             sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX) ??
             sf.label.match(CUISINISTE_OPTION_REGEX) ??
             sf.label.match(MENUISIER_PROJET_REGEX);
-          if (m) version = parseInt(m[1], 10);
+          if (m) version = m[1] ? parseInt(m[1], 10) : 0;
         }
         if (version !== null && Number.isFinite(version) && version > bestVersion) {
           bestVersion = version;

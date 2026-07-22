@@ -244,7 +244,7 @@ export function OptionSelectionModal({ dossier, profession, onConfirm, onCancel 
               Aucune option détectée dans ce dossier.
               <br />
               <span style={{ fontSize: 11 }}>
-                Ajoutez un sous-dossier {profession === 'cuisiniste' ? '« OPTION 1 »' : profession === 'menuisier' ? '« PROJET 1 »' : '« PROJET VERSION 1 – APD »'} pour activer la validation par option.
+                Ajoutez un sous-dossier {profession === 'cuisiniste' ? '« OPTION »' : profession === 'menuisier' ? '« PROJET »' : '« PROJET – APD »'} pour activer la validation par option.
               </span>
             </div>
           ) : (

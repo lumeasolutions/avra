@@ -223,52 +223,58 @@ export interface DossierPerdu {
 }
 
 // Données initiales — sous-dossiers par défaut selon la profession.
-// Les 3 métiers partagent EXACTEMENT le même mécanisme (sous-dossiers +
-// bouton "+" inline plafonné) : renseignement → relevé de mesure & photos
-// existants → 1 seul "slot" de départ, que l'utilisateur peut ensuite
-// démultiplier via le "+" (parité demandée — seule la terminologie change) :
-//   - menuisier  : "PROJET 1"                    → jusqu'à PROJET 5
-//   - cuisiniste : "OPTION 1"                     → jusqu'à OPTION 5
-//   - architecte : "PROJET VERSION 1 – APS/APD"   → jusqu'à VERSION 5 par phase
+// FIX (22/07/2026) — le mécanisme "+" pour démultiplier PROJET/OPTION/VERSION
+// en plusieurs numéros est retiré : depuis l'ajout du système "Nouveau
+// dossier" (créer un dossier client distinct), il fait doublon — pour gérer
+// plusieurs variantes/options d'un même client, on crée simplement un autre
+// dossier. Chaque métier n'a donc plus qu'un seul slot fixe, sans numéro :
+//   - menuisier  : "PROJET"
+//   - cuisiniste : "OPTION"
+//   - architecte : "PROJET – APS" / "PROJET – APD"
+// Les regex ci-dessous restent tolérantes aux anciens libellés numérotés
+// ("PROJET 1", "OPTION 2", "PROJET VERSION 3 – APD"...) pour ne pas casser
+// les dossiers déjà créés avant ce changement (rétrocompat lecture/validation
+// uniquement — plus aucun bouton "+" ne permet d'en recréer).
 const CUISINISTE_DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER RENSEIGNEMENT' },
   { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
   { label: 'RELEVE DE MESURES' },
-  { label: 'OPTION 1' },
+  { label: 'OPTION' },
 ];
 
 export const ARCHITECTE_DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER RENSEIGNEMENT' },
   { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
   { label: 'RELEVE DE MESURES' },
-  { label: 'PROJET VERSION 1 – APS' },
-  { label: 'PROJET VERSION 1 – APD' },
+  { label: 'PROJET – APS' },
+  { label: 'PROJET – APD' },
 ];
 
 export const MENUISIER_DEFAULT_SUBFOLDERS: SubFolder[] = [
   { label: 'DOSSIER RENSEIGNEMENT' },
   { label: 'ETAT DES LIEUX – PHOTOS EXISTANTS' },
   { label: 'RELEVE DE MESURES' },
-  { label: 'PROJET 1' },
+  { label: 'PROJET' },
 ];
 
-/** Regex pour détecter les sous-dossiers "PROJET N" (menuisier) */
-export const MENUISIER_PROJET_REGEX = /^PROJET\s+(\d+)$/i;
-/** Plafond de projets côté menuisier — parité avec CUISINISTE_MAX_OPTION / ARCHITECTE_MAX_VERSION. */
+/** Regex pour détecter les sous-dossiers "PROJET" / "PROJET N" (menuisier, rétrocompat). */
+export const MENUISIER_PROJET_REGEX = /^PROJET(?:\s+(\d+))?$/i;
+/** Plafond de projets côté menuisier — legacy, le bouton "+" n'existe plus. */
 export const MENUISIER_MAX_PROJET = 5;
 
 /**
- * Regex pour détecter les sous-dossiers "PROJET VERSION N – APS" / "– APD" (architecte).
- * Capture : groupe 1 = numéro de version, groupe 2 = phase (APS|APD).
+ * Regex pour détecter les sous-dossiers "PROJET – APS/APD" (nouveau) ou
+ * "PROJET VERSION N – APS/APD" (ancien, rétrocompat).
+ * Capture : groupe 1 = numéro de version (optionnel), groupe 2 = phase (APS|APD).
  * Tolère le tiret simple (-) ou em dash (–).
  */
-export const ARCHITECTE_PROJET_VERSION_REGEX = /^PROJET\s+VERSION\s+(\d+)\s*[–—-]\s*(APS|APD)$/i;
-/** Plafond de versions par phase (APS et APD) côté architecte. */
+export const ARCHITECTE_PROJET_VERSION_REGEX = /^PROJET(?:\s+VERSION\s+(\d+))?\s*[–—-]\s*(APS|APD)$/i;
+/** Plafond de versions par phase (APS et APD) côté architecte — legacy, le bouton "+" n'existe plus. */
 export const ARCHITECTE_MAX_VERSION = 5;
 
-/** Regex pour détecter les sous-dossiers "OPTION N" (cuisiniste). */
-export const CUISINISTE_OPTION_REGEX = /^OPTION\s+(\d+)$/i;
-/** Plafond d'options côté cuisiniste. */
+/** Regex pour détecter les sous-dossiers "OPTION" / "OPTION N" (cuisiniste, rétrocompat). */
+export const CUISINISTE_OPTION_REGEX = /^OPTION(?:\s+(\d+))?$/i;
+/** Plafond d'options côté cuisiniste — legacy, le bouton "+" n'existe plus. */
 export const CUISINISTE_MAX_OPTION = 5;
 
 /** Retourne le jeu par défaut de sous-dossiers selon la profession */
@@ -513,13 +519,15 @@ export function buildSignedSubfoldersForProfession(
     if (selectedOptions && selectedOptions.length > 0) {
       optionsToValidate = selectedOptions;
     } else {
-      let bestVersion = 0;
+      // -1 (et non 0) : un libellé "PROJET" sans numéro (nouveau défaut, cf.
+      // FIX 22/07/2026) doit quand même être retenu comme candidat unique.
+      let bestVersion = -1;
       let bestLabel: string | null = null;
       for (const sf of source.subfolders ?? []) {
         const m = sf.label.match(MENUISIER_PROJET_REGEX);
         if (m) {
-          const n = parseInt(m[1], 10);
-          if (Number.isFinite(n) && n > bestVersion) {
+          const n = m[1] ? parseInt(m[1], 10) : 0;
+          if (n > bestVersion) {
             bestVersion = n;
             bestLabel = sf.label;
           }
@@ -549,13 +557,15 @@ export function buildSignedSubfoldersForProfession(
     if (selectedOptions && selectedOptions.length > 0) {
       optionsToValidate = selectedOptions;
     } else {
-      let bestOption = 0;
+      // -1 (et non 0) : un libellé "OPTION" sans numéro (nouveau défaut, cf.
+      // FIX 22/07/2026) doit quand même être retenu comme candidat unique.
+      let bestOption = -1;
       let bestLabel: string | null = null;
       for (const sf of source.subfolders ?? []) {
         const m = sf.label.match(CUISINISTE_OPTION_REGEX);
         if (m) {
-          const n = parseInt(m[1], 10);
-          if (Number.isFinite(n) && n > bestOption) {
+          const n = m[1] ? parseInt(m[1], 10) : 0;
+          if (n > bestOption) {
             bestOption = n;
             bestLabel = sf.label;
           }
@@ -584,13 +594,15 @@ export function buildSignedSubfoldersForProfession(
   if (selectedOptions && selectedOptions.length > 0) {
     optionsToValidate = selectedOptions;
   } else {
-    let bestApd = 0;
+    // -1 (et non 0) : un libellé "PROJET – APD" sans numéro (nouveau défaut,
+    // cf. FIX 22/07/2026) doit quand même être retenu comme candidat unique.
+    let bestApd = -1;
     let bestLabel: string | null = null;
     for (const sf of source.subfolders ?? []) {
       const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
       if (m && m[2].toUpperCase() === 'APD') {
-        const n = parseInt(m[1], 10);
-        if (Number.isFinite(n) && n > bestApd) {
+        const n = m[1] ? parseInt(m[1], 10) : 0;
+        if (n > bestApd) {
           bestApd = n;
           bestLabel = sf.label;
         }
@@ -602,10 +614,13 @@ export function buildSignedSubfoldersForProfession(
   // Pour l'architecte, on conserve le formatage historique
   // "APD VERSION N (DOSSIER SIGNÉ)" en remplacant le suffixe via une
   // construction custom (le helper generique ne convient pas).
+  // FIX 22/07/2026 — m[1] (numéro de version) est désormais optionnel : les
+  // nouveaux dossiers n'ont plus que "PROJET – APD" (sans numéro), donc on ne
+  // doit PAS produire "APD VERSION undefined" quand m[1] est absent.
   const architecteLabel = (opt: ValidatedOptionSelection): string => {
     const m = opt.sourceLabel.match(ARCHITECTE_PROJET_VERSION_REGEX);
     const baseLabel = m
-      ? `APD VERSION ${m[1]} (DOSSIER SIGNÉ)`
+      ? (m[1] ? `APD VERSION ${m[1]} (DOSSIER SIGNÉ)` : 'APD (DOSSIER SIGNÉ)')
       : `${opt.sourceLabel} VALIDÉ (DOSSIER SIGNÉ)`;
     const cleanCustom = opt.customName?.trim();
     return cleanCustom ? `${baseLabel} — ${cleanCustom.toUpperCase()}` : baseLabel;

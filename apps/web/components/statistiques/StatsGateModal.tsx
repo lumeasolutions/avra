@@ -245,14 +245,20 @@ export function StatsGateModal({
         // sinon on compterait les devis en double.
         if (L === 'AVANT VENTE' || L.startsWith('AVANT VENTE ▸ ')) return false;
         return (
-          /^OPTION\s+\d+/i.test(L) ||
-          /^PROJET\s+VERSION\s+\d+\s*[–—-]\s*(APS|APD)/i.test(L) ||
-          /^PROJET\s+\d+/i.test(L) ||
+          // FIX 22/07/2026 : le "+N" numerote a ete retire (cf useDossierStore.ts) —
+          // les nouveaux dossiers signent desormais "OPTION VALIDEE"/"PROJET VALIDE"/
+          // "APD (DOSSIER SIGNE)" SANS numero. Les \d+ ci-dessous sont donc rendus
+          // OPTIONNELS pour continuer a detecter aussi bien les nouveaux libelles que
+          // les anciens deja numerotes ("OPTION 1 CUISINE VALIDEE"...).
+          /^OPTION(\s+\d+)?\s/i.test(L) ||
+          /^PROJET\s+VERSION(\s+\d+)?\s*[–—-]\s*(APS|APD)/i.test(L) ||
+          /^PROJET(\s+\d+)?\s/i.test(L) ||
           // 20/06/2026 : a la signature, l'APD validee architecte est renommee
           // "APD VERSION N (DOSSIER SIGNE)" (cf buildArchitecteValidated dans
           // useDossierStore). Ce label ne matchait aucune regex -> projet jamais
           // detecte cote stats. On l'ajoute pour que les devis architecte remontent.
-          /^APD\s+VERSION\s+\d+/i.test(L) ||
+          // 22/07/2026 : "VERSION N" est desormais optionnel ("APD (DOSSIER SIGNE)").
+          /^APD(\s+VERSION\s+\d+)?\s/i.test(L) ||
           ARCHITECTE_PROJET_VERSION_REGEX.test(L) ||
           CUISINISTE_OPTION_REGEX.test(L) ||
           MENUISIER_PROJET_REGEX.test(L)

@@ -12,7 +12,11 @@ import {
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
 import { splitPath, joinPath, displayName as folderDisplayName, childFolders, sanitizeFolderName, isDescendant } from '@/lib/folderTree';
-import { MENUISIER_PROJET_REGEX, MENUISIER_MAX_PROJET, ARCHITECTE_PROJET_VERSION_REGEX, ARCHITECTE_MAX_VERSION, CUISINISTE_OPTION_REGEX, CUISINISTE_MAX_OPTION } from '@/store/useDossierStore';
+// FIX 22/07/2026 — MENUISIER_MAX_PROJET / CUISINISTE_MAX_OPTION / ARCHITECTE_MAX_VERSION
+// ne sont plus importés ici : le bouton "+" qui les utilisait a été retiré
+// (voir FIX 22/07/2026 plus bas). Les regex restent nécessaires pour le tri/
+// groupement d'affichage et la détection des candidats à la validation.
+import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, CUISINISTE_OPTION_REGEX } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
 import { uploadDossierDoc, uploadDossierDocDirect, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
@@ -961,115 +965,14 @@ export default function DossierDetailPage() {
                     </div>
                   )}
 
-                  {/* Architecte : bouton + pour créer la version suivante (APS / APD).
-                   *  Visible uniquement sur la version la plus haute déjà existante
-                   *  pour cette phase, et tant qu'on n'a pas atteint le plafond de 5. */}
-                  {isArchitecte && (() => {
-                    const m = sf.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
-                    if (!m) return null;
-                    const currentVersion = parseInt(m[1], 10);
-                    const phase = m[2].toUpperCase() as 'APS' | 'APD';
-                    if (!Number.isFinite(currentVersion)) return null;
-                    if (currentVersion >= ARCHITECTE_MAX_VERSION) return null;
-                    // Trouve la version max actuelle pour cette phase
-                    let maxVersion = 0;
-                    for (const other of dossier.subfolders) {
-                      const om = other.label.match(ARCHITECTE_PROJET_VERSION_REGEX);
-                      if (!om) continue;
-                      if (om[2].toUpperCase() !== phase) continue;
-                      const v = parseInt(om[1], 10);
-                      if (Number.isFinite(v) && v > maxVersion) maxVersion = v;
-                    }
-                    // N'afficher le + que sur la version max — sinon ça pollue la liste
-                    if (currentVersion !== maxVersion) return null;
-                    const nextLabel = `PROJET VERSION ${currentVersion + 1} – ${phase}`;
-                    return (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addSubfolder(id, nextLabel);
-                        }}
-                        className="flex items-center justify-center h-7 w-7 rounded-full bg-[#a67749]/12 text-[#a67749] hover:bg-[#a67749] hover:text-white hover:shadow-md transition-all shrink-0 group"
-                        title={`Créer ${nextLabel}`}
-                        aria-label={`Créer ${nextLabel}`}
-                      >
-                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" strokeWidth={2.5} />
-                      </button>
-                    );
-                  })()}
-
-                  {/* Cuisiniste : bouton + pour créer l'option suivante (OPTION N+1).
-                   *  Visible uniquement sur l'OPTION la plus haute, jusqu'au plafond de 5. */}
-                  {isCuisiniste && (() => {
-                    const m = sf.label.match(CUISINISTE_OPTION_REGEX);
-                    if (!m) return null;
-                    const currentOption = parseInt(m[1], 10);
-                    if (!Number.isFinite(currentOption)) return null;
-                    if (currentOption >= CUISINISTE_MAX_OPTION) return null;
-                    let maxOption = 0;
-                    for (const other of dossier.subfolders) {
-                      const om = other.label.match(CUISINISTE_OPTION_REGEX);
-                      if (!om) continue;
-                      const v = parseInt(om[1], 10);
-                      if (Number.isFinite(v) && v > maxOption) maxOption = v;
-                    }
-                    if (currentOption !== maxOption) return null;
-                    const nextLabel = `OPTION ${currentOption + 1}`;
-                    return (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addSubfolder(id, nextLabel);
-                        }}
-                        className="flex items-center justify-center h-7 w-7 rounded-full bg-[#a67749]/12 text-[#a67749] hover:bg-[#a67749] hover:text-white hover:shadow-md transition-all shrink-0 group"
-                        title={`Créer ${nextLabel}`}
-                        aria-label={`Créer ${nextLabel}`}
-                      >
-                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" strokeWidth={2.5} />
-                      </button>
-                    );
-                  })()}
-
-                  {/* Menuisier : bouton + pour créer le projet suivant (PROJET N+1).
-                   *  Même mécanique que cuisiniste (OPTION)/architecte (VERSION) —
-                   *  visible uniquement sur le PROJET le plus haut, jusqu'au plafond.
-                   *  Remplace l'ancien bouton pleine largeur en bas de liste, qui
-                   *  restait affiché ("Créer PROJET 1") même sur un dossier signé
-                   *  faute de garde `!isSigned` — ici, comme pour les 2 autres
-                   *  métiers, l'absence de correspondance de regex sur les labels
-                   *  d'un dossier signé fait naturellement disparaître le bouton. */}
-                  {isMenuisier && (() => {
-                    const m = sf.label.match(MENUISIER_PROJET_REGEX);
-                    if (!m) return null;
-                    const currentProjet = parseInt(m[1], 10);
-                    if (!Number.isFinite(currentProjet)) return null;
-                    if (currentProjet >= MENUISIER_MAX_PROJET) return null;
-                    let maxProjet = 0;
-                    for (const other of dossier.subfolders) {
-                      const om = other.label.match(MENUISIER_PROJET_REGEX);
-                      if (!om) continue;
-                      const v = parseInt(om[1], 10);
-                      if (Number.isFinite(v) && v > maxProjet) maxProjet = v;
-                    }
-                    if (currentProjet !== maxProjet) return null;
-                    const nextLabel = `PROJET ${currentProjet + 1}`;
-                    return (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addSubfolder(id, nextLabel);
-                        }}
-                        className="flex items-center justify-center h-7 w-7 rounded-full bg-[#a67749]/12 text-[#a67749] hover:bg-[#a67749] hover:text-white hover:shadow-md transition-all shrink-0 group"
-                        title={`Créer ${nextLabel}`}
-                        aria-label={`Créer ${nextLabel}`}
-                      >
-                        <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform duration-300" strokeWidth={2.5} />
-                      </button>
-                    );
-                  })()}
+                  {/* FIX 22/07/2026 — Retrait du bouton "+" (architecte VERSION /
+                   *  cuisiniste OPTION / menuisier PROJET N+1) : ce mécanisme de
+                   *  démultiplication numérotée à l'intérieur d'un même dossier
+                   *  fait doublon depuis l'ajout du système "Nouveau dossier"
+                   *  (créer un dossier client distinct pour une variante/option).
+                   *  Les anciens dossiers déjà numérotés (OPTION 2, PROJET 3…)
+                   *  restent affichés et utilisables normalement — ils ne peuvent
+                   *  simplement plus être démultipliés davantage via ce bouton. */}
 
                   {/* Créer un sous-dossier imbriqué ici (organisation libre par l'utilisateur) */}
                   {canEditThis && (
@@ -2063,7 +1966,7 @@ export default function DossierDetailPage() {
             <input autoFocus value={newFolderLabel}
               onChange={e => setNewFolderLabel(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddFolder()}
-              placeholder="RELEVE DE MESURES, PROJET VERSION 1..."
+              placeholder="RELEVE DE MESURES, CUISINE, DRESSING..."
               className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-4 py-3 text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#304035]/20 mb-5" />
             <div className="flex gap-3">
               <button onClick={handleAddFolder} className="flex-1 rounded-xl bg-[#304035] py-3 font-bold text-white hover:bg-[#304035]/90 transition-colors">Ajouter</button>
