@@ -20,6 +20,12 @@ import { MousePointerClick, Minus, Undo2, Trash2, Loader2 } from 'lucide-react';
 
 const MAX_DIM = 1280;
 
+/** #RRGGBB → [r,g,b] (fallback teal AVRA). */
+function hexToRgb(hex: string): [number, number, number] {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [47, 158, 143];
+}
+
 export interface ClickSelectResult { maskUrl: string; sourceUrl: string }
 interface Point { x: number; y: number; label: 0 | 1 }
 
@@ -32,7 +38,7 @@ interface Props {
 export function ColoristeClickSelect({ file, accent = '#2f9e8f', onChange }: Props) {
   const dispRef = useRef<HTMLCanvasElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const maskImgRef = useRef<HTMLImageElement | null>(null);
+  const overlayRef = useRef<HTMLCanvasElement | null>(null); // overlay teinté (zone sélectionnée uniquement)
   const dimsRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
   const sourceDataUrlRef = useRef<string | null>(null); // photo capée (1er appel)
   const sourceUrlRef = useRef<string | null>(null);      // URL réutilisable (appels suivants)
@@ -53,23 +59,10 @@ export function ColoristeClickSelect({ file, accent = '#2f9e8f', onChange }: Pro
     const { w, h } = dimsRef.current;
     ctx.clearRect(0, 0, w, h);
     ctx.drawImage(img, 0, 0, w, h);
-    // Overlay masque teinté (mask cross-origin : le canvas devient "tainted",
-    // sans conséquence puisqu'on n'exporte jamais ce canvas d'affichage).
-    const mimg = maskImgRef.current;
-    if (mimg) {
-      const tmp = document.createElement('canvas');
-      tmp.width = w; tmp.height = h;
-      const tctx = tmp.getContext('2d');
-      if (tctx) {
-        tctx.drawImage(mimg, 0, 0, w, h);
-        tctx.globalCompositeOperation = 'source-in';
-        tctx.fillStyle = accent;
-        tctx.fillRect(0, 0, w, h);
-        ctx.globalAlpha = 0.5;
-        ctx.drawImage(tmp, 0, 0);
-        ctx.globalAlpha = 1;
-      }
-    }
+    // Overlay = zone sélectionnée uniquement (déjà teinté + alpha, construit au
+    // chargement du masque). On le pose tel quel.
+    const ov = overlayRef.current;
+    if (ov) ctx.drawImage(ov, 0, 0);
     // Marqueurs de points
     const r = Math.max(5, Math.round(w / 130));
     for (const p of pointsRef.current) {
@@ -102,7 +95,7 @@ export function ColoristeClickSelect({ file, accent = '#2f9e8f', onChange }: Pro
       if (cctx) { cctx.drawImage(img, 0, 0, w, h); sourceDataUrlRef.current = cap.toDataURL('image/jpeg', 0.9); }
       sourceUrlRef.current = null;
       pointsRef.current = [];
-      maskImgRef.current = null;
+      overlayRef.current = null;
       setCount(0);
       setError(null);
       const disp = dispRef.current;
@@ -118,7 +111,7 @@ export function ColoristeClickSelect({ file, accent = '#2f9e8f', onChange }: Pro
 
   // ── Appel SAM2 pour l'ensemble courant de points ──────────────────────────
   const runSegment = useCallback(async (pts: Point[]) => {
-    if (pts.length === 0) { maskImgRef.current = null; onChange(null); redraw(); return; }
+    if (pts.length === 0) { overlayRef.current = null; onChange(null); redraw(); return; }
     setLoading(true); setError(null);
     try {
       const res = await fetch('/api/ia/segment-point', {
@@ -139,9 +132,33 @@ export function ColoristeClickSelect({ file, accent = '#2f9e8f', onChange }: Pro
       }
       const maskUrl = data.maskUrl;
       const sourceUrl = data.sourceUrl ?? sourceUrlRef.current!;
+      // On charge le masque VIA le proxy same-origin (/api/ia/download) pour
+      // pouvoir LIRE ses pixels sans souci de CORS, puis on construit un overlay
+      // qui ne teinte QUE le blanc (= zone sélectionnée). Masque blanc/noir opaque.
       const mimg = new Image();
-      mimg.onload = () => { maskImgRef.current = mimg; redraw(); };
-      mimg.src = maskUrl;
+      mimg.onload = () => {
+        const { w, h } = dimsRef.current;
+        const oc = document.createElement('canvas'); oc.width = w; oc.height = h;
+        const octx = oc.getContext('2d');
+        if (octx) {
+          octx.drawImage(mimg, 0, 0, w, h);
+          try {
+            const id = octx.getImageData(0, 0, w, h);
+            const d = id.data;
+            const [ar, ag, ab] = hexToRgb(accent);
+            for (let i = 0; i < d.length; i += 4) {
+              const selected = (d[i] + d[i + 1] + d[i + 2]) / 3 > 128; // blanc = sélection
+              d[i] = ar; d[i + 1] = ag; d[i + 2] = ab; d[i + 3] = selected ? 140 : 0;
+            }
+            octx.putImageData(id, 0, 0);
+            overlayRef.current = oc;
+          } catch {
+            overlayRef.current = null; // lecture impossible → pas d'overlay (mais génération OK)
+          }
+        }
+        redraw();
+      };
+      mimg.src = `/api/ia/download?url=${encodeURIComponent(maskUrl)}&name=mask.png`;
       onChange({ maskUrl, sourceUrl });
     } catch {
       setError('Connexion interrompue. Réessayez.');
@@ -182,7 +199,7 @@ export function ColoristeClickSelect({ file, accent = '#2f9e8f', onChange }: Pro
   const clearAll = () => {
     if (loading) return;
     pointsRef.current = [];
-    maskImgRef.current = null;
+    overlayRef.current = null;
     setCount(0);
     setError(null);
     redraw();

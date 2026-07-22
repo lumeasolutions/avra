@@ -3541,7 +3541,7 @@ export default function IaStudioPage() {
                     ? <span className="text-[10px] font-bold text-[#2f9e8f] bg-[#2f9e8f]/10 rounded-full px-2 py-0.5 align-middle">Zone sélectionnée ✓</span>
                     : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Cliquez la surface</span>}
                 </div>
-                <p className="text-xs text-[#304035]/50">Cliquez sur la surface à changer — l’IA sélectionne l’objet exact. Cliquez d’autres points pour ajouter, « Retirer » pour enlever.</p>
+                <p className="text-xs text-[#304035]/50">Cliquez <b>une fois</b> sur une surface — l’IA prend l’objet entier et le surligne. Ajoutez <b>un point par surface</b> en plus (une porte, un plan…), « Retirer » pour corriger. Inutile de cliquer partout.</p>
                 <ColoristeClickSelect file={photoFile} accent="#2f9e8f" onChange={setColorTexClick} />
               </div>
             )}
