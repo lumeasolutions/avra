@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ColoristeClickSelect, type ClickSelectResult } from './ColoristeClickSelect';
+import { ColoristeTestClickSelect } from './ColoristeTestClickSelect';
 import Image from 'next/image';
 import {
   Sparkles, Loader2, Plus, X, Check, Upload,
@@ -12,7 +13,7 @@ import {
   Image as ImageIcon, CheckCircle2, ScanLine,
   Lightbulb, Target, Award, AlertTriangle,
   Sun, Lamp, Monitor, Home, Building2,
-  Download, Maximize2, MousePointerClick,
+  Download, Maximize2, MousePointerClick, ShieldCheck,
 } from 'lucide-react';
 import { useDossierStore, useHistoryStore, useAuthStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -347,6 +348,44 @@ async function callColoristeTexturesAPI(params: {
   return { imageUrl: null, error: message };
 }
 
+/* ─── Coloriste test (5e module, isolé) : appel de /api/ia/coloriste-test ───
+ * Copie volontairement séparée de callColoristeTexturesAPI ci-dessus — même
+ * shape de requête/réponse, endpoint différent, aucune logique partagée. */
+async function callColoristeTestAPI(params: {
+  facadeHex: string; poigneeHex: string; planHex: string;
+  facadeFinish: FinishType; lightingStyle: LightingType;
+  poigneeFinish?: FinishType; planFinish?: FinishType;
+  handleMaterial?: string; countertopMaterial?: string;
+  sourceImageDataUrl?: string; referenceImageDataUrl?: string; maskUrl?: string; sourceUrl?: string; projectId?: string | null;
+}): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
+  const res = await fetch('/api/ia/coloriste-test', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params),
+  });
+  const text = await res.text();
+  let parsed: { imageUrl?: string | null; imageUrls?: string[]; error?: unknown; message?: unknown } | null = null;
+  try { parsed = JSON.parse(text); } catch { parsed = null; }
+  const coerce = (e: unknown): string | undefined => {
+    if (e == null) return undefined;
+    if (typeof e === 'string') return e;
+    if (typeof e === 'object') { const o = e as Record<string, unknown>; return (typeof o.message === 'string' ? o.message : undefined) ?? (typeof o.error === 'string' ? o.error : undefined) ?? 'Erreur serveur'; }
+    return String(e);
+  };
+  if (parsed) {
+    return {
+      imageUrl:  typeof parsed.imageUrl === 'string' ? parsed.imageUrl : null,
+      imageUrls: Array.isArray(parsed.imageUrls) ? parsed.imageUrls.filter(u => typeof u === 'string') as string[] : undefined,
+      error:     coerce(parsed.error) ?? (!res.ok ? coerce(parsed.message) : undefined),
+    };
+  }
+  let message = 'Le serveur n\'a pas pu générer le résultat.';
+  if (res.status === 504) message = 'La génération a pris trop de temps. Réessayez.';
+  else if (res.status === 502) message = 'Service de rendu momentanément indisponible. Réessayez.';
+  else if (res.status === 429) message = 'Trop de générations dans la dernière heure. Patientez un peu.';
+  else if (res.status === 401) message = 'Session expirée — reconnectez-vous.';
+  else if (res.status === 400) message = 'Photo, sélection ou paramètres invalides.';
+  return { imageUrl: null, error: message };
+}
+
 /* ─── Helper : convertit un File en data URL pour transmission JSON ─── */
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -542,7 +581,7 @@ const CSS = `
 `;
 
 /* ─────────────────────────────────────────── TYPES */
-type Module = 'coloriste' | 'rendu' | 'architect' | 'coloriste-archi' | 'coloriste-tex';
+type Module = 'coloriste' | 'rendu' | 'architect' | 'coloriste-archi' | 'coloriste-tex' | 'coloriste-test';
 interface Preset { name:string; facade:string; poignee:string; plan:string; desc:string; mood:string; finish:FinishType; handleMaterial:string; countertopMaterial:string }
 interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:string; color:string; imageUrl?:string; imageUrls?:string[]; steps?: PipelineStep[] | null }
 
@@ -581,6 +620,13 @@ const LOADING_STEPS_ARCHITECT = [
   'Construction du prompt fidélité',
   'Rendu photoréaliste',
   'Optimisation finale et sauvegarde',
+];
+// Étapes réelles du pipeline Coloriste test (masque affiné + compositing pixel-safe)
+const LOADING_STEPS_COLOR_TEST = [
+  'Affinage du masque de sélection (dilatation + adoucissement)',
+  'Génération de la nouvelle matière',
+  'Compositing pixel-safe (protection du reste de la photo)',
+  'Sauvegarde du résultat',
 ];
 
 /* ─────────────────────────────────────────── COMPOSANTS */
@@ -1069,7 +1115,7 @@ function GalleryCard({ gallery }: { gallery: Item[] }) {
                 style={{background:`linear-gradient(145deg,${item.color}18,${item.color}35)`}}>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl shadow-md"
                   style={{background:`linear-gradient(135deg,${item.color},${item.color}bb)`}}>
-                  {(item.module==='coloriste'||item.module==='coloriste-archi'||item.module==='coloriste-tex')
+                  {(item.module==='coloriste'||item.module==='coloriste-archi'||item.module==='coloriste-tex'||item.module==='coloriste-test')
                     ? <Paintbrush className="h-5 w-5 text-white" />
                     : item.module==='architect'
                       ? <Building2 className="h-5 w-5 text-white" />
@@ -1077,7 +1123,7 @@ function GalleryCard({ gallery }: { gallery: Item[] }) {
                 </div>
                 <div className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm"
                   style={{background:`${item.color}22`,color:item.color}}>
-                  {item.module==='coloriste'?'Coloriste':item.module==='coloriste-archi'?'Coloriste+':item.module==='coloriste-tex'?'Coloriste ✨':item.module==='architect'?'Architect':'Rendu'}
+                  {item.module==='coloriste'?'Coloriste':item.module==='coloriste-archi'?'Coloriste+':item.module==='coloriste-tex'?'Coloriste ✨':item.module==='coloriste-test'?'Coloriste test':item.module==='architect'?'Architect':'Rendu'}
                 </div>
               </div>
             )}
@@ -1196,6 +1242,17 @@ export default function IaStudioPage() {
   const colorTexRefURL = useMemo(() => (colorTexRefFile ? URL.createObjectURL(colorTexRefFile) : null), [colorTexRefFile]);
   // Sélection au clic (SAM2) : { maskUrl, sourceUrl } déjà segmentés côté serveur.
   const [colorTexClick, setColorTexClick] = useState<ClickSelectResult|null>(null);
+
+  /* ── COLORISTE TEST — 5e module, isolé, refonte détection+compositing ────
+   * (voir /api/ia/coloriste-test + coloriste-test-compositor.ts). Réutilise
+   * la même photo/palette que Coloriste ✨ mais état de génération/masque
+   * totalement séparé — aucun état partagé avec colorTex* ci-dessus. */
+  const [colorTestLoading, setColorTestLoading] = useState(false);
+  const [colorTestResult,  setColorTestResult]  = useState<Item|null>(null);
+  const [colorTestError,   setColorTestError]   = useState<string|null>(null);
+  const [colorTestRefFile, setColorTestRefFile] = useState<File|null>(null);
+  const colorTestRefURL = useMemo(() => (colorTestRefFile ? URL.createObjectURL(colorTestRefFile) : null), [colorTestRefFile]);
+  const [colorTestClick, setColorTestClick] = useState<ClickSelectResult|null>(null);
 
   /* ── RENDU — état */
   // Image de référence (plan WinnerFlex, photo d'inspiration, sketch).
@@ -1666,6 +1723,80 @@ export default function IaStudioPage() {
     openSaveModal(colorTexResult, 'Coloriste IA', '🎨', () => setColorTexResult(null));
   };
 
+  /* ── Coloriste test (5e module, isolé) : lancer sur la zone sélectionnée
+   * au clic. Différences volontaires avec runColoristeTextures ci-dessus :
+   *  - endpoint /api/ia/coloriste-test (masque affiné + compositing pixel-safe
+   *    côté serveur, voir coloriste-test-compositor.ts) ;
+   *  - masque OBLIGATOIRE (la route refuse explicitement sans sélection,
+   *    jamais de repli silencieux vers un edit non masqué). */
+  const runColoristeTest = async () => {
+    if (!photoFile) { setColorTestError('Photo requise.'); return; }
+    if (!colorTestClick) { setColorTestError('Cliquez d\'abord la surface à changer sur la photo.'); return; }
+    setColorTestLoading(true); setColorTestResult(null); setColorTestError(null);
+    try {
+      let referenceImageDataUrl: string | undefined;
+      if (colorTestRefFile) {
+        try { referenceImageDataUrl = await compressImageToDataUrl(colorTestRefFile, 1024); }
+        catch { referenceImageDataUrl = undefined; }
+      }
+      const result = await callColoristeTestAPI({
+        facadeHex:          preset?.facade   ?? facadeCol,
+        poigneeHex:         preset?.poignee  ?? poigneeCol,
+        planHex:            preset?.plan     ?? planCol,
+        facadeFinish:       preset?.finish   ?? facadeFinish,
+        poigneeFinish:      poigneeFinish ?? undefined,
+        planFinish:         planFinish ?? undefined,
+        handleMaterial:     preset?.handleMaterial,
+        countertopMaterial: preset?.countertopMaterial,
+        lightingStyle:      colorLight,
+        referenceImageDataUrl,
+        maskUrl:            colorTestClick.maskUrl,
+        sourceUrl:          colorTestClick.sourceUrl,
+        projectId:          dossierId || null,
+      });
+      if (result.error) { setColorTestError(result.error); setColorTestLoading(false); return; }
+      setIaHistoryRefresh(n => n + 1);
+      const desc = preset ? `${preset.name} — ${preset.desc}` : `Façades ${facadeCol} ${facadeFinish}`;
+      setColorTestResult({
+        id: uid(), module: 'coloriste-test', prompt: desc, dossier: dossierName,
+        ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
+        color: preset?.facade ?? facadeCol,
+        imageUrl: result.imageUrl ?? undefined,
+        imageUrls: result.imageUrls ?? (result.imageUrl ? [result.imageUrl] : []),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      setColorTestError(msg && !msg.includes('fetch') ? msg : 'La génération a pris trop de temps ou la connexion s\'est interrompue. Réessayez.');
+    }
+    setColorTestLoading(false);
+  };
+
+  const [colorTestEditing, setColorTestEditing] = useState(false);
+  const modifierColoristeTest = async () => {
+    const url = colorTestResult?.imageUrl;
+    if (!url) return;
+    setColorTestEditing(true);
+    try {
+      const proxied = `/api/ia/download?url=${encodeURIComponent(url)}&name=retouche.jpg`;
+      const resp = await fetch(proxied);
+      if (!resp.ok) throw new Error('proxy');
+      const blob = await resp.blob();
+      const file = new File([blob], `retouche-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+      setPhotoFile(file);
+      setColorTestClick(null);
+      setColorTestResult(null);
+      setColorTestError(null);
+    } catch {
+      setColorTestError('Impossible de reprendre ce résultat comme base. Réessayez.');
+    }
+    setColorTestEditing(false);
+  };
+
+  const saveColoristeTest = () => {
+    if (!colorTestResult) return;
+    openSaveModal(colorTestResult, 'Coloriste IA', '🎨', () => setColorTestResult(null));
+  };
+
   /* ── Rendu : lancer */
   const runRendu = async () => {
     // Image de référence OBLIGATOIRE (juin 2026) — le mode text-to-image pur
@@ -2015,6 +2146,43 @@ export default function IaStudioPage() {
                 {tab==='coloriste-tex' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#2f9e8f]">
                     <div className="h-2 w-2 rounded-full bg-[#2f9e8f] dp" />
+                    Module actif — prêt à l'emploi
+                  </div>
+                )}
+              </div>
+            </div>
+          </button>
+
+          {/* Coloriste test — 5e onglet, moteur détection+compositing revu (juillet 2026) */}
+          <button onClick={() => setTab('coloriste-test')}
+            className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
+              tab==='coloriste-test'
+                ? 'border-[#a67749] bg-white shadow-xl'
+                : 'border-[#304035]/8 bg-white/70 hover:border-[#a67749]/30 hover:bg-white hover:shadow-md hover:-translate-y-0.5'
+            }`}
+          >
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              style={{background:'radial-gradient(ellipse at 20% 50%, rgba(166,119,73,.06), transparent 65%)'}} />
+            {tab==='coloriste-test' && (
+              <div className="absolute inset-0"
+                style={{background:'radial-gradient(ellipse at 20% 50%, rgba(166,119,73,.07), transparent 65%)'}} />
+            )}
+            <div className="relative flex items-start gap-4">
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-md transition-transform duration-300 group-hover:scale-110 ${tab==='coloriste-test'?'scale-110':''}`}
+                style={{background:tab==='coloriste-test'?'linear-gradient(135deg,#a67749,#8a5f38)':'linear-gradient(135deg,#a6774955,#a6774930)'}}>
+                <MousePointerClick className={`h-6 w-6 ${tab==='coloriste-test'?'text-white':'text-[#a67749]'}`} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-black text-[#304035] text-lg">Coloriste test</p>
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#a67749]/12 text-[#a67749]">Nouveau · Précision+</span>
+                </div>
+                <p className="text-sm text-[#304035]/60 leading-relaxed">
+                  Détection <span className="font-semibold text-[#304035]/80">affinée</span> + garantie <span className="font-semibold text-[#304035]/80">zéro déformation</span> hors zone choisie.
+                </p>
+                {tab==='coloriste-test' && (
+                  <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#a67749]">
+                    <div className="h-2 w-2 rounded-full bg-[#a67749] dp" />
                     Module actif — prêt à l'emploi
                   </div>
                 )}
@@ -3612,6 +3780,212 @@ export default function IaStudioPage() {
 
             <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
               <HistoryPanel filterType="COLOR_VARIATION" accent="#2f9e8f" refreshTrigger={iaHistoryRefresh} onSelect={openHistoryJob} />
+              <GalleryCard gallery={gallery} />
+            </div>
+
+          </div>
+        )}
+
+        {/* Coloriste test — 5e onglet, isolé. Moteur revu de A à Z (juillet 2026) :
+            détection au clic affinée (dilatation + adoucissement du masque) et
+            compositing pixel-safe côté serveur (garantie : zéro pixel modifié
+            hors de la zone choisie, quel que soit le comportement du modèle
+            distant). Voir coloriste-test-compositor.ts pour le détail. */}
+        {tab === 'coloriste-test' && (
+          <div className="fu space-y-6">
+
+            {/* Bandeau confiance — explique le "gros, gros, gros" changement en 2 phrases */}
+            <div className="rounded-2xl border p-4 flex items-start gap-3" style={{borderColor:'#a6774933', background:'linear-gradient(135deg,#a677490c,#a6774918)'}}>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{background:'linear-gradient(135deg,#a67749,#8a5f38)'}}>
+                <ShieldCheck className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-[#304035]">Détection affinée + zéro déformation garantie</p>
+                <p className="text-xs text-[#304035]/60 leading-relaxed mt-0.5">
+                  Le masque de votre clic est <b>dilaté puis adouci</b> (fini les liserés non traités), et le résultat final est
+                  <b> recomposé pixel par pixel</b> avec votre photo d'origine : tout ce qui est hors de la zone choisie reste
+                  strictement identique, même si le moteur distant dérive sur le reste de l'image.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-3 lg:items-stretch">
+              {/* Photo de la cuisine */}
+              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 flex flex-col lg:min-h-[400px]">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="h-4 w-4 text-[#a67749]" />
+                  <p className="font-bold text-[#304035]">Photo de la cuisine <span className="ml-1 rounded-full bg-[#a67749]/10 text-[#a67749] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
+                </div>
+                <p className="text-xs text-[#304035]/50 mb-2">Importez la photo, choisissez vos couleurs — l'IA recolorise en préservant la géométrie.</p>
+                <Drop label="" sub="Déposez la photo de la cuisine"
+                  onFile={setPhotoFile} file={photoFile} accent="#a67749"
+                  tips={['Photo de la cuisine existante', 'Showroom / catalogue', 'Bien éclairée et nette']} />
+                {photoFile && photoURL && (
+                  <div className="mt-3 relative rounded-xl overflow-hidden">
+                    <Image src={photoURL} alt="Cuisine" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
+                    <button onClick={() => setPhotoFile(null)}
+                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Échantillon de matière (optionnel) */}
+                <div className="mt-4">
+                  <p className="text-[11px] font-bold text-[#304035]/60 mb-1.5 uppercase tracking-wide">
+                    Échantillon de matière <span className="normal-case font-normal text-[#304035]/40">(optionnel)</span>
+                  </p>
+                  <Drop label="" sub="Importer une texture (bois, pierre, tissu…)"
+                    onFile={setColorTestRefFile} file={colorTestRefFile} accent="#a67749"
+                    tips={['Photo nette de la matière voulue', 'Haute résolution = meilleur rendu']} />
+                  {colorTestRefFile && colorTestRefURL && (
+                    <div className="mt-3 relative rounded-xl overflow-hidden">
+                      <Image src={colorTestRefURL} alt="Texture" width={500} height={120} loading="lazy" className="w-full max-h-32 object-cover" />
+                      <button onClick={() => setColorTestRefFile(null)}
+                        className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors backdrop-blur-sm">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  {colorTestRefFile && (
+                    <p className="mt-2 text-[11px] text-[#304035]/50 leading-relaxed">
+                      La matière sera appliquée à la zone que vous <b>cliquez</b> ci-dessous.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Aperçu résultat */}
+              <div className="space-y-4 lg:col-span-2">
+                {colorTestError && !colorTestLoading && (
+                  <div className="fu rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-red-700">Colorisation échouée</p>
+                      <p className="text-xs text-red-600/80 mt-0.5 leading-relaxed">{colorTestError}</p>
+                    </div>
+                    <button onClick={() => setColorTestError(null)} className="text-red-400 hover:text-red-600 transition-colors shrink-0"><X className="h-4 w-4" /></button>
+                  </div>
+                )}
+                {colorTestLoading && (
+                  <div className="fu rounded-2xl bg-white border border-[#304035]/8 shadow-md p-6 space-y-5">
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{background:'linear-gradient(135deg,#a67749,#8a5f38)'}}>
+                        <Sparkles className="h-6 w-6 text-white sh" />
+                      </div>
+                      <div>
+                        <p className="font-black text-[#304035]">Coloriste test en action</p>
+                        <p className="text-xs text-[#304035]/50 mt-0.5">Masque affiné + compositing pixel-safe…</p>
+                      </div>
+                    </div>
+                    <ProgressBar steps={LOADING_STEPS_COLOR_TEST} color="#a67749" />
+                    <div className="flex items-center justify-between gap-3 rounded-xl bg-[#a67749]/8 border border-[#a67749]/15 px-3 py-2.5">
+                      <p className="text-[11px] leading-snug text-[#304035]/70">Recolorisation en général <b className="text-[#304035]">10 à 30 s</b>. <b className="text-[#304035]">Ne ferme pas la page</b>.</p>
+                      <span className="shrink-0 font-mono text-base font-black tabular-nums" style={{color:'#a67749'}}><ElapsedTimer /></span>
+                    </div>
+                  </div>
+                )}
+                {colorTestResult && !colorTestLoading && (
+                  <>
+                    <ResultCard item={colorTestResult} accentColor="#a67749" icon={Sparkles} beforeUrl={photoURL}
+                      onSave={saveColoristeTest} onRegenerate={runColoristeTest} onEdit={modifierColoristeTest} editing={colorTestEditing} />
+                    <div className="flex items-center gap-2 rounded-xl border px-3 py-2" style={{borderColor:'#10b98133', background:'#10b98110'}}>
+                      <ShieldCheck className="h-4 w-4 text-[#10b981] shrink-0" />
+                      <p className="text-[11px] font-semibold text-[#304035]/70">Faites glisser le curseur avant/après ci-dessus — le reste de la photo est garanti identique à l'originale.</p>
+                    </div>
+                  </>
+                )}
+                {!colorTestLoading && !colorTestResult && (
+                  <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#a67749]/20 bg-gradient-to-br from-[#a67749]/5 to-white p-12 text-center lg:min-h-[400px]">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#a67749]/10"><Sparkles className="h-7 w-7 text-[#a67749]/60" /></div>
+                    <p className="font-bold text-[#304035] mb-1.5">Votre colorisation apparaîtra ici</p>
+                    <p className="text-xs text-[#304035]/50 leading-relaxed">Importez une photo, cliquez la surface et lancez la colorisation.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Zone à changer — clic affiné (dilatation + adoucissement du masque) */}
+            {photoFile && (
+              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <MousePointerClick className="h-4 w-4 text-[#a67749]" />
+                  <p className="font-bold text-[#304035]">Zone à changer</p>
+                  {colorTestClick
+                    ? <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Zone sélectionnée ✓</span>
+                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Cliquez la surface</span>}
+                </div>
+                <p className="text-xs text-[#304035]/50">Cliquez <b>une fois</b> sur une surface — le masque est automatiquement <b>dilaté et adouci</b> pour bien coller aux bords. Ajoutez <b>un point par surface</b> en plus, « Retirer » pour corriger.</p>
+                <ColoristeTestClickSelect file={photoFile} accent="#a67749" onChange={setColorTestClick} />
+              </div>
+            )}
+
+            {/* Palettes + couleurs */}
+            <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
+              <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#a67749]" /><p className="font-bold text-[#304035]">Palettes & couleurs</p></div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {PRESETS.map(pr => (
+                  <PresetCard key={pr.name} p={pr} active={preset?.name === pr.name} onClick={() => applyPreset(pr)} />
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {([
+                  { label: 'Façades',        val: facadeCol,  set: setFacadeCol },
+                  { label: 'Poignées',       val: poigneeCol, set: setPoigneeCol },
+                  { label: 'Plan de travail',val: planCol,    set: setPlanCol },
+                ] as const).map(({ label, val, set }) => (
+                  <label key={label} className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50">{label}</span>
+                    <span className="flex items-center gap-2 rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-2.5 py-2">
+                      <input type="color" value={val} onChange={e => { set(e.target.value); setPreset(null); setColorsModified(true); }} className="h-7 w-9 rounded cursor-pointer border-0 bg-transparent p-0" />
+                      <span className="text-xs font-mono text-[#304035]/70">{val}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <ChipSelector<FinishType>
+                label="Finition des façades" accent="#a67749"
+                value={facadeFinish} onChange={(v) => { setFacadeFinish(v); }}
+                options={[
+                  { value: 'mat', label: 'Mat' }, { value: 'satiné', label: 'Satiné' },
+                  { value: 'brillant', label: 'Brillant' }, { value: 'brossé', label: 'Brossé' },
+                  { value: 'bois', label: 'Bois' },
+                ]}
+              />
+              <ChipSelector<LightingType>
+                label="Éclairage" accent="#a67749"
+                value={colorLight} onChange={(v) => { setColorLight(v); }}
+                options={[
+                  { value: 'naturelle', label: 'Naturelle', icon: Sun },
+                  { value: 'spots', label: 'Spots', icon: Lamp },
+                  { value: 'mixte', label: 'Mixte', icon: Monitor },
+                ]}
+              />
+            </div>
+
+            {/* Dossier + CTA */}
+            <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
+              <DossierPicker />
+              <button onClick={runColoristeTest}
+                disabled={colorTestLoading || !photoFile || !colorTestClick}
+                title={!photoFile ? 'Importez la photo de la cuisine' : !colorTestClick ? 'Cliquez la surface à changer' : undefined}
+                className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{background:'linear-gradient(135deg,#a67749 0%,#8a5f38 100%)'}}>
+                <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
+                  {colorTestLoading
+                    ? <><Loader2 className="h-4 w-4 animate-spin" />Colorisation…</>
+                    : !photoFile
+                      ? <><FileImage className="h-4 w-4" />Importez d'abord la photo</>
+                      : !colorTestClick
+                        ? <><MousePointerClick className="h-4 w-4" />Cliquez la surface à changer</>
+                        : <><Sparkles className="h-4 w-4" />Coloriser<ArrowRight className="h-4 w-4 ml-1" /></>
+                  }
+                </span>
+              </button>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+              <HistoryPanel filterType="COLOR_VARIATION" accent="#a67749" refreshTrigger={iaHistoryRefresh} onSelect={openHistoryJob} />
               <GalleryCard gallery={gallery} />
             </div>
 
