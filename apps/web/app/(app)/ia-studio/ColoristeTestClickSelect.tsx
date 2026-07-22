@@ -26,12 +26,6 @@ import { MousePointerClick, Minus, Undo2, Trash2, Loader2, ShieldCheck } from 'l
 
 const MAX_DIM = 1280;
 
-/** #RRGGBB → [r,g,b] (fallback teal AVRA). */
-function hexToRgb(hex: string): [number, number, number] {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [166, 119, 73];
-}
-
 export interface ClickSelectResult { maskUrl: string; sourceUrl: string }
 interface Point { x: number; y: number; label: 0 | 1 }
 
@@ -69,8 +63,10 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
     if (ov) {
       // Léger flou d'aperçu : représente visuellement l'adoucissement (feather)
       // réellement appliqué côté serveur avant génération (cf. en-tête fichier).
+      // Volontairement plus léger qu'avant (1.2px vs 3px) pour ne pas noyer le
+      // contour à fort contraste (voir runSegment) — il doit rester lisible.
       ctx.save();
-      ctx.filter = 'blur(3px)';
+      ctx.filter = 'blur(1.2px)';
       ctx.drawImage(ov, 0, 0);
       ctx.restore();
     }
@@ -149,10 +145,52 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
           try {
             const id = octx.getImageData(0, 0, w, h);
             const d = id.data;
-            const [ar, ag, ab] = hexToRgb(accent);
-            for (let i = 0; i < d.length; i += 4) {
-              const selected = (d[i] + d[i + 1] + d[i + 2]) / 3 > 128;
-              d[i] = ar; d[i + 1] = ag; d[i + 2] = ab; d[i + 3] = selected ? 150 : 0;
+            const n = w * h;
+
+            // Retour utilisateur (juillet 2026) : sur une crédence et des
+            // façades de même teinte/texture (ex: résine rose marbrée), un
+            // aperçu teinté avec la couleur du module (brun #a67749) se fond
+            // dans la photo — un débordement du masque sur la surface voisine
+            // devient invisible, donc impossible à corriger avec « Retirer »
+            // avant de lancer la génération.
+            //
+            // Fix : couleurs FIXES à fort contraste, indépendantes de l'accent
+            // du module ET de la photo (cyan + bordure magenta électrique) —
+            // ressortent sur quasiment n'importe quel intérieur. Le contour est
+            // en plus tracé explicitement (pas juste un flou) pour que la
+            // limite exacte de la sélection soit lisible d'un coup d'œil.
+            const selected = new Uint8Array(n);
+            for (let p = 0, i = 0; p < n; p++, i += 4) {
+              selected[p] = (d[i] + d[i + 1] + d[i + 2]) / 3 > 128 ? 1 : 0;
+            }
+            // Épaisseur du contour proportionnelle à la résolution affichée
+            // (assez large pour rester visible une fois la photo réduite à
+            // l'écran, sans être disproportionnée sur une petite image).
+            const bw = Math.max(2, Math.round(w / 350));
+            const isBorder = (x: number, y: number): boolean => {
+              const p = y * w + x;
+              if (!selected[p]) return false;
+              const coords: Array<[number, number]> = [
+                [x - bw, y], [x + bw, y], [x, y - bw], [x, y + bw],
+              ];
+              for (const [nx, ny] of coords) {
+                if (nx < 0 || ny < 0 || nx >= w || ny >= h) return true;
+                if (!selected[ny * w + nx]) return true;
+              }
+              return false;
+            };
+            const FILL: [number, number, number] = [0, 225, 255];     // cyan électrique
+            const BORDER: [number, number, number] = [255, 0, 170];   // magenta électrique
+            for (let y = 0; y < h; y++) {
+              for (let x = 0; x < w; x++) {
+                const p = y * w + x;
+                const i = p * 4;
+                if (!selected[p]) { d[i + 3] = 0; continue; }
+                const border = isBorder(x, y);
+                const [r, g, b] = border ? BORDER : FILL;
+                d[i] = r; d[i + 1] = g; d[i + 2] = b;
+                d[i + 3] = border ? 255 : 130;
+              }
             }
             octx.putImageData(id, 0, 0);
             overlayRef.current = oc;
@@ -171,7 +209,7 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
       setError('Connexion interrompue. Réessayez.');
     }
     setLoading(false);
-  }, [onChange, redraw, accent]);
+  }, [onChange, redraw]);
 
   const getPos = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const disp = dispRef.current;

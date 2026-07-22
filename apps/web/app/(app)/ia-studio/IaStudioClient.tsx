@@ -3915,7 +3915,7 @@ export default function IaStudioPage() {
                     ? <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Zone sélectionnée ✓</span>
                     : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Cliquez la surface</span>}
                 </div>
-                <p className="text-xs text-[#304035]/50">Cliquez <b>une fois</b> sur une surface — le masque est automatiquement <b>dilaté et adouci</b> pour bien coller aux bords. Ajoutez <b>un point par surface</b> en plus, « Retirer » pour corriger.</p>
+                <p className="text-xs text-[#304035]/50">Cliquez <b>une fois</b> sur une surface — le contour <span className="font-semibold" style={{color:'#00b8d4'}}>cyan</span> affiche exactement la zone qui sera modifiée. <b>Si le contour déborde sur une autre surface</b> (ex : crédence collée à une façade de même teinte), cliquez « Retirer » puis touchez la zone à exclure — vérifiez avant de générer.</p>
                 <ColoristeTestClickSelect file={photoFile} accent="#a67749" onChange={setColorTestClick} />
               </div>
             )}

@@ -68,7 +68,13 @@ export interface RefineMaskOptions {
   featherSigma?: number;
 }
 
-const DEFAULT_DILATE_SIGMA = 3;
+// Retour utilisateur (juillet 2026, test live) : sur des surfaces adjacentes de
+// teinte/texture proche (ex: crédence et façade dans la même résine rose
+// marbrée), une dilatation trop généreuse peut mordre sur la surface voisine.
+// Le vrai correctif pour CE cas précis est côté UI (contour à fort contraste
+// dans ColoristeTestClickSelect.tsx, pour repérer et corriger AVANT de générer
+// via un point « Retirer ») — mais on reste aussi plus prudent ici par défaut.
+const DEFAULT_DILATE_SIGMA = 2;
 const DEFAULT_FEATHER_SIGMA = 2.5;
 
 /**
