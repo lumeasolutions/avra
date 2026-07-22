@@ -1734,10 +1734,20 @@ export default function IaStudioPage() {
     if (!colorTestClick) { setColorTestError('Cliquez d\'abord la surface à changer sur la photo.'); return; }
     setColorTestLoading(true); setColorTestResult(null); setColorTestError(null);
     try {
+      // Retour utilisateur (juillet 2026, test live) : une texture importée
+      // était silencieusement ignorée si sa compression échouait — le résultat
+      // repartait alors en mode couleurs sans prévenir (visuellement "sans
+      // effet" si la couleur choisie était proche de l'originale). Comme pour
+      // le masque, on échoue maintenant explicitement plutôt que de basculer
+      // en silence vers un mode que l'utilisateur n'a pas demandé.
       let referenceImageDataUrl: string | undefined;
       if (colorTestRefFile) {
         try { referenceImageDataUrl = await compressImageToDataUrl(colorTestRefFile, 1024); }
-        catch { referenceImageDataUrl = undefined; }
+        catch {
+          setColorTestError('Impossible de traiter l\'échantillon de matière importé. Réessayez avec une autre image, ou retirez-le pour utiliser les couleurs.');
+          setColorTestLoading(false);
+          return;
+        }
       }
       const result = await callColoristeTestAPI({
         facadeHex:          preset?.facade   ?? facadeCol,

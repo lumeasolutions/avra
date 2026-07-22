@@ -229,6 +229,15 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 5b) Échantillon de matière (optionnel) → URL signée
+    //
+    // Retour utilisateur (juillet 2026, test live) : une texture de référence
+    // uploadée était ignorée sans prévenir, et le résultat repartait sur un
+    // rendu couleurs (proche de l'original, donc visuellement "sans effet").
+    // Cause : cet upload échouait en silence (catch → warn seulement), exactement
+    // le type de repli silencieux que ce module doit éviter par conception (cf.
+    // en-tête fichier, point 3). Fix : si une texture a été fournie, son upload
+    // DOIT réussir — sinon on échoue explicitement plutôt que de basculer en
+    // mode couleurs sans le dire.
     let referenceSignedUrl: string | undefined;
     if (referenceImageDataUrl) {
       try {
@@ -237,9 +246,19 @@ export async function POST(req: NextRequest) {
         const refPath = `${workspaceId}/${job.id}/reference.${ext}`;
         await uploadToIaRenders(refPath, buffer, contentType);
         referenceSignedUrl = await createIaRendersSignedUrl(refPath);
+        // Tracée dans le job pour diagnostic (permet de vérifier après coup
+        // qu'une texture fournie a bien été transmise au moteur, plutôt que de
+        // le découvrir seulement en regardant le résultat final).
+        try {
+          await prisma.iaJob.update({
+            where: { id: job.id },
+            data: { inputImageUrls: { source: sourceSignedUrl, reference: referenceSignedUrl } },
+          });
+        } catch { /* best-effort */ }
       } catch (refErr) {
-        console.warn('[API /ia/coloriste-test] upload référence échec:',
+        console.error('[API /ia/coloriste-test] upload référence échec:',
           refErr instanceof Error ? refErr.message : refErr);
+        return fail(502, 'Impossible de traiter l\'échantillon de matière importé. Réessayez, ou relancez sans texture pour utiliser les couleurs.');
       }
     }
 
