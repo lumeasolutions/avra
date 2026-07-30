@@ -163,18 +163,28 @@ export const DEFAULT_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'BON DE LIVRAISON',            kind: 'access' },
   { label: 'FICHE DE POSE',        kind: 'date'   },
   { label: 'PERMIS DE CONSTRUIRE', kind: 'date'   },
-  { label: 'SAV',                  kind: 'static' },
+  // SAV passé en date butoir actionnable le 30/07/2026 (cohérent avec les
+  // 3 listes profession ci-dessus, qui l'ont toutes les 3) — était 'static'
+  // (icône seule, pas de champ) depuis la refonte du 05/05/2026.
+  { label: 'SAV',                  kind: 'date'   },
 ];
 
 /**
- * MENUISIER — modale Validation projet. 9 items 100% actionnables :
+ * MENUISIER — modale Validation projet. 10 items 100% actionnables :
  *   - 6 dates butoirs (MODIFICATIONS, RELEVÉ, DÉBIT, FABRICATION, LANCEMENT,
  *     FICHE DE POSE) — toutes en mode "date" pour saisie directe
  *   - 3 ACCEDER groupés en bas (COMMANDES, CONFIRMATIONS, LIVRAISON)
+ *   - SAV en tout dernier (date butoir de service après-vente)
  *
- * AVANT VENTE / PROJET VALIDÉ / SAV ont été retirés de la modale
- * (étapes "ancrage" non actionnables — l'utilisateur les retrouve dans
- * les sous-dossiers du dossier signé via MENUISIER_SIGNED_SUBFOLDERS).
+ * AVANT VENTE / PROJET VALIDÉ ont été retirés de la modale (étapes
+ * "ancrage" non actionnables — l'utilisateur les retrouve dans les
+ * sous-dossiers du dossier signé via MENUISIER_SIGNED_SUBFOLDERS).
+ *
+ * SAV réintroduit ici le 30/07/2026 (retour utilisateur/cofondatrice) :
+ * même si le SAV n'a lieu qu'après livraison, l'équipe veut pouvoir en
+ * fixer la date butoir dès la validation du projet plutôt que d'attendre
+ * de rouvrir le tableau de bord du dossier signé (où SAV reste également
+ * modifiable — même date, deux points d'entrée).
  *
  * MODIFICATIONS est en 1ère position : le menuisier saisit la date de
  * réception des modifications client tout en haut, avant de planifier
@@ -190,12 +200,14 @@ export const MENUISIER_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'COMMANDES FOURNISSEURS',   kind: 'access' },
   { label: 'CONFIRMATIONS / COMMANDE', kind: 'access' },
   { label: 'BON DE LIVRAISON',                kind: 'access' },
+  { label: 'SAV',                      kind: 'date'   },
 ];
 
 /**
- * CUISINISTE — modale Validation projet. 6 items 100% actionnables :
+ * CUISINISTE — modale Validation projet. 7 items 100% actionnables :
  *   - 3 dates (MODIFICATIONS, RELEVÉ DÉFINITIF, FICHE DE POSE)
  *   - 3 ACCEDER groupés en bas (COMMANDE, CONFIRMATIONS, LIVRAISON)
+ *   - SAV en tout dernier (date butoir de service après-vente)
  *
  * MODIFICATIONS en 1ère position : le cuisiniste saisit la date de
  * réception des modifications client tout en haut, avant de planifier
@@ -204,6 +216,8 @@ export const MENUISIER_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
  * Refonte 05/05/2026 — retiré : AVANT VENTE, OPTION VALIDÉE, SAV
  * (étapes "ancrage" non actionnables, retrouvables dans les sous-dossiers
  * du dossier signé via CUISINISTE_SIGNED_SUBFOLDERS).
+ * SAV réintroduit le 30/07/2026 (retour utilisateur/cofondatrice) — voir
+ * commentaire équivalent sur MENUISIER_DATE_BUTOIRE_ITEMS ci-dessus.
  */
 export const CUISINISTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'MODIFICATIONS',                     kind: 'date'   },
@@ -212,15 +226,18 @@ export const CUISINISTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'COMMANDE',                          kind: 'access' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS',   kind: 'access' },
   { label: 'BON DE LIVRAISON',                         kind: 'access' },
+  { label: 'SAV',                               kind: 'date'   },
 ];
 
 /**
- * ARCHITECTE D'INTÉRIEUR — modale Validation projet. 8 items 100%
- * actionnables : 5 dates butoirs + 3 ACCEDER groupés en bas.
+ * ARCHITECTE D'INTÉRIEUR — modale Validation projet. 9 items 100%
+ * actionnables : 5 dates butoirs + 3 ACCEDER groupés en bas + SAV.
  *
  * Refonte 05/05/2026 — retiré : AVANT VENTE, APD VERSION VALIDÉE,
  * RÉCEPTION SAV (étapes "ancrage" non actionnables, retrouvables dans
  * les sous-dossiers du dossier signé via ARCHITECTE_SIGNED_SUBFOLDERS).
+ * SAV réintroduit le 30/07/2026 (retour utilisateur/cofondatrice) — voir
+ * commentaire équivalent sur MENUISIER_DATE_BUTOIRE_ITEMS ci-dessus.
  *
  * DOSSIER MODIFICATIONS en 1ère position (cohérent menuisier/cuisiniste) :
  * l'architecte saisit la date de réception des modifications client
@@ -235,6 +252,7 @@ export const ARCHITECTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'COMMANDES FOURNISSEURS',                           kind: 'access' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS FOURNISSEURS',     kind: 'access' },
   { label: 'BON DE LIVRAISON',                                        kind: 'access' },
+  { label: 'SAV',                                              kind: 'date'   },
 ];
 
 export interface DateButoireValidationProps {
@@ -299,6 +317,11 @@ const DEFAULT_DELAYS: Record<string, number> = {
   'PLAN TECHNIQUE DCE':   30,
   'FICHE DE POSE':        95,
   'PERMIS DE CONSTRUIRE': 30,
+  // SAV n'a lieu qu'après livraison/pose (au-delà de FICHE DE POSE) : le
+  // fallback générique J+30 suggérerait une échéance beaucoup trop proche de
+  // la signature. J+180 (~6 mois) reste une suggestion modifiable, pas une
+  // contrainte — juste un point de départ plus réaliste.
+  'SAV':                  180,
 };
 
 const DAYS = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];

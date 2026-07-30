@@ -82,11 +82,14 @@ function formatMontant(n: number) {
 //  désormais rendu par ce composant, identique dans la liste ET dans le détail.)
 
 /**
- * Items EXACTEMENT comme la modale « Dates butoires » (DateButoireValidationModal) :
- * les listes brutes SANS le SAV_DASHBOARD_ITEM (qui, lui, n'existe que dans le
- * tableau de bord). Sert au compteur "X/Y dates butoires" des cartes pour qu'il
- * corresponde au 100% de la modale (sinon le SAV compte comme une date jamais
- * saisissable → "5/6" alors que la modale dit 100%).
+ * Items EXACTEMENT comme la modale « Dates butoires » (DateButoireValidationModal).
+ * Sert au compteur "X/Y dates butoires" des cartes pour qu'il corresponde
+ * exactement à ce que la modale permet de saisir.
+ *
+ * 30/07/2026 : SAV fait maintenant partie des listes profession elles-mêmes
+ * (kind 'date', comme les autres) — il compte donc normalement dans X/Y, ce
+ * qui est correct puisqu'il est désormais saisissable dès la modale de
+ * validation (plus seulement depuis le tableau de bord du dossier signé).
  */
 function getModalDateItems(profession: string | null): DateButoireItem[] {
   if (profession === 'menuisier') return MENUISIER_DATE_BUTOIRE_ITEMS;

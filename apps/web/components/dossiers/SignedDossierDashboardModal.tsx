@@ -47,16 +47,16 @@ function formatDate(dateStr: string) {
   return dateStr;
 }
 
-/** SAV affiché comme étape du tableau de bord (kind 'date' — case verte si rempli). */
-const SAV_DASHBOARD_ITEM: DateButoireItem = { label: 'SAV', kind: 'date' };
-
+// SAV (30/07/2026) : les 3 listes profession + la liste par défaut contiennent
+// désormais NATIVEMENT un item SAV (kind 'date') — voir DateButoireValidationModal.tsx.
+// Avant ce changement, SAV n'existait QUE dans ce tableau de bord (ajouté ici à
+// la volée via un item dédié) ; il aurait sinon fallu le dupliquer, d'où sa
+// suppression : la source unique est maintenant les listes importées ci-dessous.
 function getDateButoireItemsForProfession(profession: string | null): DateButoireItem[] {
-  let base: DateButoireItem[];
-  if (profession === 'menuisier') base = MENUISIER_DATE_BUTOIRE_ITEMS;
-  else if (profession === 'cuisiniste') base = CUISINISTE_DATE_BUTOIRE_ITEMS;
-  else if (profession === 'architecte') base = ARCHITECTE_DATE_BUTOIRE_ITEMS;
-  else return DEFAULT_DATE_BUTOIRE_ITEMS; // contient déjà SAV
-  return [...base, SAV_DASHBOARD_ITEM];
+  if (profession === 'menuisier') return MENUISIER_DATE_BUTOIRE_ITEMS;
+  if (profession === 'cuisiniste') return CUISINISTE_DATE_BUTOIRE_ITEMS;
+  if (profession === 'architecte') return ARCHITECTE_DATE_BUTOIRE_ITEMS;
+  return DEFAULT_DATE_BUTOIRE_ITEMS;
 }
 
 export function SignedDossierDashboardModal({
