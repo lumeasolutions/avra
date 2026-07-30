@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ColoristeClickSelect, type ClickSelectResult } from './ColoristeClickSelect';
+import type { ClickSelectResult as ColoristeTestSelectResult } from './ColoristeTestClickSelect';
 import { ColoristeTestClickSelect } from './ColoristeTestClickSelect';
 import Image from 'next/image';
 import {
@@ -356,7 +357,7 @@ async function callColoristeTestAPI(params: {
   facadeFinish: FinishType; lightingStyle: LightingType;
   poigneeFinish?: FinishType; planFinish?: FinishType;
   handleMaterial?: string; countertopMaterial?: string;
-  sourceImageDataUrl?: string; referenceImageDataUrl?: string; maskUrl?: string; sourceUrl?: string; projectId?: string | null;
+  sourceImageDataUrl?: string; referenceImageDataUrl?: string; maskUrl?: string; sourceUrl?: string; maskDataUrl?: string; projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste-test', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params),
@@ -1252,7 +1253,7 @@ export default function IaStudioPage() {
   const [colorTestError,   setColorTestError]   = useState<string|null>(null);
   const [colorTestRefFile, setColorTestRefFile] = useState<File|null>(null);
   const colorTestRefURL = useMemo(() => (colorTestRefFile ? URL.createObjectURL(colorTestRefFile) : null), [colorTestRefFile]);
-  const [colorTestClick, setColorTestClick] = useState<ClickSelectResult|null>(null);
+  const [colorTestClick, setColorTestClick] = useState<ColoristeTestSelectResult|null>(null);
 
   /* ── RENDU — état */
   // Image de référence (plan WinnerFlex, photo d'inspiration, sketch).
@@ -1752,11 +1753,12 @@ export default function IaStudioPage() {
           return;
         }
       }
-      // Sans clic (mode couleurs pur), on envoie la photo directement en data
-      // URL — colorTestClick.sourceUrl n'existe que si une sélection a été
-      // faite (elle vient de la segmentation SAM2 côté /api/ia/segment-point).
+      // Source photo en data URL requise : quand il n'y a aucune sélection
+      // (mode couleurs pur), ET quand la sélection vient du PINCEAU manuel
+      // (elle n'a jamais été uploadée par SAM2 côté /api/ia/segment-point,
+      // contrairement au mode clic auto qui fournit déjà `sourceUrl`).
       let sourceImageDataUrl: string | undefined;
-      if (!colorTestClick) {
+      if (!colorTestClick || colorTestClick.mode === 'manual') {
         try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280); }
         catch {
           setColorTestError('Impossible de lire la photo. Réessayez avec un autre fichier.');
@@ -1778,8 +1780,9 @@ export default function IaStudioPage() {
         lightingStyle:      colorLight,
         referenceImageDataUrl,
         sourceImageDataUrl,
-        maskUrl:            colorTestClick?.maskUrl,
-        sourceUrl:          colorTestClick?.sourceUrl,
+        maskUrl:            colorTestClick?.mode === 'auto' ? colorTestClick.maskUrl : undefined,
+        sourceUrl:          colorTestClick?.mode === 'auto' ? colorTestClick.sourceUrl : undefined,
+        maskDataUrl:        colorTestClick?.mode === 'manual' ? colorTestClick.maskDataUrl : undefined,
         projectId:          dossierId || null,
       });
       if (result.error) { setColorTestError(result.error); setColorTestLoading(false); return; }
@@ -3946,7 +3949,7 @@ export default function IaStudioPage() {
                     ? <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Zone sélectionnée ✓</span>
                     : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Cliquez la surface</span>}
                 </div>
-                <p className="text-xs text-[#304035]/50">Une texture a été importée — indiquez où l'appliquer. Cliquez <b>une fois</b> sur une surface — le contour <span className="font-semibold" style={{color:'#00b8d4'}}>cyan</span> affiche exactement la zone qui sera modifiée. <b>Si le contour déborde sur une autre surface</b> (ex : crédence collée à une façade de même teinte), cliquez « Retirer » puis touchez la zone à exclure — vérifiez avant de générer.</p>
+                <p className="text-xs text-[#304035]/50">Une texture a été importée — indiquez où l'appliquer. En mode <b>Clic (auto)</b>, cliquez <b>une fois</b> sur une surface — le contour <span className="font-semibold" style={{color:'#00b8d4'}}>cyan</span> affiche exactement la zone qui sera modifiée ; si le contour déborde sur une autre surface (ex : îlot ou crédence de même teinte), cliquez « Retirer » puis touchez la zone à exclure. Si ça déborde encore, passez en mode <b>Pinceau (manuel)</b> pour peindre vous-même la zone exacte — toujours vérifier avant de générer.</p>
                 <ColoristeTestClickSelect file={photoFile} accent="#a67749" onChange={setColorTestClick} />
               </div>
             )}

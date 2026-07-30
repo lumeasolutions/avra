@@ -13,16 +13,29 @@
  *   A. MODE TEXTURE (referenceImageDataUrl fourni) — masque OBLIGATOIRE (clic
  *      sur la photo) : clic → SAM2 → MyArchitectAI /change-textures, avec deux
  *      garde-fous (voir coloriste-test-compositor.ts) :
- *        1. Le masque SAM2 brut (transmis par le front via la route EXISTANTE
- *           /api/ia/segment-point — réutilisée en LECTURE SEULE, non modifiée)
- *           est RAFFINÉ (dilaté puis adouci) avant d'être envoyé au moteur —
- *           corrige les bords non couverts / trop durs.
+ *        1. Le masque (brut SAM2, OU peint à la main — voir ci-dessous) est
+ *           RAFFINÉ (adouci, + dilaté SEULEMENT pour le masque SAM2) avant
+ *           d'être envoyé au moteur — corrige les bords non couverts / trop
+ *           durs.
  *        2. Le résultat n'est JAMAIS renvoyé tel quel : on le RECOMPOSE
  *           nous-mêmes avec l'image source (original hors-masque, généré dans
  *           le masque affiné) → garantie mathématique que rien ne bouge hors
  *           de la zone choisie, quel que soit le comportement du moteur.
  *      Pas de repli silencieux vers /edit-by-prompt dans ce mode : si le
  *      masque est absent ou si /change-textures échoue, échec EXPLICITE.
+ *
+ *      Deux origines possibles pour le masque (retour utilisateur 30/07/2026 :
+ *      SAM2 regroupe automatiquement toute zone visuellement continue de même
+ *      couleur — ex: îlot + façades + colonne d'une cuisine unie — un simple
+ *      clic ne peut alors pas isoler une seule zone) :
+ *        - `maskUrl` (URL http) : masque SAM2 brut, issu du clic auto — DILATÉ
+ *          puis adouci (le sous-dimensionnement typique de SAM2 justifie la
+ *          dilatation).
+ *        - `maskDataUrl` (data: URL, PNG blanc=sélection) : masque peint à la
+ *          main par l'utilisateur (mode Pinceau, front) — déjà précis au pixel
+ *          près, donc SEULEMENT adouci (feather), sans dilatation (qui ferait
+ *          justement déborder ce que l'utilisateur vient de corriger à la
+ *          main).
  *
  *   B. MODE COULEURS (façade/poignée/plan de travail, pas de texture) — AUCUNE
  *      sélection requise : édition directe via MyArchitectAI /edit-by-prompt
@@ -125,6 +138,14 @@ export async function POST(req: NextRequest) {
     typeof body.maskUrl === 'string' && (body.maskUrl as string).startsWith('http')
       ? (body.maskUrl as string)
       : null;
+  // Masque peint à la main (mode Pinceau, front) — voir en-tête fichier :
+  // déjà précis au pixel près, traité différemment du masque SAM2 (pas de
+  // dilatation, cf. section 5c).
+  const providedMaskDataUrl =
+    typeof body.maskDataUrl === 'string' && body.maskDataUrl.startsWith('data:')
+      ? body.maskDataUrl
+      : null;
+  const hasMask = !!(providedMaskUrl || providedMaskDataUrl);
 
   // Retour utilisateur (juillet 2026) : le masque n'est OBLIGATOIRE que pour
   // appliquer une TEXTURE importée (il faut savoir où la coller). En mode
@@ -132,9 +153,9 @@ export async function POST(req: NextRequest) {
   // requise — comme le système couleurs existant ailleurs dans l'app — on
   // repart alors sur un edit par prompt sur toute l'image (pas de masque à
   // raffiner ni à composer).
-  if (referenceImageDataUrl && !providedMaskUrl) {
+  if (referenceImageDataUrl && !hasMask) {
     return NextResponse.json(
-      { error: 'Sélectionnez une zone (clic sur la photo) pour appliquer la texture importée.' },
+      { error: 'Sélectionnez une zone (clic ou pinceau sur la photo) pour appliquer la texture importée.' },
       { status: 400 },
     );
   }
@@ -156,7 +177,7 @@ export async function POST(req: NextRequest) {
     ? 'Replace the material of the masked region with the exact material, colour, pattern and finish '
       + 'shown in the attached reference image; reproduce it faithfully. Keep everything outside the '
       + 'mask unchanged. Photorealistic, sharp, high detail.'
-    : providedMaskUrl
+    : hasMask
       ? `${buildTextureEditPrompt(params)} Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.`
       // Mode couleurs sans sélection : edit par prompt sur toute l'image — pas de
       // masque. buildTextureEditPrompt() nomme déjà précisément chaque surface à
@@ -179,13 +200,14 @@ export async function POST(req: NextRequest) {
         projectId,
         type: 'COLOR_VARIATION',
         status: 'QUEUED',
-        modelsUsed: providedMaskUrl
+        modelsUsed: hasMask
           ? ['myarchitectai/change-textures', 'coloriste-test-compositor']
           : ['myarchitectai/edit-by-prompt'],
         params: {
           engine: 'coloriste-test',
           mode: referenceImageDataUrl ? 'reference' : 'colors',
-          hasMask: !!providedMaskUrl,
+          hasMask,
+          maskSource: providedMaskDataUrl ? 'manual-brush' : providedMaskUrl ? 'auto-click' : undefined,
           facadeHex: params.facadeHex,
           poigneeHex: params.poigneeHex,
           planHex: params.planHex,
@@ -285,22 +307,30 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 5c) Masque (optionnel désormais) : si fourni (texture importée, ou clic
-    //       en mode couleurs), le masque SAM2 brut est téléchargé + RAFFINÉ
-    //       (dilate + feather) → re-uploadé sur Supabase pour une URL stable
-    //       envoyée au moteur. Absent en mode couleurs pur sans sélection.
+    //       / pinceau en mode couleurs), le masque brut est RAFFINÉ (adouci,
+    //       + dilaté SEULEMENT pour un masque SAM2 — un masque peint à la main
+    //       est déjà précis, le dilater ferait déborder ce que l'utilisateur
+    //       vient justement de corriger, cf. en-tête fichier) → re-uploadé sur
+    //       Supabase pour une URL stable envoyée au moteur. Absent en mode
+    //       couleurs pur sans sélection.
     let refinedMaskBuffer: Buffer | undefined;
     let maskSignedUrl: string | undefined;
-    if (providedMaskUrl) {
+    if (hasMask) {
       try {
-        const rawMaskBuffer = await fetchImageBuffer(providedMaskUrl);
-        refinedMaskBuffer = await refineSelectionMask(rawMaskBuffer);
+        const rawMaskBuffer = providedMaskDataUrl
+          ? dataUrlToBuffer(providedMaskDataUrl).buffer
+          : await fetchImageBuffer(providedMaskUrl!);
+        refinedMaskBuffer = await refineSelectionMask(
+          rawMaskBuffer,
+          providedMaskDataUrl ? { dilateSigma: 0 } : undefined,
+        );
         const maskPath = `${workspaceId}/${job.id}/mask-refined.png`;
         await uploadToIaRenders(maskPath, refinedMaskBuffer, 'image/png');
         maskSignedUrl = await createIaRendersSignedUrl(maskPath);
       } catch (maskErr) {
         console.warn('[API /ia/coloriste-test] affinage masque échec:',
           maskErr instanceof Error ? maskErr.message : maskErr);
-        return fail(502, 'Impossible de traiter la sélection. Réessayez de cliquer sur la surface.');
+        return fail(502, 'Impossible de traiter la sélection. Réessayez de cliquer ou peindre la surface.');
       }
     }
 
@@ -334,9 +364,9 @@ export async function POST(req: NextRequest) {
     let endpointTag: string;
     let finalPrompt: string;
 
-    if (providedMaskUrl && maskSignedUrl && refinedMaskBuffer) {
-      // ── 7a) Zone sélectionnée (texture importée, ou clic optionnel en mode
-      //       couleurs) : MyArchitectAI /change-textures — appel DIRECT (pas
+    if (hasMask && maskSignedUrl && refinedMaskBuffer) {
+      // ── 7a) Zone sélectionnée (texture importée, ou clic/pinceau optionnel
+      //       en mode couleurs) : MyArchitectAI /change-textures — appel DIRECT (pas
       //       generateColoristeTextures) : on veut un échec EXPLICITE, jamais de
       //       repli silencieux vers /edit-by-prompt sans masque dans CE cas.
       const texPrompt = referenceSignedUrl
