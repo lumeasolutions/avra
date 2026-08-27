@@ -33,7 +33,7 @@ import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { SendToIntervenantDrawer } from '@/components/demandes/SendToIntervenantDrawer';
 import { SignedDossierDashboardModal } from '@/components/dossiers/SignedDossierDashboardModal';
-import { CompareDevisModal } from '@/components/facturation/CompareDevisModal';
+import { CompareHubModal } from '@/components/facturation/CompareHubModal';
 import { ModalDevis } from '@/app/(app)/facturation/components/ModalDevis';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
 
@@ -2007,9 +2007,9 @@ export default function DossierDetailPage() {
         onClose={() => setSendFolderAtts(null)}
       />
 
-      {/* Outil « Comparer 2 devis » (ouvert depuis le bouton Comparer du header). */}
+      {/* Outil « Comparer » (devis / photos) — ouvert depuis le bouton Comparer. */}
       {showCompare && (
-        <CompareDevisModal dossierId={id} onClose={() => setShowCompare(false)} />
+        <CompareHubModal dossierId={id} onClose={() => setShowCompare(false)} />
       )}
 
       {/* ═══════════════════════════════════════════════
