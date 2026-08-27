@@ -123,17 +123,22 @@ export function CompareDevisModal({ dossierId, onClose }: { dossierId?: string; 
     return { mine, others, all: [...mine, ...others] };
   }, [allDevis, dossierId]);
 
+  // Défauts : on lit du plus ANCIEN vers le plus RÉCENT (v1 -> v2), sens naturel
+  // de vérification. `defaults` est trié du plus récent au plus ancien, donc
+  // A (référence, ancien) = 2e le plus récent, B (comparé, récent) = le plus récent.
   const defaults = sorted.mine.length >= 2 ? sorted.mine : sorted.all;
-  const [idA, setIdA] = useState<string>(defaults[0]?.id ?? '');
-  const [idB, setIdB] = useState<string>(defaults[1]?.id ?? '');
+  const defB = defaults[0]?.id ?? '';                 // le plus récent
+  const defA = defaults[1]?.id ?? defaults[0]?.id ?? ''; // l'antérieur (ou le seul)
+  const [idA, setIdA] = useState<string>(defA);
+  const [idB, setIdB] = useState<string>(defB);
 
   // Réconcilie la sélection quand la liste des devis change (hydratation
   // asynchrone au montage, ou suppression d'un devis) : on conserve un choix
-  // encore valide, sinon on reprend les défauts (2 plus récents).
+  // encore valide, sinon on reprend les défauts (ancien -> récent).
   useEffect(() => {
     const ids = new Set(sorted.all.map((d) => d.id));
-    setIdA((prev) => (prev && ids.has(prev) ? prev : defaults[0]?.id ?? ''));
-    setIdB((prev) => (prev && ids.has(prev) ? prev : defaults[1]?.id ?? defaults[0]?.id ?? ''));
+    setIdA((prev) => (prev && ids.has(prev) ? prev : defA));
+    setIdB((prev) => (prev && ids.has(prev) ? prev : defB));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sorted]);
 
@@ -221,7 +226,7 @@ export function CompareDevisModal({ dossierId, onClose }: { dossierId?: string; 
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: 'rgba(48,64,53,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Devis A (référence)</label>
                 <select value={idA} onChange={(e) => setIdA(e.target.value)} style={selectStyle}>{renderOptions()}</select>
               </div>
-              <button onClick={swap} title="Inverser A et B" style={{ marginBottom: 2, width: 38, height: 38, borderRadius: 10, border: '1px solid rgba(48,64,53,0.15)', background: '#fff', color: '#a67749', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <button type="button" onClick={swap} aria-label="Inverser A et B" title="Inverser A et B" style={{ marginBottom: 2, width: 38, height: 38, borderRadius: 10, border: '1px solid rgba(48,64,53,0.15)', background: '#fff', color: '#a67749', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <ArrowLeftRight size={16} />
               </button>
               <div>

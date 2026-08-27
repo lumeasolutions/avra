@@ -21,6 +21,7 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
   const allDossiers = [...dossiers, ...dossiersSignes];
 
   const [form, setForm] = useState({
+    objet: devisToEdit?.objet ?? '',
     client: devisToEdit?.client ?? prefill?.client ?? '',
     clientEmail: devisToEdit?.clientEmail ?? prefill?.clientEmail ?? '',
     clientAddress: devisToEdit?.clientAddress ?? prefill?.clientAddress ?? '',
@@ -108,6 +109,20 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Objet — sert de titre / repère de version (ex "Cuisine v1", "Cuisine révisée"). */}
+          <div>
+            <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">
+              Objet du devis <span className="font-normal text-[#304035]/35">(recommandé — ex « Cuisine v1 »)</span>
+            </label>
+            <input
+              className="w-full rounded-xl border border-[#304035]/12 px-3 py-2 text-sm text-[#304035] focus:outline-none focus:border-[#304035]/30"
+              placeholder="Ex : Cuisine complète — version 1"
+              value={form.objet}
+              onChange={e => setForm(f => ({ ...f, objet: e.target.value }))}
+              maxLength={80}
+            />
+          </div>
+
           {/* Client */}
           <div className="grid grid-cols-2 gap-4">
             <div>
