@@ -402,7 +402,7 @@ export default function DossiersSignesPage() {
             <div className="p-1.5 rounded-xl bg-emerald-50"><BadgeCheck className="h-4 w-4 text-emerald-600" /></div>
             <div className="h-2 w-2 rounded-full bg-emerald-400" />
           </div>
-          <div className="text-xl font-bold text-[#304035]">{dossiersSignes.length}</div>
+          <div className="text-xl font-bold text-[#304035]">{enriched.length}</div>
           <div className="text-xs font-semibold text-[#304035]/50 mt-0.5">Dossiers signés</div>
           <div className="text-xs text-[#304035]/30 mt-0.5">Moy. {moyenneCA > 0 ? formatMontant(moyenneCA) : '—'}</div>
         </div>

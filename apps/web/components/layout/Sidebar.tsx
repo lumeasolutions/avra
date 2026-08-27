@@ -40,7 +40,9 @@ export function Sidebar() {
   };
   const professionInfo = profession ? PROFESSION_LABELS[profession] : null;
   const urgentCount = useMemo(() => dossiers.filter(d => d.status === 'URGENT').length, [dossiers]);
-  const signedCount = dossiersSignes.length;
+  // Ne compter que les dossiers signés ACTIFS (non archivés) — les archivés ont
+  // leur propre compteur ("X archivés") et ne doivent pas gonfler ce badge.
+  const signedCount = dossiersSignes.filter(d => !(d as { archivedAt?: string | null }).archivedAt).length;
   const retardCount = useMemo(() => invoices.filter(e => e.statut === 'RETARD').length, [invoices]);
   const alertCount = useMemo(() => alerts.filter(a => !a.dismissed).length, [alerts]);
   const devisSignatureCount = useMemo(() => devis.filter(d => d.signatureStatus === 'EN_ATTENTE_SIGNATURE').length, [devis]);
