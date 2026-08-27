@@ -8,7 +8,6 @@ import {
   ChefHat,
   Hammer,
   Pencil,
-  Layout,
   ArrowRight,
   CheckCircle,
   Sparkles,
@@ -83,25 +82,6 @@ const metiers = [
       'Gestion du stock',
     ],
     stat: { value: 'Studio complet', label: 'coordination artisans & rendus IA' },
-  },
-  {
-    id: 'decorateur',
-    emoji: '🎨',
-    icon: Layout,
-    href: '/demo',
-    label: 'Décorateur',
-    tagline: 'Ambiances, matières & expérience client',
-    desc: "Composez vos univers décoratifs, présentez des ambiances photo-réalistes et gérez vos devis de A à Z — AVRA vous libère du temps pour créer.",
-    color: '#c0627a',
-    colorLight: 'rgba(192,98,122,0.09)',
-    colorBorder: 'rgba(192,98,122,0.25)',
-    features: [
-      'Suivi de projet et livraisons',
-      'Rendus IA photo-réalistes pour vos clients',
-      'Devis déco professionnels en quelques clics',
-      'Suivi des dossiers client et du stock',
-    ],
-    stat: { value: 'Rendus IA', label: 'ambiances photo-réalistes pour vendre' },
   },
 ];
 

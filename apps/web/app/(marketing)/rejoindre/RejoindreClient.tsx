@@ -165,7 +165,6 @@ export default function RejoindreClient() {
                   <option value="cuisiniste" style={{ background: '#0e1810' }}>Cuisiniste</option>
                   <option value="menuisier" style={{ background: '#0e1810' }}>Menuisier</option>
                   <option value="agenceur" style={{ background: '#0e1810' }}>Agenceur</option>
-                  <option value="decorateur" style={{ background: '#0e1810' }}>Décorateur</option>
                   <option value="autre" style={{ background: '#0e1810' }}>Autre</option>
                 </select>
 

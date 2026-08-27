@@ -175,7 +175,7 @@ export default function AccueilPage() {
           <span style={{ fontSize: '.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em' }}>
             Conçu pour les métiers de l&apos;agencement
           </span>
-          {['Cuisinistes', 'Menuisiers', 'Architectes d\'intérieur', 'Agenceurs', 'Décorateurs'].map((m) => (
+          {['Cuisinistes', 'Menuisiers', 'Architectes d\'intérieur', 'Agenceurs'].map((m) => (
             <div key={m} style={{
               padding: '8px 20px', background: 'var(--white)', borderRadius: 8,
               border: '1px solid var(--border)', fontSize: '.9rem', color: 'var(--text)',
