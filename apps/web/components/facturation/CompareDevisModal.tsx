@@ -12,7 +12,7 @@
  * listent tous les devis (ceux du dossier en tête), et se pré-remplissent avec
  * les 2 devis les plus récents du dossier.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GitCompare, X, ArrowLeftRight, Plus, Minus, Pencil, Equal, AlertTriangle, FileText, ArrowRight } from 'lucide-react';
 import { useFacturationStore, type Devis, type LigneDocument } from '@/store';
 import { calcLignes, fmt, DEVIS_STATUS_CFG } from '@/app/(app)/facturation/lib/utils';
@@ -40,17 +40,28 @@ const KIND_CFG: Record<DiffKind, { label: string; color: string; bg: string; bor
 };
 
 function buildDiff(a: Devis, b: Devis): DiffRow[] {
-  // Map par description normalisée (le dernier gagne en cas de doublon).
-  const mapA = new Map<string, LigneDocument>();
-  const mapB = new Map<string, LigneDocument>();
-  for (const l of a.lignes) mapA.set(norm(l.description), l);
-  for (const l of b.lignes) mapB.set(norm(l.description), l);
+  // Clé par description + INDICE d'occurrence (ex "pose#0", "pose#1") : on aligne
+  // la 1re "Pose" de A avec la 1re de B, etc. -> les doublons de description NE
+  // disparaissent PAS et la somme des lignes reste cohérente avec les totaux.
+  const keyed = (lignes: LigneDocument[]) => {
+    const seenCount = new Map<string, number>();
+    return lignes.map((l) => {
+      const base = norm(l.description);
+      const n = seenCount.get(base) ?? 0;
+      seenCount.set(base, n + 1);
+      return { key: `${base}#${n}`, l };
+    });
+  };
+  const ka = keyed(a.lignes);
+  const kb = keyed(b.lignes);
+  const mapA = new Map(ka.map((x) => [x.key, x.l]));
+  const mapB = new Map(kb.map((x) => [x.key, x.l]));
 
-  // Ordre : lignes de A d'abord (dans l'ordre), puis les lignes uniquement dans B.
+  // Ordre : lignes de A d'abord (dans l'ordre), puis celles uniquement dans B.
   const order: string[] = [];
   const seen = new Set<string>();
-  for (const l of a.lignes) { const k = norm(l.description); if (!seen.has(k)) { seen.add(k); order.push(k); } }
-  for (const l of b.lignes) { const k = norm(l.description); if (!seen.has(k)) { seen.add(k); order.push(k); } }
+  for (const x of ka) if (!seen.has(x.key)) { seen.add(x.key); order.push(x.key); }
+  for (const x of kb) if (!seen.has(x.key)) { seen.add(x.key); order.push(x.key); }
 
   return order.map((key) => {
     const la = mapA.get(key) ?? null;
@@ -83,12 +94,11 @@ function StatutBadge({ statut }: { statut: Devis['statut'] }) {
 }
 
 /** Valeur + variation entre 2 montants (pour la ligne des totaux). */
-function DeltaValue({ a, b, invertColor = false }: { a: number; b: number; invertColor?: boolean }) {
+function DeltaValue({ a, b }: { a: number; b: number }) {
   const d = b - a;
   const nul = Math.abs(d) < 0.005;
-  // Hausse = orange (coûte plus cher), baisse = vert. invertColor pour le sens inverse.
-  const up = d > 0;
-  const color = nul ? 'rgba(48,64,53,0.4)' : (up !== invertColor) ? '#ea580c' : '#16a34a';
+  // Hausse = orange (coûte plus cher), baisse = vert.
+  const color = nul ? 'rgba(48,64,53,0.4)' : d > 0 ? '#ea580c' : '#16a34a';
   return (
     <span style={{ fontSize: 11, fontWeight: 800, color }}>
       {nul ? '—' : `${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}`}
@@ -100,8 +110,14 @@ export function CompareDevisModal({ dossierId, onClose }: { dossierId?: string; 
   const allDevis = useFacturationStore((s) => s.devis);
 
   // Devis triés : ceux du dossier d'abord (plus récents en tête), puis les autres.
+  // dateCreation est au format FR "JJ/MM/AAAA" -> on la convertit en timestamp
+  // pour un tri réellement chronologique (un localeCompare trierait par jour).
+  const frToTs = (s?: string) => {
+    const [d, m, y] = (s ?? '').split('/');
+    return y ? new Date(+y, +m - 1, +d).getTime() : 0;
+  };
   const sorted = useMemo(() => {
-    const withDate = [...allDevis].sort((x, y) => (y.dateCreation || '').localeCompare(x.dateCreation || ''));
+    const withDate = [...allDevis].sort((x, y) => frToTs(y.dateCreation) - frToTs(x.dateCreation));
     const mine = withDate.filter((d) => dossierId && d.dossierId === dossierId);
     const others = withDate.filter((d) => !(dossierId && d.dossierId === dossierId));
     return { mine, others, all: [...mine, ...others] };
@@ -110,6 +126,16 @@ export function CompareDevisModal({ dossierId, onClose }: { dossierId?: string; 
   const defaults = sorted.mine.length >= 2 ? sorted.mine : sorted.all;
   const [idA, setIdA] = useState<string>(defaults[0]?.id ?? '');
   const [idB, setIdB] = useState<string>(defaults[1]?.id ?? '');
+
+  // Réconcilie la sélection quand la liste des devis change (hydratation
+  // asynchrone au montage, ou suppression d'un devis) : on conserve un choix
+  // encore valide, sinon on reprend les défauts (2 plus récents).
+  useEffect(() => {
+    const ids = new Set(sorted.all.map((d) => d.id));
+    setIdA((prev) => (prev && ids.has(prev) ? prev : defaults[0]?.id ?? ''));
+    setIdB((prev) => (prev && ids.has(prev) ? prev : defaults[1]?.id ?? defaults[0]?.id ?? ''));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sorted]);
 
   const devisA = sorted.all.find((d) => d.id === idA) ?? null;
   const devisB = sorted.all.find((d) => d.id === idB) ?? null;
