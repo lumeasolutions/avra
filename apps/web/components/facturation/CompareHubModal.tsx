@@ -2,23 +2,27 @@
 
 /**
  * CompareHubModal — point d'entrée de l'outil « Comparer » d'un dossier.
- * Propose de comparer soit 2 DEVIS (déterministe), soit 2 PHOTOS (assisté IA).
- * Extensible (v3 : plans/cotes). Ouvert depuis le bouton « Comparer » du dossier.
+ * Trois modes : 2 DEVIS (déterministe), 2 PHOTOS (assisté IA) ou 2 PLANS
+ * (assisté IA — cotes/cloisons/implantation). Ouvert depuis le bouton
+ * « Comparer » du dossier. Photos et plans partagent ComparePhotosModal
+ * (prop `variant`) et la route /api/ia/compare-photos (champ `mode`).
  */
 import { useState } from 'react';
-import { GitCompare, X, FileText, Images, ArrowRight, Sparkles } from 'lucide-react';
+import { GitCompare, X, FileText, Images, Ruler, ArrowRight, Sparkles } from 'lucide-react';
 import { CompareDevisModal } from './CompareDevisModal';
 import { ComparePhotosModal } from './ComparePhotosModal';
 
 export function CompareHubModal({ dossierId, onClose }: { dossierId?: string; onClose: () => void }) {
-  const [mode, setMode] = useState<'menu' | 'devis' | 'photos'>('menu');
+  const [mode, setMode] = useState<'menu' | 'devis' | 'photos' | 'plans'>('menu');
 
   if (mode === 'devis') return <CompareDevisModal dossierId={dossierId} onClose={() => setMode('menu')} />;
-  if (mode === 'photos') return <ComparePhotosModal onClose={() => setMode('menu')} />;
+  if (mode === 'photos') return <ComparePhotosModal variant="photos" onClose={() => setMode('menu')} />;
+  if (mode === 'plans') return <ComparePhotosModal variant="plans" onClose={() => setMode('menu')} />;
 
   const cards = [
     { key: 'devis' as const, Icon: FileText, title: 'Comparer 2 devis', desc: 'Différences ligne par ligne, écarts de prix et de totaux.', tag: 'Précis', tagColor: '#16a34a' },
     { key: 'photos' as const, Icon: Images, title: 'Comparer 2 photos', desc: 'État des lieux avant / après — l\'IA repère, vous validez.', tag: 'Assisté IA', tagColor: '#a67749' },
+    { key: 'plans' as const, Icon: Ruler, title: 'Comparer 2 plans', desc: 'Deux versions d\'un plan — cotes, cloisons et implantation.', tag: 'Assisté IA', tagColor: '#a67749' },
   ];
 
   return (
@@ -55,7 +59,7 @@ export function CompareHubModal({ dossierId, onClose }: { dossierId?: string; on
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 14, fontWeight: 800, color: '#304035' }}>{title}</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: tagColor, background: `${tagColor}14`, borderRadius: 999, padding: '2px 7px' }}>
-                    {key === 'photos' && <Sparkles size={9} />}{tag}
+                    {(key === 'photos' || key === 'plans') && <Sparkles size={9} />}{tag}
                   </span>
                 </div>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'rgba(48,64,53,0.55)' }}>{desc}</p>

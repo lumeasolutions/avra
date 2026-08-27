@@ -1,10 +1,13 @@
 'use client';
 
 /**
- * ComparePhotosModal — Outil « Comparer 2 photos » (v2, ex. état des lieux
- * avant/après). Base FIABLE : les 2 photos côte à côte + un slider avant/après.
- * Couche ASSISTANCE : l'IA (gpt-4o vision) liste les différences visibles —
- * l'humain valide (avertissement affiché, fallback si l'IA échoue).
+ * ComparePhotosModal — Outil de comparaison visuelle de 2 images. Générique via
+ * la prop `variant` : 'photos' (v2, état des lieux avant/après) ou 'plans' (v3,
+ * deux versions d'un plan — cotes, cloisons, implantation).
+ * Base FIABLE : les 2 images côte à côte + un slider avant/après. Couche
+ * ASSISTANCE : l'IA (gpt-4o vision) liste les écarts visibles — l'humain valide
+ * (avertissement affiché, fallback si l'IA échoue). Route : /api/ia/compare-photos
+ * (le champ `mode` sélectionne le prompt photos ou plans).
  */
 import { useCallback, useRef, useState } from 'react';
 import { GitCompare, X, ImagePlus, Sparkles, AlertTriangle, Loader2, Columns2, MoveHorizontal, Plus, Minus, ShieldAlert, Wand2, RefreshCw } from 'lucide-react';
@@ -20,6 +23,46 @@ const TYPE_CFG: Record<DiffType, { label: string; color: string; bg: string; bor
   autre:        { label: 'Autre',        color: 'rgba(48,64,53,0.6)', bg: 'rgba(48,64,53,0.05)', border: 'rgba(48,64,53,0.15)' },
 };
 const GRAVITE_COLOR: Record<Diff['gravite'], string> = { faible: 'rgba(48,64,53,0.4)', moyenne: '#ea580c', elevee: '#dc2626' };
+
+/** Variantes de l'outil : photos (état des lieux) ou plans (cotes / implantation). */
+export type CompareImageVariant = 'photos' | 'plans';
+interface VariantCfg {
+  apiMode: 'photos' | 'plans';
+  title: string; subtitle: string;
+  slotA: string; slotB: string;
+  importLabel: string; accept: string;
+  tagA: string; tagB: string;
+  aiButton: string; aiCount: (n: number) => string;
+  emptyHint: React.ReactNode; warn: React.ReactNode;
+}
+const VARIANT: Record<CompareImageVariant, VariantCfg> = {
+  photos: {
+    apiMode: 'photos',
+    title: 'Comparer deux photos',
+    subtitle: "État des lieux avant / après — l'IA repère, vous validez.",
+    slotA: 'Photo A (avant / référence)',
+    slotB: 'Photo B (après / comparée)',
+    importLabel: 'Importer une photo', accept: 'image/*',
+    tagA: 'A · avant', tagB: 'B · après',
+    aiButton: "Repérer les différences avec l'IA",
+    aiCount: (n) => `${n} différence${n > 1 ? 's' : ''} repérée${n > 1 ? 's' : ''} par l'IA`,
+    emptyHint: <>Importez les <b>deux photos</b> (A avant, B après) pour lancer la comparaison.</>,
+    warn: <>L'IA vous <b>assiste</b> : elle peut manquer ou inventer une différence. <b>Vérifiez toujours vous-même</b> avec les photos avant de conclure (ex. facturation d'une dégradation).</>,
+  },
+  plans: {
+    apiMode: 'plans',
+    title: 'Comparer deux plans',
+    subtitle: "Deux versions d'un plan (cotes, cloisons, implantation) — l'IA repère les écarts, vous validez.",
+    slotA: 'Plan A (version de référence)',
+    slotB: 'Plan B (version comparée)',
+    importLabel: 'Importer un plan', accept: 'image/*',
+    tagA: 'A · réf.', tagB: 'B · comparé',
+    aiButton: "Repérer les écarts avec l'IA",
+    aiCount: (n) => `${n} écart${n > 1 ? 's' : ''} repéré${n > 1 ? 's' : ''} par l'IA`,
+    emptyHint: <>Importez les <b>deux plans</b> (A référence, B comparé) pour lancer la comparaison. Exportez-les en image (JPG / PNG) si votre plan est un PDF.</>,
+    warn: <>L'IA vous <b>assiste</b> : elle peut manquer ou mal lire une cote. <b>Vérifiez toujours vous-même</b> sur les plans avant de conclure (ex. une cote ou une cloison qui change).</>,
+  },
+};
 
 /** Compresse une image (max 1600px, JPEG 0.85) → data URL (payload IA raisonnable). */
 function fileToCompressedDataUrl(file: File): Promise<string> {
@@ -52,7 +95,7 @@ function fileToCompressedDataUrl(file: File): Promise<string> {
 }
 
 /** Slider avant/après (drag horizontal). */
-function BeforeAfter({ a, b }: { a: string; b: string }) {
+function BeforeAfter({ a, b, tagA, tagB }: { a: string; b: string; tagA: string; tagB: string }) {
   const [pos, setPos] = useState(50);
   const ref = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -82,14 +125,14 @@ function BeforeAfter({ a, b }: { a: string; b: string }) {
           <MoveHorizontal size={15} color="#304035" />
         </div>
       </div>
-      <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999 }}>A · avant</span>
-      <span style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999 }}>B · après</span>
+      <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999 }}>{tagA}</span>
+      <span style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999 }}>{tagB}</span>
     </div>
   );
 }
 
 /** Emplacement d'upload d'une photo. */
-function Slot({ label, url, onPick, onClear }: { label: string; url: string | null; onPick: (f: File) => void; onClear: () => void }) {
+function Slot({ label, url, onPick, onClear, importLabel, accept }: { label: string; url: string | null; onPick: (f: File) => void; onClear: () => void; importLabel: string; accept: string }) {
   return (
     <div>
       <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(48,64,53,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
@@ -103,8 +146,8 @@ function Slot({ label, url, onPick, onClear }: { label: string; url: string | nu
       ) : (
         <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, aspectRatio: '4/3', borderRadius: 12, border: '1.5px dashed rgba(166,119,73,0.4)', background: 'rgba(166,119,73,0.04)', cursor: 'pointer', color: '#a67749', fontSize: 12, fontWeight: 700 }}>
           <ImagePlus size={22} />
-          Importer une photo
-          <input type="file" accept="image/*" className="hidden" style={{ display: 'none' }}
+          {importLabel}
+          <input type="file" accept={accept} className="hidden" style={{ display: 'none' }}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.currentTarget.value = ''; }} />
         </label>
       )}
@@ -112,7 +155,8 @@ function Slot({ label, url, onPick, onClear }: { label: string; url: string | nu
   );
 }
 
-export function ComparePhotosModal({ onClose }: { onClose: () => void }) {
+export function ComparePhotosModal({ onClose, variant = 'photos' }: { onClose: () => void; variant?: CompareImageVariant }) {
+  const cfg = VARIANT[variant];
   const [imgA, setImgA] = useState<string | null>(null);
   const [imgB, setImgB] = useState<string | null>(null);
   const [view, setView] = useState<'slider' | 'cote'>('slider');
@@ -136,7 +180,7 @@ export function ComparePhotosModal({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/ia/compare-photos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageA: imgA, imageB: imgB }),
+        body: JSON.stringify({ imageA: imgA, imageB: imgB, mode: cfg.apiMode }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data?.error || "L'analyse IA a échoué."); return; }
@@ -161,8 +205,8 @@ export function ComparePhotosModal({ onClose }: { onClose: () => void }) {
               <GitCompare size={18} color="#d9b38a" />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>Comparer deux photos</h2>
-              <p style={{ margin: '2px 0 0', fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>État des lieux avant / après — l'IA repère, vous validez.</p>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>{cfg.title}</h2>
+              <p style={{ margin: '2px 0 0', fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>{cfg.subtitle}</p>
             </div>
           </div>
           <button onClick={onClose} aria-label="Fermer" style={{ padding: 7, borderRadius: 9, border: 'none', background: 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', display: 'flex' }}>
@@ -173,8 +217,8 @@ export function ComparePhotosModal({ onClose }: { onClose: () => void }) {
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>
           {/* Upload des 2 photos */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <Slot label="Photo A (avant / référence)" url={imgA} onPick={(f) => pick('a', f)} onClear={() => { setImgA(null); setDiffs(null); setError(null); setResume(''); }} />
-            <Slot label="Photo B (après / comparée)" url={imgB} onPick={(f) => pick('b', f)} onClear={() => { setImgB(null); setDiffs(null); setError(null); setResume(''); }} />
+            <Slot label={cfg.slotA} importLabel={cfg.importLabel} accept={cfg.accept} url={imgA} onPick={(f) => pick('a', f)} onClear={() => { setImgA(null); setDiffs(null); setError(null); setResume(''); }} />
+            <Slot label={cfg.slotB} importLabel={cfg.importLabel} accept={cfg.accept} url={imgB} onPick={(f) => pick('b', f)} onClear={() => { setImgB(null); setDiffs(null); setError(null); setResume(''); }} />
           </div>
 
           {both && (
@@ -193,10 +237,10 @@ export function ComparePhotosModal({ onClose }: { onClose: () => void }) {
               </div>
 
               {view === 'slider' ? (
-                <BeforeAfter a={imgA!} b={imgB!} />
+                <BeforeAfter a={imgA!} b={imgB!} tagA={cfg.tagA} tagB={cfg.tagB} />
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {[['A · avant', imgA!], ['B · après', imgB!]].map(([lbl, u]) => (
+                  {[[cfg.tagA, imgA!], [cfg.tagB, imgB!]].map(([lbl, u]) => (
                     <div key={lbl} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', aspectRatio: '4/3', background: '#000', border: '1px solid rgba(48,64,53,0.1)' }}>
                       <img src={u} alt={lbl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                       <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999 }}>{lbl}</span>
@@ -212,7 +256,7 @@ export function ComparePhotosModal({ onClose }: { onClose: () => void }) {
                   disabled={loading}
                   style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 16px', borderRadius: 12, border: 'none', cursor: loading ? 'default' : 'pointer', background: loading ? 'rgba(48,64,53,0.15)' : 'linear-gradient(135deg, #a67749 0%, #c89665 100%)', color: '#fff', fontSize: 13.5, fontWeight: 800, boxShadow: loading ? 'none' : '0 4px 12px rgba(166,119,73,0.3)' }}
                 >
-                  {loading ? <><Loader2 size={16} className="animate-spin" /> Analyse en cours…</> : diffs ? <><RefreshCw size={16} /> Relancer l'analyse IA</> : <><Wand2 size={16} /> Repérer les différences avec l'IA</>}
+                  {loading ? <><Loader2 size={16} className="animate-spin" /> Analyse en cours…</> : diffs ? <><RefreshCw size={16} /> Relancer l'analyse IA</> : <><Wand2 size={16} /> {cfg.aiButton}</>}
                 </button>
 
                 {error && (
@@ -227,7 +271,7 @@ export function ComparePhotosModal({ onClose }: { onClose: () => void }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                       <Sparkles size={14} color="#a67749" />
                       <span style={{ fontSize: 12.5, fontWeight: 800, color: '#304035' }}>
-                        {diffs.length === 0 ? 'Aucune différence nette repérée' : `${diffs.length} différence${diffs.length > 1 ? 's' : ''} repérée${diffs.length > 1 ? 's' : ''} par l'IA`}
+                        {diffs.length === 0 ? 'Aucun écart net repéré' : cfg.aiCount(diffs.length)}
                       </span>
                     </div>
                     {resume && <p style={{ margin: '0 0 10px', fontSize: 12, color: 'rgba(48,64,53,0.6)', fontStyle: 'italic' }}>{resume}</p>}
@@ -253,7 +297,7 @@ export function ComparePhotosModal({ onClose }: { onClose: () => void }) {
                 <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 10, background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.18)' }}>
                   <AlertTriangle size={15} color="#ea580c" style={{ flexShrink: 0, marginTop: 1 }} />
                   <p style={{ margin: 0, fontSize: 11.5, color: '#9a4a12', lineHeight: 1.4 }}>
-                    L'IA vous <b>assiste</b> : elle peut manquer ou inventer une différence. <b>Vérifiez toujours vous-même</b> avec les photos avant de conclure (ex. facturation d'une dégradation).
+                    {cfg.warn}
                   </p>
                 </div>
               </div>
@@ -262,7 +306,7 @@ export function ComparePhotosModal({ onClose }: { onClose: () => void }) {
 
           {!both && (
             <div style={{ marginTop: 16, textAlign: 'center', fontSize: 12.5, color: 'rgba(48,64,53,0.5)' }}>
-              Importez les <b>deux photos</b> (A avant, B après) pour lancer la comparaison.
+              {cfg.emptyHint}
             </div>
           )}
         </div>

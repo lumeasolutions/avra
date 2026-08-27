@@ -24,7 +24,7 @@ interface Diff {
   gravite: 'faible' | 'moyenne' | 'elevee';
 }
 
-const SYSTEM = `Tu es un assistant qui compare DEUX photos d'un même lieu pour un professionnel du bâtiment / de l'agencement (état des lieux, avant/après chantier, deux versions d'une pièce).
+const SYSTEM_PHOTOS = `Tu es un assistant qui compare DEUX photos d'un même lieu pour un professionnel du bâtiment / de l'agencement (état des lieux, avant/après chantier, deux versions d'une pièce).
 Image 1 = A (référence / avant). Image 2 = B (comparée / après).
 Liste UNIQUEMENT les différences VISIBLES et CERTAINES entre A et B.
 Pour chaque différence :
@@ -34,6 +34,22 @@ Pour chaque différence :
 - "gravite" : "faible" | "moyenne" | "elevee".
 RÈGLES : sois PRUDENT — ne signale que ce qui est clairement visible. Dans le doute, n'inclus PAS. Ignore les différences de cadrage, de luminosité ou d'angle de prise de vue. Ne rien inventer.
 Réponds STRICTEMENT en JSON : {"differences":[{...}],"resume":"une phrase de synthèse neutre"}. Si aucune différence certaine : {"differences":[],"resume":"Aucune différence nette détectée — à vérifier visuellement."}`;
+
+const SYSTEM_PLANS = `Tu es un assistant qui compare DEUX plans techniques d'un même projet d'agencement / architecture d'intérieur (deux versions/révisions d'un plan, ou plan projeté vs relevé).
+Plan 1 = A (référence). Plan 2 = B (comparé).
+Liste UNIQUEMENT les écarts VISIBLES et CERTAINS entre A et B :
+- cotes / dimensions qui changent (ex "largeur cuisine 3,20 m -> 3,00 m"),
+- cloisons / murs ajoutés, supprimés ou déplacés,
+- ouvertures (portes, fenêtres, passages) ajoutées, supprimées ou déplacées,
+- implantation du mobilier / équipements (meubles, électroménager, sanitaires, points d'eau, prises) : ajout, suppression, déplacement,
+- annotations / libellés / repères modifiés.
+Pour chaque écart :
+- "zone" : localisation (ex "mur nord", "angle cuisine", "salle de bain"),
+- "description" : courte et factuelle, cite les valeurs de cotes quand elles sont clairement lisibles,
+- "type" : "ajout" (présent en B, absent en A) | "manquant" (présent en A, absent en B) | "modification" (déplacé, redimensionné, cote changée) | "degradation" (rarement pertinent sur un plan) | "autre",
+- "gravite" : "faible" | "moyenne" | "elevee".
+RÈGLES : sois PRUDENT — ne signale que le certain. Ne LIS PAS une cote si elle est floue/illisible ; dans le doute, n'inclus PAS. Ignore les différences d'échelle, de cadrage ou de qualité d'image. Ne rien inventer.
+Réponds STRICTEMENT en JSON : {"differences":[{...}],"resume":"une phrase de synthèse neutre"}. Si aucun écart certain : {"differences":[],"resume":"Aucun écart net détecté — à vérifier manuellement sur les plans."}`;
 
 export async function POST(req: NextRequest) {
   const userCtx = getUserContextFromRequest(req);
@@ -66,6 +82,12 @@ export async function POST(req: NextRequest) {
   }
   const model = process.env.OPENAI_MODEL_PREMIUM || 'gpt-4o';
 
+  const isPlans = body.mode === 'plans';
+  const SYSTEM = isPlans ? SYSTEM_PLANS : SYSTEM_PHOTOS;
+  const userText = isPlans
+    ? 'Compare ces deux plans (image 1 = A / référence, image 2 = B / comparé) et liste les écarts en JSON.'
+    : 'Compare ces deux photos (image 1 = A, image 2 = B) et liste les différences en JSON.';
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 50_000);
   try {
@@ -82,7 +104,7 @@ export async function POST(req: NextRequest) {
           {
             role: 'user',
             content: [
-              { type: 'text', text: 'Compare ces deux photos (image 1 = A, image 2 = B) et liste les différences en JSON.' },
+              { type: 'text', text: userText },
               { type: 'image_url', image_url: { url: imageA, detail: 'high' } },
               { type: 'image_url', image_url: { url: imageB, detail: 'high' } },
             ],
