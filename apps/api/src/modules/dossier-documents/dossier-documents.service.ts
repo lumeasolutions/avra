@@ -169,8 +169,15 @@ function hasBlockedExtension(filename: string): boolean {
   return false;
 }
 
-/** Taille max par fichier : 25 Mo. */
-const MAX_FILE_BYTES = 25 * 1024 * 1024;
+/**
+ * Taille max par fichier : 50 Mo. Aligné sur la limite globale du bucket
+ * Supabase (l'upload va en DIRECT vers Supabase, sans passer par la Function
+ * Vercel, donc pas de limite de body serverless). Couvre la plupart des
+ * fichiers métier (DWG, DXF, PDF de plans, SketchUp léger). Pour aller au-delà
+ * (gros Revit/SketchUp), relever d'abord la limite globale Storage dans le
+ * dashboard Supabase (plan Pro requis), puis augmenter cette constante.
+ */
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
 /** Normalise une string pour une clé de storage (A-Z, a-z, 0-9, ._-). */
 function slugifyForStorage(input: string, max = 120): string {

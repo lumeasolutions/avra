@@ -55,11 +55,11 @@ const VARIANT: Record<CompareImageVariant, VariantCfg> = {
     subtitle: "Deux versions d'un plan (cotes, cloisons, implantation) — l'IA repère les écarts, vous validez.",
     slotA: 'Plan A (version de référence)',
     slotB: 'Plan B (version comparée)',
-    importLabel: 'Importer un plan', accept: 'image/*',
+    importLabel: 'Importer un plan (image ou PDF)', accept: 'image/*,application/pdf,.pdf',
     tagA: 'A · réf.', tagB: 'B · comparé',
     aiButton: "Repérer les écarts avec l'IA",
     aiCount: (n) => `${n} écart${n > 1 ? 's' : ''} repéré${n > 1 ? 's' : ''} par l'IA`,
-    emptyHint: <>Importez les <b>deux plans</b> (A référence, B comparé) pour lancer la comparaison. Exportez-les en image (JPG / PNG) si votre plan est un PDF.</>,
+    emptyHint: <>Importez les <b>deux plans</b> (A référence, B comparé). <b>PDF accepté</b> (on lit la 1<sup>re</sup> page) ou image (JPG / PNG).</>,
     warn: <>L'IA vous <b>assiste</b> : elle peut manquer ou mal lire une cote. <b>Vérifiez toujours vous-même</b> sur les plans avant de conclure (ex. une cote ou une cloison qui change).</>,
   },
 };
@@ -92,6 +92,33 @@ function fileToCompressedDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(new Error('Lecture du fichier impossible'));
     reader.readAsDataURL(file);
   });
+}
+
+const isPdfFile = (f: File) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+
+/** Rend la 1re page d'un PDF (ex. plan) en data URL JPEG, via pdfjs (même worker
+ * que les aperçus dossier). Permet de comparer un plan PDF directement. */
+async function pdfFirstPageToDataUrl(file: File): Promise<string> {
+  const pdfjsLib = await import('pdfjs-dist');
+  if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+  }
+  const buf = await file.arrayBuffer();
+  const task = pdfjsLib.getDocument({ data: new Uint8Array(buf), disableAutoFetch: true, disableStream: true });
+  const pdf = await task.promise;
+  const page = await pdf.getPage(1);
+  const base = page.getViewport({ scale: 1 });
+  const scale = Math.min(2, 1600 / base.width);
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('canvas indisponible');
+  await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+  const url = canvas.toDataURL('image/jpeg', 0.85);
+  page.cleanup();
+  return url;
 }
 
 /** Slider avant/après (drag horizontal). */
@@ -166,11 +193,12 @@ export function ComparePhotosModal({ onClose, variant = 'photos' }: { onClose: (
   const [error, setError] = useState<string | null>(null);
 
   const pick = async (which: 'a' | 'b', file: File) => {
+    const pdf = isPdfFile(file);
     try {
-      const url = await fileToCompressedDataUrl(file);
+      const url = pdf ? await pdfFirstPageToDataUrl(file) : await fileToCompressedDataUrl(file);
       if (which === 'a') setImgA(url); else setImgB(url);
-      setDiffs(null); setError(null); // reset analyse quand on change une photo
-    } catch { setError("Impossible de charger cette image."); }
+      setDiffs(null); setError(null); // reset analyse quand on change un document
+    } catch { setError(pdf ? "Impossible de lire ce PDF (protégé ou corrompu ?)." : "Impossible de charger cette image."); }
   };
 
   const analyse = async () => {
