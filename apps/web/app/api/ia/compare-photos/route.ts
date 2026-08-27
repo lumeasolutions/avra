@@ -26,17 +26,24 @@ interface Diff {
 
 const SYSTEM_PHOTOS = `Tu es un assistant qui compare DEUX photos d'un même lieu pour un professionnel du bâtiment / de l'agencement (état des lieux, avant/après chantier, deux versions d'une pièce).
 Image 1 = A (référence / avant). Image 2 = B (comparée / après).
-Liste UNIQUEMENT les différences VISIBLES et CERTAINES entre A et B.
-Pour chaque différence :
+Procède avec MÉTHODE : parcours A puis B dans le MÊME ordre (murs, objets muraux [étagères, tableaux, luminaires, prises], plan de travail, sol, meubles) et compare zone par zone.
+Compare dans les DEUX SENS :
+- élément présent en A mais ABSENT en B -> type "manquant" (ex "étagère murale retirée", "meuble retiré") ;
+- élément présent en B mais absent en A -> type "ajout".
+Signale UNIQUEMENT les différences VISIBLES et CERTAINES. Pour chaque différence :
 - "zone" : où dans l'image (ex "mur gauche", "plan de travail", "sol près de la fenêtre"),
 - "description" : courte et factuelle (ex "rayure sur la façade", "meuble haut ajouté", "tache au sol"),
-- "type" : "ajout" (présent en B, absent en A) | "manquant" (présent en A, absent en B) | "degradation" (abîmé, sali, rayé, cassé) | "modification" (déplacé, changé de couleur/matière) | "autre",
+- "type" : "ajout" | "manquant" | "degradation" (abîmé, sali, rayé, cassé) | "modification" (déplacé, changé de couleur/matière) | "autre",
 - "gravite" : "faible" | "moyenne" | "elevee".
-RÈGLES : sois PRUDENT — ne signale que ce qui est clairement visible. Dans le doute, n'inclus PAS. Ignore les différences de cadrage, de luminosité ou d'angle de prise de vue. Ne rien inventer.
+RÈGLES ANTI-ERREUR (importantes) :
+- Une rayure, une marque, une tache ou une fissure est une "degradation", JAMAIS un "manquant" : ne conclus PAS qu'une pièce (poignée, porte, tiroir…) a été retirée SAUF si elle est clairement PRÉSENTE en A et clairement ABSENTE en B.
+- N'AFFIRME rien dont tu n'es pas sûr. Dans le doute, n'inclus PAS la différence (ou mets "gravite":"faible").
+- Ignore les différences de cadrage, de luminosité, d'ombre ou d'angle de prise de vue. Ne rien inventer.
 Réponds STRICTEMENT en JSON : {"differences":[{...}],"resume":"une phrase de synthèse neutre"}. Si aucune différence certaine : {"differences":[],"resume":"Aucune différence nette détectée — à vérifier visuellement."}`;
 
 const SYSTEM_PLANS = `Tu es un assistant qui compare DEUX plans techniques d'un même projet d'agencement / architecture d'intérieur (deux versions/révisions d'un plan, ou plan projeté vs relevé).
 Plan 1 = A (référence). Plan 2 = B (comparé).
+Procède avec MÉTHODE : parcours les 4 murs puis l'intérieur dans le MÊME ordre sur A et B, et compare dans les DEUX SENS (présent en A absent en B = supprimé/manquant ; présent en B absent en A = ajout). Nomme les zones de façon COHÉRENTE (mur haut/bas/gauche/droit).
 Liste UNIQUEMENT les écarts VISIBLES et CERTAINS entre A et B :
 - cotes / dimensions qui changent (ex "largeur cuisine 3,20 m -> 3,00 m"),
 - cloisons / murs ajoutés, supprimés ou déplacés,
@@ -96,7 +103,7 @@ export async function POST(req: NextRequest) {
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model,
-        temperature: 0.1,
+        temperature: 0, // déterminisme max : même paire d'images -> résultat le plus stable possible
         max_tokens: 900,
         response_format: { type: 'json_object' },
         messages: [
