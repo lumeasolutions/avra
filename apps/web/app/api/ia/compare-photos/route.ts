@@ -53,6 +53,12 @@ export async function POST(req: NextRequest) {
   if (!imageA.startsWith('data:image') || !imageB.startsWith('data:image')) {
     return NextResponse.json({ error: 'Deux images (A et B) sont requises.' }, { status: 400 });
   }
+  // Garde-taille : le client compresse déjà (~1-2 Mo), mais on refuse proprement
+  // au-delà du plafond serverless (~4,5 Mo) plutôt que de laisser la plateforme
+  // renvoyer un 413 opaque.
+  if (imageA.length + imageB.length > 4_000_000) {
+    return NextResponse.json({ error: 'Images trop lourdes. Réessayez avec des photos plus légères.' }, { status: 413 });
+  }
 
   const key = process.env.OPENAI_API_KEY;
   if (!key) {

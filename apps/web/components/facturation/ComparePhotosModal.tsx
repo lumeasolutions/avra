@@ -37,11 +37,13 @@ function fileToCompressedDataUrl(file: File): Promise<string> {
         const canvas = document.createElement('canvas');
         canvas.width = width; canvas.height = height;
         const ctx = canvas.getContext('2d');
-        if (!ctx) { resolve(reader.result as string); return; }
+        if (!ctx) { reject(new Error("Impossible de préparer l'image. Réessayez.")); return; }
         ctx.drawImage(img, 0, 0, width, height);
+        // Toujours ré-encoder en JPEG compressé : jamais renvoyer le fichier brut
+        // (evite un HEIC illisible + un payload trop lourd pour l'analyse IA).
         resolve(canvas.toDataURL('image/jpeg', 0.85));
       };
-      img.onerror = () => resolve(reader.result as string);
+      img.onerror = () => reject(new Error("Format d'image non supporté (HEIC ?). Convertissez la photo en JPG ou PNG."));
       img.src = reader.result as string;
     };
     reader.onerror = () => reject(new Error('Lecture du fichier impossible'));
@@ -65,6 +67,7 @@ function BeforeAfter({ a, b }: { a: string; b: string }) {
       onPointerDown={(e) => { dragging.current = true; (e.target as Element).setPointerCapture?.(e.pointerId); move(e.clientX); }}
       onPointerMove={(e) => { if (dragging.current) move(e.clientX); }}
       onPointerUp={() => { dragging.current = false; }}
+      onPointerCancel={() => { dragging.current = false; }}
       style={{ position: 'relative', width: '100%', aspectRatio: '4/3', borderRadius: 12, overflow: 'hidden', userSelect: 'none', touchAction: 'none', background: '#000', cursor: 'ew-resize' }}
     >
       {/* B (après) en fond */}
@@ -170,8 +173,8 @@ export function ComparePhotosModal({ onClose }: { onClose: () => void }) {
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>
           {/* Upload des 2 photos */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <Slot label="Photo A (avant / référence)" url={imgA} onPick={(f) => pick('a', f)} onClear={() => { setImgA(null); setDiffs(null); }} />
-            <Slot label="Photo B (après / comparée)" url={imgB} onPick={(f) => pick('b', f)} onClear={() => { setImgB(null); setDiffs(null); }} />
+            <Slot label="Photo A (avant / référence)" url={imgA} onPick={(f) => pick('a', f)} onClear={() => { setImgA(null); setDiffs(null); setError(null); setResume(''); }} />
+            <Slot label="Photo B (après / comparée)" url={imgB} onPick={(f) => pick('b', f)} onClear={() => { setImgB(null); setDiffs(null); setError(null); setResume(''); }} />
           </div>
 
           {both && (
