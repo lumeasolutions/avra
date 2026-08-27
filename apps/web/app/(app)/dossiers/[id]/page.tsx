@@ -33,6 +33,7 @@ import type { ValidatedOptionSelection } from '@/store/useDossierStore';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { SendToIntervenantDrawer } from '@/components/demandes/SendToIntervenantDrawer';
 import { SignedDossierDashboardModal } from '@/components/dossiers/SignedDossierDashboardModal';
+import { CompareDevisModal } from '@/components/facturation/CompareDevisModal';
 import { ModalDevis } from '@/app/(app)/facturation/components/ModalDevis';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
 
@@ -250,6 +251,7 @@ export default function DossierDetailPage() {
   const [preparingSend, setPreparingSend] = useState(false);
   const [showStatus,    setShowStatus]    = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
   const [showAddFolder, setShowAddFolder] = useState(false);
   // Sous-dossier imbriqué : chemin du parent dans lequel on crée (null = racine)
   const [addFolderParent, setAddFolderParent] = useState<string | null>(null);
@@ -787,7 +789,12 @@ export default function DossierDetailPage() {
                 partage du dossier complet (fuite info confidentielles type
                 prix). Utiliser plutot l'icone d'envoi qui apparait a cote
                 de chaque sous-dossier dans la liste 'Dossiers & fichiers'. */}
-            <button className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
+            <button
+              type="button"
+              onClick={() => setShowCompare(true)}
+              title="Comparer deux devis de ce dossier"
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
+            >
               <GitCompare className="h-3.5 w-3.5" />
               Comparer
             </button>
@@ -1999,6 +2006,11 @@ export default function DossierDetailPage() {
         prefill={{ projectId: id, dossierSigned: isSigned, attachments: sendFolderAtts ?? [] }}
         onClose={() => setSendFolderAtts(null)}
       />
+
+      {/* Outil « Comparer 2 devis » (ouvert depuis le bouton Comparer du header). */}
+      {showCompare && (
+        <CompareDevisModal dossierId={id} onClose={() => setShowCompare(false)} />
+      )}
 
       {/* ═══════════════════════════════════════════════
           MODALE WAOUHH — CONFIRMATION SUPPRESSION
