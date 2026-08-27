@@ -2,25 +2,30 @@
 
 /**
  * CompareHubModal — point d'entrée de l'outil « Comparer » d'un dossier.
- * Trois modes : 2 DEVIS (déterministe), 2 PHOTOS (assisté IA) ou 2 PLANS
+ * Quatre modes : 2 DEVIS natifs (déterministe), 2 DEVIS PDF (assisté IA —
+ * extraction puis même diff déterministe), 2 PHOTOS (assisté IA) ou 2 PLANS
  * (assisté IA — cotes/cloisons/implantation). Ouvert depuis le bouton
  * « Comparer » du dossier. Photos et plans partagent ComparePhotosModal
- * (prop `variant`) et la route /api/ia/compare-photos (champ `mode`).
+ * (prop `variant`) + la route /api/ia/compare-photos (champ `mode`) ; les 2
+ * modes devis partagent la logique de diff `lib/devisDiff`.
  */
 import { useState } from 'react';
-import { GitCompare, X, FileText, Images, Ruler, ArrowRight, Sparkles } from 'lucide-react';
+import { GitCompare, X, FileText, FileStack, Images, Ruler, ArrowRight, Sparkles } from 'lucide-react';
 import { CompareDevisModal } from './CompareDevisModal';
 import { ComparePhotosModal } from './ComparePhotosModal';
+import { CompareDevisPdfModal } from './CompareDevisPdfModal';
 
 export function CompareHubModal({ dossierId, onClose }: { dossierId?: string; onClose: () => void }) {
-  const [mode, setMode] = useState<'menu' | 'devis' | 'photos' | 'plans'>('menu');
+  const [mode, setMode] = useState<'menu' | 'devis' | 'devispdf' | 'photos' | 'plans'>('menu');
 
   if (mode === 'devis') return <CompareDevisModal dossierId={dossierId} onClose={() => setMode('menu')} />;
+  if (mode === 'devispdf') return <CompareDevisPdfModal onClose={() => setMode('menu')} />;
   if (mode === 'photos') return <ComparePhotosModal variant="photos" onClose={() => setMode('menu')} />;
   if (mode === 'plans') return <ComparePhotosModal variant="plans" onClose={() => setMode('menu')} />;
 
   const cards = [
-    { key: 'devis' as const, Icon: FileText, title: 'Comparer 2 devis', desc: 'Différences ligne par ligne, écarts de prix et de totaux.', tag: 'Précis', tagColor: '#16a34a' },
+    { key: 'devis' as const, Icon: FileText, title: 'Comparer 2 devis', desc: 'Devis créés dans AVRA — écarts ligne par ligne et totaux.', tag: 'Précis', tagColor: '#16a34a' },
+    { key: 'devispdf' as const, Icon: FileStack, title: 'Comparer 2 devis PDF', desc: 'Deux devis en PDF — l\'IA les lit, vous validez les écarts.', tag: 'Assisté IA', tagColor: '#a67749' },
     { key: 'photos' as const, Icon: Images, title: 'Comparer 2 photos', desc: 'État des lieux avant / après — l\'IA repère, vous validez.', tag: 'Assisté IA', tagColor: '#a67749' },
     { key: 'plans' as const, Icon: Ruler, title: 'Comparer 2 plans', desc: 'Deux versions d\'un plan — cotes, cloisons et implantation.', tag: 'Assisté IA', tagColor: '#a67749' },
   ];
@@ -59,7 +64,7 @@ export function CompareHubModal({ dossierId, onClose }: { dossierId?: string; on
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 14, fontWeight: 800, color: '#304035' }}>{title}</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9.5, fontWeight: 800, color: tagColor, background: `${tagColor}14`, borderRadius: 999, padding: '2px 7px' }}>
-                    {(key === 'photos' || key === 'plans') && <Sparkles size={9} />}{tag}
+                    {key !== 'devis' && <Sparkles size={9} />}{tag}
                   </span>
                 </div>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: 'rgba(48,64,53,0.55)' }}>{desc}</p>

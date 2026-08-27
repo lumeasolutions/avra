@@ -13,73 +13,10 @@
  * les 2 devis les plus récents du dossier.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { GitCompare, X, ArrowLeftRight, Plus, Minus, Pencil, Equal, AlertTriangle, FileText, ArrowRight } from 'lucide-react';
-import { useFacturationStore, type Devis, type LigneDocument } from '@/store';
+import { GitCompare, X, ArrowLeftRight, Plus, Minus, Pencil, AlertTriangle, FileText, ArrowRight } from 'lucide-react';
+import { useFacturationStore, type Devis } from '@/store';
 import { calcLignes, fmt, DEVIS_STATUS_CFG } from '@/app/(app)/facturation/lib/utils';
-
-/** Total HT d'une ligne (quantité × PU × (1 − remise%)). */
-const ligneHT = (l: LigneDocument) => l.quantite * l.prixUnitaireHT * (1 - (l.remise ?? 0) / 100);
-const norm = (s: string) => (s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-
-type DiffKind = 'ajoute' | 'retire' | 'modifie' | 'identique';
-interface DiffRow {
-  key: string;
-  description: string;
-  a: LigneDocument | null;
-  b: LigneDocument | null;
-  kind: DiffKind;
-  /** Écart HT de la ligne (B − A). */
-  deltaHT: number;
-}
-
-const KIND_CFG: Record<DiffKind, { label: string; color: string; bg: string; border: string; Icon: typeof Plus }> = {
-  ajoute:    { label: 'Ajoutée',   color: '#16a34a', bg: 'rgba(16,185,129,0.07)', border: 'rgba(16,185,129,0.28)', Icon: Plus },
-  retire:    { label: 'Retirée',   color: '#dc2626', bg: 'rgba(220,38,38,0.06)',  border: 'rgba(220,38,38,0.26)',  Icon: Minus },
-  modifie:   { label: 'Modifiée',  color: '#ea580c', bg: 'rgba(249,115,22,0.07)', border: 'rgba(249,115,22,0.28)', Icon: Pencil },
-  identique: { label: 'Identique', color: 'rgba(48,64,53,0.5)', bg: 'transparent', border: 'rgba(48,64,53,0.1)', Icon: Equal },
-};
-
-function buildDiff(a: Devis, b: Devis): DiffRow[] {
-  // Clé par description + INDICE d'occurrence (ex "pose#0", "pose#1") : on aligne
-  // la 1re "Pose" de A avec la 1re de B, etc. -> les doublons de description NE
-  // disparaissent PAS et la somme des lignes reste cohérente avec les totaux.
-  const keyed = (lignes: LigneDocument[]) => {
-    const seenCount = new Map<string, number>();
-    return lignes.map((l) => {
-      const base = norm(l.description);
-      const n = seenCount.get(base) ?? 0;
-      seenCount.set(base, n + 1);
-      return { key: `${base}#${n}`, l };
-    });
-  };
-  const ka = keyed(a.lignes);
-  const kb = keyed(b.lignes);
-  const mapA = new Map(ka.map((x) => [x.key, x.l]));
-  const mapB = new Map(kb.map((x) => [x.key, x.l]));
-
-  // Ordre : lignes de A d'abord (dans l'ordre), puis celles uniquement dans B.
-  const order: string[] = [];
-  const seen = new Set<string>();
-  for (const x of ka) if (!seen.has(x.key)) { seen.add(x.key); order.push(x.key); }
-  for (const x of kb) if (!seen.has(x.key)) { seen.add(x.key); order.push(x.key); }
-
-  return order.map((key) => {
-    const la = mapA.get(key) ?? null;
-    const lb = mapB.get(key) ?? null;
-    let kind: DiffKind;
-    if (la && lb) {
-      const changed =
-        la.quantite !== lb.quantite ||
-        la.prixUnitaireHT !== lb.prixUnitaireHT ||
-        (la.remise ?? 0) !== (lb.remise ?? 0) ||
-        la.tva !== lb.tva;
-      kind = changed ? 'modifie' : 'identique';
-    } else if (la) kind = 'retire';
-    else kind = 'ajoute';
-    const deltaHT = (lb ? ligneHT(lb) : 0) - (la ? ligneHT(la) : 0);
-    return { key, description: (la ?? lb)!.description, a: la, b: lb, kind, deltaHT };
-  });
-}
+import { buildDevisDiff, ligneHT, KIND_CFG } from '@/app/(app)/facturation/lib/devisDiff';
 
 const devisLabel = (d: Devis) => `${d.ref}${d.objet ? ' · ' + d.objet : ''} · ${d.client}`;
 
@@ -145,7 +82,7 @@ export function CompareDevisModal({ dossierId, onClose }: { dossierId?: string; 
   const devisA = sorted.all.find((d) => d.id === idA) ?? null;
   const devisB = sorted.all.find((d) => d.id === idB) ?? null;
 
-  const diff = useMemo(() => (devisA && devisB ? buildDiff(devisA, devisB) : []), [devisA, devisB]);
+  const diff = useMemo(() => (devisA && devisB ? buildDevisDiff(devisA.lignes, devisB.lignes) : []), [devisA, devisB]);
   const counts = useMemo(() => ({
     ajoute: diff.filter((r) => r.kind === 'ajoute').length,
     retire: diff.filter((r) => r.kind === 'retire').length,
