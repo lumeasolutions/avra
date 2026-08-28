@@ -144,7 +144,7 @@ export function ValidationDashboard() {
             </div>
             <div>
               <h3 className="text-sm font-bold tracking-wide">Tableau de bord</h3>
-              <p className="text-[10px] text-white/50 uppercase tracking-wider">Validation en temps réel</p>
+              <p className="text-[10px] text-white/50 uppercase tracking-wider">Sur l&apos;ensemble de vos dossiers</p>
             </div>
           </div>
           {isPerfect && (

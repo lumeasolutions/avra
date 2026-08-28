@@ -430,7 +430,7 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
                         <div className="odb-icon-circle odb-icon-validated"><Check className="h-4 w-4" strokeWidth={3} /></div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div className="odb-row-label">{sf.label}</div>
-                          <div className="odb-row-meta">Validé{sf.date ? ` le ${sf.date}` : ''}</div>
+                          <div className="odb-row-meta">Validé{(sf.date ?? dossier.createdAt) ? ` le ${sf.date ?? dossier.createdAt}` : ''}</div>
                         </div>
                         <button
                           type="button"

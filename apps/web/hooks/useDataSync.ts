@@ -145,6 +145,33 @@ export function useDataSync() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated, user?.id]);
 
+  // Rafraîchissement au RETOUR DE FOCUS (throttlé) : re-synchronise seulement
+  // les PROJETS quand on revient sur l'onglet, pour que les validations /
+  // avancements faits ailleurs (autre onglet, collègue) s'affichent sans
+  // rechargement. Léger (une seule requête) + throttle 20 s pour ne pas
+  // surcharger la Function serverless. L'hydratation LOCAL-gagnant préserve ce
+  // qu'on vient de cocher.
+  const lastFocusSyncRef = useRef(0);
+  useEffect(() => {
+    if (!hasHydrated) return;
+    const onVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      if (!syncedRef.current) return;           // sync initiale pas encore faite
+      if (!isAuthenticated() || user?.id === 'demo') return;
+      const now = Date.now();
+      if (now - lastFocusSyncRef.current < 20_000) return;
+      lastFocusSyncRef.current = now;
+      void syncProjects().catch(() => { /* silencieux */ });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasHydrated, user?.id]);
+
   async function syncProjects() {
     try {
       const response = await api<any>('/projects?pageSize=100');
