@@ -76,34 +76,46 @@ export function ValidationDashboard() {
       });
     }
 
-    const pending = total - validated;
-    const pct = total === 0 ? 0 : Math.round((validated / total) * 100);
+    // Vue PORTEFEUILLE : 1 ligne = 1 DOSSIER (pas 1 sous-dossier). Le couple
+    // Validés / En attente et le % comptent des DOSSIERS complets, pas des étapes
+    // (la granularité sous-dossier reste dans le tableau de bord d'un dossier).
+    const dossiersTotal = perDossier.length;
+    const dossiersComplete = perDossier.filter((d) => d.total > 0 && d.pending === 0).length;
+    const dossiersPending = dossiersTotal - dossiersComplete;
+    const pct = dossiersTotal === 0 ? 0 : Math.round((dossiersComplete / dossiersTotal) * 100);
+
+    // « À traiter en priorité » : dossiers les MOINS avancés d'abord (ratio
+    // croissant). Trier par ratio (et non par nombre de sous-dossiers en attente)
+    // évite qu'un dossier remonte juste parce qu'on y a ajouté des sous-dossiers.
+    const ratio = (d: { validated: number; total: number }) => (d.total === 0 ? 1 : d.validated / d.total);
     const topPending = [...perDossier]
-      .filter((d) => d.pending > 0)
-      .sort((a, b) => b.pending - a.pending)
+      .filter((d) => d.total > 0 && d.pending > 0)
+      .sort((a, b) => ratio(a) - ratio(b) || b.pending - a.pending)
       .slice(0, 3);
 
-    const dossiersFullyValidated = perDossier.filter((d) => d.total > 0 && d.pending === 0).length;
-
-    return { total, validated, pending, pct, topPending, dossiersFullyValidated };
+    return {
+      dossiersTotal, dossiersComplete, dossiersPending, pct, topPending,
+      // détail sous-dossiers conservé (info secondaire + prompt assistant)
+      subValidated: validated, subTotal: total,
+    };
   }, [dossiers, echeancesValidees]);
 
   const animPct = useAnimatedNumber(stats.pct);
-  const animValid = useAnimatedNumber(stats.validated);
-  const animPending = useAnimatedNumber(stats.pending);
+  const animValid = useAnimatedNumber(stats.dossiersComplete);
+  const animPending = useAnimatedNumber(stats.dossiersPending);
 
   // Géométrie anneau SVG
   const R = 42;
   const CIRC = 2 * Math.PI * R;
   const offset = CIRC - (CIRC * animPct) / 100;
 
-  const isPerfect = stats.pct === 100 && stats.total > 0;
+  const isPerfect = stats.pct === 100 && stats.dossiersTotal > 0;
 
   const handleAskAvra = () => {
-    const ctx = stats.pending === 0
-      ? `Tous mes sous-dossiers sont validés (${stats.validated}/${stats.total}). Donne-moi un récap de l'état global et les prochaines étapes à anticiper.`
-      : `Analyse mes ${stats.pending} sous-dossiers non validés sur ${stats.total} au total. Voici les dossiers les plus en retard : ${stats.topPending
-          .map((d) => `${d.name}${d.firstName ? ' ' + d.firstName : ''} (${d.pending} en attente)`)
+    const ctx = stats.dossiersPending === 0
+      ? `Tous mes dossiers sont complets (${stats.dossiersComplete}/${stats.dossiersTotal}). Donne-moi un récap de l'état global et les prochaines étapes à anticiper.`
+      : `J'ai ${stats.dossiersPending} dossier(s) non complet(s) sur ${stats.dossiersTotal}. Les moins avancés : ${stats.topPending
+          .map((d) => `${d.name}${d.firstName ? ' ' + d.firstName : ''} (${d.validated}/${d.total} étapes)`)
           .join(', ')}. Propose-moi un plan d'action priorisé.`;
     openWithPrompt(ctx);
   };
@@ -197,7 +209,7 @@ export function ValidationDashboard() {
                 <div className="p-1 rounded-lg bg-emerald-400/20">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-300" />
                 </div>
-                <span className="text-[11px] font-semibold text-white/80">Validés</span>
+                <span className="text-[11px] font-semibold text-white/80">Dossiers complets</span>
               </div>
               <span className="text-lg font-bold tabular-nums">{animValid}</span>
             </div>
@@ -206,7 +218,7 @@ export function ValidationDashboard() {
                 <div className="p-1 rounded-lg bg-amber-400/20">
                   <Clock3 className="h-3.5 w-3.5 text-amber-300" />
                 </div>
-                <span className="text-[11px] font-semibold text-white/80">En attente</span>
+                <span className="text-[11px] font-semibold text-white/80">Dossiers en attente</span>
               </div>
               <span className="text-lg font-bold tabular-nums">{animPending}</span>
             </div>
@@ -259,21 +271,21 @@ export function ValidationDashboard() {
               })}
             </div>
           </div>
-        ) : stats.total > 0 ? (
+        ) : stats.dossiersTotal > 0 ? (
           <div className="mb-4 px-3 py-3 rounded-xl bg-emerald-400/10 border border-emerald-300/20 text-center">
-            <p className="text-xs font-semibold text-emerald-200">🎉 Tous les sous-dossiers sont validés !</p>
+            <p className="text-xs font-semibold text-emerald-200">🎉 Tous vos dossiers sont complets !</p>
           </div>
         ) : (
           <div className="mb-4 px-3 py-3 rounded-xl bg-white/5 border border-white/10 text-center">
-            <p className="text-[11px] text-white/50">Aucun sous-dossier pour l&apos;instant</p>
+            <p className="text-[11px] text-white/50">Aucun dossier pour l&apos;instant</p>
           </div>
         )}
 
         {/* Footer stats + AVRA button */}
         <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/10">
           <div className="text-[10px] text-white/60">
-            <span className="font-bold text-white">{stats.dossiersFullyValidated}</span>
-            <span className="text-white/50"> dossier{stats.dossiersFullyValidated > 1 ? 's' : ''} complet{stats.dossiersFullyValidated > 1 ? 's' : ''}</span>
+            <span className="font-bold text-white">{stats.subValidated}</span>
+            <span className="text-white/50"> étape{stats.subValidated > 1 ? 's' : ''} validée{stats.subValidated > 1 ? 's' : ''} sur {stats.subTotal}</span>
           </div>
           <button
             onClick={handleAskAvra}
