@@ -250,6 +250,9 @@ export default function DossierDetailPage() {
   // Envoi d'un sous-dossier : pièces jointes calculées (après upload des fichiers
   // locaux) + état "préparation". Ouvre le drawer d'envoi quand non-null.
   const [sendFolderAtts, setSendFolderAtts] = useState<Array<{ dossierDocumentId: string; displayName: string; mimeType?: string }> | null>(null);
+  // Chemin du sous-dossier envoyé : restreint le sélecteur du drawer à CE
+  // sous-dossier (on envoie une pièce précise, pas tout le dossier).
+  const [sendFolderPath, setSendFolderPath] = useState<string | null>(null);
   const [preparingSend, setPreparingSend] = useState(false);
   const [showStatus,    setShowStatus]    = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
@@ -408,7 +411,7 @@ export default function DossierDetailPage() {
           /* un fichier échoue → on continue avec les autres */
         }
       }
-      if (atts.length > 0) setSendFolderAtts(atts);
+      if (atts.length > 0) { setSendFolderPath(folderPath); setSendFolderAtts(atts); }
     } finally {
       setPreparingSend(false);
     }
@@ -2005,8 +2008,8 @@ export default function DossierDetailPage() {
           du dossier entier — pas la liste complète des types d'intervention. */}
       <SendToIntervenantDrawer
         open={!!sendFolderAtts}
-        prefill={{ projectId: id, dossierSigned: isSigned, attachments: sendFolderAtts ?? [] }}
-        onClose={() => setSendFolderAtts(null)}
+        prefill={{ projectId: id, dossierSigned: isSigned, subfolderLabel: sendFolderPath ?? undefined, attachments: sendFolderAtts ?? [] }}
+        onClose={() => { setSendFolderAtts(null); setSendFolderPath(null); }}
       />
 
       {/* Outil « Comparer » (devis / photos) — ouvert depuis le bouton Comparer. */}
