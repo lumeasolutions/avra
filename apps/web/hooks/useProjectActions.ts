@@ -292,6 +292,27 @@ export function useProjectActions() {
   );
 
   /**
+   * Renomme un dossier (nom complet du projet, ex. « Dressing Tillard »).
+   * Met à jour le store local puis persiste via PUT /projects/:id. En cas
+   * d'échec API, throw pour que l'UI informe et rétablisse si besoin.
+   */
+  const renameProject = useCallback(
+    async (id: string, name: string): Promise<void> => {
+      const nm = name.trim();
+      if (!nm) throw new Error('Le nom ne peut pas être vide');
+      // Démo / ID local : pas d'API, on met à jour le local uniquement.
+      if (user?.id === 'demo' || !user?.workspaceId || isLocalOnlyId(id)) {
+        store.renameDossier(id, nm);
+        return;
+      }
+      // API d'abord (source de vérité), puis local -> pas de désync si l'API échoue.
+      await api(`/projects/${id}`, { method: 'PUT', body: JSON.stringify({ name: nm }) });
+      store.renameDossier(id, nm);
+    },
+    [user, store],
+  );
+
+  /**
    * Supprime définitivement un dossier (DB + store local).
    * En cas d'échec API, throw une Error que l'UI doit catcher pour informer
    * l'utilisateur (la suppression locale est tentée même sur échec API pour
@@ -363,6 +384,7 @@ export function useProjectActions() {
     loseProject,
     restoreLostProject,
     updateProjectStatus,
+    renameProject,
     deleteProject,
     terminateProject,
   };

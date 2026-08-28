@@ -144,7 +144,7 @@ export default function DossierDetailPage() {
   const readOnly = !canEditThis;
   const invoices          = allInvoices.filter(i => i.dossierId === id);
   // Actions persistées en DB via l'API (double-write : optimistic local + API)
-  const { signProject, updateProjectStatus, loseProject } = useProjectActions();
+  const { signProject, updateProjectStatus, loseProject, renameProject } = useProjectActions();
   // Actions uniquement locales (pas encore d'endpoint API dédié).
   // NOTE : subfolders, validation, notes sont conservés en localStorage.
   // Pour les rendre multi-device, il faudra ajouter des endpoints backend
@@ -179,6 +179,11 @@ export default function DossierDetailPage() {
   const [renameFolder, setRenameFolder] = useState<{ oldLabel: string; value: string } | null>(null);
   const [renamingBusy, setRenamingBusy] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
+  // Renommage du DOSSIER (nom complet du projet).
+  const [renameDossierOpen, setRenameDossierOpen] = useState(false);
+  const [renameDossierValue, setRenameDossierValue] = useState('');
+  const [renamingDossier, setRenamingDossier] = useState(false);
+  const [renameDossierError, setRenameDossierError] = useState<string | null>(null);
 
   // Backfill : complète les dossiers créés avant l'ajout des sous-dossiers par défaut
   useEffect(() => {
@@ -454,6 +459,23 @@ export default function DossierDetailPage() {
       setRenamingBusy(false);
     }
   };
+
+  // Renomme le DOSSIER (nom complet du projet, ex. « Dressing Tillard »).
+  const handleRenameDossier = async () => {
+    if (renamingDossier) return;
+    const nm = renameDossierValue.trim();
+    if (!nm) { setRenameDossierError('Le nom ne peut pas être vide.'); return; }
+    if (nm === dossier.name) { setRenameDossierOpen(false); return; }
+    setRenamingDossier(true); setRenameDossierError(null);
+    try {
+      await renameProject(id, nm);
+      setRenameDossierOpen(false);
+    } catch {
+      setRenameDossierError('Le renommage a échoué. Vérifiez la connexion et réessayez.');
+    } finally {
+      setRenamingDossier(false);
+    }
+  };
   // Progression reelle : ratio de sous-dossiers valides sur le total.
   // PROGRESS_MAP servait de fallback simule quand il n'y avait pas encore de validations.
   // Exclut les boîtes système (« Reçu / Documents intervenants ») du calcul.
@@ -617,9 +639,22 @@ export default function DossierDetailPage() {
 
           {/* Infos principales */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-3xl font-black text-white tracking-tight leading-none mb-1">
-              {dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''}
-            </h1>
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-3xl font-black text-white tracking-tight leading-none">
+                {dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''}
+              </h1>
+              {canEditThis && (
+                <button
+                  type="button"
+                  onClick={() => { setRenameDossierError(null); setRenameDossierValue(dossier.name); setRenameDossierOpen(true); }}
+                  className="p-1.5 rounded-lg text-white/55 hover:text-white hover:bg-white/12 transition-all shrink-0"
+                  title="Renommer le dossier"
+                  aria-label="Renommer le dossier"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              )}
+            </div>
             <div className="mb-1">
               <DossierAlertBadge dossierId={id} variant="full" />
             </div>
@@ -2080,6 +2115,51 @@ export default function DossierDetailPage() {
       {/* Outil « Comparer » (devis / photos) — ouvert depuis le bouton Comparer. */}
       {showCompare && (
         <CompareHubModal dossierId={id} onClose={() => setShowCompare(false)} />
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          MODALE — RENOMMER LE DOSSIER
+      ═══════════════════════════════════════════════ */}
+      {renameDossierOpen && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !renamingDossier) setRenameDossierOpen(false); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,20,17,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 80 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 460, overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ padding: '18px 22px', background: 'linear-gradient(135deg, #2a3a30 0%, #3d5244 100%)', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 11, background: 'rgba(217,179,138,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Pencil size={17} color="#d9b38a" />
+              </div>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>Renommer le dossier</h2>
+            </div>
+            <div style={{ padding: '20px 22px' }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'rgba(48,64,53,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Nom du dossier</label>
+              <input
+                autoFocus
+                type="text"
+                value={renameDossierValue}
+                maxLength={80}
+                disabled={renamingDossier}
+                onChange={(e) => { setRenameDossierError(null); setRenameDossierValue(e.target.value); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleRenameDossier(); if (e.key === 'Escape' && !renamingDossier) setRenameDossierOpen(false); }}
+                placeholder="Ex : Dressing Tillard"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(48,64,53,0.18)', fontSize: 14, color: '#304035', outline: 'none' }}
+              />
+              {renameDossierError && (
+                <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#b91c1c', fontWeight: 600 }}>{renameDossierError}</p>
+              )}
+              <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'rgba(48,64,53,0.45)' }}>
+                Astuce : préfixez par le type de projet (Cuisine, Dressing, Chambre…) pour vous y retrouver.
+              </p>
+            </div>
+            <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(48,64,53,0.08)', display: 'flex', justifyContent: 'flex-end', gap: 10, background: '#fafaf8' }}>
+              <button type="button" disabled={renamingDossier} onClick={() => setRenameDossierOpen(false)} style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid rgba(48,64,53,0.15)', background: '#fff', fontSize: 13, fontWeight: 700, color: '#304035', cursor: renamingDossier ? 'default' : 'pointer', opacity: renamingDossier ? 0.5 : 1 }}>Annuler</button>
+              <button type="button" disabled={renamingDossier} onClick={handleRenameDossier} style={{ padding: '9px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #304035, #4a6358)', fontSize: 13, fontWeight: 700, color: '#fff', cursor: renamingDossier ? 'default' : 'pointer', opacity: renamingDossier ? 0.7 : 1 }}>
+                {renamingDossier ? 'Renommage…' : 'Renommer'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ═══════════════════════════════════════════════

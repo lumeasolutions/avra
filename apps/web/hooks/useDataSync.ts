@@ -249,7 +249,10 @@ export function useDataSync() {
         const dossierProfession = professionFor(p);
         return {
           id: p.id,
-          name: p.client?.lastName || p.name || 'Sans nom',
+          // Nom du PROJET d'abord (« <Type> <Client> », ex. "Dressing Tillard"),
+          // client seul en secours. Avant : le client gagnait -> le type saisi
+          // n'apparaissait pas dans le detail/liste (desync avec la messagerie).
+          name: p.name || p.client?.lastName || 'Sans nom',
           firstName: p.client?.firstName || '',
           phone: p.client?.phone || '',
           email: p.client?.email || '',
@@ -296,7 +299,10 @@ export function useDataSync() {
         // les dossiers signés on aligne donc subfolders sur la liste signée.
         return {
           id: p.id,
-          name: p.client?.lastName || p.name || 'Sans nom',
+          // Nom du PROJET d'abord (« <Type> <Client> », ex. "Dressing Tillard"),
+          // client seul en secours. Avant : le client gagnait -> le type saisi
+          // n'apparaissait pas dans le detail/liste (desync avec la messagerie).
+          name: p.name || p.client?.lastName || 'Sans nom',
           firstName: p.client?.firstName || '',
           phone: p.client?.phone || '',
           email: p.client?.email || '',
@@ -336,7 +342,7 @@ export function useDataSync() {
 
       const dossiersPerdus = lostProjects.map((p) => ({
         id: p.id,
-        name: p.client?.lastName || p.name || 'Sans nom',
+        name: p.name || p.client?.lastName || 'Sans nom',
         reason: p.description || 'Raison non spécifiée',
         lostDate: new Date(p.updatedAt).toLocaleDateString('fr-FR'),
         montantEstime: p.saleAmount || 0,

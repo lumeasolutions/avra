@@ -675,6 +675,7 @@ interface DossierState {
   renameSubfolder: (dossierId: string, oldLabel: string, newLabel: string) => void;
   updateDossierStatus: (id: string, status: DossierStatus) => void;
   updateDossierNotes: (id: string, notes: string) => void;
+  renameDossier: (id: string, name: string) => void;
   addSubfolder: (dossierId: string, label: string) => void;
   toggleSubfolderValidated: (dossierId: string, label: string) => void;
   addDocumentToSubfolder: (dossierId: string, label: string, doc: SubFolderDocument) => void;
@@ -942,6 +943,16 @@ export const useDossierStore = create<DossierState>()(
 
       updateDossierNotes: (id, notes) => {
         set(s => ({ dossiers: s.dossiers.map(d => d.id === id ? { ...d, notes } : d) }));
+      },
+
+      renameDossier: (id, name) => {
+        const nm = name.trim();
+        if (!nm) return;
+        set(s => ({
+          dossiers: s.dossiers.map(d => d.id === id ? { ...d, name: nm } : d),
+          dossiersSignes: s.dossiersSignes.map(d => d.id === id ? { ...d, name: nm } : d),
+          dossiersPerdus: s.dossiersPerdus.map(d => d.id === id ? { ...d, name: nm } : d),
+        }));
       },
 
       addSubfolder: (dossierId, label) => {
