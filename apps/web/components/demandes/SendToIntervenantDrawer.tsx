@@ -1065,9 +1065,21 @@ function EmptyIntervenants() {
       <div style={{ fontWeight: 700, color: '#1a2a1e', marginBottom: 4 }}>
         Aucun intervenant trouvé
       </div>
-      <div style={{ fontSize: 13 }}>
+      <div style={{ fontSize: 13, marginBottom: 14 }}>
         Ajoutez un intervenant à votre annuaire pour pouvoir lui envoyer des demandes.
       </div>
+      <a
+        href="/intervenants"
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '9px 16px', borderRadius: 10, textDecoration: 'none',
+          background: 'linear-gradient(135deg, #304035, #4a6358)',
+          color: '#fff', fontSize: 13, fontWeight: 700,
+          boxShadow: '0 4px 14px rgba(48,64,53,0.25)',
+        }}
+      >
+        <UserPlus size={15} /> Ouvrir l&apos;annuaire des intervenants
+      </a>
     </div>
   );
 }
