@@ -434,7 +434,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: 480,
+          maxWidth: 620,
           height: '100%',
           background: '#fff',
           boxShadow: '-12px 0 40px rgba(0,0,0,0.18)',
