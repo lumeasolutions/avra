@@ -2063,7 +2063,17 @@ export default function DossierDetailPage() {
           du dossier entier — pas la liste complète des types d'intervention. */}
       <SendToIntervenantDrawer
         open={!!sendFolderAtts}
-        prefill={{ projectId: id, dossierSigned: isSigned, subfolderLabel: sendFolderPath ?? undefined, attachments: sendFolderAtts ?? [] }}
+        prefill={{
+          projectId: id,
+          dossierSigned: isSigned,
+          subfolderLabel: sendFolderPath ?? undefined,
+          // Titre informatif pour l'intervenant : « <Dossier> — <Sous-dossier> ».
+          title: sendFolderPath
+            ? `${[dossier?.name, dossier?.firstName].filter(Boolean).join(' ')} — ${sendFolderPath.includes(' ▸ ') ? sendFolderPath.split(' ▸ ').pop() : sendFolderPath}`.trim()
+            : undefined,
+          notes: sendFolderPath ? `Sous-dossier : ${sendFolderPath}` : undefined,
+          attachments: sendFolderAtts ?? [],
+        }}
         onClose={() => { setSendFolderAtts(null); setSendFolderPath(null); }}
       />
 

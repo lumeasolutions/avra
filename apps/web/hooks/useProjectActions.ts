@@ -142,7 +142,9 @@ export function useProjectActions() {
             ...s.dossiers,
             {
               id: realId,
-              name: data.lastName,
+              // Même nom que celui envoyé à l'API (« <Type> <Client> » ou juste
+              // le client) — avant : data.lastName seul -> le type etait perdu.
+              name: projectName,
               firstName: data.firstName,
               address: data.address,
               siteAddress: data.siteAddress,
