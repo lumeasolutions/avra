@@ -451,7 +451,7 @@ export const DEMANDE_TYPE_LABELS: Record<DemandeType, string> = {
   LIVRAISON: 'Livraison',
   SAV: 'SAV',
   MESURE: 'Prise de mesure',
-  DEVIS: 'Demande de devis',
+  DEVIS: 'Demande de devis / renseignement',
   CONFIRMATION_COMMANDE: 'Confirmation de commande',
   COMPLEMENT: 'Complément',
   AUTRE: 'Autre',

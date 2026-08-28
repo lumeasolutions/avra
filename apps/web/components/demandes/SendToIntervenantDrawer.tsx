@@ -125,6 +125,19 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
           { type: 'COMPLEMENT', label: 'Envoi document', titlePrefix: 'Envoi document — ' },
         ]
       : TYPE_OPTIONS.map((t) => ({ type: t, label: DEMANDE_TYPE_LABELS[t] }));
+
+  // GARDE-FOU : le type sélectionné doit TOUJOURS faire partie des types
+  // proposés. Sinon (ex. état POSE hérité alors qu'un dossier en cours ne
+  // propose que « Devis »), on force le 1er type proposé -> impossible d'envoyer
+  // une POSE quand seul « Devis » est offert.
+  useEffect(() => {
+    if (!open) return;
+    if (!typeOptions.some((o) => o.type === type)) {
+      setType(typeOptions[0]?.type ?? 'DEVIS');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, prefill?.dossierSigned]);
+
   const [title, setTitle] = useState(prefill?.title ?? '');
   const [notes, setNotes] = useState(prefill?.notes ?? '');
   const [scheduledFor, setScheduledFor] = useState(prefill?.scheduledFor ?? '');
@@ -268,7 +281,9 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
       setTimeout(() => {
         setStep('choose');
         setSelectedId(prefill?.intervenantId ?? null);
-        setType(prefill?.type ?? 'POSE');
+        // Défaut = Devis dès qu'on est dans un contexte dossier (signé ou en
+        // cours) — jamais POSE, qui n'est même pas proposé pour un dossier.
+        setType(prefill?.type ?? (prefill?.dossierSigned !== undefined ? 'DEVIS' : 'POSE'));
         setTitle(prefill?.title ?? '');
         setNotes(prefill?.notes ?? '');
         setScheduledFor(prefill?.scheduledFor ?? '');

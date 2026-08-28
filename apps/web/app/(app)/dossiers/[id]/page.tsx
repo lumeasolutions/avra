@@ -1648,7 +1648,7 @@ export default function DossierDetailPage() {
                           <SendToIntervenantButton
                             variant="icon"
                             style={{ width: 28, height: 28, background: 'transparent', color: '#3D5449', border: 'none', borderRadius: 8 }}
-                            prefill={{ projectId: id, attachments: [{ dossierDocumentId: doc.docId, displayName: doc.name, mimeType: doc.type ?? undefined }] }}
+                            prefill={{ projectId: id, dossierSigned: isSigned, attachments: [{ dossierDocumentId: doc.docId, displayName: doc.name, mimeType: doc.type ?? undefined }] }}
                           />
                         )}
                         {canEditThis && (
