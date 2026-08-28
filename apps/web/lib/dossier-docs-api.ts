@@ -146,3 +146,19 @@ export async function deleteDossierDoc(dossierId: string, docId: string): Promis
     method: 'DELETE',
   });
 }
+
+/**
+ * Renomme un sous-dossier côté backend : met à jour le subfolderLabel de tous
+ * les documents concernés (exact + imbriqués). À appeler AVANT (ou avec) la
+ * mise à jour locale, sinon les documents réapparaissent sous l'ancien nom.
+ */
+export async function renameDossierSubfolder(
+  dossierId: string,
+  oldLabel: string,
+  newLabel: string,
+): Promise<void> {
+  await api(`/dossiers/${encodeURIComponent(dossierId)}/documents/rename-subfolder`, {
+    method: 'PATCH',
+    body: JSON.stringify({ oldLabel, newLabel }),
+  });
+}

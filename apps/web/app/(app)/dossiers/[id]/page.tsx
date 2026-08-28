@@ -19,7 +19,7 @@ import { splitPath, joinPath, displayName as folderDisplayName, childFolders, sa
 import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, CUISINISTE_OPTION_REGEX } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
-import { uploadDossierDoc, uploadDossierDocDirect, listDossierDocs, getDocSignedUrl, deleteDossierDoc } from '@/lib/dossier-docs-api';
+import { uploadDossierDoc, uploadDossierDocDirect, listDossierDocs, getDocSignedUrl, deleteDossierDoc, renameDossierSubfolder } from '@/lib/dossier-docs-api';
 import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
 import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
 import { OptionSelectionModal } from '@/components/dossiers/OptionSelectionModal';
@@ -151,6 +151,7 @@ export default function DossierDetailPage() {
   // (cf. AUDIT_DOSSIERS_DOCUMENTS.md fix #6).
   const addSubfolder      = useDossierStore(s => s.addSubfolder);
   const removeSubfolder   = useDossierStore(s => s.removeSubfolder);
+  const renameSubfolder   = useDossierStore(s => s.renameSubfolder);
   const addDocumentToSubfolder = useDossierStore(s => s.addDocumentToSubfolder);
   const removeDocumentFromSubfolder = useDossierStore(s => s.removeDocumentFromSubfolder);
   const ensureDefaultSubfolders = useDossierStore(s => s.ensureDefaultSubfolders);
@@ -174,6 +175,10 @@ export default function DossierDetailPage() {
 
   // Modale de confirmation de suppression d'un sous-dossier
   const [deleteConfirm, setDeleteConfirm] = useState<{ label: string; docsCount: number } | null>(null);
+  // Renommage d'un sous-dossier : { label complet actuel, valeur éditée (feuille) }.
+  const [renameFolder, setRenameFolder] = useState<{ oldLabel: string; value: string } | null>(null);
+  const [renamingBusy, setRenamingBusy] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
 
   // Backfill : complète les dossiers créés avant l'ajout des sous-dossiers par défaut
   useEffect(() => {
@@ -414,6 +419,39 @@ export default function DossierDetailPage() {
       if (atts.length > 0) { setSendFolderPath(folderPath); setSendFolderAtts(atts); }
     } finally {
       setPreparingSend(false);
+    }
+  };
+
+  // Renomme un sous-dossier : backend d'abord (déplace les documents), puis
+  // état local + validations. Ne renomme que la « feuille » (le dernier segment) ;
+  // les sous-dossiers imbriqués suivent automatiquement.
+  const handleRenameFolder = async () => {
+    if (!renameFolder || renamingBusy) return;
+    const SEP = ' ▸ ';
+    const oldLabel = renameFolder.oldLabel;
+    const newLeaf = sanitizeFolderName(renameFolder.value).trim();
+    if (!newLeaf) { setRenameError('Le nom ne peut pas être vide.'); return; }
+    const idx = oldLabel.lastIndexOf(SEP);
+    const parent = idx >= 0 ? oldLabel.slice(0, idx) : '';
+    const newLabel = parent ? `${parent}${SEP}${newLeaf}` : newLeaf;
+    if (newLabel === oldLabel) { setRenameFolder(null); return; }
+    if (dossier.subfolders.some((sf) => sf.label === newLabel)) {
+      setRenameError('Un sous-dossier porte déjà ce nom.');
+      return;
+    }
+    setRenamingBusy(true); setRenameError(null);
+    try {
+      await renameDossierSubfolder(id, oldLabel, newLabel);
+      renameSubfolder(id, oldLabel, newLabel);
+      if (openedSubfolder === oldLabel) setOpenedSubfolder(newLabel);
+      else if (openedSubfolder && openedSubfolder.startsWith(oldLabel + SEP)) {
+        setOpenedSubfolder(newLabel + SEP + openedSubfolder.slice(oldLabel.length + SEP.length));
+      }
+      setRenameFolder(null);
+    } catch {
+      setRenameError('Le renommage a échoué. Vérifiez la connexion et réessayez.');
+    } finally {
+      setRenamingBusy(false);
     }
   };
   // Progression reelle : ratio de sous-dossiers valides sur le total.
@@ -1036,6 +1074,23 @@ export default function DossierDetailPage() {
                       </span>
                       <span className="text-xs font-bold text-green-600">Validé</span>
                     </span>
+                  )}
+
+                  {/* Bouton renommer */}
+                  {canEditThis && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRenameError(null);
+                        setRenameFolder({ oldLabel: sf.label, value: sf.label.includes(' ▸ ') ? sf.label.split(' ▸ ').pop()! : sf.label });
+                      }}
+                      className="p-2 rounded-lg text-[#304035]/40 hover:text-[#a67749] hover:bg-[#a67749]/10 transition-all shrink-0"
+                      title={`Renommer "${sf.label}"`}
+                      aria-label={`Renommer ${sf.label}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
                   )}
 
                   {/* Bouton supprimer — parité juillet 2026 : disponible sur les 3 métiers
@@ -2015,6 +2070,51 @@ export default function DossierDetailPage() {
       {/* Outil « Comparer » (devis / photos) — ouvert depuis le bouton Comparer. */}
       {showCompare && (
         <CompareHubModal dossierId={id} onClose={() => setShowCompare(false)} />
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          MODALE — RENOMMER UN SOUS-DOSSIER
+      ═══════════════════════════════════════════════ */}
+      {renameFolder && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !renamingBusy) setRenameFolder(null); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,20,17,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 80 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 440, overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ padding: '18px 22px', background: 'linear-gradient(135deg, #2a3a30 0%, #3d5244 100%)', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 11, background: 'rgba(217,179,138,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Pencil size={17} color="#d9b38a" />
+              </div>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>Renommer le sous-dossier</h2>
+            </div>
+            <div style={{ padding: '20px 22px' }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 800, color: 'rgba(48,64,53,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Nouveau nom</label>
+              <input
+                autoFocus
+                type="text"
+                value={renameFolder.value}
+                maxLength={60}
+                disabled={renamingBusy}
+                onChange={(e) => { setRenameError(null); setRenameFolder((r) => (r ? { ...r, value: e.target.value } : r)); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleRenameFolder(); if (e.key === 'Escape' && !renamingBusy) setRenameFolder(null); }}
+                placeholder="Ex : Relevé de mesures"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(48,64,53,0.18)', fontSize: 14, color: '#304035', outline: 'none' }}
+              />
+              {renameError && (
+                <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#b91c1c', fontWeight: 600 }}>{renameError}</p>
+              )}
+              <p style={{ margin: '8px 0 0', fontSize: 11.5, color: 'rgba(48,64,53,0.45)' }}>
+                Les documents et sous-dossiers de « {renameFolder.oldLabel.includes(' ▸ ') ? renameFolder.oldLabel.split(' ▸ ').pop() : renameFolder.oldLabel} » sont conservés.
+              </p>
+            </div>
+            <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(48,64,53,0.08)', display: 'flex', justifyContent: 'flex-end', gap: 10, background: '#fafaf8' }}>
+              <button type="button" disabled={renamingBusy} onClick={() => setRenameFolder(null)} style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid rgba(48,64,53,0.15)', background: '#fff', fontSize: 13, fontWeight: 700, color: '#304035', cursor: renamingBusy ? 'default' : 'pointer', opacity: renamingBusy ? 0.5 : 1 }}>Annuler</button>
+              <button type="button" disabled={renamingBusy} onClick={handleRenameFolder} style={{ padding: '9px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #304035, #4a6358)', fontSize: 13, fontWeight: 700, color: '#fff', cursor: renamingBusy ? 'default' : 'pointer', opacity: renamingBusy ? 0.7 : 1 }}>
+                {renamingBusy ? 'Renommage…' : 'Renommer'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ═══════════════════════════════════════════════

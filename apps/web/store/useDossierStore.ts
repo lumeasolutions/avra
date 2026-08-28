@@ -672,6 +672,7 @@ interface DossierState {
   // Actions
   addDossier: (data: { lastName: string; firstName?: string; projectLabel?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string; profession?: string | null; vendeurName?: string }) => string;
   removeSubfolder: (dossierId: string, label: string) => void;
+  renameSubfolder: (dossierId: string, oldLabel: string, newLabel: string) => void;
   updateDossierStatus: (id: string, status: DossierStatus) => void;
   updateDossierNotes: (id: string, notes: string) => void;
   addSubfolder: (dossierId: string, label: string) => void;
@@ -885,6 +886,54 @@ export const useDossierStore = create<DossierState>()(
             ),
           }));
         }
+      },
+
+      renameSubfolder: (dossierId, oldLabel, newLabel) => {
+        const SEP = ' ▸ ';
+        const oldPrefix = oldLabel + SEP;
+        // Renomme le label lui-même OU un descendant (préfixe "oldLabel ▸ …").
+        const renameLabel = (label: string): string =>
+          label === oldLabel
+            ? newLabel
+            : label.startsWith(oldPrefix)
+            ? newLabel + SEP + label.slice(oldPrefix.length)
+            : label;
+        const mapSubs = <T extends { label: string }>(subs: T[]): T[] =>
+          subs.map((sf) => ({ ...sf, label: renameLabel(sf.label) }));
+        // Migre les clés (= label d'étape) d'une map de validation.
+        const renameKeys = <V>(m?: Record<string, V>): Record<string, V> | undefined => {
+          if (!m) return m;
+          const out: Record<string, V> = {};
+          for (const [k, v] of Object.entries(m)) out[renameLabel(k)] = v;
+          return out;
+        };
+        set((s) => {
+          const patch: Partial<DossierState> = {};
+          if (s.dossiers.some((d) => d.id === dossierId)) {
+            patch.dossiers = s.dossiers.map((d) =>
+              d.id === dossierId ? { ...d, subfolders: mapSubs(d.subfolders) } : d,
+            );
+          } else {
+            patch.dossiersSignes = s.dossiersSignes.map((d) =>
+              d.id === dossierId
+                ? { ...d, subfolders: mapSubs(d.subfolders), signedSubfolders: mapSubs(d.signedSubfolders) }
+                : d,
+            );
+          }
+          if (s.echeancesValidees[dossierId]) {
+            patch.echeancesValidees = { ...s.echeancesValidees, [dossierId]: renameKeys(s.echeancesValidees[dossierId])! };
+          }
+          if (s.datesButoiresSignes[dossierId]) {
+            patch.datesButoiresSignes = { ...s.datesButoiresSignes, [dossierId]: renameKeys(s.datesButoiresSignes[dossierId])! };
+          }
+          if (s.commandesAccess[dossierId]) {
+            patch.commandesAccess = { ...s.commandesAccess, [dossierId]: renameKeys(s.commandesAccess[dossierId])! };
+          }
+          return patch;
+        });
+        // Persiste les validations remappées (les labels des sous-dossiers sont
+        // persistés côté backend par le renommage des documents, appelé par l'UI).
+        pushDossierData(get, dossierId);
       },
 
       updateDossierStatus: (id, status) => {

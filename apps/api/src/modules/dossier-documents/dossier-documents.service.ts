@@ -539,6 +539,44 @@ export class DossierDocumentsService {
     return docs;
   }
 
+  /**
+   * Renomme un sous-dossier : déplace tous les documents du label `oldLabel`
+   * (exact) vers `newLabel`, et les documents des sous-dossiers imbriqués
+   * (`oldLabel ▸ …`) en remplaçant le préfixe. Le fichier binaire ne bouge pas
+   * (le storagePath est déjà aléatoire) — seul le rangement logique change.
+   */
+  async renameSubfolder(
+    workspaceId: string,
+    projectId: string,
+    oldLabel: string,
+    newLabel: string,
+  ) {
+    await this.assertProjectInWorkspace(workspaceId, projectId);
+    const SEP = ' ▸ ';
+    const oldPrefix = oldLabel + SEP;
+
+    // 1) Documents directement dans le sous-dossier renommé.
+    const exact = await this.prisma.dossierDocument.updateMany({
+      where: { workspaceId, projectId, subfolderLabel: oldLabel },
+      data: { subfolderLabel: newLabel },
+    });
+
+    // 2) Documents des sous-dossiers imbriqués : on remplace le préfixe.
+    const children = await this.prisma.dossierDocument.findMany({
+      where: { workspaceId, projectId, subfolderLabel: { startsWith: oldPrefix } },
+      select: { id: true, subfolderLabel: true },
+    });
+    for (const c of children) {
+      const rest = c.subfolderLabel.slice(oldPrefix.length);
+      await this.prisma.dossierDocument.update({
+        where: { id: c.id },
+        data: { subfolderLabel: `${newLabel}${SEP}${rest}` },
+      });
+    }
+
+    return { renamed: exact.count + children.length };
+  }
+
   /** Retourne une URL signée temporaire (60 min). */
   async getSignedUrl(workspaceId: string, projectId: string, documentId: string) {
     await this.assertProjectInWorkspace(workspaceId, projectId);

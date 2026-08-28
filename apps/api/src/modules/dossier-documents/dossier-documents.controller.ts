@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   Body,
@@ -117,6 +118,26 @@ export class DossierDocumentsController {
     @Param('docId') docId: string,
   ) {
     return this.docs.getSignedUrl(user.workspaceId, dossierId, docId);
+  }
+
+  /**
+   * Renomme un sous-dossier : met à jour le subfolderLabel de TOUS les documents
+   * du sous-dossier (exact) + de ses sous-dossiers imbriqués (préfixe). Nécessaire
+   * pour que les documents ne « réapparaissent » pas sous l'ancien nom (le backend
+   * est la source de vérité des sous-dossiers).
+   */
+  @Patch('rename-subfolder')
+  renameSubfolder(
+    @CurrentUser() user: JwtPayload,
+    @Param('dossierId') dossierId: string,
+    @Body() body: { oldLabel: string; newLabel: string },
+  ) {
+    const oldLabel = (body?.oldLabel ?? '').trim();
+    const newLabel = (body?.newLabel ?? '').trim();
+    if (!oldLabel) throw new BadRequestException('oldLabel requis');
+    if (!newLabel) throw new BadRequestException('newLabel requis');
+    if (newLabel.length > 200) throw new BadRequestException('Nom de sous-dossier trop long');
+    return this.docs.renameSubfolder(user.workspaceId, dossierId, oldLabel, newLabel);
   }
 
   @Delete(':docId')
