@@ -670,7 +670,7 @@ interface DossierState {
   commandesAccess: Record<string, Record<string, CommandeAccessEntry[]>>;
 
   // Actions
-  addDossier: (data: { lastName: string; firstName?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string; profession?: string | null; vendeurName?: string }) => string;
+  addDossier: (data: { lastName: string; firstName?: string; projectLabel?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string; profession?: string | null; vendeurName?: string }) => string;
   removeSubfolder: (dossierId: string, label: string) => void;
   updateDossierStatus: (id: string, status: DossierStatus) => void;
   updateDossierNotes: (id: string, notes: string) => void;
@@ -829,7 +829,9 @@ export const useDossierStore = create<DossierState>()(
 
       addDossier: (data) => {
         const id = 'd' + uid();
-        const name = data.lastName.trim();
+        // Nom = « <Type> <Client> » si un type est saisi, sinon juste le client.
+        const label = data.projectLabel?.trim();
+        const name = label ? `${label} ${data.lastName.trim()}` : data.lastName.trim();
         const newDossier: Dossier = {
           id,
           name,
