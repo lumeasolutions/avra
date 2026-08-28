@@ -97,6 +97,23 @@ export const useHistoryStore = create<HistoryState>()(
 
       checkAndCreateRelances: (dossiersSignes) => {
         const today = new Date();
+
+        // AUTO-NETTOYAGE : purge les doublons de relances ACTIVES accumulés par
+        // l'ancien bug (même dossier + même type). Sans ça, une session longue
+        // conserve des centaines de relances qui alourdissent chaque calcul
+        // d'alertes -> gels. Idempotent : ne garde qu'une active par (dossier,type).
+        {
+          const seen = new Set<string>();
+          const deduped = get().relances.filter((r) => {
+            if (r.status !== 'active') return true;
+            const k = `${r.dossierId}|${r.type}`;
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          });
+          if (deduped.length !== get().relances.length) set({ relances: deduped });
+        }
+
         // On relit get().relances FRAIS à chaque test (pas un snapshot figé) :
         // addRelance ajoute au fil de la boucle, donc un snapshot périmé laissait
         // créer des relances EN DOUBLE dans une même passe (accumulation en base).
