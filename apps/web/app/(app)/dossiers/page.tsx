@@ -95,6 +95,8 @@ function avatarColor(name: string) {
 export default function DossiersPage() {
   const dossiers = useVisibleDossiers();
   const dossiersPerdus = useVisibleDossiersPerdus();
+  // Validations d'étapes (persistées via dossierBoard) — pour la mini-jauge des cartes.
+  const echeancesValidees = useDossierStore((s) => s.echeancesValidees);
   // Droits : admin = tout ; vendeur = ses propres dossiers uniquement.
   const { canEditDossier } = useDossierPermissions();
   const [search, setSearch] = useState('');
@@ -549,10 +551,18 @@ export default function DossiersPage() {
           {filtered.map((d, i) => {
             const cfg = STATUS_CONFIG[d.status] ?? STATUS_CONFIG['EN COURS'];
             const Icon = cfg.Icon;
-            // Progression reelle : ratio de sous-dossiers valides.
-            // Fallback sur progressMap si le dossier n'a pas encore de sous-dossiers.
-            const totalSubs = d.subfolders.length;
-            const validatedSubs = d.subfolders.filter(sf => sf.validated).length;
+            // Progression reelle : ratio d'étapes validées (map echeancesValidees,
+            // même source que le tableau de bord). On ne compte que les étapes de
+            // 1er niveau, hors boîtes système « Reçu / Documents intervenants ».
+            const NEST = ' ▸ ';
+            const topSubs = d.subfolders.filter(sf => {
+              if (sf.label.includes(NEST)) return false;
+              const low = sf.label.trim().toLowerCase();
+              return !((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant'));
+            });
+            const dValidees = echeancesValidees[d.id] ?? {};
+            const totalSubs = topSubs.length;
+            const validatedSubs = topSubs.filter(sf => dValidees[sf.label] === true).length;
             const progress = totalSubs === 0
               ? (progressMap[d.status] ?? 0)
               : Math.round((validatedSubs / totalSubs) * 100);

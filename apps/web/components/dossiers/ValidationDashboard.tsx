@@ -17,7 +17,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Clock3, Sparkles, TrendingUp, ArrowUpRight, PartyPopper } from 'lucide-react';
-import { useVisibleDossiers } from '@/store';
+import { useVisibleDossiers, useDossierStore } from '@/store';
 import { useAssistantStore } from '@/store/useAssistantStore';
 
 function useAnimatedNumber(target: number, duration = 800) {
@@ -42,17 +42,27 @@ function useAnimatedNumber(target: number, duration = 800) {
 
 export function ValidationDashboard() {
   const dossiers = useVisibleDossiers();
+  const echeancesValidees = useDossierStore((s) => s.echeancesValidees);
   const openWithPrompt = useAssistantStore((s) => s.openWithPrompt);
 
   const stats = useMemo(() => {
     let total = 0;
     let validated = 0;
     const perDossier: { id: string; name: string; firstName?: string; total: number; pending: number; validated: number; status: string }[] = [];
+    const NEST = ' ▸ ';
 
     for (const d of dossiers) {
-      const subs = d.subfolders ?? [];
+      // Étapes de 1er niveau, hors boîtes système ; validation lue dans
+      // echeancesValidees (persistée via dossierBoard) — même source que les
+      // tableaux de bord.
+      const subs = (d.subfolders ?? []).filter((s) => {
+        if (s.label.includes(NEST)) return false;
+        const low = s.label.trim().toLowerCase();
+        return !((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant'));
+      });
+      const dValidees = echeancesValidees[d.id] ?? {};
       const tTotal = subs.length;
-      const tValid = subs.filter((s) => s.validated).length;
+      const tValid = subs.filter((s) => dValidees[s.label] === true).length;
       total += tTotal;
       validated += tValid;
       perDossier.push({
@@ -76,7 +86,7 @@ export function ValidationDashboard() {
     const dossiersFullyValidated = perDossier.filter((d) => d.total > 0 && d.pending === 0).length;
 
     return { total, validated, pending, pct, topPending, dossiersFullyValidated };
-  }, [dossiers]);
+  }, [dossiers, echeancesValidees]);
 
   const animPct = useAnimatedNumber(stats.pct);
   const animValid = useAnimatedNumber(stats.validated);

@@ -356,7 +356,10 @@ export function useDataSync() {
         const nextValidees = { ...cur.echeancesValidees };
         const nextCommandes = { ...cur.commandesAccess };
         let touched = false;
-        for (const p of signedProjects) {
+        // Hydrate le board pour TOUS les dossiers (actifs + signés + perdus),
+        // pas seulement les signés : les dossiers EN COURS ont aussi des
+        // validations d'étapes (tableau de bord « dossiers en cours »).
+        for (const p of data) {
           const b = (p as any).dossierBoard;
           if (!b || typeof b !== 'object') continue;
           if (b.dates && typeof b.dates === 'object') {

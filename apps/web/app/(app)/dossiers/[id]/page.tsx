@@ -157,6 +157,8 @@ export default function DossierDetailPage() {
   const updateDossierNotes = useDossierStore(s => s.updateDossierNotes);
   const setDossierVendeur = useDossierStore(s => s.setDossierVendeur);
   const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
+  const echeancesValidees = useDossierStore(s => s.echeancesValidees);
+  const setEcheanceValidee = useDossierStore(s => s.setEcheanceValidee);
   const toggleDossierTermine = useDossierStore(s => s.toggleDossierTermine);
   const profession = useAuthStore(s => s.profession);
   const isMenuisier = profession === 'menuisier';
@@ -2225,13 +2227,19 @@ export default function DossierDetailPage() {
         // Calculs : progression + listes valide / en attente
         // Masque les boîtes système « Reçu de l'intervenant » / « Documents
         // Intervenants » du tableau de bord (comme dans la liste des dossiers).
+        const NEST = ' ▸ ';
         const allSubs = dossier.subfolders.filter((sf) => {
+          if (sf.label.includes(NEST)) return false; // étapes de 1er niveau uniquement
           const low = sf.label.trim().toLowerCase();
           return !((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant'));
         });
+        // Validation par étape : map echeancesValidees (persistée en base via
+        // dossierBoard), même source que le tableau de bord des dossiers signés.
+        const validees = echeancesValidees[id] ?? {};
+        const isValidated = (label: string) => validees[label] === true;
         const totalSubs = allSubs.length;
-        const validatedSubs = allSubs.filter(sf => sf.validated);
-        const pendingSubs = allSubs.filter(sf => !sf.validated);
+        const validatedSubs = allSubs.filter(sf => isValidated(sf.label));
+        const pendingSubs = allSubs.filter(sf => !isValidated(sf.label));
         const progressPct = totalSubs === 0 ? 0 : Math.round((validatedSubs.length / totalSubs) * 100);
         const allDone = totalSubs > 0 && validatedSubs.length === totalSubs;
 
@@ -2721,7 +2729,14 @@ export default function DossierDetailPage() {
                                   {docsCount === 0 ? 'Vide · à compléter' : `${docsCount} document${docsCount > 1 ? 's' : ''} · à valider`}
                                 </div>
                               </div>
-                              <div className="ddb-row-date ddb-row-date-warn">À VALIDER</div>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setEcheanceValidee(id, sf.label, true); }}
+                                title="Marquer cette étape comme validée"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, padding: '7px 13px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, color: '#fff', background: 'linear-gradient(135deg,#22c55e,#16a34a)', boxShadow: '0 3px 10px rgba(34,197,94,0.3)' }}
+                              >
+                                <Check className="h-3.5 w-3.5" strokeWidth={3} /> Valider
+                              </button>
                             </div>
                           );
                         })}
@@ -2756,7 +2771,14 @@ export default function DossierDetailPage() {
                                   Validé le {displayDate}
                                 </div>
                               </div>
-                              <div className="ddb-row-date ddb-row-date-ok">{displayDate}</div>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setEcheanceValidee(id, sf.label, false); }}
+                                title="Annuler la validation"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, padding: '6px 11px', borderRadius: 9, cursor: 'pointer', fontSize: 11, fontWeight: 700, border: '1px solid rgba(48,64,53,0.15)', background: '#fff', color: 'rgba(48,64,53,0.55)' }}
+                              >
+                                <X className="h-3 w-3" /> Annuler
+                              </button>
                             </div>
                           );
                         })}

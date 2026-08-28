@@ -29,7 +29,7 @@ import {
   MapPin,
   ArrowRight,
 } from 'lucide-react';
-import type { Dossier } from '@/store/useDossierStore';
+import { useDossierStore, type Dossier } from '@/store/useDossierStore';
 
 interface Props {
   dossier: Dossier;
@@ -37,6 +37,14 @@ interface Props {
 }
 
 export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
+  // Validation par étape : même source que le tableau de bord des dossiers
+  // SIGNÉS (map echeancesValidees, persistée via dossierBoard) -> les cases
+  // cochées tiennent en base et se synchronisent entre appareils.
+  const echeancesValidees = useDossierStore((s) => s.echeancesValidees);
+  const setEcheanceValidee = useDossierStore((s) => s.setEcheanceValidee);
+  const validees = echeancesValidees[dossier.id] ?? {};
+  const isValidated = (label: string) => validees[label] === true;
+
   const subfolders = dossier.subfolders ?? [];
   const NEST = ' ▸ ';
   // Regroupement au niveau PARENT : un sous-dossier imbriqué (ex. "X ▸ Y") est
@@ -57,8 +65,8 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
     );
 
   const totalSubs = topSubfolders.length;
-  const validatedSubs = topSubfolders.filter((sf) => sf.validated);
-  const pendingSubs = topSubfolders.filter((sf) => !sf.validated);
+  const validatedSubs = topSubfolders.filter((sf) => isValidated(sf.label));
+  const pendingSubs = topSubfolders.filter((sf) => !isValidated(sf.label));
   const progressPct = totalSubs > 0 ? Math.round((validatedSubs.length / totalSubs) * 100) : 0;
   const allDone = totalSubs > 0 && pendingSubs.length === 0;
 
@@ -242,6 +250,24 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
         .odb-row-date-ok { background: rgba(34, 197, 94, 0.12); color: #15803d; }
         .odb-row-date-warn { background: rgba(249, 115, 22, 0.12); color: #c2410c; }
 
+        .odb-validate-btn {
+          display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+          padding: 7px 13px; border-radius: 9px; border: none; cursor: pointer;
+          font-size: 11.5px; font-weight: 800; color: #fff;
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          box-shadow: 0 3px 10px rgba(34, 197, 94, 0.3);
+          transition: filter 0.15s ease, transform 0.15s ease;
+        }
+        .odb-validate-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+        .odb-unvalidate-btn {
+          display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+          padding: 6px 11px; border-radius: 9px; cursor: pointer;
+          font-size: 11px; font-weight: 700;
+          border: 1px solid rgba(48, 64, 53, 0.15); background: #fff; color: rgba(48, 64, 53, 0.55);
+          transition: all 0.15s ease;
+        }
+        .odb-unvalidate-btn:hover { border-color: rgba(220, 38, 38, 0.4); color: #dc2626; }
+
         .odb-empty { padding: 32px 16px; text-align: center; color: rgba(48, 64, 53, 0.4); font-size: 13px; border: 1px dashed rgba(48,64,53,0.15); border-radius: 12px; }
 
         .odb-footer {
@@ -379,9 +405,14 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
                               {docsCount === 0 ? 'Vide · à compléter' : `${docsCount} document${docsCount > 1 ? 's' : ''}`}
                             </div>
                           </div>
-                          <div className="odb-row-date odb-row-date-warn">
-                            {docsCount === 0 ? 'Vide' : `${docsCount} doc${docsCount > 1 ? 's' : ''}`}
-                          </div>
+                          <button
+                            type="button"
+                            className="odb-validate-btn"
+                            onClick={() => setEcheanceValidee(dossier.id, sf.label, true)}
+                            title="Marquer cette étape comme validée"
+                          >
+                            <Check className="h-3.5 w-3.5" strokeWidth={3} /> Valider
+                          </button>
                         </div>
                       );
                     })}
@@ -401,7 +432,14 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
                           <div className="odb-row-label">{sf.label}</div>
                           <div className="odb-row-meta">Validé{sf.date ? ` le ${sf.date}` : ''}</div>
                         </div>
-                        <div className="odb-row-date odb-row-date-ok">Validé</div>
+                        <button
+                          type="button"
+                          className="odb-unvalidate-btn"
+                          onClick={() => setEcheanceValidee(dossier.id, sf.label, false)}
+                          title="Annuler la validation"
+                        >
+                          <X className="h-3 w-3" /> Annuler
+                        </button>
                       </div>
                     ))}
                   </>
