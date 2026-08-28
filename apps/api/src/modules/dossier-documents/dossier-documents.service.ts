@@ -17,16 +17,14 @@ import { VirusScanService } from '../../common/security/virus-scan.service';
  * ─────────────────────────────────────────────────────────────
  */
 /**
- * Liste blanche MIME tres large pour couvrir tous les fichiers metier de
- * l'agencement (Word, Excel, plans CAO, fichiers logiciels Schmidt/KDMax/Winner,
- * archives, photos brutes, modeles 3D...). On autorise large par MIME type
- * connu mais on bloque categoriquement les binaires executables (.exe, .bat,
- * .sh, .ps1, ...) via une blacklist d'extensions ci-dessous.
- *
- * Strategie : autoriser par defaut TOUS les MIME types non dangereux. Le
- * file-type magic-bytes check + la blacklist d'extensions arretent les
- * tentatives malveillantes.
+ * NOTE : cette liste n'est plus un FILTRE (on n'refuse plus un fichier sur un
+ * MIME absent d'ici). La politique du document store est désormais « tout
+ * format non dangereux est accepté » : la sécurité repose sur la blacklist
+ * d'extensions (BLOCKED_EXTENSIONS), la détection de contenu exécutable
+ * (DANGEROUS_DETECTED_MIMES) et le scan antivirus. Cet ensemble est conservé à
+ * titre INDICATIF (types métier courants attendus). Voir upload()/initDirectUpload().
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ALLOWED_MIMES = new Set<string>([
   // ─── Images ─────────────────────────────────────────────────────────
   'image/jpeg',
@@ -148,13 +146,27 @@ const ALLOWED_MIMES = new Set<string>([
  * refuse si l'extension est dans cette liste.
  */
 const BLOCKED_EXTENSIONS = new Set<string>([
-  '.exe', '.msi', '.bat', '.cmd', '.com', '.pif', '.scr',
-  '.vbs', '.vbe', '.js', '.jse', '.wsf', '.wsh', '.ps1', '.psm1',
+  '.exe', '.msi', '.msp', '.mst', '.bat', '.cmd', '.com', '.pif', '.scr',
+  '.vbs', '.vbe', '.vb', '.js', '.jse', '.wsf', '.wsh', '.ws', '.ps1', '.psm1',
   '.sh', '.bash', '.zsh', '.fish',
-  '.app', '.dmg', '.pkg',
-  '.dll', '.sys', '.drv',
+  '.app', '.dmg', '.pkg', '.command', '.action', '.workflow', '.scpt',
+  '.dll', '.sys', '.drv', '.cpl', '.msc', '.gadget', '.chm', '.hta',
+  '.reg', '.lnk', '.scf', '.inf', '.jnlp',
   '.jar', '.apk', '.ipa',
-  '.html', '.htm', '.svg', // SVG retire de la liste autorisee plus haut sera traite via image/svg+xml — on bloque les .html en extension
+  '.html', '.htm', '.svg', // servis inline -> risque XSS : on bloque en extension (SVG géré via image/svg+xml si besoin, mais bloqué ici)
+]);
+
+// Types DÉTECTÉS (magic-bytes) categoriquement dangereux : on refuse meme si
+// l'extension est innocente (ex. un .exe renomme en .dwg).
+const DANGEROUS_DETECTED_MIMES = new Set<string>([
+  'application/x-msdownload',
+  'application/x-msdos-program',
+  'application/x-dosexec',
+  'application/vnd.microsoft.portable-executable',
+  'application/x-executable',
+  'application/x-elf',
+  'application/x-mach-binary',
+  'application/x-sharedlib',
 ]);
 
 /**
@@ -237,58 +249,38 @@ export class DossierDocumentsService {
         `Extension non autorisée pour des raisons de sécurité : ${file.originalname}`,
       );
     }
-    // Whitelist MIME — si le MIME est inconnu, on accepte quand meme s'il
-    // s'agit d'application/octet-stream (fichier binaire generique souvent
-    // utilise par les logiciels metier comme Schmidt, KDMax, Winner, etc.)
-    // dans ce cas la blacklist d'extensions est notre filet de securite.
-    if (!ALLOWED_MIMES.has(file.mimetype) && file.mimetype !== 'application/octet-stream') {
-      throw new BadRequestException(`Type de fichier non autorisé : ${file.mimetype}`);
-    }
+    // Politique DOCUMENT STORE : on accepte TOUT format non dangereux. Les
+    // pros déposent des fichiers métier très variés (DWG, DXF, SKP, Revit,
+    // ArchiCAD, IFC, STEP, IGES, et formats propriétaires PRW/DRW/KDMax/Winner/
+    // Cabinet Vision/TopSolid…). On ne refuse PLUS sur un simple MIME inconnu :
+    // la sécurité repose sur (1) la blacklist d'extensions ci-dessus,
+    // (2) la détection de contenu exécutable ci-dessous, (3) le scan antivirus.
     if (file.size > MAX_FILE_BYTES) {
       throw new BadRequestException(
         `Fichier trop volumineux (max ${Math.floor(MAX_FILE_BYTES / (1024 * 1024))} Mo)`,
       );
     }
-    // ✅ HIGH-009 / HIGH-2 (passe-2): magic-bytes validation against declared
-    //   MIME type. file-type@16 is CJS so `require()` works directly; we also
-    //   support v17+ ESM fallback via `fileTypeFromBuffer`. We DO throw on
-    //   the explicit BadRequestException, but we no longer silently swallow
-    //   `application/octet-stream` masquerading as a PDF — see MED-1 below.
+    // Magic-bytes : refuse le CONTENU exécutable (ex. un .exe renommé en .dwg)
+    // et un PDF sans en-tête %PDF-. Tout le reste passe.
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const ft = require('file-type');
       const detected = ft?.fromBuffer
         ? await ft.fromBuffer(file.buffer)
         : (ft?.fileTypeFromBuffer ? await ft.fileTypeFromBuffer(file.buffer) : null);
-      if (detected?.mime) {
-        const claimed = file.mimetype;
-        const ok =
-          detected.mime === claimed ||
-          // Tolerate jpg/jpeg & similar aliases.
-          (claimed === 'image/jpeg' && detected.mime === 'image/jpg') ||
-          // application/octet-stream est generique : on accepte si le contenu
-          // detecte est dans notre whitelist (ex: SketchUp .skp est detecte
-          // comme application/x-sketchup, ZIP comme application/zip, etc.)
-          (claimed === 'application/octet-stream' && (ALLOWED_MIMES.has(detected.mime) || detected.mime.startsWith('image/') || detected.mime.startsWith('audio/') || detected.mime.startsWith('video/') || detected.mime.startsWith('model/')));
-        if (!ok) {
-          throw new BadRequestException(
-            `Le contenu du fichier (${detected.mime}) ne correspond pas au type déclaré (${claimed})`,
-          );
-        }
-      } else if (file.mimetype === 'application/pdf') {
-        // MED-1 (passe-2): a PDF must have a recognizable %PDF- header. If
-        //   file-type returned nothing for a claimed PDF, the buffer is most
-        //   likely either zero-byte or a forged document — reject.
+      if (detected?.mime && DANGEROUS_DETECTED_MIMES.has(detected.mime)) {
+        throw new BadRequestException('Fichier exécutable interdit (contenu binaire dangereux détecté).');
+      }
+      if (!detected?.mime && file.mimetype === 'application/pdf') {
+        // Un PDF déclaré doit avoir l'en-tête %PDF- (sinon zéro-octet ou forgé).
         const head = file.buffer.subarray(0, 5).toString('ascii');
         if (head !== '%PDF-') {
           throw new BadRequestException("Le fichier déclaré comme PDF n'a pas l'entête %PDF-");
         }
       }
-      // If detected.mime is undefined (e.g. text/csv plain) and not PDF,
-      // skip — declared content-type is canonical for non-binary formats.
     } catch (e) {
       if (e instanceof BadRequestException) throw e;
-      // Module unavailable — proceed with declared MIME only.
+      // Module indisponible — on continue (blacklist d'extensions + AV restent actifs).
     }
     if (!subfolderLabel || subfolderLabel.length > 200) {
       throw new BadRequestException('Sous-dossier invalide');
@@ -373,9 +365,11 @@ export class DossierDocumentsService {
         `Extension non autorisée pour des raisons de sécurité : ${fileName}`,
       );
     }
-    if (!ALLOWED_MIMES.has(mimeType) && mimeType !== 'application/octet-stream') {
-      throw new BadRequestException(`Type de fichier non autorisé : ${mimeType}`);
-    }
+    // Politique DOCUMENT STORE : tout format non dangereux est accepté (fichiers
+    // métier variés). Pas de rejet sur MIME inconnu — la blacklist d'extensions
+    // ci-dessus + le scan antivirus au finalize sont les garde-fous. (`mimeType`
+    // est conservé pour l'affichage/téléchargement.)
+    void mimeType;
     if (fileSize > MAX_FILE_BYTES) {
       throw new BadRequestException(
         `Fichier trop volumineux (max ${Math.floor(MAX_FILE_BYTES / (1024 * 1024))} Mo)`,
