@@ -640,7 +640,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ex : Pose cuisine M. Dupont"
+                placeholder="Ex : Relevé de mesures — M. Dupont"
                 maxLength={200}
                 style={inputStyle()}
               />
