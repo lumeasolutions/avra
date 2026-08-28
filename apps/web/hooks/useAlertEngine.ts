@@ -561,7 +561,12 @@ function computeAlerts(): RawAlert[] {
     const slots = new Map<string, string[]>();
     for (const ev of planningEvents) {
       if ((ev.weekOffset ?? 0) !== 0) continue;
-      for (let h = ev.startHour; h < ev.startHour + ev.duration; h++) {
+      // Garde-fou : une durée/heure corrompue (ex. date math ratée) ferait
+      // exploser cette boucle et gèlerait l'onglet. On borne à des valeurs saines
+      // (au plus 24 itérations par event).
+      const sh = Number.isFinite(ev.startHour) ? Math.max(0, Math.min(24, Math.floor(ev.startHour))) : 0;
+      const dur = Number.isFinite(ev.duration) ? Math.max(1, Math.min(24, Math.floor(ev.duration))) : 1;
+      for (let h = sh; h < sh + dur; h++) {
         const key = `${ev.day}-${h}`;
         const existing = slots.get(key) || [];
         existing.push(ev.title);
@@ -914,8 +919,11 @@ export function useAlertEngine() {
       if (document.visibilityState === 'hidden') {
         stopInterval();
       } else {
-        // À la reprise : rattrapage si le dernier calcul date de + de POLL_MS
-        if (Date.now() - lastRun > POLL_MS) run();
+        // À la reprise : rattrapage si le dernier calcul date de + de POLL_MS.
+        // Différé (setTimeout 0) pour NE PAS bloquer le repaint du refocus avec
+        // le sweep synchrone d'alertes (cause probable des micro-gels au retour
+        // sur l'onglet).
+        if (Date.now() - lastRun > POLL_MS) setTimeout(run, 0);
         startInterval();
       }
     };

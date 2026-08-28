@@ -97,7 +97,9 @@ export const useHistoryStore = create<HistoryState>()(
 
       checkAndCreateRelances: (dossiersSignes) => {
         const today = new Date();
-        const existingRelances = get().relances;
+        // On relit get().relances FRAIS à chaque test (pas un snapshot figé) :
+        // addRelance ajoute au fil de la boucle, donc un snapshot périmé laissait
+        // créer des relances EN DOUBLE dans une même passe (accumulation en base).
 
         dossiersSignes.forEach((dossier: any) => {
           // Check for overdue date butoires
@@ -106,7 +108,7 @@ export const useHistoryStore = create<HistoryState>()(
               if (dateStr) {
                 const [day, month, year] = dateStr.split('/').map(Number);
                 const dueDateObj = new Date(year, month - 1, day);
-                if (dueDateObj < today && !existingRelances.some(r => r.dossierId === dossier.id && r.type === 'date_butoire' && r.status === 'active')) {
+                if (dueDateObj < today && !get().relances.some(r => r.dossierId === dossier.id && r.type === 'date_butoire' && r.status === 'active')) {
                   const fieldLabel = key.replace(/([A-Z])/g, ' $1').toLowerCase();
                   get().addRelance({
                     dossierId: dossier.id,
@@ -124,7 +126,7 @@ export const useHistoryStore = create<HistoryState>()(
           // Check for no deposit in last 2 weeks
           const signedDate = new Date(dossier.signedDate.split('/').reverse().join('-'));
           const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
-          if (signedDate < twoWeeksAgo && !existingRelances.some(r => r.dossierId === dossier.id && r.type === 'dossier_vente' && r.status === 'active')) {
+          if (signedDate < twoWeeksAgo && !get().relances.some(r => r.dossierId === dossier.id && r.type === 'dossier_vente' && r.status === 'active')) {
             get().addRelance({
               dossierId: dossier.id,
               type: 'dossier_vente',
@@ -140,7 +142,7 @@ export const useHistoryStore = create<HistoryState>()(
             dossier.confirmations.forEach((conf: any) => {
               const commandDate = new Date(conf.dateButoir.split('/').reverse().join('-'));
               const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-              if (commandDate < oneWeekAgo && !conf.validee && !existingRelances.some(r => r.dossierId === dossier.id && r.type === 'confirmation' && r.status === 'active')) {
+              if (commandDate < oneWeekAgo && !conf.validee && !get().relances.some(r => r.dossierId === dossier.id && r.type === 'confirmation' && r.status === 'active')) {
                 get().addRelance({
                   dossierId: dossier.id,
                   type: 'confirmation',
