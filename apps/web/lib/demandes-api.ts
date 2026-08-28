@@ -105,8 +105,8 @@ export interface Demande {
   messages?: DemandeMessage[];
   attachments?: DemandeAttachment[];
   statusEvents?: DemandeStatusEvent[];
-  /** Compteurs renvoyés par l'endpoint liste (ex. pièces jointes déposées par l'intervenant). */
-  _count?: { attachments?: number };
+  /** Compteurs renvoyés par l'endpoint liste (pièces jointes ET messages déposés par l'intervenant). */
+  _count?: { attachments?: number; messages?: number };
 }
 
 export interface DemandesPage {

@@ -24,6 +24,7 @@ const GOLD = '#a67749';
 
 const STATUS: Record<string, { label: string; bg: string; color: string }> = {
   ENVOYEE:  { label: 'En attente', bg: '#eef2ff', color: '#4338ca' },
+  REPONDU:  { label: 'Répondu',    bg: '#dcfce7', color: '#15803d' },
   VUE:      { label: 'Vue',        bg: '#f1f5f9', color: '#475569' },
   ACCEPTEE: { label: 'Acceptée',   bg: '#dcfce7', color: '#15803d' },
   REFUSEE:  { label: 'Refusée',    bg: '#fee2e2', color: '#b91c1c' },
@@ -188,9 +189,30 @@ function buildConversations(convos: Demande[]): Conversation[] {
 
 // Catégorie de statut pour le filtre.
 function statusBucket(status: string): 'attente' | 'repondu' | 'termine' {
-  if (status === 'ACCEPTEE' || status === 'EN_COURS') return 'repondu';
+  if (status === 'ACCEPTEE' || status === 'EN_COURS' || status === 'REPONDU') return 'repondu';
   if (status === 'TERMINEE' || status === 'REFUSEE' || status === 'ANNULEE') return 'termine';
   return 'attente';
+}
+
+// L'intervenant a-t-il répondu ? (message écrit, pièce jointe, ou message de
+// réponse d'acceptation). Utilise les compteurs de la liste (_count) + les
+// données du fil quand elles sont chargées.
+function convHasIntervenantReply(conv: Conversation): boolean {
+  return conv.demandes.some((d) =>
+    (d.responseMessage != null && d.responseMessage.trim() !== '') ||
+    (d._count?.messages ?? 0) > 0 ||
+    (d._count?.attachments ?? 0) > 0 ||
+    (d.messages ?? []).some((m) => m.authorRole === 'intervenant') ||
+    (d.attachments ?? []).some((a) => a.uploadedByRole === 'intervenant'),
+  );
+}
+
+// Statut AFFICHÉ : si la demande est encore « ENVOYEE / VUE » mais que
+// l'intervenant a déjà répondu, on montre « Répondu » (avant : bloqué sur
+// « En attente » tant qu'il n'avait pas formellement accepté).
+function effectiveConvStatus(conv: Conversation): string {
+  if (['ACCEPTEE', 'EN_COURS', 'TERMINEE', 'REFUSEE', 'ANNULEE'].includes(conv.status)) return conv.status;
+  return convHasIntervenantReply(conv) ? 'REPONDU' : conv.status;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -301,7 +323,7 @@ export default function MessagesIntervenantsPage() {
     const q = search.trim().toLowerCase();
     if (q) list = list.filter(c => c.name.toLowerCase().includes(q) || (c.projectName || '').toLowerCase().includes(q) || c.preview.toLowerCase().includes(q));
     if (dossierFilter !== 'all') list = list.filter(c => (c.projectName || '—') === dossierFilter);
-    if (statusFilter !== 'tous') list = list.filter(c => statusBucket(c.status) === statusFilter);
+    if (statusFilter !== 'tous') list = list.filter(c => statusBucket(effectiveConvStatus(c)) === statusFilter);
     return list;
   }, [conversations, search, dossierFilter, statusFilter]);
 
@@ -387,7 +409,7 @@ export default function MessagesIntervenantsPage() {
                 const isActive = c.key === activeKey;
                 const unreadN = c.demandes.filter(d => seen[d.id] !== d.updatedAt).length;
                 const unread = unreadN > 0;
-                const st = STATUS[c.status] ?? { label: c.status, bg: '#f1f5f9', color: '#475569' };
+                const st = STATUS[effectiveConvStatus(c)] ?? { label: c.status, bg: '#f1f5f9', color: '#475569' };
                 const dc = avatarColor(c.projectName || c.key);
                 return (
                   <button key={c.key} onClick={() => openConvo(c)} className={`w-full text-left px-3 py-3 flex gap-3 items-start border-b border-[#304035]/5 transition-colors ${isActive ? 'bg-[#304035]/8' : 'hover:bg-[#304035]/4'}`}>
@@ -438,7 +460,9 @@ export default function MessagesIntervenantsPage() {
                   <div className="font-bold text-[#304035] truncate">{activeConv.name}{activeConv.role ? <span className="text-[#304035]/45 font-medium text-xs"> · {activeConv.role}</span> : null}</div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     {activeConv.projectName && <span className="text-[10px] font-bold rounded px-1.5 py-0.5" style={{ background: avatarColor(activeConv.projectName) + '1a', color: avatarColor(activeConv.projectName) }}>{activeConv.projectName}</span>}
-                    <span className="text-[10px] font-bold rounded-full px-2 py-0.5" style={{ background: STATUS[activeConv.status]?.bg ?? '#f1f5f9', color: STATUS[activeConv.status]?.color ?? '#475569' }}>{STATUS[activeConv.status]?.label ?? activeConv.status}</span>
+                    {(() => { const es = effectiveConvStatus(activeConv); return (
+                    <span className="text-[10px] font-bold rounded-full px-2 py-0.5" style={{ background: STATUS[es]?.bg ?? '#f1f5f9', color: STATUS[es]?.color ?? '#475569' }}>{STATUS[es]?.label ?? activeConv.status}</span>
+                    ); })()}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
