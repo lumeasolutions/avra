@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Folder, Check, Image as ImageIcon, Mail, UserPlus, CheckCircle2, Paperclip, Trash2, Bookmark } from 'lucide-react';
 import { api, apiUpload } from '@/lib/api';
 import { displayName as folderDisplayName, depthOf, isDescendant } from '@/lib/folderTree';
@@ -99,6 +100,13 @@ const TYPE_OPTIONS: DemandeType[] = [
 ];
 
 export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Props) {
+  // Portail vers document.body : le tiroir est en position:fixed, mais un
+  // ancêtre porteur d'un `transform` (même identité, laissé par une animation)
+  // devient le bloc conteneur des fixed -> le tiroir se calait sur la colonne
+  // au lieu de la fenêtre (ouverture au milieu + bouton d'envoi hors écran).
+  // Le portail l'immunise contre tout transform d'ancêtre, partout.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [step, setStep] = useState<'choose' | 'compose' | 'sent'>('choose');
   const [intervenants, setIntervenants] = useState<IntervenantOption[] | null>(null);
   const [loadingList, setLoadingList] = useState(false);
@@ -413,12 +421,12 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
     }
   };
 
-  if (!open) return null;
+  if (!open || !mounted || typeof document === 'undefined') return null;
 
   const intervenantHasAccount = !!selectedIntervenant?.userId;
   const intervenantHasPendingInvite = !!selectedIntervenant && !!invitations[selectedIntervenant.id];
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
       style={{
@@ -986,7 +994,8 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
         @keyframes sti-overlay-in { from { opacity: 0 } to { opacity: 1 } }
         @keyframes sti-drawer-in { from { transform: translateX(100%) } to { transform: translateX(0) } }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
