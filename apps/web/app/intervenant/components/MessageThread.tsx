@@ -87,6 +87,9 @@ export function MessageThread({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [pendingPhotoDataUrl, setPendingPhotoDataUrl] = useState<string | null>(null);
   const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
+  // Erreur pièce jointe / envoi affichée EN LIGNE (jamais d'alert() natif : ça
+  // bloque le thread et fige la page, surtout en environnement automatisé).
+  const [attachError, setAttachError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -125,31 +128,42 @@ export function MessageThread({
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages.length]);
 
+  // ~4,4 Mo : plafond du body des Functions serverless (au-dela l'upload echoue).
+  const MAX_ATTACH_BYTES = 4_400_000;
   const handlePhotoPick = async (file: File) => {
     if (!file) return;
+    setAttachError(null);
+    // CONTROLE EN TETE, avant tout traitement (evite un gel sur fichier non gere).
     const isImg = file.type.startsWith('image/');
     const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
-    if (!isImg && !isPdf) { alert('Formats acceptés : image ou PDF (devis).'); return; }
+    if (!isImg && !isPdf) {
+      setAttachError('Format non supporté. Joignez une image ou un PDF (devis).');
+      return;
+    }
     setUploadingPhoto(true);
     try {
       // Upload Supabase (fichier brut) : requis pour le PDF (pas de compression).
       // Pour un PDF on ne genere pas d'apercu image -> apercu = puce fichier.
       if (onSendPhoto) {
+        if (file.size > MAX_ATTACH_BYTES) {
+          setAttachError(`Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum 4 Mo.`);
+          return;
+        }
         setPendingPhotoDataUrl(isImg ? URL.createObjectURL(file) : null);
         setPendingPhotoFile(file);
         return;
       }
       // Fallback legacy (sans upload Supabase) : images seulement.
-      if (isPdf) { alert('L\'envoi de PDF n\'est pas disponible ici.'); return; }
+      if (isPdf) { setAttachError("L'envoi de PDF n'est pas disponible ici."); return; }
       const compressed = await compressImage(file);
       if (compressed.length > 2_000_000) {
-        alert('Photo trop volumineuse meme compressee. Choisissez une autre image.');
+        setAttachError('Photo trop volumineuse même compressée. Choisissez une autre image.');
         return;
       }
       setPendingPhotoDataUrl(compressed);
       setPendingPhotoFile(null);
     } catch (e) {
-      alert('Impossible de traiter cette image.');
+      setAttachError('Impossible de traiter ce fichier.');
     } finally {
       setUploadingPhoto(false);
     }
@@ -160,6 +174,7 @@ export function MessageThread({
     const hasPhoto = !!pendingPhotoDataUrl || !!pendingPhotoFile;
     if ((!txt && !hasPhoto) || sending) return;
     setSending(true);
+    setAttachError(null);
     try {
       // Mode preferred : upload Supabase si onSendPhoto fourni + file dispo
       if (onSendPhoto && pendingPhotoFile) {
@@ -174,6 +189,9 @@ export function MessageThread({
       setBody('');
       setPendingPhotoDataUrl(null);
       setPendingPhotoFile(null);
+    } catch (e: any) {
+      // NE PAS avaler : afficher l'erreur (avant, l'echec d'envoi etait silencieux).
+      setAttachError(e?.message ? `Échec de l'envoi : ${e.message}` : "Échec de l'envoi. Réessayez.");
     } finally {
       setSending(false);
     }
@@ -339,6 +357,24 @@ export function MessageThread({
         </div>
       )}
 
+      {/* Erreur pièce jointe / envoi — affichée en ligne (jamais d'alert natif) */}
+      {attachError && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 8,
+          padding: '9px 12px', marginBottom: 4,
+          background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10,
+          color: '#b91c1c', fontSize: 12.5, fontWeight: 600,
+        }}>
+          <span style={{ flex: 1 }}>{attachError}</span>
+          <button
+            onClick={() => setAttachError(null)}
+            style={{ background: 'transparent', border: 'none', color: '#b91c1c', fontWeight: 800, cursor: 'pointer', fontSize: 12 }}
+          >
+            OK
+          </button>
+        </div>
+      )}
+
       {/* Composer */}
       {!disabled && (
         <div style={{
@@ -404,16 +440,16 @@ export function MessageThread({
           />
           <button
             onClick={send}
-            disabled={sending || (!body.trim() && !pendingPhotoDataUrl)}
+            disabled={sending || (!body.trim() && !pendingPhotoDataUrl && !pendingPhotoFile)}
             style={{
               padding: '10px 16px',
-              background: (sending || (!body.trim() && !pendingPhotoDataUrl)) ? '#9b8e7a' : '#1a2a1e',
+              background: (sending || (!body.trim() && !pendingPhotoDataUrl && !pendingPhotoFile)) ? '#9b8e7a' : '#1a2a1e',
               color: '#cbb98a',
               border: 'none',
               borderRadius: 12,
               fontSize: 13,
               fontWeight: 700,
-              cursor: (sending || (!body.trim() && !pendingPhotoDataUrl)) ? 'not-allowed' : 'pointer',
+              cursor: (sending || (!body.trim() && !pendingPhotoDataUrl && !pendingPhotoFile)) ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', gap: 6,
               minHeight: 44,
             }}
