@@ -74,6 +74,20 @@ function getIsoWeekNumber(weekOffset: number = 0): number {
   return weekNum;
 }
 
+const WEEK_MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+/** Libellé du/des mois de la semaine (offset) — pour situer la semaine ISO. */
+function getWeekMonthLabel(weekOffset: number = 0): string {
+  const today = new Date();
+  const day = today.getDay() || 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - day + 1 + weekOffset * 7);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return monday.getMonth() === sunday.getMonth()
+    ? `${WEEK_MONTHS[monday.getMonth()]} ${sunday.getFullYear()}`
+    : `${WEEK_MONTHS[monday.getMonth()]} – ${WEEK_MONTHS[sunday.getMonth()]}`;
+}
+
 /**
  * Pour la semaine "lundi en cours + weekOffset", retourne les 7 dates dans
  * l'ordre LUN→DIM avec numéro du jour et drapeau `isToday`. Utilisé pour
@@ -1792,7 +1806,7 @@ export function DateButoireValidationModal({
                     <button type="button" onClick={() => setWeekOffset((w) => w - 1)} aria-label="Semaine précédente">
                       <ChevronLeft style={{ width: 12, height: 12 }} />
                     </button>
-                    <span>{`Semaine ${getIsoWeekNumber(weekOffset)}`}</span>
+                    <span>{`Semaine ${getIsoWeekNumber(weekOffset)} · ${getWeekMonthLabel(weekOffset)}`}</span>
                     <button type="button" onClick={() => setWeekOffset((w) => w + 1)} aria-label="Semaine suivante">
                       <ChevronRight style={{ width: 12, height: 12 }} />
                     </button>
@@ -1875,7 +1889,12 @@ export function DateButoireValidationModal({
                               <div className="dbv-devis-icon">
                                 <Receipt style={{ width: 13, height: 13 }} />
                               </div>
-                              <div className="dbv-devis-info">
+                              <div
+                                className="dbv-devis-info"
+                                onClick={() => canPreview && !isLoading && handlePreviewDoc(doc)}
+                                style={{ cursor: canPreview ? 'pointer' : 'default', minWidth: 0 }}
+                                title={canPreview ? 'Cliquer pour prévisualiser dans la fenêtre' : undefined}
+                              >
                                 <div className="dbv-devis-ref" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {doc.name}
                                 </div>
