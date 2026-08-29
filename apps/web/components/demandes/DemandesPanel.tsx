@@ -129,6 +129,16 @@ function DemandeRow({ demande, onDeleted, onCancelled }: {
   const isTerminal = ['TERMINEE', 'REFUSEE', 'ANNULEE'].includes(demande.status);
   const canCancel = !isTerminal && demande.status !== 'EN_COURS';
   const canDelete = !['EN_COURS', 'TERMINEE'].includes(demande.status);
+  // Réponse reçue de l'intervenant : message écrit, pièce jointe (devis) ou
+  // message d'acceptation. On lit les compteurs de la liste (_count). -> On
+  // affiche « Reçu » au lieu de rester bloqué sur « Envoyée · Non vue » alors
+  // que le devis est deja arrive.
+  const hasReply =
+    !!(demande.responseMessage && demande.responseMessage.trim()) ||
+    (demande._count?.messages ?? 0) > 0 ||
+    (demande._count?.attachments ?? 0) > 0 ||
+    (demande.messages ?? []).some((m) => m.authorRole === 'intervenant') ||
+    (demande.attachments ?? []).some((a) => a.uploadedByRole === 'intervenant');
 
   const handleCancel = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -167,8 +177,8 @@ function DemandeRow({ demande, onDeleted, onCancelled }: {
       style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 12px',
-        background: isUnseen ? '#fff7ed' : '#fff',
-        border: `1px solid ${isUnseen ? '#fed7aa' : '#ece7df'}`,
+        background: hasReply ? '#f0fdf4' : isUnseen ? '#fff7ed' : '#fff',
+        border: `1px solid ${hasReply ? '#bbf7d0' : isUnseen ? '#fed7aa' : '#ece7df'}`,
         borderRadius: 10,
         textDecoration: 'none',
         color: 'inherit',
@@ -180,22 +190,34 @@ function DemandeRow({ demande, onDeleted, onCancelled }: {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <TypeBadge type={demande.type} size="sm" />
-          <StatusBadge status={demande.status} size="sm" />
-          {showSeen && (
-            <span title="Intervenant a vu mais pas encore repondu" style={{
+          {hasReply ? (
+            <span title="Réponse reçue (message ou devis de l'intervenant)" style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,
-              fontSize: 10, fontWeight: 600, color: '#1d4ed8',
+              fontSize: 10, fontWeight: 800, color: '#15803d',
+              background: '#dcfce7', border: '1px solid #86efac', borderRadius: 999, padding: '2px 8px',
             }}>
-              <Eye size={11} /> Vu
+              <CheckCircle2 size={11} /> Reçu
             </span>
-          )}
-          {isUnseen && (
-            <span title="Intervenant pas encore vu la demande" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4,
-              fontSize: 10, fontWeight: 600, color: '#c2410c',
-            }}>
-              <Clock size={11} /> Non vue
-            </span>
+          ) : (
+            <>
+              <StatusBadge status={demande.status} size="sm" />
+              {showSeen && (
+                <span title="Intervenant a vu mais pas encore repondu" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  fontSize: 10, fontWeight: 600, color: '#1d4ed8',
+                }}>
+                  <Eye size={11} /> Vu
+                </span>
+              )}
+              {isUnseen && (
+                <span title="Intervenant pas encore vu la demande" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  fontSize: 10, fontWeight: 600, color: '#c2410c',
+                }}>
+                  <Clock size={11} /> Non vue
+                </span>
+              )}
+            </>
           )}
         </div>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#1a2a1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
