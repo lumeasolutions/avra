@@ -80,21 +80,36 @@ function LoginPageInner() {
    * Calcule la destination post-login.
    * Priorite :
    *  1. ?next= (whitelist) → respecte deep-link (typiquement /invitation/<token>)
-   *  2. user lie a Intervenant → /intervenant
-   *  3. profession choisie → /portail-<profession>
-   *  4. fallback /portal-select
+   *  2. compte PRO (rôle workspace + workspaceId) → app pro, TOUJOURS.
+   *     Un pro qui est aussi rattaché comme intervenant quelque part ne doit
+   *     PAS être expédié au portail : sinon il perd l'accès à ses propres
+   *     dossiers (bug « tout en lecture seule » observé 08/2026).
+   *  3. user purement intervenant (rôle INTERVENANT / sans workspace) → /intervenant
+   *  4. profession choisie → /portail-<profession>
+   *  5. fallback /portal-select
    */
-  const computeRedirectAfterLogin = async (): Promise<string> => {
+  const computeRedirectAfterLogin = async (
+    connectedUser?: { role?: string | null; workspaceId?: string | null } | null,
+  ): Promise<string> => {
     if (next) return next;
-    const isIntervenant = await detectIsIntervenant();
-    if (isIntervenant) return '/intervenant';
+    // Le rôle pro prime sur le lien intervenant.
+    const isPro =
+      !!connectedUser &&
+      connectedUser.role !== 'INTERVENANT' &&
+      !!connectedUser.workspaceId;
+    if (!isPro) {
+      const isIntervenant = await detectIsIntervenant();
+      if (isIntervenant) return '/intervenant';
+    }
     return getRedirectUrl(profession);
   };
 
   useEffect(() => {
     if (token) {
-      // User deja connecte qui revient sur /login → redirige proprement
-      computeRedirectAfterLogin().then((url) => {
+      // User deja connecte qui revient sur /login → redirige proprement.
+      // On passe le user persisté (avec son rôle) pour que le pro ne soit
+      // pas renvoyé au portail intervenant s'il est aussi rattaché ailleurs.
+      computeRedirectAfterLogin(useAuthStore.getState().user).then((url) => {
         window.location.href = url;
       });
     }
@@ -116,7 +131,7 @@ function LoginPageInner() {
         sessionStorage.removeItem('avra-session-active');
       }
       setAuth('', res.user as Parameters<typeof setAuth>[1]);
-      const url = await computeRedirectAfterLogin();
+      const url = await computeRedirectAfterLogin(res.user);
       window.location.href = url;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Identifiants invalides');
