@@ -795,6 +795,21 @@ export function DateButoireValidationModal({
     return doc.name.toLowerCase().endsWith('.pdf');
   };
 
+  /**
+   * Détecte si le doc est une image → rendu <img> (et NON <iframe>). Une image
+   * dans un iframe s'affiche à sa taille réelle sans mise à l'échelle (on ne
+   * voit qu'un coin d'une photo 1200×900 dans un cadre de 560px). Un <img> avec
+   * object-fit:contain la fait tenir entièrement dans le cadre.
+   */
+  const isImageDoc = (doc: typeof previewDoc): boolean => {
+    if (!doc) return false;
+    if ((doc.type ?? '').toLowerCase().startsWith('image/')) return true;
+    const lower = doc.name.toLowerCase();
+    return lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg')
+      || lower.endsWith('.webp') || lower.endsWith('.gif') || lower.endsWith('.bmp')
+      || lower.endsWith('.avif');
+  };
+
   /** Détecte si on peut afficher le doc dans un iframe (PDF, image, txt). */
   const isInlinePreviewable = (doc: typeof previewDoc): boolean => {
     if (!doc) return false;
@@ -1099,6 +1114,13 @@ export function DateButoireValidationModal({
           .dbv-section-docs { flex: 0 0 auto; }
         }
         .dbv-col-right { display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
+        /* Mode aperçu document : viewer en plein cadre.
+           La colonne gauche occupe toute la largeur, la colonne dates est masquée. */
+        .dbv-body-preview { grid-template-columns: 1fr; }
+        .dbv-col-hidden { display: none !important; }
+        .dbv-body-preview .dbv-col-left {
+          border-right: none; border-image: none; box-shadow: none;
+        }
         @media (max-width: 900px) {
           .dbv-col-left {
             border-right: none;
@@ -1609,6 +1631,22 @@ export function DateButoireValidationModal({
           background: #fafaf7;
           min-height: 0;
         }
+        /* Aperçu image : <img> mis à l'échelle pour tenir entièrement dans le
+           cadre (object-fit:contain), au lieu d'un iframe qui la rend à sa
+           taille réelle. Fond sombre aligné sur le viewer PDF de Chrome. */
+        .dbv-preview-imgwrap {
+          flex: 1; min-height: 0; width: 100%;
+          display: flex; align-items: center; justify-content: center;
+          background: #525659;
+          overflow: auto;
+          padding: 12px;
+        }
+        .dbv-preview-img {
+          max-width: 100%; max-height: 100%;
+          object-fit: contain;
+          border-radius: 4px;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+        }
         .dbv-preview-fallback {
           flex: 1;
           display: flex; flex-direction: column;
@@ -1742,8 +1780,10 @@ export function DateButoireValidationModal({
           </div>
 
           {/* Body — 2 colonnes */}
-          <div className="dbv-body">
-            {/* COLONNE GAUCHE : Planning gestion + Devis (ou preview document si ouvert) */}
+          <div className={`dbv-body${previewDoc ? ' dbv-body-preview' : ''}`}>
+            {/* COLONNE GAUCHE : Planning gestion + Devis (ou preview document si ouvert).
+                En mode aperçu, la colonne s'étend sur toute la largeur (la colonne
+                dates est masquée) → plans et devis denses en plein cadre. */}
             <div className="dbv-col-left">
               {previewDoc ? (
                 /* Mode preview document : on remplace planning + devis par le viewer */
@@ -1772,7 +1812,16 @@ export function DateButoireValidationModal({
                       <ExternalLink style={{ width: 13, height: 13 }} />
                     </a>
                   </div>
-                  {isInlinePreviewable(previewDoc) ? (
+                  {isImageDoc(previewDoc) ? (
+                    <div className="dbv-preview-imgwrap">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={previewDoc.url}
+                        alt={`Aperçu de ${previewDoc.name}`}
+                        className="dbv-preview-img"
+                      />
+                    </div>
+                  ) : isInlinePreviewable(previewDoc) ? (
                     <iframe
                       src={buildPreviewUrl(previewDoc)}
                       className="dbv-preview-frame"
@@ -1950,7 +1999,7 @@ export function DateButoireValidationModal({
             </div>
 
             {/* COLONNE DROITE : Dates butoires (ou drawer ACCEDER si ouvert) */}
-            <div className="dbv-col-right">
+            <div className={`dbv-col-right${previewDoc ? ' dbv-col-hidden' : ''}`}>
               {accessDrawer ? (
                 <CommandesAccessPanel
                   label={accessDrawer.label}
