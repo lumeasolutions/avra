@@ -61,7 +61,7 @@ async function compressImage(file: File, maxSize = 1280, quality = 0.75): Promis
  *  - "[IMG:<storagePath>]<text>"      Supabase Storage (Phase C v2)
  *  - sinon : message texte simple
  */
-function parseMessageBody(body: string): { imageDataUrl?: string; imageStoragePath?: string; text: string } {
+function parseMessageBody(body: string): { imageDataUrl?: string; imageStoragePath?: string; fileStoragePath?: string; text: string } {
   const dataUrlMatch = body.match(/^\[IMG\](data:image\/[^[]+)\[\/IMG\]([\s\S]*)$/);
   if (dataUrlMatch) {
     return { imageDataUrl: dataUrlMatch[1], text: dataUrlMatch[2].trim() };
@@ -69,6 +69,11 @@ function parseMessageBody(body: string): { imageDataUrl?: string; imageStoragePa
   const storageMatch = body.match(/^\[IMG:([^\]]+)\]([\s\S]*)$/);
   if (storageMatch) {
     return { imageStoragePath: storageMatch[1], text: storageMatch[2].trim() };
+  }
+  // [FILE:<path>] = pièce jointe non-image (PDF/devis) -> lien téléchargeable.
+  const fileMatch = body.match(/^\[FILE:([^\]]+)\]([\s\S]*)$/);
+  if (fileMatch) {
+    return { fileStoragePath: fileMatch[1], text: fileMatch[2].trim() };
   }
   return { text: body };
 }
@@ -97,6 +102,9 @@ export function MessageThread({
       if (parsed.imageStoragePath && !signedUrls[parsed.imageStoragePath]) {
         pathsToResolve.add(parsed.imageStoragePath);
       }
+      if (parsed.fileStoragePath && !signedUrls[parsed.fileStoragePath]) {
+        pathsToResolve.add(parsed.fileStoragePath);
+      }
     }
     if (pathsToResolve.size === 0) return;
     let cancelled = false;
@@ -118,17 +126,21 @@ export function MessageThread({
   }, [messages.length]);
 
   const handlePhotoPick = async (file: File) => {
-    if (!file || !file.type.startsWith('image/')) return;
+    if (!file) return;
+    const isImg = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    if (!isImg && !isPdf) { alert('Formats acceptés : image ou PDF (devis).'); return; }
     setUploadingPhoto(true);
     try {
-      // Si on a un upload Supabase dispo, on garde le File raw + preview
+      // Upload Supabase (fichier brut) : requis pour le PDF (pas de compression).
+      // Pour un PDF on ne genere pas d'apercu image -> apercu = puce fichier.
       if (onSendPhoto) {
-        const previewUrl = URL.createObjectURL(file);
-        setPendingPhotoDataUrl(previewUrl);
+        setPendingPhotoDataUrl(isImg ? URL.createObjectURL(file) : null);
         setPendingPhotoFile(file);
         return;
       }
-      // Fallback : compression base64 inline (legacy)
+      // Fallback legacy (sans upload Supabase) : images seulement.
+      if (isPdf) { alert('L\'envoi de PDF n\'est pas disponible ici.'); return; }
       const compressed = await compressImage(file);
       if (compressed.length > 2_000_000) {
         alert('Photo trop volumineuse meme compressee. Choisissez une autre image.');
@@ -248,6 +260,26 @@ export function MessageThread({
                       />
                     );
                   })()}
+                  {parsed.fileStoragePath && (() => {
+                    const fileUrl = signedUrls[parsed.fileStoragePath];
+                    return (
+                      <a
+                        href={fileUrl || undefined}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => { if (!fileUrl) e.preventDefault(); }}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 8,
+                          padding: '9px 12px', borderRadius: 10,
+                          background: '#fef2f2', border: '1px solid #fecaca',
+                          color: '#b91c1c', textDecoration: 'none', fontWeight: 700, fontSize: 12.5,
+                          marginBottom: parsed.text ? 6 : 0, maxWidth: 280,
+                        }}
+                      >
+                        📄 {fileUrl ? 'Ouvrir le document (PDF)' : 'Chargement…'}
+                      </a>
+                    );
+                  })()}
                   {parsed.text && (
                     <div style={{
                       whiteSpace: 'pre-wrap',
@@ -275,23 +307,27 @@ export function MessageThread({
         <div ref={endRef} />
       </div>
 
-      {/* Photo preview avant envoi */}
-      {pendingPhotoDataUrl && !disabled && (
+      {/* Aperçu de la pièce jointe avant envoi (image OU fichier PDF) */}
+      {(pendingPhotoDataUrl || pendingPhotoFile) && !disabled && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '8px 12px',
           background: '#fafaf8', border: '1px solid #ece7df', borderRadius: 10,
         }}>
-          <img
-            src={pendingPhotoDataUrl}
-            alt="Aperçu"
-            style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8 }}
-          />
+          {pendingPhotoDataUrl ? (
+            <img
+              src={pendingPhotoDataUrl}
+              alt="Aperçu"
+              style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8 }}
+            />
+          ) : (
+            <span style={{ width: 56, height: 56, borderRadius: 8, background: '#fef2f2', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>📄</span>
+          )}
           <span style={{ flex: 1, fontSize: 12, color: '#5b5045' }}>
-            Photo prête. Ajoutez un message si besoin puis envoyez.
+            {pendingPhotoDataUrl ? 'Photo prête.' : `${pendingPhotoFile?.name ?? 'Document'} prêt.`} Ajoutez un message si besoin puis envoyez.
           </span>
           <button
-            onClick={() => setPendingPhotoDataUrl(null)}
+            onClick={() => { setPendingPhotoDataUrl(null); setPendingPhotoFile(null); }}
             style={{
               background: 'transparent', border: 'none',
               fontSize: 12, fontWeight: 700, color: '#b91c1c',
@@ -332,8 +368,7 @@ export function MessageThread({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
-                capture="environment"
+                accept="image/*,application/pdf,.pdf"
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   const f = e.target.files?.[0];

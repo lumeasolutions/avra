@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   listDemandesPro, getDemandePro, postMessagePro, relanceDemandePro,
-  classifyAttachmentPro, DEMANDE_TYPE_LABELS,
+  classifyAttachmentPro, getMessagePhotoUrlPro, DEMANDE_TYPE_LABELS,
   type Demande, type DemandeAttachment,
 } from '@/lib/demandes-api';
 import { useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
@@ -51,7 +51,7 @@ function avatarColor(name: string): string {
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 function cleanBody(s: string): string {
-  return (s || '').replace(/^\[IMG:[^\]]*\]\s*/, '📎 ');
+  return (s || '').replace(/^\[(?:IMG|FILE):[^\]]*\]\s*/, '📎 ');
 }
 function fmtTime(s: string): string {
   try { return new Date(s).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
@@ -102,6 +102,7 @@ function saveSeen(v: Record<string, string>) {
 // ─── Timeline ─────────────────────────────────────────────────────────────────
 type TLItem =
   | { kind: 'message'; id: string; at: string; role: string; name: string; body: string }
+  | { kind: 'msgfile'; id: string; at: string; role: string; name: string; demandeId: string; storagePath: string; isImage: boolean; text: string }
   | { kind: 'doc'; id: string; at: string; role: string; name: string; att: DemandeAttachment }
   | { kind: 'status'; id: string; at: string; label: string; tone: 'ok' | 'bad' | 'info' }
   | { kind: 'marker'; id: string; at: string; label: string; notes?: string | null; scheduledFor?: string | null };
@@ -110,7 +111,17 @@ function buildTimeline(d: Demande | null): TLItem[] {
   if (!d) return [];
   const items: TLItem[] = [];
   for (const m of d.messages ?? []) {
-    items.push({ kind: 'message', id: m.id, at: m.createdAt, role: m.authorRole, name: m.authorName, body: cleanBody(m.body) });
+    // Pièce jointe embarquée dans le message : [IMG:path] (image) ou
+    // [FILE:path] (PDF/devis). On la rend visible/téléchargeable côté pro
+    // (avant : réduite à « 📎 » -> le pro ne pouvait pas ouvrir le devis).
+    const img = m.body.match(/^\[IMG:([^\]]+)\]([\s\S]*)$/);
+    const file = img ? null : m.body.match(/^\[FILE:([^\]]+)\]([\s\S]*)$/);
+    const mm = img ?? file;
+    if (mm) {
+      items.push({ kind: 'msgfile', id: m.id, at: m.createdAt, role: m.authorRole, name: m.authorName, demandeId: d.id, storagePath: mm[1], isImage: !!img, text: (mm[2] || '').trim() });
+    } else {
+      items.push({ kind: 'message', id: m.id, at: m.createdAt, role: m.authorRole, name: m.authorName, body: cleanBody(m.body) });
+    }
   }
   for (const a of d.attachments ?? []) {
     items.push({ kind: 'doc', id: a.id, at: a.createdAt, role: a.uploadedByRole, name: a.displayName, att: a });
@@ -482,6 +493,8 @@ export default function MessagesIntervenantsPage() {
                         {showDay && (<div className="flex justify-center my-3"><span className="text-[11px] font-semibold text-[#304035]/45 bg-white/70 rounded-full px-3 py-1">{dayLabel(it.at)}</span></div>)}
                         {it.kind === 'message'
                           ? <Bubble mine={it.role === 'pro'} name={it.name} time={fmtTime(it.at)} body={it.body} />
+                          : it.kind === 'msgfile'
+                          ? <MsgAttachment mine={it.role === 'pro'} name={it.name} time={fmtTime(it.at)} demandeId={it.demandeId} storagePath={it.storagePath} isImage={it.isImage} text={it.text} />
                           : it.kind === 'doc'
                           ? <DocBubble mine={it.role === 'pro'} att={it.att} time={fmtTime(it.at)} classified={classifiedIds.has(it.att.id)} onClassify={() => setClassifyAtt(it.att)} />
                           : it.kind === 'status'
@@ -529,6 +542,41 @@ export default function MessagesIntervenantsPage() {
 }
 
 // ─── Sous-composants ──────────────────────────────────────────────────────────
+
+// Pièce jointe embarquée dans un message (image ou PDF) : résout l'URL signée
+// et rend une vignette cliquable (image) ou un lien téléchargeable (PDF/devis).
+function MsgAttachment({ mine, name, time, demandeId, storagePath, isImage, text }: { mine: boolean; name: string; time: string; demandeId: string; storagePath: string; isImage: boolean; text: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getMessagePhotoUrlPro(demandeId, storagePath).then((u) => { if (!cancelled) setUrl(u); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [demandeId, storagePath]);
+  return (
+    <div className={`flex mb-2 ${mine ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-[75%] flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+        {!mine && <span className="text-[10px] text-[#304035]/45 mb-0.5 ml-1">{name}</span>}
+        <div className="rounded-2xl px-2 py-2" style={{ background: mine ? '#1a2a1e' : '#fff', border: mine ? 'none' : '1px solid #ece7df' }}>
+          {isImage ? (
+            url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={url} alt="Pièce jointe" onClick={() => window.open(url, '_blank')} style={{ display: 'block', maxWidth: 260, maxHeight: 280, borderRadius: 10, cursor: 'zoom-in' }} />
+            ) : (
+              <div style={{ width: 220, height: 150, borderRadius: 10, background: '#f5eee8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7c6c58', fontSize: 11 }}>📸 Chargement…</div>
+            )
+          ) : (
+            <a href={url || undefined} target="_blank" rel="noopener noreferrer" onClick={(e) => { if (!url) e.preventDefault(); }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', textDecoration: 'none', fontWeight: 700, fontSize: 12.5 }}>
+              📄 {url ? 'Ouvrir le document (PDF)' : 'Chargement…'}
+            </a>
+          )}
+          {text && <div className={`whitespace-pre-wrap text-sm mt-1 ${mine ? 'text-white' : 'text-[#1a2a1e]'}`} style={{ padding: '2px 4px' }}>{text}</div>}
+        </div>
+        <span className="text-[9px] text-[#304035]/35 mt-0.5 mx-1">{time}</span>
+      </div>
+    </div>
+  );
+}
 
 function Bubble({ mine, name, time, body }: { mine: boolean; name: string; time: string; body: string }) {
   return (
