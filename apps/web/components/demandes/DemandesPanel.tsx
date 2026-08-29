@@ -129,16 +129,18 @@ function DemandeRow({ demande, onDeleted, onCancelled }: {
   const isTerminal = ['TERMINEE', 'REFUSEE', 'ANNULEE'].includes(demande.status);
   const canCancel = !isTerminal && demande.status !== 'EN_COURS';
   const canDelete = !['EN_COURS', 'TERMINEE'].includes(demande.status);
-  // Réponse reçue de l'intervenant : message écrit, pièce jointe (devis) ou
-  // message d'acceptation. On lit les compteurs de la liste (_count). -> On
-  // affiche « Reçu » au lieu de rester bloqué sur « Envoyée · Non vue » alors
-  // que le devis est deja arrive.
-  const hasReply =
-    !!(demande.responseMessage && demande.responseMessage.trim()) ||
+  // Contenu réellement reçu de l'artisan : message écrit OU pièce jointe (devis).
+  // On NE se base PAS sur responseMessage : c'est le motif d'acceptation/refus,
+  // donc present sur les etats terminaux (un refus n'est pas un devis reçu !).
+  const hasArtisanContent =
     (demande._count?.messages ?? 0) > 0 ||
     (demande._count?.attachments ?? 0) > 0 ||
     (demande.messages ?? []).some((m) => m.authorRole === 'intervenant') ||
     (demande.attachments ?? []).some((a) => a.uploadedByRole === 'intervenant');
+  // « Reçu » ne s'affiche QUE si la demande est encore OUVERTE (Envoyée / Vue).
+  // Les états terminaux (Terminée / Refusée / Annulée) et Acceptée / En cours
+  // gardent leur propre badge -> hiérarchie : le statut réel prime sur « Reçu ».
+  const showRecu = (demande.status === 'ENVOYEE' || demande.status === 'VUE') && hasArtisanContent;
 
   const handleCancel = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -177,8 +179,8 @@ function DemandeRow({ demande, onDeleted, onCancelled }: {
       style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 12px',
-        background: hasReply ? '#f0fdf4' : isUnseen ? '#fff7ed' : '#fff',
-        border: `1px solid ${hasReply ? '#bbf7d0' : isUnseen ? '#fed7aa' : '#ece7df'}`,
+        background: showRecu ? '#f0fdf4' : isUnseen ? '#fff7ed' : '#fff',
+        border: `1px solid ${showRecu ? '#bbf7d0' : isUnseen ? '#fed7aa' : '#ece7df'}`,
         borderRadius: 10,
         textDecoration: 'none',
         color: 'inherit',
@@ -190,7 +192,7 @@ function DemandeRow({ demande, onDeleted, onCancelled }: {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <TypeBadge type={demande.type} size="sm" />
-          {hasReply ? (
+          {showRecu ? (
             <span title="Réponse reçue (message ou devis de l'intervenant)" style={{
               display: 'inline-flex', alignItems: 'center', gap: 4,
               fontSize: 10, fontWeight: 800, color: '#15803d',
