@@ -1268,8 +1268,10 @@ export default function DossierDetailPage() {
                 }}
               />
             </div>
-            <div className="p-4">
-              <DemandesPanel projectId={dossier.id} limit={10} />
+            <div className="p-4 max-h-[540px] overflow-y-auto">
+              {/* limit relevé (10 -> 50) + zone défilante : on accède à TOUTES
+                  les demandes du dossier, plus seulement les 10 dernières. */}
+              <DemandesPanel projectId={dossier.id} limit={50} />
             </div>
           </div>
 
