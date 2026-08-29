@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Send, Camera, Loader2 } from 'lucide-react';
+import { Send, Paperclip, Loader2 } from 'lucide-react';
 import { DemandeMessage } from '@/lib/demandes-api';
 
 interface Props {
@@ -351,19 +351,20 @@ export function MessageThread({
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingPhoto || sending}
-                title="Prendre une photo"
+                title="Joindre un fichier (photo ou PDF)"
+                aria-label="Joindre un fichier (photo ou PDF)"
                 style={{
                   padding: '10px 12px',
-                  background: pendingPhotoDataUrl ? '#15803d' : '#fafaf8',
-                  color: pendingPhotoDataUrl ? '#fff' : '#3D5449',
-                  border: '1px solid ' + (pendingPhotoDataUrl ? '#15803d' : '#ddd5c7'),
+                  background: (pendingPhotoDataUrl || pendingPhotoFile) ? '#15803d' : '#fafaf8',
+                  color: (pendingPhotoDataUrl || pendingPhotoFile) ? '#fff' : '#3D5449',
+                  border: '1px solid ' + ((pendingPhotoDataUrl || pendingPhotoFile) ? '#15803d' : '#ddd5c7'),
                   borderRadius: 12,
                   cursor: uploadingPhoto || sending ? 'wait' : 'pointer',
                   display: 'flex', alignItems: 'center',
                   minHeight: 44,
                 }}
               >
-                {uploadingPhoto ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+                {uploadingPhoto ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
               </button>
               <input
                 ref={fileInputRef}
