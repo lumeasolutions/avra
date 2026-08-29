@@ -1780,10 +1780,14 @@ export function DateButoireValidationModal({
           </div>
 
           {/* Body — 2 colonnes */}
-          <div className={`dbv-body${previewDoc ? ' dbv-body-preview' : ''}`}>
+          <div className={`dbv-body${previewDoc && !accessDrawer ? ' dbv-body-preview' : ''}`}>
             {/* COLONNE GAUCHE : Planning gestion + Devis (ou preview document si ouvert).
                 En mode aperçu, la colonne s'étend sur toute la largeur (la colonne
-                dates est masquée) → plans et devis denses en plein cadre. */}
+                dates est masquée) → plans et devis denses en plein cadre.
+                EXCEPTION : quand le panneau de saisie des délais (COMMANDES /
+                LIVRAISON) est ouvert, on NE passe PAS en plein cadre — l'aperçu
+                reste à gauche et le formulaire de délais reste visible à droite,
+                pour consulter le fichier ET saisir sa date côte à côte. */}
             <div className="dbv-col-left">
               {previewDoc ? (
                 /* Mode preview document : on remplace planning + devis par le viewer */
@@ -1999,7 +2003,7 @@ export function DateButoireValidationModal({
             </div>
 
             {/* COLONNE DROITE : Dates butoires (ou drawer ACCEDER si ouvert) */}
-            <div className={`dbv-col-right${previewDoc ? ' dbv-col-hidden' : ''}`}>
+            <div className={`dbv-col-right${previewDoc && !accessDrawer ? ' dbv-col-hidden' : ''}`}>
               {accessDrawer ? (
                 <CommandesAccessPanel
                   label={accessDrawer.label}
