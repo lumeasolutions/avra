@@ -108,7 +108,7 @@ export class DemandesEmailService {
     const cta = 'Voir la demande et répondre';
 
     const scheduledStr = params.scheduledFor
-      ? `<p style="margin:12px 0;color:#7c4f1d"><strong>Date prevue :</strong> ${formatDateFR(params.scheduledFor)}</p>`
+      ? `<p style="margin:12px 0;color:#7c4f1d"><strong>Date prévue :</strong> ${formatDateFR(params.scheduledFor)}</p>`
       : '';
     const notesStr = params.notes
       ? `<p style="margin:12px 0;color:#3D3328;background:#fafaf8;padding:12px 14px;border-radius:8px;white-space:pre-wrap">${escapeHtml(params.notes)}</p>`
@@ -130,12 +130,12 @@ export class DemandesEmailService {
 
     const html = baseLayout({
       title: 'Nouvelle demande',
-      preheader: `${params.proName} vous a envoye une demande : ${params.title}`,
+      preheader: `${params.proName} vous a envoyé une demande : ${params.title}`,
       body: `
         <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Nouvelle demande</h1>
         <p style="color:#5b5045;margin:0 0 18px">
           Bonjour ${escapeHtml(params.intervenantName)},<br/>
-          <strong>${escapeHtml(params.proName)}</strong> (${escapeHtml(params.workspaceName)}) vous a envoye une demande sur AVRA.
+          <strong>${escapeHtml(params.proName)}</strong> (${escapeHtml(params.workspaceName)}) vous a envoyé une demande sur AVRA.
         </p>
         <div style="background:#fafaf8;border-left:4px solid #cbb98a;padding:14px 18px;border-radius:8px;margin:18px 0">
           <div style="font-size:11px;color:#7c6c58;letter-spacing:.08em;font-weight:700;text-transform:uppercase;margin-bottom:4px">${escapeHtml(params.type)}</div>
@@ -178,10 +178,10 @@ export class DemandesEmailService {
       : '';
 
     const html = baseLayout({
-      title: 'Vous etes invite·e',
-      preheader: `${params.proName} vous invite a collaborer sur AVRA`,
+      title: 'Vous êtes invité·e',
+      preheader: `${params.proName} vous invite à collaborer sur AVRA`,
       body: `
-        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Vous etes invite·e</h1>
+        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Vous êtes invité·e</h1>
         <p style="color:#5b5045;margin:0 0 18px">
           Bonjour ${escapeHtml(params.intervenantName)},<br/>
           <strong>${escapeHtml(params.proName)}</strong> (${escapeHtml(params.workspaceName)}) souhaite collaborer avec vous via AVRA pour le suivi de ses chantiers.
@@ -190,11 +190,11 @@ export class DemandesEmailService {
         ${ctaButton(link, "Accepter l'invitation")}
         <p style="font-size:12px;color:#7c6c58;margin-top:18px">
           Ce lien expire le <strong>${expiry}</strong>.<br/>
-          Si vous n'avez pas de compte, vous pourrez en creer un avec cette adresse email.
+          Si vous n'avez pas de compte, vous pourrez en créer un avec cette adresse email.
         </p>
       `,
     });
-    return this.send({ to: params.to, subject: `[AVRA] ${params.proName} vous invite a collaborer`, html });
+    return this.send({ to: params.to, subject: `[AVRA] ${params.proName} vous invite à collaborer`, html });
   }
 
   /**
@@ -230,7 +230,7 @@ export class DemandesEmailService {
         <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Nouveau message</h1>
         <p style="color:#5b5045;margin:0 0 18px">
           Bonjour ${escapeHtml(params.recipientName)},<br/>
-          <strong>${escapeHtml(params.senderName)}</strong> vous a envoye un message a propos de :
+          <strong>${escapeHtml(params.senderName)}</strong> vous a envoyé un message à propos de :
         </p>
         <div style="background:#fafaf8;padding:12px 14px;border-radius:8px;font-size:14px;font-weight:600;color:#1a2a1e;margin-bottom:14px">
           ${escapeHtml(params.demandeTitle)}
@@ -238,7 +238,7 @@ export class DemandesEmailService {
         <div style="background:#fff;border-left:4px solid #cbb98a;padding:14px 18px;border-radius:8px;margin:14px 0;color:#3D3328;white-space:pre-wrap;font-style:italic">
           ${escapeHtml(preview)}
         </div>
-        ${ctaButton(link, 'Voir et repondre')}
+        ${ctaButton(link, 'Voir et répondre')}
       `,
     });
     return this.send({ to: params.to, subject: `[AVRA] Message de ${params.senderName} — ${params.demandeTitle}`, html, fromName: params.senderName, replyTo: params.senderRole === 'pro' ? (this.inboundReplyTo(params.replyToToken) ?? params.senderEmail) : params.senderEmail });
@@ -260,8 +260,8 @@ export class DemandesEmailService {
   }): Promise<void> {
     const link = `${this.webUrl}/intervenants?demande=${params.demandeId}`;
     const labels: Record<string, string> = {
-      ENVOYEE: 'Envoyee', VUE: 'Vue', ACCEPTEE: 'Acceptee', REFUSEE: 'Refusee',
-      EN_COURS: 'En cours', TERMINEE: 'Terminee', ANNULEE: 'Annulee',
+      ENVOYEE: 'Envoyée', VUE: 'Vue', ACCEPTEE: 'Acceptée', REFUSEE: 'Refusée',
+      EN_COURS: 'En cours', TERMINEE: 'Terminée', ANNULEE: 'Annulée',
     };
     const tones: Record<string, string> = {
       ACCEPTEE: '#15803d', REFUSEE: '#b91c1c', EN_COURS: '#1d4ed8',
@@ -273,13 +273,13 @@ export class DemandesEmailService {
       : '';
 
     const html = baseLayout({
-      title: 'Mise a jour de demande',
-      preheader: `${params.intervenantName} a mis a jour : ${params.title}`,
+      title: 'Mise à jour de demande',
+      preheader: `${params.intervenantName} a mis à jour : ${params.title}`,
       body: `
-        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Mise a jour de demande</h1>
+        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Mise à jour de demande</h1>
         <p style="color:#5b5045;margin:0 0 18px">
           Bonjour ${escapeHtml(params.proName)},<br/>
-          <strong>${escapeHtml(params.intervenantName)}</strong> a mis a jour le statut de la demande :
+          <strong>${escapeHtml(params.intervenantName)}</strong> a mis à jour le statut de la demande :
         </p>
         <div style="background:#fafaf8;border-radius:10px;padding:14px 18px;margin:18px 0">
           <div style="font-size:14px;font-weight:600;color:#1a2a1e;margin-bottom:8px">${escapeHtml(params.title)}</div>
@@ -319,8 +319,8 @@ function baseLayout(opts: { title: string; preheader: string; body: string }): s
           </td></tr>
           <tr><td style="padding:18px 32px 32px">${opts.body}</td></tr>
           <tr><td style="padding:18px 32px;background:#fafaf8;border-top:1px solid #ece7df;text-align:center;font-size:11px;color:#7c6c58">
-            AVRA · La plateforme metier des cuisinistes, menuisiers et architectes d'interieur<br/>
-            Vous recevez cet email parce que vous avez ete identifie·e comme intervenant ou client professionnel.
+            AVRA · La plateforme métier des cuisinistes, menuisiers et architectes d'intérieur<br/>
+            Vous recevez cet email parce que vous avez été identifié·e comme intervenant ou client professionnel.
           </td></tr>
         </table>
       </td>

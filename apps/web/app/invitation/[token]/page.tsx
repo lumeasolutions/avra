@@ -126,6 +126,12 @@ export default function InvitationPage() {
   const expiry = new Date(preview.expiresAt);
   const expiresIn = Math.max(0, Math.round((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
   const emailMismatch = isAuthenticated && user?.email && user.email.toLowerCase() !== preview.email.toLowerCase();
+  // Garde-fou préventif : un compte PRO (membre d'un workspace) ne peut pas se
+  // rattacher comme intervenant sur lui-même — le back-end le refuse
+  // (acceptInvitation), mais on le signale ici, dès l'affichage, plutôt que de
+  // laisser le bouton « J'accepte » actif et ne refuser qu'après le clic.
+  const isProAccount =
+    isAuthenticated && !!user?.workspaceId && user?.role !== 'INTERVENANT';
 
   return (
     <PageShell>
@@ -199,6 +205,27 @@ export default function InvitationPage() {
         {/* Actions */}
         {!isAuthenticated ? (
           <NotAuthenticatedActions token={token} previewEmail={preview.email} goLogin={goLogin} />
+        ) : isProAccount ? (
+          <div style={{
+            padding: 16,
+            background: '#fff5f5',
+            border: '1px solid #fecaca',
+            borderRadius: 10,
+            fontSize: 13, color: '#991b1b',
+            textAlign: 'center', lineHeight: 1.5,
+          }}>
+            <AlertCircle size={20} style={{ color: '#b91c1c', marginBottom: 6 }} />
+            <div style={{ fontWeight: 700 }}>Compte professionnel</div>
+            <div style={{ marginTop: 4 }}>
+              Ce compte est déjà un espace professionnel AVRA. Pour rejoindre un espace
+              intervenant, utilisez une autre adresse e-mail.
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <button onClick={() => { useAuthStore.getState().logout(); goLogin(); }} style={btnSecondary()}>
+                Se connecter avec un autre compte
+              </button>
+            </div>
+          </div>
         ) : emailMismatch ? (
           <div style={{
             padding: 16,
@@ -329,7 +356,7 @@ function NotAuthenticatedActions({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.message ?? 'Erreur lors de la creation du compte');
+        throw new Error(data?.message ?? 'Erreur lors de la création du compte');
       }
       // Inscription + acceptation invitation OK → redirect vers /intervenant
       window.location.href = '/intervenant';
@@ -344,11 +371,11 @@ function NotAuthenticatedActions({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <button onClick={() => setMode('register')} style={btnPrimary()}>
           <UserPlus size={16} />
-          Creer mon compte AVRA
+          Créer mon compte AVRA
         </button>
         <button onClick={goLogin} style={{ ...btnPrimary(), background: 'transparent', color: '#1a2a1e', border: '1px solid #ddd5c7' }}>
           <LogIn size={16} />
-          J'ai deja un compte
+          J'ai déjà un compte
         </button>
         <p style={{ fontSize: 11, color: '#7c6c58', textAlign: 'center', marginTop: 6 }}>
           Email d'invitation : <strong>{previewEmail}</strong>
@@ -360,14 +387,14 @@ function NotAuthenticatedActions({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <p style={{ fontSize: 13, color: '#5b5045', textAlign: 'center', margin: 0 }}>
-        Creation de votre compte AVRA pour <strong>{previewEmail}</strong>
+        Création de votre compte AVRA pour <strong>{previewEmail}</strong>
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <input
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
-          placeholder="Prenom"
+          placeholder="Prénom"
           maxLength={100}
           style={inputStyle()}
         />
@@ -387,7 +414,7 @@ function NotAuthenticatedActions({
           onChange={(e) => setPassword(e.target.value)}
           onFocus={() => setPwdFocused(true)}
           onBlur={() => setPwdFocused(false)}
-          placeholder="Mot de passe (12 caracteres min.)"
+          placeholder="Mot de passe (12 caractères min.)"
           minLength={12}
           autoFocus
           style={{ ...inputStyle(), paddingRight: 40 }}
@@ -446,7 +473,7 @@ function NotAuthenticatedActions({
         style={{ ...btnPrimary(), opacity: submitting || !pwdValid ? 0.6 : 1 }}
       >
         <CheckCircle2 size={16} />
-        {submitting ? 'Creation…' : 'Creer mon compte et accepter'}
+        {submitting ? 'Création…' : 'Créer mon compte et accepter'}
       </button>
 
       <button onClick={() => setMode('choose')} style={{

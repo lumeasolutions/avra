@@ -78,17 +78,17 @@ export class AuthEmailService {
       : 'Bonjour,';
 
     const html = baseLayout({
-      title: 'Reinitialisation de votre mot de passe',
-      preheader: 'Cliquez pour definir un nouveau mot de passe AVRA (lien valable 1 heure)',
+      title: 'Réinitialisation de votre mot de passe',
+      preheader: 'Cliquez pour définir un nouveau mot de passe AVRA (lien valable 1 heure)',
       body: `
-        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Reinitialisation de mot de passe</h1>
+        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Réinitialisation de mot de passe</h1>
         <p style="color:#5b5045;margin:0 0 18px">
           ${greeting}<br/>
-          Vous avez demande la reinitialisation de votre mot de passe AVRA. Cliquez sur le bouton ci-dessous pour en definir un nouveau.
+          Vous avez demandé la réinitialisation de votre mot de passe AVRA. Cliquez sur le bouton ci-dessous pour en définir un nouveau.
         </p>
-        ${ctaButton(link, 'Reinitialiser mon mot de passe')}
+        ${ctaButton(link, 'Réinitialiser mon mot de passe')}
         <p style="font-size:13px;color:#5b5045;margin:24px 0 6px">
-          Le lien est valable <strong>1 heure</strong>. Si vous n'etes pas a l'origine de cette demande, vous pouvez ignorer cet email — votre mot de passe actuel reste inchange.
+          Le lien est valable <strong>1 heure</strong>. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email — votre mot de passe actuel reste inchangé.
         </p>
         <p style="font-size:11px;color:#7c6c58;margin:18px 0 0;word-break:break-all">
           Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :<br/>
@@ -98,7 +98,7 @@ export class AuthEmailService {
     });
     return this.send({
       to: params.to,
-      subject: '[AVRA] Reinitialisation de votre mot de passe',
+      subject: '[AVRA] Réinitialisation de votre mot de passe',
       html,
     });
   }
@@ -124,8 +124,8 @@ function baseLayout(opts: { title: string; preheader: string; body: string }): s
           </td></tr>
           <tr><td style="padding:18px 32px 32px">${opts.body}</td></tr>
           <tr><td style="padding:18px 32px;background:#fafaf8;border-top:1px solid #ece7df;text-align:center;font-size:11px;color:#7c6c58">
-            AVRA · La plateforme metier des cuisinistes, menuisiers et architectes d'interieur<br/>
-            Vous recevez cet email parce que vous avez demande la reinitialisation de votre mot de passe.
+            AVRA · La plateforme métier des cuisinistes, menuisiers et architectes d'intérieur<br/>
+            Vous recevez cet email parce que vous avez demandé la réinitialisation de votre mot de passe.
           </td></tr>
         </table>
       </td>

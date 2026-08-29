@@ -78,26 +78,26 @@ export class TeamEmailService {
       : '';
 
     const html = baseLayout({
-      title: 'Rejoignez votre equipe sur AVRA',
-      preheader: `${params.inviterName} vous invite a rejoindre ${params.workspaceName} sur AVRA`,
+      title: 'Rejoignez votre équipe sur AVRA',
+      preheader: `${params.inviterName} vous invite à rejoindre ${params.workspaceName} sur AVRA`,
       body: `
-        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Vous etes invite&middot;e a rejoindre une equipe</h1>
+        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Vous êtes invité&middot;e à rejoindre une équipe</h1>
         <p style="color:#5b5045;margin:0 0 18px">
           Bonjour ${escapeHtml(params.inviteeName)},<br/>
-          <strong>${escapeHtml(params.inviterName)}</strong> vous invite a rejoindre l'equipe
+          <strong>${escapeHtml(params.inviterName)}</strong> vous invite à rejoindre l'équipe
           <strong>${escapeHtml(params.workspaceName)}</strong> sur AVRA en tant que <strong>${escapeHtml(roleLabel)}</strong>.
         </p>
         ${messageStr}
-        ${ctaButton(link, 'Rejoindre l\'equipe')}
+        ${ctaButton(link, 'Rejoindre l\'équipe')}
         <p style="font-size:12px;color:#7c6c58;margin-top:18px">
           Ce lien expire le <strong>${expiry}</strong>.<br/>
-          En rejoignant, vous accederez a votre espace vendeur pour gerer vos dossiers.
+          En rejoignant, vous accéderez à votre espace vendeur pour gérer vos dossiers.
         </p>
       `,
     });
     return this.send({
       to: params.to,
-      subject: `[AVRA] ${params.inviterName} vous invite a rejoindre ${params.workspaceName}`,
+      subject: `[AVRA] ${params.inviterName} vous invite à rejoindre ${params.workspaceName}`,
       html,
     });
   }
@@ -123,7 +123,7 @@ function baseLayout(opts: { title: string; preheader: string; body: string }): s
           </td></tr>
           <tr><td style="padding:18px 32px 32px">${opts.body}</td></tr>
           <tr><td style="padding:18px 32px;background:#fafaf8;border-top:1px solid #ece7df;text-align:center;font-size:11px;color:#7c6c58">
-            AVRA &middot; La plateforme metier des cuisinistes, menuisiers et architectes d'interieur
+            AVRA &middot; La plateforme métier des cuisinistes, menuisiers et architectes d'intérieur
           </td></tr>
         </table>
       </td>
