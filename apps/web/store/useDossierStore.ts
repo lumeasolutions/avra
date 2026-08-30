@@ -220,6 +220,14 @@ export interface DossierPerdu {
   prixLignes?: DossierPrixLigne[];
   /** Métier propriétaire (cloisonnement inter-modules) — voir DossierProfession. */
   profession?: DossierProfession;
+  /**
+   * Snapshot COMPLET du dossier au moment du marquage « perdu » (08/2026).
+   * Permet à `restaurerDossierPerdu` de le réinjecter INTÉGRALEMENT dans les
+   * dossiers actifs (sous-dossiers, adresse, etc.) — y compris pour les
+   * dossiers local-only qui ne repassent jamais par une resync backend.
+   * Sans ça, « Restaurer » perdait le dossier (bug 08/2026).
+   */
+  _snapshot?: Dossier;
 }
 
 // Données initiales — sous-dossiers par défaut selon la profession.
@@ -1282,6 +1290,8 @@ export const useDossierStore = create<DossierState>()(
           reason,
           lostDate: new Date().toLocaleDateString('fr-FR'),
           montantEstime: (dossier as any).montant ?? (dossier as any).montantEstime ?? 0,
+          // Snapshot complet → restauration intégrale (cf. type DossierPerdu).
+          _snapshot: { ...dossier },
         };
         set(s => ({
           dossiers: s.dossiers.filter(d => d.id !== id),
@@ -1290,7 +1300,20 @@ export const useDossierStore = create<DossierState>()(
       },
 
       restaurerDossierPerdu: (id) => {
-        set(s => ({ dossiersPerdus: s.dossiersPerdus.filter(d => d.id !== id) }));
+        // Réinjecte le dossier COMPLET dans les actifs à partir du snapshot pris
+        // au marquage (sinon « Restaurer » vidait juste la liste des perdus et
+        // le dossier disparaissait — bug 08/2026). Dédup par id pour ne pas
+        // doublonner si une resync backend l'a déjà ré-ajouté.
+        set(s => {
+          const perdu = s.dossiersPerdus.find(d => d.id === id);
+          const snap = perdu?._snapshot;
+          return {
+            dossiersPerdus: s.dossiersPerdus.filter(d => d.id !== id),
+            dossiers: snap && !s.dossiers.some(d => d.id === id)
+              ? [{ ...snap }, ...s.dossiers]
+              : s.dossiers,
+          };
+        });
       },
 
       deleteDossier: (id) => {
