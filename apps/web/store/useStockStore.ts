@@ -20,6 +20,8 @@ export interface StockItem {
   sale: number | null;
   category: string;
   material: string;
+  /** Couleur / finition (Noir, Inox, Laiton, Cuivre, Doré, + couleurs standards). */
+  couleur?: string;
   quantity?: number;
   minQuantity?: number;
   reference?: string;

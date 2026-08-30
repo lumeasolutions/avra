@@ -16,6 +16,12 @@ import { PageHeader } from '@/components/layout/PageHeader';
 /** Liste de catégories par défaut (menuisier / hors cuisiniste / hors architecte). */
 const CATEGORIES_DEFAULT = ['TOUTES', 'MEUBLES', 'ELECTRO', 'DECO', 'SANITAIRE', 'AUTRE'];
 
+/** Couleurs / finitions proposées pour les articles de stock.
+ *  Finitions métal en premier (poignées, robinetterie…) puis couleurs standards. */
+const COULEUR_FINITIONS = ['Noir', 'Inox', 'Laiton', 'Cuivre', 'Doré'];
+const COULEUR_STANDARDS = ['Blanc', 'Gris', 'Anthracite', 'Beige', 'Taupe', 'Bleu', 'Vert', 'Rouge', 'Bois clair', 'Bois foncé'];
+const COULEUR_OPTIONS = [...COULEUR_FINITIONS, ...COULEUR_STANDARDS];
+
 /** Liste enrichie pour le module cuisiniste — la cuisine demande une
  *  granularité métier plus fine (matériel élec, plan travail, accessoires, etc).
  *  L'ordre suit la fréquence d'usage en showroom cuisine. */
@@ -131,13 +137,14 @@ function calcMargin(purchase: number, sale: number | null): number | null {
 }
 
 function exportToCSV(items: StockItem[]) {
-  const headers = ['Fournisseur', 'Modèle', 'Référence', 'Catégorie', 'Matière', 'Quantité', 'Seuil', 'Prix Achat', 'Prix Vente', 'Marge', 'Disponibilité', 'Image URL'];
+  const headers = ['Fournisseur', 'Modèle', 'Référence', 'Catégorie', 'Matière', 'Couleur', 'Quantité', 'Seuil', 'Prix Achat', 'Prix Vente', 'Marge', 'Disponibilité', 'Image URL'];
   const rows = items.map(item => [
     item.supplier,
     item.model,
     item.reference || '',
     item.category,
     item.material,
+    item.couleur || '',
     item.quantity || '',
     item.minQuantity || '',
     item.purchase,
@@ -196,6 +203,7 @@ export default function StockPage() {
   const [search,      setSearch]      = useState('');
   const [catFilter,   setCatFilter]   = useState('TOUTES');
   const [dotFilter,   setDotFilter]   = useState<'all' | StockItem['dot']>('all');
+  const [couleurFilter, setCouleurFilter] = useState('TOUTES');
   const [view,        setView]        = useState<'list' | 'grid'>('list');
   const [sortKey,     setSortKey]     = useState<SortKey>('supplier');
   const [sortDir,     setSortDir]     = useState<SortDir>('asc');
@@ -203,7 +211,7 @@ export default function StockPage() {
   const [editId,      setEditId]      = useState<string | null>(null);
   const [form, setForm] = useState({
     supplier: '', model: '', purchase: '', sale: '',
-    category: DEFAULT_CAT, material: '', dot: 'green' as StockItem['dot'],
+    category: DEFAULT_CAT, material: '', couleur: '', dot: 'green' as StockItem['dot'],
     quantity: '', minQuantity: '', reference: '', image: '',
   });
   const [editForm, setEditForm] = useState<Partial<StockItem>>({});
@@ -238,7 +246,9 @@ export default function StockPage() {
         || i.material.toLowerCase().includes(s);
       const matchCat = catFilter === 'TOUTES' || i.category === catFilter;
       const matchDot = dotFilter === 'all' || i.dot === dotFilter;
-      return matchSearch && matchCat && matchDot;
+      const matchCouleur = couleurFilter === 'TOUTES'
+        || (i.couleur ?? '').toLowerCase() === couleurFilter.toLowerCase();
+      return matchSearch && matchCat && matchDot && matchCouleur;
     })
     .sort((a, b) => {
       let va: number | string = '';
@@ -293,13 +303,14 @@ export default function StockPage() {
       sale: form.sale ? parseFloat(form.sale) : null,
       category: form.category,
       material: form.material.toUpperCase(),
+      couleur: form.couleur || undefined,
       quantity: form.quantity ? parseInt(form.quantity) : undefined,
       minQuantity: form.minQuantity ? parseInt(form.minQuantity) : undefined,
       reference: form.reference || undefined,
       image: form.image || undefined,
       createdAt: new Date().toISOString(),
     });
-    setForm({ supplier: '', model: '', purchase: '', sale: '', category: DEFAULT_CAT, material: '', dot: 'green', quantity: '', minQuantity: '', reference: '', image: '' });
+    setForm({ supplier: '', model: '', purchase: '', sale: '', category: DEFAULT_CAT, material: '', couleur: '', dot: 'green', quantity: '', minQuantity: '', reference: '', image: '' });
     setShowAdd(false);
   };
 
@@ -314,6 +325,7 @@ export default function StockPage() {
         supplier: (editForm.supplier ?? '').toUpperCase(),
         model: (editForm.model ?? '').toUpperCase(),
         material: (editForm.material ?? '').toUpperCase(),
+        couleur: editForm.couleur || undefined,
         category: editForm.category ?? DEFAULT_CAT,
         purchase: Number(editForm.purchase) || 0,
         sale: editForm.sale !== undefined && editForm.sale !== null ? Number(editForm.sale) : null,
@@ -521,6 +533,26 @@ export default function StockPage() {
               {d === 'all' ? 'Tous' : DOT_CONFIG[d].label}
             </button>
           ))}
+          <div className="flex items-center gap-1.5 ml-3 mr-1">
+            <span className="text-xs font-semibold text-[#304035]/40 uppercase tracking-wider">Couleur</span>
+          </div>
+          <select
+            value={couleurFilter}
+            onChange={(e) => setCouleurFilter(e.target.value)}
+            className="rounded-full px-3.5 py-1.5 text-xs font-bold text-[#304035] bg-white focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
+            style={{
+              border: couleurFilter !== 'TOUTES' ? '1.5px solid #304035' : '1.5px solid rgba(48,64,53,0.12)',
+              background: couleurFilter !== 'TOUTES' ? 'rgba(48,64,53,0.06)' : 'white',
+            }}
+          >
+            <option value="TOUTES">Toutes</option>
+            <optgroup label="Finitions">
+              {COULEUR_FINITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+            </optgroup>
+            <optgroup label="Couleurs standards">
+              {COULEUR_STANDARDS.map((c) => <option key={c} value={c}>{c}</option>)}
+            </optgroup>
+          </select>
           <span className="ml-auto text-xs text-[#304035]/40 font-medium">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</span>
         </div>
       </div>
@@ -666,7 +698,25 @@ export default function StockPage() {
                       >
                         {CAT_LABEL[item.category] ?? item.category}
                       </span>
+                      {item.couleur && (
+                        <span className="ml-1.5 text-[10px] font-bold px-2 py-1 rounded-full bg-[#304035]/8 text-[#304035]/70">
+                          {item.couleur}
+                        </span>
+                      )}
                     </span>
+                  )}
+
+                  {/* Couleur / finition (édition — permet de taguer le stock existant) */}
+                  {isEditing && (
+                    <select
+                      value={editForm.couleur ?? ''}
+                      onChange={e => setEditForm(f => ({ ...f, couleur: e.target.value || undefined }))}
+                      className="rounded-lg border border-[#304035]/20 bg-[#f5eee8]/60 px-2 py-1.5 text-xs font-bold text-[#304035] focus:outline-none mr-2"
+                      title="Couleur / finition"
+                    >
+                      <option value="">Couleur…</option>
+                      {COULEUR_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   )}
 
                   {/* Quantité */}
@@ -1016,6 +1066,24 @@ export default function StockPage() {
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Couleur / finition (liste prédéfinie) */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider mb-2">Couleur</label>
+                <select
+                  value={form.couleur}
+                  onChange={e => setForm(f => ({ ...f, couleur: e.target.value }))}
+                  className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/40 px-3 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/15"
+                >
+                  <option value="">— Aucune —</option>
+                  <optgroup label="Finitions">
+                    {COULEUR_FINITIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                  <optgroup label="Couleurs standards">
+                    {COULEUR_STANDARDS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                </select>
               </div>
 
               {/* Ligne 3 : Prix achat + vente */}
