@@ -257,11 +257,20 @@ export default function PlanningPage() {
   const [popoverPosition, setPopoverPosition] = useState<{ x: number; y: number } | null>(null);
   // Modale d'édition (réutilise le state newEvent + showAdd, mais en mode "edit")
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  // Drag & drop : id de l'event en cours de drag + offset visuel
-  const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
-  const [dragOverCell, setDragOverCell] = useState<{ day: number; hour: number } | null>(null);
-  /** Position de drag précise (avec minute snappée) — pour afficher l'indicateur visuel. */
-  const [dragHover, setDragHover] = useState<{ day: number; hour: number; minute: number } | null>(null);
+  // Glissement (pointer-based) : le bloc suit le curseur en temps réel et se
+  // pose exactement sous lui (snap 15 min). Remplace le drag & drop HTML5 natif
+  // (peu fluide, dépôt imprécis, zéro tactile).
+  const gridBodyRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    id: string; grabOffsetPx: number; startX: number; startY: number;
+    durationMin: number; moved: boolean;
+  } | null>(null);
+  /** Aperçu live du créneau cible pendant le glissement (startMin = minutes depuis HOURS[0]). */
+  const [dragGhost, setDragGhost] = useState<{ day: number; startMin: number; durationMin: number; color: string } | null>(null);
+  /** Id de l'event en cours de déplacement (pour l'estomper) — distinct de dragRef pour re-render. */
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  /** Avale le clic qui suit un glissement (sinon il rouvrirait le popover / la création). */
+  const suppressClickRef = useRef(false);
 
   /* Ligne "maintenant" en temps réel */
   useEffect(() => {
@@ -496,19 +505,24 @@ export default function PlanningPage() {
     setEditingEventId(null);
   };
 
-  /* Drop d'un event sur une autre cellule (drag & drop).
-   * targetMinute permet de snapper au quart d'heure le plus proche selon
-   * la position Y du drop dans la cellule (calculée par le caller). */
-  const handleDropEvent = (targetDay: number, targetHour: number, targetMinute = 0) => {
-    if (!draggingEventId) return;
-    updatePlanningEvent(draggingEventId, {
-      day: targetDay,
-      startHour: targetHour,
-      startMinute: snapToQuarter(targetMinute),
-      weekOffset: weekOffset,
-    });
-    setDraggingEventId(null);
-    setDragOverCell(null);
+  /* Glissement pointer-based : calcule le créneau cible (jour + minute depuis
+   * HOURS[0]) sous le curseur, en retranchant l'endroit où l'event a été
+   * saisi (grabOffsetPx) et en snappant au quart d'heure. Borné dans la
+   * plage horaire visible. */
+  const PLAN_TOTAL_MIN = HOURS.length * 60;
+  const computeDropTarget = (
+    clientX: number, clientY: number, grabOffsetPx: number, durationMin: number,
+  ): { day: number; startMin: number } | null => {
+    const body = gridBodyRef.current;
+    if (!body) return null;
+    const rect = body.getBoundingClientRect();
+    const colW = (rect.width - 52) / 7;
+    let dayIdx = Math.floor((clientX - rect.left - 52) / colW);
+    dayIdx = Math.max(0, Math.min(6, dayIdx));
+    const yContent = clientY - grabOffsetPx - rect.top + body.scrollTop;
+    let startMin = snapToQuarter((yContent / CELL_H) * 60);
+    startMin = Math.max(0, Math.min(PLAN_TOTAL_MIN - durationMin, startMin));
+    return { day: dayIdx + 1, startMin };
   };
 
   /* Fermer le popover si on clique ailleurs.
@@ -787,7 +801,7 @@ export default function PlanningPage() {
           </div>
 
           {/* Grille horaire */}
-          <div className="relative overflow-y-auto" style={{ maxHeight: '460px' }}>
+          <div ref={gridBodyRef} className="relative overflow-y-auto" style={{ maxHeight: '460px' }}>
 
             {/* Ligne "maintenant" (seulement si semaine courante) */}
             {weekOffset === 0 && (
@@ -801,6 +815,37 @@ export default function PlanningPage() {
                 <div className="flex-1 h-px bg-emerald-500 opacity-70" />
               </div>
             )}
+
+            {/* Aperçu live du glissement : suit le curseur, snappé au quart d'heure,
+                aligné sur la colonne du jour survolé. Posé sur le corps scrollable
+                (coordonnées de contenu) → il défile avec la grille. */}
+            {dragGhost && (() => {
+              const top = (dragGhost.startMin / 60) * CELL_H;
+              const height = Math.max(20, (dragGhost.durationMin / 60) * CELL_H - 4);
+              const startHour = HOURS[0] + Math.floor(dragGhost.startMin / 60);
+              const startMinute = dragGhost.startMin % 60;
+              return (
+                <div
+                  className="absolute pointer-events-none rounded-xl"
+                  style={{
+                    top: top + 2,
+                    left: `calc(52px + ${dragGhost.day - 1} * ((100% - 52px) / 7) + 2px)`,
+                    width: `calc((100% - 52px) / 7 - 4px)`,
+                    height,
+                    border: `2px dashed ${dragGhost.color}`,
+                    background: dragGhost.color + '2b',
+                    zIndex: 40,
+                  }}
+                >
+                  <div
+                    className="absolute -top-2.5 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-md"
+                    style={{ background: dragGhost.color }}
+                  >
+                    {formatTime(startHour, startMinute)}
+                  </div>
+                </div>
+              );
+            })()}
 
             {HOURS.map((hour, hi) => (
               <div
@@ -817,11 +862,10 @@ export default function PlanningPage() {
                 {dates.map((d, di) => {
                   const today = isToday(d);
                   const cellEvents = currentEvents.filter(e => e.day === di + 1 && e.startHour === hour);
-                  const isDragOver = dragOverCell?.day === di + 1 && dragOverCell?.hour === hour;
                   return (
                     <div
                       key={di}
-                      className={`plan-cell relative border-r border-b border-[#304035]/5 last:border-r-0 ${today ? 'bg-emerald-50/20' : ''} ${isDragOver ? 'plan-cell-dragover' : ''}`}
+                      className={`plan-cell relative border-r border-b border-[#304035]/5 last:border-r-0 ${today ? 'bg-emerald-50/20' : ''}`}
                       style={{
                         height: CELL_H,
                         // Lignes pointillées subtiles toutes les 15min pour repère
@@ -838,85 +882,11 @@ export default function PlanningPage() {
                         const snappedMinute = snapToQuarter(Math.max(0, Math.min(45, rawMinute)));
                         openAdd(di + 1, hour, snappedMinute);
                       }}
-                      // Drop target pour drag & drop avec snap au 15 min
-                      onDragOver={(e) => {
-                        if (draggingEventId) {
-                          e.preventDefault();
-                          if (!isDragOver) setDragOverCell({ day: di + 1, hour });
-                          // Calcul minute snappée pour l'indicateur visuel
-                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                          const offsetY = e.clientY - rect.top;
-                          const rawMinute = (offsetY / CELL_H) * 60;
-                          const snappedMinute = snapToQuarter(Math.max(0, Math.min(45, rawMinute)));
-                          if (
-                            !dragHover
-                            || dragHover.day !== di + 1
-                            || dragHover.hour !== hour
-                            || dragHover.minute !== snappedMinute
-                          ) {
-                            setDragHover({ day: di + 1, hour, minute: snappedMinute });
-                          }
-                        }
-                      }}
-                      onDragLeave={() => {
-                        if (isDragOver) setDragOverCell(null);
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        const offsetY = e.clientY - rect.top;
-                        const rawMinute = (offsetY / CELL_H) * 60;
-                        const snappedMinute = snapToQuarter(Math.max(0, Math.min(45, rawMinute)));
-                        handleDropEvent(di + 1, hour, snappedMinute);
-                        setDragHover(null);
-                      }}
                     >
                       {/* Hint + au hover */}
                       <div className="add-hint absolute inset-0 flex items-center justify-center">
                         <Plus className="h-3.5 w-3.5 text-[#304035]/20" />
                       </div>
-
-                      {/* INDICATEUR DRAG : ligne horizontale + bulle heure + ghost rectangle
-                          au point de snap quart d'heure pendant le drag. */}
-                      {draggingEventId && dragHover && dragHover.day === di + 1 && dragHover.hour === hour && (() => {
-                        const draggedEv = planningEvents.find(e => e.id === draggingEventId);
-                        const ghostDurMin = draggedEv ? getDurationMinutes(draggedEv) : 60;
-                        const ghostColor = draggedEv?.color || '#5b9bd5';
-                        const yPx = (dragHover.minute / 60) * CELL_H;
-                        const ghostHeight = (ghostDurMin / 60) * CELL_H;
-                        return (
-                          <>
-                            {/* Ghost rectangle */}
-                            <div
-                              className="absolute left-1 right-1 rounded-xl pointer-events-none border-2 border-dashed"
-                              style={{
-                                top: yPx + 'px',
-                                height: Math.max(20, ghostHeight - 4) + 'px',
-                                borderColor: ghostColor,
-                                background: ghostColor + '22',
-                                zIndex: 5,
-                              }}
-                            />
-                            {/* Ligne pleine + bulle heure */}
-                            <div
-                              className="absolute left-0 right-0 pointer-events-none"
-                              style={{ top: yPx + 'px', zIndex: 20 }}
-                            >
-                              <div
-                                className="h-[2px]"
-                                style={{ background: ghostColor, boxShadow: '0 0 0 1px rgba(255,255,255,0.6)' }}
-                              />
-                              <div
-                                className="absolute -top-2.5 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-md"
-                                style={{ background: ghostColor }}
-                              >
-                                {formatTime(hour, dragHover.minute)}
-                              </div>
-                            </div>
-                          </>
-                        );
-                      })()}
 
                       {/* Événements — affichés en quinconce si overlap.
                           La position verticale (top) et la hauteur (height) sont
@@ -927,7 +897,7 @@ export default function PlanningPage() {
                         // Position horizontale : on partage la largeur entre cols colonnes
                         const widthPct = 100 / layout.cols;
                         const leftPct = layout.col * widthPct;
-                        const isDragging = draggingEventId === ev.id;
+                        const isDragging = draggingId === ev.id;
                         // Top relatif à la cellule = (startMinute / 60) * CELL_H
                         const startMin = getStartMinute(ev);
                         const durationMin = getDurationMinutes(ev);
@@ -950,29 +920,63 @@ export default function PlanningPage() {
                               opacity: isDragging ? 0.4 : 1,
                               transition: isDragging ? 'none' : 'opacity 0.15s, box-shadow 0.15s',
                             }}
-                            draggable
-                            onDragStart={(e) => {
-                              e.stopPropagation();
-                              setDraggingEventId(ev.id);
-                              setPopoverEventId(null);
-                              // Permet de garder le curseur "move"
-                              e.dataTransfer.effectAllowed = 'move';
-                              try { e.dataTransfer.setData('text/plain', ev.id); } catch { /* ignore */ }
-                            }}
-                            onDragEnd={() => {
-                              setDraggingEventId(null);
-                              setDragOverCell(null);
-                              setDragHover(null);
-                            }}
                             onMouseEnter={() => setHoveredId(ev.id)}
                             onMouseLeave={() => setHoveredId(null)}
-                            onClick={e => {
+                            onPointerDown={(e) => {
+                              if (e.button !== 0) return;
                               e.stopPropagation();
+                              suppressClickRef.current = false;
                               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                              setPopoverPosition({
-                                x: rect.right + 8,
-                                y: rect.top,
-                              });
+                              dragRef.current = {
+                                id: ev.id,
+                                grabOffsetPx: e.clientY - rect.top,
+                                startX: e.clientX,
+                                startY: e.clientY,
+                                durationMin: getDurationMinutes(ev),
+                                moved: false,
+                              };
+                              try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
+                            }}
+                            onPointerMove={(e) => {
+                              const d = dragRef.current;
+                              if (!d || d.id !== ev.id) return;
+                              if (!d.moved) {
+                                if (Math.abs(e.clientX - d.startX) < 4 && Math.abs(e.clientY - d.startY) < 4) return;
+                                d.moved = true;
+                                setDraggingId(ev.id);
+                                setPopoverEventId(null);
+                              }
+                              const t = computeDropTarget(e.clientX, e.clientY, d.grabOffsetPx, d.durationMin);
+                              if (t) setDragGhost({ day: t.day, startMin: t.startMin, durationMin: d.durationMin, color: ev.color });
+                            }}
+                            onPointerUp={(e) => {
+                              const d = dragRef.current;
+                              dragRef.current = null;
+                              try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+                              if (d && d.moved) {
+                                // Déplacement validé : on pose le RDV au créneau sous le curseur.
+                                if (dragGhost) {
+                                  updatePlanningEvent(ev.id, {
+                                    day: dragGhost.day,
+                                    startHour: HOURS[0] + Math.floor(dragGhost.startMin / 60),
+                                    startMinute: dragGhost.startMin % 60,
+                                    weekOffset,
+                                  });
+                                }
+                                // Le clic synthétique qui suit ne doit ni rouvrir le popover
+                                // ni déclencher la création dans la cellule.
+                                suppressClickRef.current = true;
+                              }
+                              setDraggingId(null);
+                              setDragGhost(null);
+                            }}
+                            onClick={(e) => {
+                              // Toujours stopper la propagation → jamais la modale de création
+                              // de la cellule quand on interagit avec un event.
+                              e.stopPropagation();
+                              if (suppressClickRef.current) { suppressClickRef.current = false; return; }
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setPopoverPosition({ x: rect.right + 8, y: rect.top });
                               setPopoverEventId(ev.id);
                               setClickedId(ev.id);
                               setTimeout(() => setClickedId(null), 400);
