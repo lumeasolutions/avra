@@ -32,6 +32,7 @@ import {
   XCircle,
   Calendar,
   User as UserIcon,
+  Trash2,
 } from 'lucide-react';
 
 // 'EDIT' = module IA Architect (MyArchitectAI). Réutilisation d'une valeur
@@ -106,6 +107,18 @@ export default function HistoryPanel({ filterType, onSelect, refreshTrigger, acc
   const [jobs,    setJobs]    = useState<IaJobRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Supprime une entrée de l'historique (IaJob) — scopé au workspace côté API.
+  const handleDelete = useCallback(async (id: string) => {
+    if (typeof window !== 'undefined' && !window.confirm('Supprimer ce rendu de l’historique ?')) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/ia/jobs/${id}`, { method: 'DELETE', credentials: 'include', cache: 'no-store' });
+      if (res.ok) setJobs((js) => js.filter((j) => j.id !== id));
+    } catch { /* silencieux : l'entrée reste, l'utilisateur peut réessayer */ }
+    finally { setDeletingId(null); }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -220,17 +233,30 @@ export default function HistoryPanel({ filterType, onSelect, refreshTrigger, acc
           const variantCount = job.resultImageUrls?.signedUrls?.length ?? 0;
           const clickable = job.status === 'DONE' && !!thumb;
           return (
-            <button
+            <div
               key={job.id}
               onClick={() => clickable && onSelect?.(job)}
-              disabled={!clickable}
-              className={`w-full text-left rounded-xl border bg-white hover:shadow-md transition-all overflow-hidden group ${
+              role={clickable ? 'button' : undefined}
+              className={`relative w-full text-left rounded-xl border bg-white hover:shadow-md transition-all overflow-hidden group ${
                 clickable
                   ? 'border-[#304035]/10 cursor-pointer hover:border-[var(--accent)]'
                   : 'border-[#304035]/8 cursor-default opacity-90'
               }`}
               style={{ ['--accent' as string]: accent } as React.CSSProperties}
             >
+              {/* Bouton supprimer (visible au survol) — fonctionne aussi sur un
+                  rendu échoué, d'où la carte en <div> et non <button disabled>. */}
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (deletingId !== job.id) void handleDelete(job.id); }}
+                disabled={deletingId === job.id}
+                title="Supprimer de l’historique"
+                aria-label="Supprimer de l’historique"
+                className="absolute top-2 left-2 z-20 flex h-7 w-7 items-center justify-center rounded-lg bg-black/45 text-white opacity-0 group-hover:opacity-100 hover:bg-red-500 transition-all"
+              >
+                {deletingId === job.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              </button>
+
               {/* Thumbnail or placeholder */}
               <div className="relative w-full aspect-video bg-[#304035]/5">
                 {thumb ? (
@@ -296,7 +322,7 @@ export default function HistoryPanel({ filterType, onSelect, refreshTrigger, acc
                   </p>
                 )}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
