@@ -1632,6 +1632,10 @@ export function DateButoireValidationModal({
         .dbv-preview-frame {
           flex: 1;
           width: 100%;
+          /* height:100% explicite : un <iframe> sans hauteur définie retombe sur
+             sa valeur par défaut (~150px). Avec la carte à hauteur fixe (92vh),
+             la chaîne flex est définie et le viewer PDF remplit toute la place. */
+          height: 100%;
           border: none;
           background: #fafaf7;
           min-height: 0;
