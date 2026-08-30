@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   CalendarCog, ChevronLeft, ChevronRight, Plus, X,
   Hammer, Truck, Zap, Wrench, Users, TrendingUp,
@@ -61,7 +61,9 @@ function planningTypeToDemandeType(t: string): string {
 }
 
 /* ── CONSTANTES ── */
-const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19,20];
+// Journée complète 0h–23h (façon Google Agenda), grille scrollable, ouverture
+// vers ~8h. Avant : bornée 8h–20h → créneaux tôt/tard inaccessibles.
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 /** Granularité de saisie : quart d'heure (style Google Agenda). */
 const MINUTE_STEPS = [0, 15, 30, 45];
 
@@ -80,7 +82,7 @@ function snapToQuarter(minutes: number): number {
 }
 const DAYS_SHORT = ['LUN','MAR','MERC','JEU','VEN','SAM','DIM'];
 const CELL_H = 56;
-const START_HOUR = 8;
+const START_HOUR = 0;
 const MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
 /* ── TYPES D'INTERVENTION ──
@@ -182,6 +184,12 @@ function daysInMonth(year: number, month: number) {
 export default function PlanningGestionPage() {
   const dossiers        = useVisibleDossiers();
   const dossiersSignes  = useVisibleDossiersSignes();
+  // Grille 24h scrollable : on ouvre vers ~8h (façon Google Agenda) au lieu de minuit.
+  const gestBodyRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const body = gestBodyRef.current;
+    if (body) body.scrollTop = 7 * CELL_H;
+  }, []);
   // Sélecteur de rendez-vous : on n'expose que les dossiers ACTIFS. Les
   // archivés (archivedAt) sont exclus ; les perdus ne sont déjà pas dans ces
   // listes (tableau dossiersPerdus séparé). → on ne planifie un RDV que sur un
@@ -710,7 +718,7 @@ export default function PlanningGestionPage() {
           </div>
 
           {/* Grille horaire */}
-          <div className="relative overflow-y-auto" style={{ maxHeight: '540px' }}>
+          <div ref={gestBodyRef} className="relative overflow-y-auto" style={{ maxHeight: '540px' }}>
             <div className="grid" style={{ gridTemplateColumns: '72px repeat(7, 1fr)' }}>
 
               {/* Colonne heures */}
@@ -1385,7 +1393,7 @@ export default function PlanningGestionPage() {
                   Heure de début <span className="text-[#304035]/40 font-normal normal-case">({formatTime(modalHour, modalMinute)})</span>
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {[8,9,10,11,12,13,14,15,16,17,18,19].map(h => (
+                  {HOURS.map(h => (
                     <button
                       key={h}
                       onClick={() => setModalHour(h)}

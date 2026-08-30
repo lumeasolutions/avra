@@ -16,7 +16,10 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 
 /* ── CONSTANTES ── */
-const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19];
+// Journée complète 0h–23h (façon Google Agenda) : la grille est scrollable et
+// on scrolle par défaut vers ~8h. Avant : bornée 8h–19h → créneaux tôt/tard
+// inaccessibles.
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 /** Granularité de saisie : quart d'heure (style Google Agenda). */
 const MINUTE_STEPS = [0, 15, 30, 45];
 
@@ -38,7 +41,7 @@ function snapToQuarter(minutes: number): number {
 const DAYS_SHORT = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
 const DAYS_FULL  = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 const CELL_H = 52;
-const START_HOUR = 8;
+const START_HOUR = 0;
 const MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
 /* ── TYPES RDV — declares globalement, filtres par profession via getRdvTypes() ─ */
@@ -249,7 +252,8 @@ export default function PlanningPage() {
   const [showWeekPicker, setShowWeekPicker] = useState(false);
   const [pickYear,  setPickYear]  = useState(() => new Date().getFullYear());
   const [pickMonth, setPickMonth] = useState(() => new Date().getMonth());
-  const [nowPct,     setNowPct]       = useState(0);
+  // Minutes écoulées depuis HOURS[0] (0h) → position pixel de la ligne « maintenant ».
+  const [nowMins,    setNowMins]      = useState(0);
   const [hoveredId,  setHoveredId]    = useState<string | null>(null);
   const [clickedId,  setClickedId]    = useState<string | null>(null);
   // Popover Google-Agenda-style (clic sur RDV → menu Modifier / Supprimer)
@@ -277,11 +281,18 @@ export default function PlanningPage() {
     const calc = () => {
       const now = new Date();
       const mins = (now.getHours() - START_HOUR) * 60 + now.getMinutes();
-      setNowPct(Math.max(0, Math.min(100, (mins / (HOURS.length * 60)) * 100)));
+      setNowMins(mins);
     };
     calc();
     const t = setInterval(calc, 60000);
     return () => clearInterval(t);
+  }, []);
+
+  /* Ouverture : on scrolle vers ~7-8h pour ne pas afficher minuit d'abord
+     (façon Google Agenda). Les créneaux tôt/tard restent atteignables au scroll. */
+  useEffect(() => {
+    const body = gridBodyRef.current;
+    if (body) body.scrollTop = 7 * CELL_H;
   }, []);
 
   const dates = getWeekDates(weekOffset);
@@ -803,11 +814,12 @@ export default function PlanningPage() {
           {/* Grille horaire */}
           <div ref={gridBodyRef} className="relative overflow-y-auto" style={{ maxHeight: '460px' }}>
 
-            {/* Ligne "maintenant" (seulement si semaine courante) */}
-            {weekOffset === 0 && (
+            {/* Ligne "maintenant" (seulement si semaine courante) — position pixel
+                exacte en coordonnées de contenu (défile avec la grille). */}
+            {weekOffset === 0 && nowMins >= 0 && nowMins <= HOURS.length * 60 && (
               <div
                 className="now-line absolute left-0 right-0 z-30 flex items-center"
-                style={{ top: `${nowPct}%` }}
+                style={{ top: `${(nowMins / 60) * CELL_H}px` }}
               >
                 <div className="w-14 flex justify-end pr-1">
                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
