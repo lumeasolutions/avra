@@ -182,6 +182,14 @@ function daysInMonth(year: number, month: number) {
 export default function PlanningGestionPage() {
   const dossiers        = useVisibleDossiers();
   const dossiersSignes  = useVisibleDossiersSignes();
+  // Sélecteur de rendez-vous : on n'expose que les dossiers ACTIFS. Les
+  // archivés (archivedAt) sont exclus ; les perdus ne sont déjà pas dans ces
+  // listes (tableau dossiersPerdus séparé). → on ne planifie un RDV que sur un
+  // dossier en cours ou signé encore vivant.
+  const dossiersSignesActifs = useMemo(
+    () => dossiersSignes.filter((d) => !d.archivedAt),
+    [dossiersSignes],
+  );
   const gestEvents      = usePlanningStore(s => s.gestEvents);
   const addGestEvent    = usePlanningStore(s => s.addGestEvent);
   const updateGestEvent = usePlanningStore(s => s.updateGestEvent);
@@ -239,7 +247,7 @@ export default function PlanningGestionPage() {
   const [pickYear,   setPickYear]     = useState(() => new Date().getFullYear());
   const [pickMonth,  setPickMonth]    = useState(() => new Date().getMonth());
 
-  const allClients = [...dossiers, ...dossiersSignes].map(d => d.name);
+  const allClients = [...dossiers, ...dossiersSignesActifs].map(d => d.name);
   const dates = getWeekDates(weekOffset);
   const currentEvents = gestEvents.filter(e => e.weekOffset === weekOffset);
   const todayDate = new Date();
@@ -420,8 +428,8 @@ export default function PlanningGestionPage() {
 
   // Dossier correspondant au client saisi (texte libre -> dossier connu).
   const pgMatchedDossier = useMemo(
-    () => [...dossiers, ...dossiersSignes].find((d: any) => d.name === newEvent.client),
-    [dossiers, dossiersSignes, newEvent.client],
+    () => [...dossiers, ...dossiersSignesActifs].find((d: any) => d.name === newEvent.client),
+    [dossiers, dossiersSignesActifs, newEvent.client],
   );
   const pgProjectId: string | undefined = (pgMatchedDossier as any)?.id;
 
