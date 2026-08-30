@@ -122,6 +122,28 @@ async function _deleteEvent(id: string): Promise<void> {
   if (_isLocalId(id)) return;
   try { const { api } = await import('@/lib/api'); await api(`/events/${id}`, { method: 'DELETE' }); } catch { /* noop */ }
 }
+/** Persiste une MISE À JOUR d'event (déplacement / édition) au backend.
+ *  Sans ça, déplacer ou éditer un RDV ne se sauvait pas : le local (Zustand)
+ *  affichait le changement toute la session, mais un rechargement dur le
+ *  perdait (resync depuis la table Event inchangée). Bug 08/2026. */
+async function _updateEvent(
+  id: string, calendarType: 'GESTION' | 'PERSONAL', e: any, payload: Record<string, unknown>,
+): Promise<void> {
+  if (_isLocalId(id)) return; // pas encore persisté (POST initial en vol) — rien à mettre à jour
+  try {
+    const { api } = await import('@/lib/api');
+    const { startAt, endAt } = _eventDates(e);
+    await api(`/events/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        type: _planningTypeToEventType(e.type),
+        title: (e.client || e.title || e.type || 'Intervention').toString().slice(0, 200),
+        startAt, endAt,
+        description: JSON.stringify({ k: calendarType === 'GESTION' ? 'gest' : 'perso', ...payload }),
+      }),
+    });
+  } catch { /* noop */ }
+}
 
 interface PlanningState {
   // Data
@@ -170,11 +192,20 @@ export const usePlanningStore = create<PlanningState>()(
       },
 
       updatePlanningEvent: (id, patch) => {
+        let merged: PlanningEvent | undefined;
         set(s => ({
-          planningEvents: s.planningEvents.map(e =>
-            e.id === id ? { ...e, ...patch } : e,
-          ),
+          planningEvents: s.planningEvents.map(e => {
+            if (e.id !== id) return e;
+            merged = { ...e, ...patch };
+            return merged;
+          }),
         }));
+        if (merged) {
+          void _updateEvent(id, 'PERSONAL', merged, {
+            title: merged.title, color: merged.color, type: merged.type,
+            duration: merged.duration, durationMinutes: merged.durationMinutes, startMinute: merged.startMinute,
+          });
+        }
       },
 
       deletePlanningEvent: (id) => {
@@ -196,11 +227,21 @@ export const usePlanningStore = create<PlanningState>()(
       },
 
       updateGestEvent: (id, patch) => {
+        let merged: GestEvent | undefined;
         set(s => ({
-          gestEvents: s.gestEvents.map(e =>
-            e.id === id ? { ...e, ...patch } : e,
-          ),
+          gestEvents: s.gestEvents.map(e => {
+            if (e.id !== id) return e;
+            merged = { ...e, ...patch };
+            return merged;
+          }),
         }));
+        if (merged) {
+          void _updateEvent(id, 'GESTION', merged, {
+            type: merged.type, client: merged.client,
+            duration: merged.duration, durationMinutes: merged.durationMinutes, startMinute: merged.startMinute,
+            intervenantId: merged.intervenantId, intervenantName: merged.intervenantName, intervenantType: merged.intervenantType,
+          });
+        }
       },
 
       deleteGestEvent: (id) => {
