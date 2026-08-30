@@ -286,6 +286,7 @@ function schedulePersist(snapshot: () => ConfigState) {
       alertesConfig: s.alertesConfig,
       iaConfig: s.iaConfig,
       adminDocsPin: s.adminDocsPin,
+      adminDocsDeviceId: s.adminDocsDeviceId,
     }).catch((e: any) => console.warn('[config] saveSettings échec, gardé en local:', e?.message || e));
   }, 800);
 }
@@ -303,6 +304,10 @@ interface ConfigState {
   iaConfig: IAConfig;
   /** Code PIN à 4 chiffres du Dossier administratif (null = non défini). Synchronisé au compte. */
   adminDocsPin: string | null;
+  /** Identifiant de l'ORDINATEUR propriétaire du dossier administratif : celui qui
+   *  a créé le code. Le dossier ne s'ouvre que sur cet appareil ; un autre doit
+   *  se « rebrancher » via le mot de passe du compte. Synchronisé au compte. */
+  adminDocsDeviceId: string | null;
 
   // Actions
   updateSociete: (data: Partial<Societe>) => void;
@@ -313,7 +318,10 @@ interface ConfigState {
   updateFacturationConfig: (data: Partial<FacturationConfig>) => void;
   updateNotifConfig: (data: Partial<NotifConfig>) => void;
   updateIAConfig: (data: Partial<IAConfig>) => void;
-  setAdminDocsPin: (pin: string | null) => void;
+  /** Définit (ou efface) le code. Un `ownerDeviceId` lie le dossier à cet appareil. */
+  setAdminDocsPin: (pin: string | null, ownerDeviceId?: string | null) => void;
+  /** Transfère la propriété du dossier administratif à un appareil (rebranchement). */
+  setAdminDocsDevice: (deviceId: string | null) => void;
 
   // Hydratation depuis le backend (sans re-déclencher de write-through)
   _hydrateFromBackend: (config: Partial<{
@@ -326,6 +334,7 @@ interface ConfigState {
     alertesConfig: AlertesConfig;
     iaConfig: IAConfig;
     adminDocsPin: string | null;
+    adminDocsDeviceId: string | null;
   }>) => void;
 
   // Members actions
@@ -351,6 +360,7 @@ export const useConfigStore = create<ConfigState>()(
       members: INITIAL_MEMBERS,
       iaConfig: INITIAL_IA,
       adminDocsPin: null,
+      adminDocsDeviceId: null,
 
       updateSociete: (data) => {
         set(s => ({ societe: { ...s.societe, ...data } }));
@@ -392,8 +402,15 @@ export const useConfigStore = create<ConfigState>()(
         schedulePersist(get);
       },
 
-      setAdminDocsPin: (pin) => {
-        set({ adminDocsPin: pin });
+      setAdminDocsPin: (pin, ownerDeviceId) => {
+        set(ownerDeviceId !== undefined
+          ? { adminDocsPin: pin, adminDocsDeviceId: ownerDeviceId }
+          : { adminDocsPin: pin });
+        schedulePersist(get);
+      },
+
+      setAdminDocsDevice: (deviceId) => {
+        set({ adminDocsDeviceId: deviceId });
         schedulePersist(get);
       },
 
@@ -410,6 +427,7 @@ export const useConfigStore = create<ConfigState>()(
           alertesConfig:     config.alertesConfig       ? { ...(s.alertesConfig ?? INITIAL_ALERTES), ...config.alertesConfig } : s.alertesConfig,
           iaConfig:          config.iaConfig            ? { ...s.iaConfig, ...config.iaConfig } : s.iaConfig,
           adminDocsPin:      config.adminDocsPin !== undefined ? config.adminDocsPin : s.adminDocsPin,
+          adminDocsDeviceId: config.adminDocsDeviceId !== undefined ? config.adminDocsDeviceId : s.adminDocsDeviceId,
         }));
       },
 

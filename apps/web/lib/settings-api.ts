@@ -21,6 +21,8 @@ export interface SettingsConfig {
   iaConfig?: any;
   /** Code PIN à 4 chiffres du Dossier administratif (synchronisé au compte). */
   adminDocsPin?: string | null;
+  /** Ordinateur propriétaire du dossier administratif (verrou par appareil). */
+  adminDocsDeviceId?: string | null;
 }
 
 export const getSettings = () => api<{ config: SettingsConfig | null }>('/settings');

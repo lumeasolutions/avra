@@ -30,7 +30,9 @@ export function AdminDocsPinSettings() {
         method: 'POST', body: JSON.stringify({ password: pwd }),
       });
       if (r?.valid) {
-        setAdminDocsPin(null);
+        // Réinitialise le code ET le verrou d'ordinateur : le prochain accès
+        // recrée le code et re-tatoue l'ordinateur courant.
+        setAdminDocsPin(null, null);
         setPwd(''); setOpen(false); setDone(true);
         setTimeout(() => setDone(false), 6000);
       } else {
