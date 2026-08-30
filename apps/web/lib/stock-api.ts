@@ -37,6 +37,8 @@ export function stockItemToPayload(item: Partial<StockItem>) {
     name: (item.model && item.model.trim()) || item.reference || 'Article',
     model: item.model ?? undefined,
     material: item.material ?? undefined,
+    // Couleur / finition → colonne backend dédiée `color` (persistance multi-device).
+    color: item.couleur ?? undefined,
     purchasePrice: typeof item.purchase === 'number' ? item.purchase : undefined,
     salePrice: typeof item.sale === 'number' ? item.sale : undefined,
     quantity: typeof item.quantity === 'number' ? item.quantity : undefined,
@@ -63,6 +65,7 @@ export function stockItemFromApi(a: StockItemApi): StockItem {
     sale: a.salePrice != null ? num(a.salePrice) : null,
     category: (ex.category as string) ?? a.category ?? '',
     material: a.material ?? '',
+    couleur: a.color ?? undefined,
     quantity: a.quantity ?? undefined,
     minQuantity: typeof ex.minQuantity === 'number' ? (ex.minQuantity as number) : undefined,
     reference: a.sku ?? undefined,
