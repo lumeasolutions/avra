@@ -245,6 +245,12 @@ export function useProjectActions() {
    */
   const restoreLostProject = useCallback(
     async (id: string): Promise<void> => {
+      // On récupère le vendeur AVANT de restaurer (restaurerDossierPerdu retire
+      // l'entrée perdue). Le snapshot le porte ; on re-persiste ce vendeur au
+      // backend pour qu'une resync ultérieure ne le remette pas à vide.
+      const perdu = useDossierStore.getState().dossiersPerdus.find((d) => d.id === id);
+      const vendeurName = (perdu?._snapshot as any)?.vendeurName ?? perdu?.vendeurName;
+
       store.restaurerDossierPerdu(id);
 
       if (user?.id === 'demo' || !user?.workspaceId) return;
@@ -253,7 +259,10 @@ export function useProjectActions() {
       try {
         await api(`/projects/${id}`, {
           method: 'PUT',
-          body: JSON.stringify({ lifecycleStatus: 'DRAFT' }),
+          body: JSON.stringify({
+            lifecycleStatus: 'DRAFT',
+            ...(vendeurName ? { vendeurName } : {}),
+          }),
         });
       } catch (err) {
         console.warn('[ProjectActions] API restore failed:', err);
