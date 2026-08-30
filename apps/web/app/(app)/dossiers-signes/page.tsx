@@ -388,7 +388,7 @@ export default function DossiersSignesPage() {
           commandesAccess={commandesAccess}
           echeancesValidees={echeancesValidees}
           onClose={() => setShowDashboard(false)}
-          onOpenDossier={(id) => { setShowDashboard(false); setExpandedId(id); }}
+          onOpenDossier={(id) => { setShowDashboard(false); router.push(`/dossiers/${id}`); }}
         />
       )}
 
@@ -889,14 +889,21 @@ function SignesDashboardPanel({
     //    les lignes cochées « faite ».
     const cmdMap = commandesAccess[dossier.id] ?? {};
     for (const [groupLabel, entries] of Object.entries(cmdMap)) {
-      const isLiv = groupLabel.toUpperCase().includes('LIVRAISON');
+      // Le type dépend du panneau ACCÉDER d'origine : LIVRAISON, CONFIRMATION
+      // (confirmations / factures achats) ou, par défaut, COMMANDE.
+      const up = groupLabel.toUpperCase();
+      const kind: PilotageKind = up.includes('LIVRAISON')
+        ? 'livraison'
+        : up.includes('CONFIRMATION')
+          ? 'confirmation'
+          : 'commande';
       for (const e of (entries ?? [])) {
         if (e.validee || !e.dateButoir) continue;
         const dt = parseLocalDeadline(e.dateButoir);
         if (!dt) continue;
         items.push({
           dossierId: dossier.id, dossierName: dName,
-          kind: isLiv ? 'livraison' : 'commande',
+          kind,
           label: e.fournisseur?.trim() || prettyLabel(groupLabel),
           detail: e.produit, date: dt, days: daysFrom(dt), montant: e.montant,
         });
