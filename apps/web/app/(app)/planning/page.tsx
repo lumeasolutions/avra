@@ -211,6 +211,7 @@ export default function PlanningPage() {
   const dossiersSignes  = useVisibleDossiersSignes();
   const planningEvents  = usePlanningStore(s => s.planningEvents);
   const addPlanningEvent   = usePlanningStore(s => s.addPlanningEvent);
+  const addGestEvent       = usePlanningStore(s => s.addGestEvent);
   const updatePlanningEvent = usePlanningStore(s => s.updatePlanningEvent);
   const deletePlanningEvent = usePlanningStore(s => s.deletePlanningEvent);
 
@@ -236,6 +237,8 @@ export default function PlanningPage() {
   const [showAdd,    setShowAdd]      = useState(false);
   const [addCell,    setAddCell]      = useState<{ day: number; hour: number } | null>(null);
   const [newEvent,   setNewEvent]     = useState({ type: 'CLIENT', dossierId: '', title: '', duration: 2, color: '' });
+  // Doublon : ajouter aussi ce RDV au planning gestion (copie indépendante).
+  const [alsoGestion, setAlsoGestion] = useState(false);
   const [modalDate,  setModalDate]    = useState('');  // 'YYYY-MM-DD'
   const [modalHour,  setModalHour]    = useState(9);
   const [modalMinute, setModalMinute] = useState(0); // 0 / 15 / 30 / 45
@@ -367,6 +370,7 @@ export default function PlanningPage() {
   const openAdd = (day: number, hour: number, minute: number = 0) => {
     setAddCell({ day, hour });
     setNewEvent({ type: 'CLIENT', dossierId: dossiers[0]?.id ?? '', title: '', duration: 2, color: '' });
+    setAlsoGestion(false);
     const cellDate = getWeekDates(weekOffset)[day - 1];
     const yyyy = cellDate.getFullYear();
     const mm = String(cellDate.getMonth() + 1).padStart(2, '0');
@@ -408,10 +412,29 @@ export default function PlanningPage() {
       type: newEvent.type,
       weekOffset: diffWeeks,
     });
+
+    // Doublon planning gestion : copie indépendante du même créneau. Le
+    // planning gestion est orienté « intervention par dossier » → client = nom
+    // du dossier (fallback titre). Les deux events restent modifiables/
+    // supprimables séparément.
+    if (alsoGestion) {
+      addGestEvent({
+        day: dayOfWeek,
+        startHour: modalHour,
+        startMinute: modalMinute,
+        duration: newEvent.duration,
+        durationMinutes: Math.round(newEvent.duration * 60),
+        type: newEvent.type,
+        client: dossier?.name || newEvent.title || rdvType?.label || 'RDV',
+        weekOffset: diffWeeks,
+      });
+    }
+
     // Naviguer vers la semaine de l'événement créé
     setWeekOffset(diffWeeks);
     setShowAdd(false);
     setEditingEventId(null);
+    setAlsoGestion(false);
   };
 
   /* Édition d'un événement existant (réutilise la modale showAdd) */
@@ -1482,6 +1505,38 @@ export default function PlanningPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Doublon planning gestion (création uniquement) */}
+              {!editingEventId && (
+                <button
+                  type="button"
+                  onClick={() => setAlsoGestion(v => !v)}
+                  className="w-full flex items-center gap-3 rounded-2xl border-2 px-3 py-3 text-left transition-all"
+                  style={{
+                    borderColor: alsoGestion ? '#3d5244' : 'rgba(48,64,53,0.15)',
+                    background: alsoGestion ? 'rgba(61,82,68,0.06)' : 'transparent',
+                  }}
+                  aria-pressed={alsoGestion}
+                >
+                  <span
+                    className="flex items-center justify-center rounded-md shrink-0"
+                    style={{
+                      width: 20, height: 20,
+                      border: `2px solid ${alsoGestion ? '#3d5244' : 'rgba(48,64,53,0.3)'}`,
+                      background: alsoGestion ? '#3d5244' : 'transparent',
+                      color: '#fff', fontSize: 13, fontWeight: 700,
+                    }}
+                  >
+                    {alsoGestion ? '✓' : ''}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-[#304035]">Ajouter aussi au planning gestion</span>
+                    <span className="block text-[11px] text-[#304035]/50 leading-snug">
+                      Crée un doublon de ce RDV dans le planning gestion (copie indépendante, modifiable séparément).
+                    </span>
+                  </span>
+                </button>
+              )}
 
               {/* Boutons */}
               <div className="flex gap-3 pt-1">
