@@ -715,7 +715,12 @@ export default function StockPage() {
                       title="Couleur / finition"
                     >
                       <option value="">Couleur…</option>
-                      {COULEUR_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                      <optgroup label="Finitions">
+                        {COULEUR_FINITIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                      </optgroup>
+                      <optgroup label="Couleurs standards">
+                        {COULEUR_STANDARDS.map(c => <option key={c} value={c}>{c}</option>)}
+                      </optgroup>
                     </select>
                   )}
 
