@@ -1152,7 +1152,10 @@ export default function IaStudioPage() {
   // "RENDUS IA" s'il n'existe pas, puis y ajoute le DocumentFile.
   const addSubfolder           = useDossierStore(s => s.addSubfolder);
   const addDocumentToSubfolder = useDossierStore(s => s.addDocumentToSubfolder);
-  const allDossiers    = [...dossiers, ...dossiersSignes];
+  // Sélecteur de dossier (rendus IA) : uniquement les dossiers ACTIFS — en cours
+  // ou signés encore vivants. Les archivés (archivedAt) sont exclus ; les perdus
+  // ne sont déjà pas dans ces listes (tableau dossiersPerdus séparé).
+  const allDossiers    = [...dossiers, ...dossiersSignes.filter(d => !d.archivedAt)];
   const currentUser    = useAuthStore(s => s.user);
   const userName       = currentUser ? (currentUser.firstName ?? currentUser.email.split('@')[0]) : 'Utilisateur';
 
