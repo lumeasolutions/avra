@@ -913,6 +913,11 @@ export function DateButoireValidationModal({
         .dbv-card {
           width: 100%;
           max-width: 1200px;
+          /* Hauteur généreuse et STABLE : sans hauteur fixe, la carte se réduisait
+             au contenu, et en mode aperçu (peu d'éléments hors le viewer) le PDF
+             se retrouvait écrasé sur ~180px. On force 92vh → le viewer PDF/image
+             remplit toute la hauteur disponible. */
+          height: 92vh;
           max-height: 95vh;
           background: #fff;
           border-radius: 24px;
