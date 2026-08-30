@@ -257,6 +257,11 @@ export default function DossiersSignesPage() {
   const dossiersSignes = useVisibleDossiersSignes();
   const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
   const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
+  // Sources d'échéances additionnelles pour le centre de pilotage global :
+  // commandes/livraisons saisies via les panneaux ACCÉDER + état de validation
+  // des dates butoires (pour ne piloter que ce qui reste à faire).
+  const commandesAccess = useDossierStore(s => s.commandesAccess);
+  const echeancesValidees = useDossierStore(s => s.echeancesValidees);
   const invoices = useFacturationStore(s => s.invoices);
   const profession = useAuthStore(s => s.profession);
   const [search, setSearch] = useState('');
@@ -379,9 +384,9 @@ export default function DossiersSignesPage() {
       {showDashboard && (
         <SignesDashboardPanel
           enriched={enriched}
-          totalCA={totalCA}
-          moyenneCA={moyenneCA}
           datesButoiresSignes={datesButoiresSignes}
+          commandesAccess={commandesAccess}
+          echeancesValidees={echeancesValidees}
           onClose={() => setShowDashboard(false)}
           onOpenDossier={(id) => { setShowDashboard(false); setExpandedId(id); }}
         />
@@ -819,46 +824,103 @@ export default function DossiersSignesPage() {
 
 interface SignesDashboardPanelProps {
   enriched: Array<any>;
-  totalCA: number;
-  moyenneCA: number;
   datesButoiresSignes: Record<string, Record<string, string>>;
+  commandesAccess: Record<string, Record<string, CommandeAccessEntry[]>>;
+  echeancesValidees: Record<string, Record<string, boolean>>;
   onClose: () => void;
   onOpenDossier: (id: string) => void;
 }
 
+/** Parse une date FR (jj/mm/aaaa) ou ISO (aaaa-mm-jj) en Date LOCALE à minuit. */
+function parseLocalDeadline(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const fr = dateStr.split('/');
+  if (fr.length === 3) {
+    const [d, m, y] = fr;
+    const dt = new Date(+y, +m - 1, +d);
+    if (!isNaN(dt.getTime())) { dt.setHours(0, 0, 0, 0); return dt; }
+  }
+  const iso = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const dt = new Date(+iso[1], +iso[2] - 1, +iso[3]);
+    if (!isNaN(dt.getTime())) { dt.setHours(0, 0, 0, 0); return dt; }
+  }
+  const d2 = new Date(dateStr);
+  if (!isNaN(d2.getTime())) { d2.setHours(0, 0, 0, 0); return d2; }
+  return null;
+}
+
+/** "FICHE DE POSE" → "Fiche de pose". */
+function prettyLabel(label: string): string {
+  const s = label.toLowerCase().replace(/_/g, ' ').trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+type PilotageKind = 'date' | 'commande' | 'livraison' | 'confirmation';
+interface PilotageItem {
+  dossierId: string; dossierName: string;
+  kind: PilotageKind; label: string; detail?: string;
+  date: Date; days: number; montant?: number;
+}
+
 function SignesDashboardPanel({
-  enriched, totalCA, moyenneCA, datesButoiresSignes, onClose, onOpenDossier,
+  enriched, datesButoiresSignes, commandesAccess, echeancesValidees, onClose, onOpenDossier,
 }: SignesDashboardPanelProps) {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
+  const daysFrom = (d: Date) => Math.round((d.getTime() - now.getTime()) / 86400_000);
 
-  const allDeadlines: Array<{ dossierId: string; dossierName: string; label: string; date: Date; daysFromNow: number }> = [];
+  // ── Agrégation de TOUTES les échéances non faites, tous chantiers signés ──
+  const items: PilotageItem[] = [];
   for (const dossier of enriched) {
+    const dName = `${dossier.name}${dossier.firstName ? ' ' + dossier.firstName : ''}`.trim();
+
+    // 1. Dates butoires — on ignore celles déjà validées (échéance faite).
     const dates = datesButoiresSignes[dossier.id] ?? {};
+    const done = echeancesValidees[dossier.id] ?? {};
     for (const [label, dateStr] of Object.entries(dates)) {
-      if (!dateStr) continue;
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) continue;
-      d.setHours(0, 0, 0, 0);
-      const daysFromNow = Math.round((d.getTime() - now.getTime()) / 86400_000);
-      allDeadlines.push({ dossierId: dossier.id, dossierName: dossier.name, label, date: d, daysFromNow });
+      if (!dateStr || done[label]) continue;
+      const dt = parseLocalDeadline(dateStr);
+      if (!dt) continue;
+      items.push({ dossierId: dossier.id, dossierName: dName, kind: 'date', label: prettyLabel(label), date: dt, days: daysFrom(dt) });
     }
-  }
 
-  const overdueDeadlines = allDeadlines.filter(d => d.daysFromNow < 0).sort((a, b) => a.date.getTime() - b.date.getTime());
-  const upcomingDeadlines = allDeadlines.filter(d => d.daysFromNow >= 0 && d.daysFromNow <= 14).sort((a, b) => a.date.getTime() - b.date.getTime());
-
-  const allPendingConfirmations: Array<{ dossierId: string; dossierName: string; fournisseur: string; produit: string; dateButoir: string }> = [];
-  for (const d of enriched) {
-    for (const c of (d.confirmations ?? [])) {
-      if (!c.validee) {
-        allPendingConfirmations.push({
-          dossierId: d.id, dossierName: d.name,
-          fournisseur: c.fournisseur, produit: c.produit, dateButoir: c.dateButoir,
+    // 2. Commandes / livraisons saisies via les panneaux ACCÉDER — on ignore
+    //    les lignes cochées « faite ».
+    const cmdMap = commandesAccess[dossier.id] ?? {};
+    for (const [groupLabel, entries] of Object.entries(cmdMap)) {
+      const isLiv = groupLabel.toUpperCase().includes('LIVRAISON');
+      for (const e of (entries ?? [])) {
+        if (e.validee || !e.dateButoir) continue;
+        const dt = parseLocalDeadline(e.dateButoir);
+        if (!dt) continue;
+        items.push({
+          dossierId: dossier.id, dossierName: dName,
+          kind: isLiv ? 'livraison' : 'commande',
+          label: e.fournisseur?.trim() || prettyLabel(groupLabel),
+          detail: e.produit, date: dt, days: daysFrom(dt), montant: e.montant,
         });
       }
     }
+
+    // 3. Confirmations fournisseurs non validées.
+    for (const c of (dossier.confirmations ?? [])) {
+      if (c.validee || !c.dateButoir) continue;
+      const dt = parseLocalDeadline(c.dateButoir);
+      if (!dt) continue;
+      items.push({
+        dossierId: dossier.id, dossierName: dName, kind: 'confirmation',
+        label: c.fournisseur, detail: c.produit, date: dt, days: daysFrom(dt), montant: c.montant,
+      });
+    }
   }
+  items.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  const retard = items.filter(i => i.days < 0);
+  const aujourdhui = items.filter(i => i.days === 0);
+  const semaine = items.filter(i => i.days >= 1 && i.days <= 7);
+  const avenir = items.filter(i => i.days >= 8 && i.days <= 30);
+  const total = items.length;
 
   return (
     <>
@@ -895,10 +957,10 @@ function SignesDashboardPanel({
         }}>
           <div>
             <div style={{ fontSize: 11, letterSpacing: '0.16em', fontWeight: 700, color: '#cbb98a', textTransform: 'uppercase' }}>
-              Tableau de bord
+              Centre de pilotage
             </div>
             <h2 style={{ fontSize: 22, fontWeight: 800, margin: '4px 0 0' }}>
-              Dossiers signés — {enriched.length}
+              Échéances à suivre — {total}
             </h2>
           </div>
           <button
@@ -914,66 +976,46 @@ function SignesDashboardPanel({
         </div>
 
         <div style={{ padding: 28 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 22 }}>
-            <DashKpi label="CA total signé" value={totalCA > 0 ? formatMontant(totalCA) : '—'} icon={<TrendingUp size={16} />} tone="primary" />
-            <DashKpi label="Panier moyen" value={moyenneCA > 0 ? formatMontant(moyenneCA) : '—'} icon={<BadgeCheck size={16} />} tone="emerald" />
-            <DashKpi label="Échéances en retard" value={overdueDeadlines.length} icon={<AlertTriangle size={16} />} tone="red" />
-            <DashKpi label="À venir (14j)" value={upcomingDeadlines.length} icon={<Calendar size={16} />} tone="orange" />
-            <DashKpi label="Confirmations en attente" value={allPendingConfirmations.length} icon={<Clock size={16} />} tone="amber" />
+          {/* KPIs opérationnels (le business — CA/panier — reste dans le bandeau
+              de la page, ici on ne pilote que les échéances). */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginBottom: 22 }}>
+            <DashKpi label="En retard" value={retard.length} icon={<AlertTriangle size={16} />} tone="red" />
+            <DashKpi label="Aujourd'hui" value={aujourdhui.length} icon={<Clock size={16} />} tone="orange" />
+            <DashKpi label="7 prochains jours" value={semaine.length} icon={<Calendar size={16} />} tone="amber" />
+            <DashKpi label="À venir (30j)" value={avenir.length} icon={<CheckCircle2 size={16} />} tone="emerald" />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: 16 }}>
-            <DashSection
-              title="Échéances en retard"
-              count={overdueDeadlines.length}
-              tone="red"
-              empty="Aucune échéance dépassée — bravo."
-            >
-              {overdueDeadlines.slice(0, 8).map((d, i) => (
-                <button key={i} onClick={() => onOpenDossier(d.dossierId)} style={dashRowStyle('red')}>
-                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1a2a1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.dossierName}</div>
-                    <div style={{ fontSize: 11, color: '#7c6c58' }}>{d.label.toLowerCase().replace(/_/g, ' ')}</div>
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#b91c1c' }}>-{Math.abs(d.daysFromNow)}j</span>
-                </button>
-              ))}
-            </DashSection>
+          {total === 0 ? (
+            <div style={{
+              background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 16,
+              padding: '32px 24px', textAlign: 'center',
+            }}>
+              <CheckCircle2 size={34} style={{ color: '#15803d', margin: '0 auto 10px', display: 'block' }} />
+              <p style={{ fontSize: 15, fontWeight: 800, color: '#14532d', margin: 0 }}>Tout est à jour</p>
+              <p style={{ fontSize: 13, color: '#3f6212', margin: '4px 0 0' }}>
+                Aucune échéance à piloter sur tes chantiers signés — commandes, livraisons et
+                dates butoires sont soit faites, soit sans date.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: 16 }}>
+              <DashSection title="En retard" count={retard.length} tone="red" empty="Aucune échéance dépassée — bravo.">
+                {retard.slice(0, 12).map((it, i) => <PilotageRow key={i} item={it} tone="red" onOpen={onOpenDossier} />)}
+              </DashSection>
 
-            <DashSection
-              title="Échéances à venir (14j)"
-              count={upcomingDeadlines.length}
-              tone="orange"
-              empty="Aucune échéance dans les 2 prochaines semaines."
-            >
-              {upcomingDeadlines.slice(0, 8).map((d, i) => (
-                <button key={i} onClick={() => onOpenDossier(d.dossierId)} style={dashRowStyle('orange')}>
-                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1a2a1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.dossierName}</div>
-                    <div style={{ fontSize: 11, color: '#7c6c58' }}>{d.label.toLowerCase().replace(/_/g, ' ')}</div>
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#c2410c' }}>{d.daysFromNow === 0 ? "Auj." : `J+${d.daysFromNow}`}</span>
-                </button>
-              ))}
-            </DashSection>
+              <DashSection title="Aujourd'hui" count={aujourdhui.length} tone="orange" empty="Rien à faire aujourd'hui.">
+                {aujourdhui.slice(0, 12).map((it, i) => <PilotageRow key={i} item={it} tone="orange" onOpen={onOpenDossier} />)}
+              </DashSection>
 
-            <DashSection
-              title="Confirmations fournisseurs"
-              count={allPendingConfirmations.length}
-              tone="amber"
-              empty="Toutes les confirmations sont validées."
-            >
-              {allPendingConfirmations.slice(0, 8).map((c, i) => (
-                <button key={i} onClick={() => onOpenDossier(c.dossierId)} style={dashRowStyle('amber')}>
-                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1a2a1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.fournisseur} — {c.produit}</div>
-                    <div style={{ fontSize: 11, color: '#7c6c58' }}>{c.dossierName}</div>
-                  </div>
-                  {c.dateButoir && <span style={{ fontSize: 11, color: '#92400e' }}>{c.dateButoir}</span>}
-                </button>
-              ))}
-            </DashSection>
-          </div>
+              <DashSection title="7 prochains jours" count={semaine.length} tone="amber" empty="Rien cette semaine.">
+                {semaine.slice(0, 12).map((it, i) => <PilotageRow key={i} item={it} tone="amber" onOpen={onOpenDossier} />)}
+              </DashSection>
+
+              <DashSection title="À venir (30 jours)" count={avenir.length} tone="slate" empty="Rien dans le mois à venir.">
+                {avenir.slice(0, 12).map((it, i) => <PilotageRow key={i} item={it} tone="slate" onOpen={onOpenDossier} />)}
+              </DashSection>
+            </div>
+          )}
 
           <div style={{ marginTop: 22, paddingTop: 16, borderTop: '1px solid rgba(48,64,53,0.08)', textAlign: 'center' }}>
             <button
@@ -1020,10 +1062,10 @@ function DashKpi({ label, value, icon, tone }: {
 }
 
 function DashSection({ title, count, tone, empty, children }: {
-  title: string; count: number; tone: 'red' | 'orange' | 'amber';
+  title: string; count: number; tone: 'red' | 'orange' | 'amber' | 'slate';
   empty: string; children: React.ReactNode;
 }) {
-  const tones: Record<string, string> = { red: '#b91c1c', orange: '#c2410c', amber: '#92400e' };
+  const tones: Record<string, string> = { red: '#b91c1c', orange: '#c2410c', amber: '#92400e', slate: '#475569' };
   return (
     <div style={{
       background: '#fff', border: '1px solid #ece7df', borderRadius: 14,
@@ -1050,9 +1092,9 @@ function DashSection({ title, count, tone, empty, children }: {
   );
 }
 
-function dashRowStyle(tone: 'red' | 'orange' | 'amber'): React.CSSProperties {
-  const bgs: Record<string, string> = { red: '#fef2f2', orange: '#fff7ed', amber: '#fffbeb' };
-  const borders: Record<string, string> = { red: '#fecaca', orange: '#fed7aa', amber: '#fde68a' };
+function dashRowStyle(tone: 'red' | 'orange' | 'amber' | 'slate'): React.CSSProperties {
+  const bgs: Record<string, string> = { red: '#fef2f2', orange: '#fff7ed', amber: '#fffbeb', slate: '#f8fafc' };
+  const borders: Record<string, string> = { red: '#fecaca', orange: '#fed7aa', amber: '#fde68a', slate: '#e2e8f0' };
   return {
     display: 'flex', alignItems: 'center', gap: 10,
     padding: '8px 12px',
@@ -1063,4 +1105,38 @@ function dashRowStyle(tone: 'red' | 'orange' | 'amber'): React.CSSProperties {
     width: '100%',
     fontFamily: 'inherit',
   };
+}
+
+/** Une ligne d'échéance dans le centre de pilotage (cliquable → ouvre le dossier). */
+function PilotageRow({ item, tone, onOpen }: {
+  item: PilotageItem;
+  tone: 'red' | 'orange' | 'amber' | 'slate';
+  onOpen: (id: string) => void;
+}) {
+  const meta: Record<PilotageKind, { icon: React.ReactNode; tag: string }> = {
+    date:         { icon: <Calendar size={13} />,     tag: 'Échéance' },
+    commande:     { icon: <ShoppingCart size={13} />, tag: 'Commande' },
+    livraison:    { icon: <Package size={13} />,      tag: 'Livraison' },
+    confirmation: { icon: <CheckCircle2 size={13} />, tag: 'Confirmation' },
+  };
+  const badgeColor: Record<string, string> = { red: '#b91c1c', orange: '#c2410c', amber: '#92400e', slate: '#475569' };
+  const badge = item.days < 0 ? `-${Math.abs(item.days)}j` : item.days === 0 ? 'Auj.' : `J+${item.days}`;
+  const m = meta[item.kind];
+  return (
+    <button onClick={() => onOpen(item.dossierId)} style={dashRowStyle(tone)}>
+      <span style={{ color: badgeColor[tone], display: 'inline-flex', flexShrink: 0 }}>{m.icon}</span>
+      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#1a2a1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {item.label}{item.detail ? ` — ${item.detail}` : ''}
+        </div>
+        <div style={{ fontSize: 11, color: '#7c6c58', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {m.tag} · {item.dossierName}
+        </div>
+      </div>
+      {item.montant ? (
+        <span style={{ fontSize: 11, color: '#475569', fontWeight: 600, flexShrink: 0 }}>{formatMontant(item.montant)}</span>
+      ) : null}
+      <span style={{ fontSize: 11, fontWeight: 700, color: badgeColor[tone], flexShrink: 0, minWidth: 36, textAlign: 'right' }}>{badge}</span>
+    </button>
+  );
 }
