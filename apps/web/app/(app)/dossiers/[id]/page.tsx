@@ -1267,6 +1267,8 @@ export default function DossierDetailPage() {
                   type: 'DEVIS',
                   dossierSigned: isSigned,
                   projectId: dossier.id,
+                  // Arbre → sépare Chantier / Avant-vente dans le sélecteur général.
+                  subfolders: dossier.subfolders.map((s) => s.label),
                   title: `Intervention — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
                 }}
               />
@@ -1839,7 +1841,7 @@ export default function DossierDetailPage() {
                                 <SendToIntervenantButton
                                   variant="icon"
                                   style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #1a2a1e 0%, #3D5449 100%)', color: '#cbb98a', border: 'none', boxShadow: '0 2px 6px rgba(26,42,30,0.28)' }}
-                                  prefill={{ projectId: id, dossierSigned: isSigned, attachments: [{ dossierDocumentId: doc.docId, displayName: doc.name, mimeType: doc.type ?? undefined }] }}
+                                  prefill={{ projectId: id, dossierSigned: isSigned, subfolders: dossier.subfolders.map((s) => s.label), attachments: [{ dossierDocumentId: doc.docId, displayName: doc.name, mimeType: doc.type ?? undefined }] }}
                                 />
                               )}
                               {canEditThis && (
@@ -1966,6 +1968,7 @@ export default function DossierDetailPage() {
                       dossierSigned: isSigned,
                       title: `Document — ${previewDoc.name}`,
                       projectId: id,
+                      subfolders: dossier.subfolders.map((s) => s.label),
                       attachments: [{
                         dossierDocumentId: previewDoc.docId,
                         displayName: previewDoc.name,
