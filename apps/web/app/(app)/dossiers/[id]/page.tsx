@@ -1086,6 +1086,9 @@ export default function DossierDetailPage() {
                         projectId: dossier.id,
                         // Restreint l'envoi à CE sous-dossier uniquement (pas les autres).
                         subfolderLabel: sf.label,
+                        // Arbre complet → résout les feuilles d'un sous-dossier parent
+                        // (dont les docs sont étiquetés à plat côté API).
+                        subfolders: dossier.subfolders.map((s) => s.label),
                         notes: docsCount > 0
                           ? `Sous-dossier : ${sf.label}\n${docsCount} document(s) à transmettre`
                           : `Sous-dossier : ${sf.label}`,
@@ -2104,6 +2107,9 @@ export default function DossierDetailPage() {
           projectId: id,
           dossierSigned: isSigned,
           subfolderLabel: sendFolderPath ?? undefined,
+          // Arbre complet → sépare Chantier / Avant-vente dans le sélecteur (envoi
+          // général) et résout les feuilles d'un sous-dossier parent (envoi ciblé).
+          subfolders: dossier?.subfolders?.map((s) => s.label) ?? undefined,
           // Titre informatif pour l'intervenant : « <Dossier> — <Sous-dossier> ».
           title: sendFolderPath
             ? `${[dossier?.name, dossier?.firstName].filter(Boolean).join(' ')} — ${sendFolderPath.includes(' ▸ ') ? sendFolderPath.split(' ▸ ').pop() : sendFolderPath}`.trim()

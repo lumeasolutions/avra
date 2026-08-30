@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Folder, Check, Image as ImageIcon, Mail, UserPlus, CheckCircle2, Paperclip, Trash2, Bookmark } from 'lucide-react';
 import { api, apiUpload } from '@/lib/api';
-import { displayName as folderDisplayName, depthOf, isDescendant } from '@/lib/folderTree';
+import { displayName as folderDisplayName, depthOf, isDescendant, splitPath, SEP } from '@/lib/folderTree';
 import { useDemandeTemplatesStore } from '@/store/useDemandeTemplatesStore';
 import {
   DEMANDE_TYPE_LABELS,
@@ -55,6 +55,13 @@ export interface SendToIntervenantPrefill {
    * Absent → tout le dossier est proposé (sélection multiple, ex. bouton « Nouvelle »).
    */
   subfolderLabel?: string;
+  /**
+   * Arbre des sous-dossiers du dossier (labels complets « Parent ▸ Enfant »),
+   * transmis pour (a) grouper le sélecteur par phase avant-vente / chantier et
+   * (b) résoudre les feuilles d'un sous-dossier PARENT dont les documents sont
+   * étiquetés à plat côté API. Absent → comportement legacy (liste à plat).
+   */
+  subfolders?: string[];
   eventId?: string;
   scheduledFor?: string;
   attachments?: Array<{
@@ -191,8 +198,42 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
 
   // Restriction a UN sous-dossier (bouton avion). Absent → tout le dossier.
   const restrictSubfolder = prefill?.subfolderLabel?.trim() || null;
+  const treeLabels = useMemo(() => prefill?.subfolders ?? [], [prefill?.subfolders]);
+
+  // Feuilles (displayName) situées sous une racine « AVANT VENTE » de l'arbre.
+  // Sert à classer un document — dont le subfolderLabel est plat côté API — en
+  // phase avant-vente vs chantier, sans liste en dur.
+  const avantVenteLeaves = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of treeLabels) {
+      const root = splitPath(p)[0] ?? '';
+      if (/avant.?vente/i.test(root)) s.add(folderDisplayName(p));
+    }
+    return s;
+  }, [treeLabels]);
+  const isAvantVenteLabel = (label: string) => {
+    const root = splitPath(label)[0] ?? '';
+    if (/avant.?vente/i.test(root)) return true;
+    return avantVenteLeaves.has(folderDisplayName(label));
+  };
+
+  // Restriction à UN sous-dossier PARENT : ses documents sont étiquetés à plat
+  // (feuille) côté API → on résout l'ensemble des feuilles rattachées via
+  // l'arbre pour ne rien perdre (sinon la section pièces reste vide).
+  const restrictLeafNames = useMemo<Set<string> | null>(() => {
+    if (!restrictSubfolder) return null;
+    const s = new Set<string>([restrictSubfolder, folderDisplayName(restrictSubfolder)]);
+    for (const p of treeLabels) {
+      if (p === restrictSubfolder || p.startsWith(restrictSubfolder + SEP)) {
+        s.add(folderDisplayName(p));
+      }
+    }
+    return s;
+  }, [restrictSubfolder, treeLabels]);
+
   // Pieces effectivement proposees : si restreint, uniquement le sous-dossier
-  // cible + ses descendants ; sinon tout le dossier (selection multiple libre).
+  // cible + ses descendants (y compris feuilles résolues via l'arbre) ; sinon
+  // tout le dossier (selection multiple libre).
   const visibleDocs = useMemo<ProjectDoc[] | null>(() => {
     if (!projectDocs) return null;
     // Exclut partout les boîtes système « Reçu de l'intervenant » et
@@ -204,9 +245,10 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
     if (!restrictSubfolder) return base;
     return base.filter((d) => {
       const label = d.subfolderLabel || 'Autres';
-      return label === restrictSubfolder || isDescendant(label, restrictSubfolder);
+      if (label === restrictSubfolder || isDescendant(label, restrictSubfolder)) return true;
+      return restrictLeafNames ? restrictLeafNames.has(folderDisplayName(label)) : false;
     });
-  }, [projectDocs, restrictSubfolder]);
+  }, [projectDocs, restrictSubfolder, restrictLeafNames]);
 
   // Mode restreint : on pre-coche les documents du sous-dossier cible (une fois,
   // au chargement). L'utilisateur reste libre de decocher ensuite.
@@ -706,17 +748,42 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                     aria-label="Selecteur de pieces du dossier"
                     style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 2 }}
                   >
-                    {Object.entries(visibleDocs.reduce<Record<string, ProjectDoc[]>>((acc, d) => {
-                      const k = d.subfolderLabel || 'Autres';
-                      if (!acc[k]) acc[k] = [];
-                      acc[k].push(d);
-                      return acc;
-                    }, {}))
-                      .sort((a, b) => {
+                    {(() => {
+                      const grouped = visibleDocs.reduce<Record<string, ProjectDoc[]>>((acc, d) => {
+                        const k = d.subfolderLabel || 'Autres';
+                        if (!acc[k]) acc[k] = [];
+                        acc[k].push(d);
+                        return acc;
+                      }, {});
+                      const entries = Object.entries(grouped).sort((a, b) => {
                         const da = depthOf(a[0]), db = depthOf(b[0]);
                         return da !== db ? da - db : a[0].localeCompare(b[0], 'fr', { sensitivity: 'base' });
-                      })
-                      .map(([subfolder, docs]) => {
+                      });
+                      // Fix A : en envoi GÉNÉRAL, on sépare visuellement Chantier
+                      // (dossier signé) et Avant-vente au lieu d'une liste à plat
+                      // mélangée. En envoi restreint (un sous-dossier), pas de
+                      // sections — il n'y a que la cible.
+                      const chantier = entries.filter(([s]) => !isAvantVenteLabel(s));
+                      const avantVente = entries.filter(([s]) => isAvantVenteLabel(s));
+                      const usePhases = !restrictSubfolder && chantier.length > 0 && avantVente.length > 0;
+                      type Row = { header: string } | { subfolder: string; docs: ProjectDoc[] };
+                      const rows: Row[] = usePhases
+                        ? [
+                            { header: '🔨 Chantier (dossier signé)' },
+                            ...chantier.map(([subfolder, docs]) => ({ subfolder, docs })),
+                            { header: '📋 Avant-vente' },
+                            ...avantVente.map(([subfolder, docs]) => ({ subfolder, docs })),
+                          ]
+                        : entries.map(([subfolder, docs]) => ({ subfolder, docs }));
+                      return rows.map((row, rowIndex) => {
+                        if ('header' in row) {
+                          return (
+                            <div key={`phase-${rowIndex}`} style={{ flexShrink: 0, marginTop: rowIndex === 0 ? 0 : 6, padding: '2px 4px', fontSize: 11, fontWeight: 800, color: '#7c6c58', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              {row.header}
+                            </div>
+                          );
+                        }
+                        const { subfolder, docs } = row;
                         const allChecked = docs.every((d) => includedDocIds.has(d.id));
                         const recursiveDocs = subfolder === 'Autres'
                           ? docs
@@ -804,7 +871,8 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                             )}
                           </div>
                         );
-                      })}
+                      });
+                    })()}
                   </div>
                 </div>
               )}
