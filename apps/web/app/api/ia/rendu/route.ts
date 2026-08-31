@@ -33,8 +33,10 @@ import {
 // 300s = max plan Pro. 60s = max Hobby.
 export const maxDuration = 300;
 
-// Limite : 10 générations par IP/utilisateur par heure (appels fal.ai coûteux)
-const IA_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
+// Limite : 150 générations par heure par SHOWROOM (workspace). Assez pour ne
+// jamais bloquer un usage normal, tout en gardant un garde-fou anti-emballement
+// des coûts fal.ai. (Avant : 10/h/utilisateur, trop bas.)
+const IA_RATE_LIMIT = { limit: 150, windowMs: 60 * 60 * 1000 };
 
 export async function POST(req: NextRequest) {
   // ── 1) Auth + extraction contexte
@@ -44,8 +46,8 @@ export async function POST(req: NextRequest) {
   }
   const { userId, workspaceId } = userCtx;
 
-  // ── 2) Rate limit par userId
-  const rateResult = checkRateLimit(`ia-rendu:user:${userId}`, IA_RATE_LIMIT);
+  // ── 2) Rate limit par SHOWROOM (workspace) : 150/h partagés par l'équipe.
+  const rateResult = checkRateLimit(`ia-rendu:ws:${workspaceId}`, IA_RATE_LIMIT);
   if (!rateResult.success) {
     return NextResponse.json(
       { error: 'Trop de générations cette heure. Réessayez plus tard.' },

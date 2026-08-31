@@ -41,8 +41,9 @@ import {
 // MyArchitectAI rend en ~13 s ; le maxDuration large couvre upload + upscale.
 export const maxDuration = 300;
 
-// Limite : 10 générations par utilisateur par heure (cohérent avec /ia/rendu).
-const IA_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
+// Limite : 150 générations par heure par SHOWROOM (workspace), cohérent avec
+// /ia/rendu. (Avant : 10/h/utilisateur, trop bas.)
+const IA_RATE_LIMIT = { limit: 150, windowMs: 60 * 60 * 1000 };
 
 /** Convertit une data URL (data:image/...;base64,xxx) en Buffer + content-type. */
 function dataUrlToBuffer(dataUrl: string): { buffer: Buffer; contentType: string } {
@@ -59,8 +60,8 @@ export async function POST(req: NextRequest) {
   }
   const { userId, workspaceId } = userCtx;
 
-  // ── 2) Rate limit
-  const rateResult = checkRateLimit(`ia-architect:user:${userId}`, IA_RATE_LIMIT);
+  // ── 2) Rate limit par SHOWROOM (workspace) : 150/h partagés par l'équipe.
+  const rateResult = checkRateLimit(`ia-architect:ws:${workspaceId}`, IA_RATE_LIMIT);
   if (!rateResult.success) {
     return NextResponse.json(
       { error: 'Trop de générations cette heure. Réessayez plus tard.' },

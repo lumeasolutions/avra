@@ -66,7 +66,7 @@ import {
 
 export const maxDuration = 300;
 
-const IA_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
+const IA_RATE_LIMIT = { limit: 150, windowMs: 60 * 60 * 1000 }; // 150/h par showroom (avant 10/h)
 
 /** data:image/...;base64,xxx → Buffer + content-type. */
 function dataUrlToBuffer(dataUrl: string): { buffer: Buffer; contentType: string } {

@@ -28,8 +28,9 @@ import {
 // 300s = max plan Pro. 60s = max Hobby.
 export const maxDuration = 300;
 
-// Limite : 10 générations par IP/utilisateur par heure
-const IA_RATE_LIMIT = { limit: 10, windowMs: 60 * 60 * 1000 };
+// Limite : 150 générations par heure par SHOWROOM (workspace). (Avant :
+// 10/h/utilisateur, trop bas — bloquait un usage normal.)
+const IA_RATE_LIMIT = { limit: 150, windowMs: 60 * 60 * 1000 };
 
 export async function POST(req: NextRequest) {
   // ── 1) Authentification + extraction contexte (user + workspace) ─────────
@@ -42,9 +43,8 @@ export async function POST(req: NextRequest) {
   }
   const { userId, workspaceId } = userCtx;
 
-  // ── 2) Rate limiting par userId (au lieu d'IP : un seul user qui partage
-  //       son NAT avec un collègue ne grille plus son quota commun).
-  const rateResult = checkRateLimit(`ia-coloriste:user:${userId}`, IA_RATE_LIMIT);
+  // ── 2) Rate limiting par SHOWROOM (workspace) : 150/h partagés par l'équipe.
+  const rateResult = checkRateLimit(`ia-coloriste:ws:${workspaceId}`, IA_RATE_LIMIT);
   if (!rateResult.success) {
     return NextResponse.json(
       { error: 'Trop de générations cette heure. Réessayez plus tard.' },
