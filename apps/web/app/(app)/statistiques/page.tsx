@@ -17,18 +17,20 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BarChart3, Clock, AlertTriangle, Table2, Users, Package } from 'lucide-react';
+import { BarChart3, Clock, AlertTriangle, Table2, Users, Package, FolderCheck } from 'lucide-react';
 import { useDossierStore, useFacturationStore, useVisibleDossiers, useVisibleDossiersSignes, useVisibleDossiersPerdus } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatsGateModal } from '@/components/statistiques/StatsGateModal';
 import { StatsOverview } from '@/components/statistiques/StatsOverview';
 import { StatsTableauFournisseur } from '@/components/statistiques/StatsTableauFournisseur';
 import { StatsTableauVendeur } from '@/components/statistiques/StatsTableauVendeur';
+import { StatsTableauDossier } from '@/components/statistiques/StatsTableauDossier';
 
-type TabKey = 'statut' | 'fournisseur' | 'vendeur';
+type TabKey = 'statut' | 'dossier' | 'fournisseur' | 'vendeur';
 
 const TABS: { key: TabKey; label: string; short: string; icon: React.ElementType }[] = [
   { key: 'statut',      label: 'Vue d’ensemble',         short: 'Ensemble',    icon: Table2 },
+  { key: 'dossier',     label: 'Par dossier',            short: 'Dossier',     icon: FolderCheck },
   { key: 'fournisseur', label: 'Par fournisseur',        short: 'Fournisseur', icon: Package },
   { key: 'vendeur',     label: 'Par vendeur',            short: 'Vendeur',     icon: Users },
 ];
@@ -65,6 +67,14 @@ export default function StatistiquesPage() {
   // dossiers signés sont sans prix — mais la modale reste fermable (incitatif,
   // pas obligatoire). L'auto-ouverture ne se déclenche qu'une seule fois.
   const [showSignedGate, setShowSignedGate] = useState(false);
+  // Révision/correction ciblée : ouvre le gate sur des dossiers PRÉCIS (déjà
+  // renseignés) pour corriger une erreur de saisie. null = comportement gate
+  // normal (dossiers manquants).
+  const [reviewDossierIds, setReviewDossierIds] = useState<string[] | null>(null);
+  const openPriceEditor = (dossierId?: string) => {
+    setReviewDossierIds(dossierId ? [dossierId] : dossiersSignes.map((d) => d.id));
+    setShowSignedGate(true);
+  };
   const autoOpenedRef = useRef(false);
   useEffect(() => {
     if (!autoOpenedRef.current && missingDossiers.length > 0) {
@@ -152,6 +162,13 @@ export default function StatistiquesPage() {
           onRenseignerSignes={() => setShowSignedGate(true)}
         />
       )}
+      {tab === 'dossier' && (
+        <StatsTableauDossier
+          dossiersSignes={dossiersSignes}
+          onEditDossier={(id) => openPriceEditor(id)}
+          onEditAll={() => openPriceEditor()}
+        />
+      )}
       {tab === 'fournisseur' && (
         <StatsTableauFournisseur dossiersSignes={dossiersSignes} />
       )}
@@ -166,7 +183,11 @@ export default function StatistiquesPage() {
       {/* Saisie des prix SIGNÉS (série rapide + auto-import), NON bloquante. */}
       {showSignedGate && (
         <StatsGateModal
-          missingDossiers={missingDossiers.length > 0 ? missingDossiers : dossiersSignes}
+          missingDossiers={
+            reviewDossierIds
+              ? dossiersSignes.filter((d) => reviewDossierIds.includes(d.id))
+              : (missingDossiers.length > 0 ? missingDossiers : dossiersSignes)
+          }
           allSignes={dossiersSignes}
           dossiersEnCours={dossiers}
           dossiersPerdus={dossiersPerdus}
@@ -176,7 +197,7 @@ export default function StatistiquesPage() {
           onUpdateLigne={updateDossierPrixLigne}
           onAddLignesBulk={addDossierPrixLignesBulk}
           onSkipDossier={setDossierStatsSkipped}
-          onDone={() => setShowSignedGate(false)}
+          onDone={() => { setShowSignedGate(false); setReviewDossierIds(null); }}
         />
       )}
     </div>
