@@ -14,11 +14,12 @@ import {
   Image as ImageIcon, CheckCircle2, ScanLine,
   Lightbulb, Target, Award, AlertTriangle,
   Sun, Lamp, Monitor, Home, Building2,
-  Download, Maximize2, MousePointerClick, ShieldCheck,
+  Download, Maximize2, MousePointerClick, ShieldCheck, SlidersHorizontal,
 } from 'lucide-react';
 import { useDossierStore, useHistoryStore, useAuthStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
 import HistoryPanel, { type IaJobRow } from './HistoryPanel';
+import { RenderAdjustModal } from './RenderAdjustModal';
 
 /* ─── Types front-end uniquement (pas d'import depuis lib/server) ─── */
 type FinishType   = 'mat' | 'satiné' | 'brillant' | 'brossé' | 'bois' | 'miroir' | 'verre-mat';
@@ -907,6 +908,8 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, editing, 
   // Téléchargement local du visuel (≠ « Sauvegarder » qui l'attache au dossier).
   const [zoom, setZoom] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  // Retouche non destructive (lumière / chaleur / contraste…) sur le rendu fini.
+  const [adjustOpen, setAdjustOpen] = useState(false);
   const safeTs   = item.ts.replace(/\D/g, '') || '0';
   const fileName = `Avra-${item.module}-${safeTs}.jpg`;
   const handleDownload = async () => {
@@ -1035,6 +1038,15 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, editing, 
             {downloading ? 'Téléchargement…' : "Télécharger l'image"}
           </button>
         )}
+        {!isMock && mainUrl && (
+          <button onClick={() => setAdjustOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-bold transition-colors hover:bg-[#f5eee8]"
+            style={{ borderColor: `${accentColor}`, color: accentColor }}
+            title="Régler la lumière, la chaleur, le contraste… sans relancer l'IA">
+            <SlidersHorizontal className="h-4 w-4" />
+            Ajuster (lumière, chaleur, contraste…)
+          </button>
+        )}
         {onEdit && !isMock && (
           <button onClick={onEdit} disabled={editing}
             className="flex w-full items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-bold transition-colors hover:bg-[#f5eee8] disabled:opacity-60 disabled:cursor-wait"
@@ -1086,6 +1098,14 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, editing, 
       </div>,
       document.body,
     )}
+
+    {/* Retouche non destructive du rendu (lumière / chaleur / contraste…). */}
+    <RenderAdjustModal
+      open={adjustOpen}
+      imageUrl={mainUrl ?? null}
+      accent={accentColor}
+      onClose={() => setAdjustOpen(false)}
+    />
     </>
   );
 }
