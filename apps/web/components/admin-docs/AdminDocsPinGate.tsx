@@ -97,8 +97,14 @@ export function AdminDocsPinGate({ children }: { children: React.ReactNode }) {
     if (buffer.length !== LEN) return;
     const code = buffer;
     if (mode === 'enter') {
-      if (code === storedPin) setUnlocked(true);
-      else fail('Code incorrect. Réessayez.');
+      if (code === storedPin) {
+        // Auto-armement : si le code existait AVANT le verrou par appareil
+        // (adminDocsDeviceId absent), le 1er déverrouillage réussi tatoue cet
+        // ordinateur comme propriétaire. Évite de devoir réinitialiser le code
+        // pour activer le verrou sur un code déjà en place.
+        if (!storedDeviceId && deviceId) setAdminDocsDevice(deviceId);
+        setUnlocked(true);
+      } else fail('Code incorrect. Réessayez.');
     } else if (mode === 'setup-new') {
       setFirstPin(code); setBuffer(''); setError(''); setMode('setup-confirm');
     } else if (mode === 'setup-confirm') {
@@ -110,7 +116,7 @@ export function AdminDocsPinGate({ children }: { children: React.ReactNode }) {
         setFirstPin(''); setMode('setup-new'); fail('Les deux codes ne correspondent pas. Recommencez.');
       }
     }
-  }, [buffer, mode, storedPin, firstPin, fail, setAdminDocsPin, deviceId]);
+  }, [buffer, mode, storedPin, storedDeviceId, firstPin, fail, setAdminDocsPin, setAdminDocsDevice, deviceId]);
 
   const push = useCallback((d: string) => { setError(''); setBuffer((b) => (b.length < LEN ? b + d : b)); }, []);
   const back = useCallback(() => { setError(''); setBuffer((b) => b.slice(0, -1)); }, []);
@@ -263,7 +269,11 @@ export function AdminDocsPinGate({ children }: { children: React.ReactNode }) {
                   style={{ background: i < buffer.length ? '#c9a96e' : 'transparent', border: `2px solid ${i < buffer.length ? '#c9a96e' : 'rgba(48,64,53,0.25)'}` }} />
               ))}
             </div>
-            {error && <p className="mb-3 text-sm font-medium text-red-500">{error}</p>}
+            {/* Hauteur réservée : le message d'erreur ne décale plus le pavé
+                (sinon une frappe rapide tombe à côté). */}
+            <div className="mb-3 min-h-[20px]">
+              {error && <p className="text-sm font-medium text-red-500">{error}</p>}
+            </div>
             <div className="mx-auto grid max-w-[240px] grid-cols-3 gap-3">
               {keys.map((k) => (
                 <button key={k} type="button" onClick={() => push(k)}
