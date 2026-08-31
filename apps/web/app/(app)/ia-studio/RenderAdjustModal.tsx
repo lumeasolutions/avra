@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, RotateCcw, Download, Loader2, SlidersHorizontal, Sun, Contrast, Droplet, Thermometer, Palette, Aperture } from 'lucide-react';
 
 export interface Adjustments {
@@ -75,6 +76,8 @@ export function RenderAdjustModal({
   const [a, setA] = useState<Adjustments>(DEFAULTS);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (open) { setA(DEFAULTS); setError(null); }
@@ -149,12 +152,12 @@ export function RenderAdjustModal({
     }
   }, [imageUrl, a]);
 
-  if (!open || !imageUrl) return null;
+  if (!open || !imageUrl || !mounted || typeof document === 'undefined') return null;
 
   const warm = warmthOverlay(a.temperature);
   const tnt = tintOverlay(a.tint);
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
       style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(15,23,18,0.62)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
@@ -240,6 +243,7 @@ export function RenderAdjustModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

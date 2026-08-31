@@ -33,7 +33,9 @@ import {
   Calendar,
   User as UserIcon,
   Trash2,
+  SlidersHorizontal,
 } from 'lucide-react';
+import { RenderAdjustModal } from './RenderAdjustModal';
 
 // 'EDIT' = module IA Architect (MyArchitectAI). Réutilisation d'une valeur
 // d'enum existante pour un historique dédié sans migration Prisma.
@@ -108,6 +110,8 @@ export default function HistoryPanel({ filterType, onSelect, refreshTrigger, acc
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Retouche d'un rendu PASSÉ directement depuis l'historique.
+  const [adjustUrl, setAdjustUrl] = useState<string | null>(null);
 
   // Supprime une entrée de l'historique (IaJob) — scopé au workspace côté API.
   const handleDelete = useCallback(async (id: string) => {
@@ -244,18 +248,32 @@ export default function HistoryPanel({ filterType, onSelect, refreshTrigger, acc
               }`}
               style={{ ['--accent' as string]: accent } as React.CSSProperties}
             >
-              {/* Bouton supprimer (visible au survol) — fonctionne aussi sur un
-                  rendu échoué, d'où la carte en <div> et non <button disabled>. */}
-              <button
-                type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (deletingId !== job.id) void handleDelete(job.id); }}
-                disabled={deletingId === job.id}
-                title="Supprimer de l’historique"
-                aria-label="Supprimer de l’historique"
-                className="absolute top-2 left-2 z-20 flex h-7 w-7 items-center justify-center rounded-lg bg-black/45 text-white opacity-0 group-hover:opacity-100 hover:bg-red-500 transition-all"
-              >
-                {deletingId === job.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-              </button>
+              {/* Barre d'actions au survol (Ajuster + Supprimer). Carte en <div>
+                  et non <button disabled> pour que ça marche aussi sur un rendu
+                  échoué. */}
+              <div className="absolute top-2 left-2 z-20 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                {thumb && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAdjustUrl(thumb); }}
+                    title="Ajuster (lumière, chaleur, contraste…)"
+                    aria-label="Ajuster ce rendu"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-black/45 text-white hover:bg-black/70 transition-all"
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (deletingId !== job.id) void handleDelete(job.id); }}
+                  disabled={deletingId === job.id}
+                  title="Supprimer de l’historique"
+                  aria-label="Supprimer de l’historique"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-black/45 text-white hover:bg-red-500 transition-all"
+                >
+                  {deletingId === job.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                </button>
+              </div>
 
               {/* Thumbnail or placeholder */}
               <div className="relative w-full aspect-video bg-[#304035]/5">
@@ -326,6 +344,14 @@ export default function HistoryPanel({ filterType, onSelect, refreshTrigger, acc
           );
         })}
       </div>
+
+      {/* Retouche d'un rendu passé, ouverte depuis sa carte d'historique. */}
+      <RenderAdjustModal
+        open={!!adjustUrl}
+        imageUrl={adjustUrl}
+        accent={accent}
+        onClose={() => setAdjustUrl(null)}
+      />
     </div>
   );
 }
