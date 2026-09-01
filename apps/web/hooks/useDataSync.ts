@@ -93,6 +93,67 @@ export function useDataSync() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
 
+  // ─── Self-heal du rôle (fix « Lecture seule » sur le propriétaire) ─────────
+  // Le rôle (`user.role`) est figé dans le store persisté `avra-auth` à la
+  // connexion et n'était JAMAIS rafraîchi ensuite. Conséquence : une session
+  // dont le rôle persisté est resté sur une valeur non-OWNER (ex. un ancien
+  // token/état intervenant hérité d'un test du portail) fait passer
+  // `useDossierPermissions.isAdmin` à false → TOUS les dossiers en lecture
+  // seule (bandeau « ce dossier appartient à un autre vendeur »), y compris
+  // pour le propriétaire du workspace, et le sélecteur « Attribuer un vendeur »
+  // disparaît. On resynchronise donc le rôle depuis le backend (source de
+  // vérité : /auth/me relit UserWorkspace) une fois par session. Le client
+  // `api()` rafraîchit automatiquement un access token expiré (401), et le
+  // refresh ré-émet toujours un token au rôle réel du workspace — /auth/me
+  // renvoie donc systématiquement le rôle autoritatif.
+  const roleSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (roleSyncedRef.current) return;
+    if (!isAuthenticated()) return;
+    if (user?.id === 'demo') return;
+    roleSyncedRef.current = true;
+    (async () => {
+      try {
+        const me = await api<{
+          id: string;
+          email: string;
+          firstName?: string;
+          lastName?: string;
+          role: string;
+          workspaceId: string;
+          workspace?: { name?: string };
+        }>('/auth/me', { method: 'GET' });
+        if (!me?.id) return;
+        const store = useAuthStore.getState();
+        const cur = store.user;
+        // Garde-fou anti cross-compte : ne corriger que si c'est bien le même
+        // utilisateur qui est persisté localement.
+        if (!cur || cur.id !== me.id) return;
+        const needsFix =
+          cur.role !== me.role ||
+          cur.workspaceId !== me.workspaceId ||
+          (!!me.workspace?.name && cur.workspaceName !== me.workspace.name);
+        if (needsFix) {
+          store.setAuth(store.token || '', {
+            ...cur,
+            role: me.role,
+            workspaceId: me.workspaceId,
+            firstName: me.firstName ?? cur.firstName,
+            lastName: me.lastName ?? cur.lastName,
+            workspaceName: me.workspace?.name ?? cur.workspaceName,
+          });
+        }
+      } catch {
+        // 401 non récupérable, offline, ou /auth/me indisponible : on laisse
+        // l'état local tel quel et on autorise une nouvelle tentative au
+        // prochain montage (best-effort, non bloquant).
+        roleSyncedRef.current = false;
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasHydrated, user?.id]);
+
   useEffect(() => {
     // Ne synchroniser qu'une fois par session, après hydration Zustand
     if (!hasHydrated) return;
