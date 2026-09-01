@@ -50,6 +50,7 @@ const APP_PREFIXES = [
   '/portal-select',
   '/intervenant',
   '/invitation',
+  '/rejoindre-equipe',
   '/epaiement',
 ];
 
