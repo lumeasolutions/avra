@@ -15,45 +15,18 @@
 import { useMemo } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useConfigStore } from '@/store/useConfigStore';
+import { resolveVendeurName } from '@/lib/vendeur-name';
 
 export function useCurrentVendeurName(): string | undefined {
   const user = useAuthStore((s) => s.user);
   const members = useConfigStore((s) => s.members);
-
-  return useMemo(() => {
-    if (!user) return undefined;
-    // 1. Match par email avec un membre configuré
-    if (user.email) {
-      const match = members.find(
-        (m) => m.email.trim().toLowerCase() === user.email.trim().toLowerCase(),
-      );
-      if (match?.name?.trim()) return match.name.trim();
-    }
-    // 2. Reconstituer depuis firstName/lastName
-    const full = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
-    if (full) return full;
-    // 3. Partie locale de l'email
-    if (user.email) {
-      const local = user.email.split('@')[0]?.trim();
-      if (local) return local;
-    }
-    return undefined;
-  }, [user, members]);
+  return useMemo(() => resolveVendeurName(user, members), [user, members]);
 }
 
 /** Helper synchrone — utile dans des contextes hors composants (events, etc.). */
 export function getCurrentVendeurNameFromStores(): string | undefined {
-  const user = useAuthStore.getState().user;
-  if (!user) return undefined;
-  const members = useConfigStore.getState().members;
-  if (user.email) {
-    const match = members.find(
-      (m) => m.email.trim().toLowerCase() === user.email.trim().toLowerCase(),
-    );
-    if (match?.name?.trim()) return match.name.trim();
-  }
-  const full = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
-  if (full) return full;
-  if (user.email) return user.email.split('@')[0] || undefined;
-  return undefined;
+  return resolveVendeurName(
+    useAuthStore.getState().user,
+    useConfigStore.getState().members,
+  );
 }

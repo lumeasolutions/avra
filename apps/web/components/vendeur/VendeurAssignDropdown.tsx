@@ -17,6 +17,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Check, UserX } from 'lucide-react';
 import { useConfigStore } from '@/store/useConfigStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { resolveVendeurName } from '@/lib/vendeur-name';
 import { VendeurBadge } from './VendeurBadge';
 
 interface Props {
@@ -63,22 +64,17 @@ export function VendeurAssignDropdown({
     ? `${authUser.firstName ?? ''} ${authUser.lastName ?? ''}`.trim() || authUser.email
     : null;
 
-  // Nom du vendeur pour l'utilisateur connecté, résolu EXACTEMENT comme à la
-  // création d'un dossier (cf. useDossierPermissions) : membre correspondant à
-  // l'email d'abord, sinon prénom+nom, sinon partie locale de l'email. C'est ce
-  // nom qui permet à `isOwnDossier` de reconnaître un dossier attribué « à soi ».
-  const myVendeurName = useMemo<string | null>(() => {
-    if (!authUser) return null;
-    const norm = (s?: string | null) => (s ?? '').trim().toLowerCase();
-    if (authUser.email) {
-      const m = members.find((mb) => norm(mb.email) === norm(authUser.email));
-      if (m?.name?.trim()) return m.name.trim();
-    }
-    const full = `${authUser.firstName ?? ''} ${authUser.lastName ?? ''}`.trim();
-    if (full) return full;
-    const local = authUser.email?.split('@')[0]?.trim();
-    return local || null;
-  }, [authUser, members]);
+  // Nom du vendeur pour l'utilisateur connecté, via la SOURCE UNIQUE
+  // resolveVendeurName (match email non ambigu → sinon prénom+nom → sinon
+  // partie locale de l'email). C'est ce même nom qui sert à `isOwnDossier`, donc
+  // attribuer ce dossier « à soi » rend bien les droits d'édition. La résolution
+  // non ambiguë évite que, lorsque plusieurs membres partagent l'email de
+  // l'utilisateur (données de test), on renvoie un nom de membre arbitraire au
+  // lieu du nom réel — ce qui empêchait l'injection de l'option « Vous ».
+  const myVendeurName = useMemo<string | null>(
+    () => resolveVendeurName(authUser, members) ?? null,
+    [authUser, members],
+  );
 
   // Options du menu : les membres assignables + garantie que l'utilisateur
   // connecté (souvent le propriétaire) est TOUJOURS proposé — sinon un dossier

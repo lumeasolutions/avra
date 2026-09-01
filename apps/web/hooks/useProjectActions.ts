@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import { useDossierStore, getDefaultSubfoldersForProfession, type ValidatedOptionSelection, type DossierProfession } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useConfigStore } from '@/store/useConfigStore';
+import { resolveVendeurName } from '@/lib/vendeur-name';
 
 interface CreateProjectData {
   lastName: string;
@@ -53,25 +54,12 @@ export function useProjectActions() {
   const store = useDossierStore();
 
   // ── Multi-vendeur (26/05/2026) — résout le nom du vendeur à attribuer
-  //    automatiquement à un nouveau dossier. Tente d'abord de matcher l'email
-  //    avec un membre configuré, sinon retombe sur firstName+lastName, puis
-  //    sur la partie locale de l'email.
-  const resolveCurrentVendeurName = useCallback((): string | undefined => {
-    if (!user) return undefined;
-    if (user.email) {
-      const m = members.find(
-        (mb) => mb.email.trim().toLowerCase() === user.email.trim().toLowerCase(),
-      );
-      if (m?.name?.trim()) return m.name.trim();
-    }
-    const full = `${(user as any).firstName ?? ''} ${(user as any).lastName ?? ''}`.trim();
-    if (full) return full;
-    if (user.email) {
-      const local = user.email.split('@')[0]?.trim();
-      if (local) return local;
-    }
-    return undefined;
-  }, [user, members]);
+  //    automatiquement à un nouveau dossier. Source unique : resolveVendeurName
+  //    (match email non ambigu, sinon prénom+nom, sinon partie locale email).
+  const resolveCurrentVendeurName = useCallback(
+    (): string | undefined => resolveVendeurName(user, members),
+    [user, members],
+  );
 
   /**
    * Crée un dossier de manière fiable :

@@ -26,6 +26,7 @@
 import { useCallback, useMemo } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useConfigStore } from '@/store/useConfigStore';
+import { resolveVendeurName } from '@/lib/vendeur-name';
 
 /** Forme minimale d'un dossier pour le contrôle d'accès. */
 export interface DossierLike {
@@ -41,20 +42,10 @@ export function useDossierPermissions() {
   const isAdmin = !!user && (user.role === 'ADMIN' || user.role === 'OWNER');
 
   // Nom du vendeur connecté (même résolution qu'à la création d'un dossier).
-  const myVendeurName = useMemo<string | undefined>(() => {
-    if (!user) return undefined;
-    if (user.email) {
-      const m = members.find((mb) => norm(mb.email) === norm(user.email));
-      if (m?.name?.trim()) return m.name.trim();
-    }
-    const full = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
-    if (full) return full;
-    if (user.email) {
-      const local = user.email.split('@')[0]?.trim();
-      if (local) return local;
-    }
-    return undefined;
-  }, [user, members]);
+  const myVendeurName = useMemo<string | undefined>(
+    () => resolveVendeurName(user, members),
+    [user, members],
+  );
 
   /** Le dossier appartient-il au vendeur connecté ? */
   const isOwnDossier = useCallback(
