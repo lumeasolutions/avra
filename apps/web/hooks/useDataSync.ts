@@ -127,21 +127,29 @@ export function useDataSync() {
         if (!me?.id) return;
         const store = useAuthStore.getState();
         const cur = store.user;
-        // Garde-fou anti cross-compte : ne corriger que si c'est bien le même
-        // utilisateur qui est persisté localement.
-        if (!cur || cur.id !== me.id) return;
+        // Garde-fou anti cross-compte : si un AUTRE utilisateur est déjà
+        // persisté, on ne touche à rien (la détection multi-compte de
+        // useDataSync, via avra-last-user-id, gère le reset). En revanche, si
+        // AUCUN user n'est persisté (cas observé : session cookie `logged_in`
+        // valide mais `user: null` dans avra-auth — d'où l'état lecture seule
+        // après un simple rechargement, sans re-login), on (re)peuple l'objet
+        // user depuis le serveur.
+        if (cur && cur.id !== me.id) return;
         const needsFix =
+          !cur ||
           cur.role !== me.role ||
           cur.workspaceId !== me.workspaceId ||
           (!!me.workspace?.name && cur.workspaceName !== me.workspace.name);
         if (needsFix) {
           store.setAuth(store.token || '', {
-            ...cur,
+            ...(cur ?? {}),
+            id: me.id,
+            email: me.email,
             role: me.role,
             workspaceId: me.workspaceId,
-            firstName: me.firstName ?? cur.firstName,
-            lastName: me.lastName ?? cur.lastName,
-            workspaceName: me.workspace?.name ?? cur.workspaceName,
+            firstName: me.firstName ?? cur?.firstName,
+            lastName: me.lastName ?? cur?.lastName,
+            workspaceName: me.workspace?.name ?? cur?.workspaceName,
           });
         }
       } catch {
