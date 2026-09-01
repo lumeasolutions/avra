@@ -44,8 +44,10 @@ export function VendeurAssignDropdown({
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  // Liste filtrée : membres actifs + rôle VENDEUR ou ADMIN (les ADMIN peuvent
-  // aussi être responsables, les POSEUR sont exclus pour ne pas polluer le menu).
+  // Liste filtrée : membres actifs + rôle VENDEUR ou ADMIN (un ADMIN peut aussi
+  // être responsable de dossiers ; les POSEUR sont exclus pour ne pas polluer le
+  // menu). Le propriétaire (OWNER) n'est pas un « membre » config : il est ajouté
+  // séparément via l'option « self » ci-dessous.
   const assignableMembers = useMemo(
     () => members.filter((m) => m.active && (m.role === 'VENDEUR' || m.role === 'ADMIN')),
     [members],
@@ -60,6 +62,37 @@ export function VendeurAssignDropdown({
   const currentUserName = authUser
     ? `${authUser.firstName ?? ''} ${authUser.lastName ?? ''}`.trim() || authUser.email
     : null;
+
+  // Nom du vendeur pour l'utilisateur connecté, résolu EXACTEMENT comme à la
+  // création d'un dossier (cf. useDossierPermissions) : membre correspondant à
+  // l'email d'abord, sinon prénom+nom, sinon partie locale de l'email. C'est ce
+  // nom qui permet à `isOwnDossier` de reconnaître un dossier attribué « à soi ».
+  const myVendeurName = useMemo<string | null>(() => {
+    if (!authUser) return null;
+    const norm = (s?: string | null) => (s ?? '').trim().toLowerCase();
+    if (authUser.email) {
+      const m = members.find((mb) => norm(mb.email) === norm(authUser.email));
+      if (m?.name?.trim()) return m.name.trim();
+    }
+    const full = `${authUser.firstName ?? ''} ${authUser.lastName ?? ''}`.trim();
+    if (full) return full;
+    const local = authUser.email?.split('@')[0]?.trim();
+    return local || null;
+  }, [authUser, members]);
+
+  // Options du menu : les membres assignables + garantie que l'utilisateur
+  // connecté (souvent le propriétaire) est TOUJOURS proposé — sinon un dossier
+  // qu'on lui retire ne pourrait plus lui être rendu depuis l'interface, alors
+  // que l'app sait pourtant l'identifier (« Vous »). On l'ajoute en tête s'il
+  // n'apparaît pas déjà via un membre.
+  const options = useMemo(() => {
+    const norm = (s?: string | null) => (s ?? '').trim().toLowerCase();
+    const base: { id: string; name: string; role: string }[] = assignableMembers.map((m) => ({ id: m.id, name: m.name, role: m.role as string }));
+    if (myVendeurName && !base.some((o) => norm(o.name) === norm(myVendeurName))) {
+      base.unshift({ id: '__self__', name: myVendeurName, role: role || 'OWNER' });
+    }
+    return base;
+  }, [assignableMembers, myVendeurName, role]);
 
   // Click outside pour fermer le menu
   useEffect(() => {
@@ -133,7 +166,7 @@ export function VendeurAssignDropdown({
               to { opacity: 1; transform: translateY(0); }
             }
           `}</style>
-          {assignableMembers.length === 0 ? (
+          {options.length === 0 ? (
             <p style={{
               margin: 0, padding: '10px 12px', fontSize: 11,
               color: 'rgba(48,64,53,0.55)', fontStyle: 'italic',
@@ -142,7 +175,7 @@ export function VendeurAssignDropdown({
             </p>
           ) : (
             <>
-              {assignableMembers.map((m) => {
+              {options.map((m) => {
                 const isCurrent = m.name === currentVendeurName?.trim();
                 return (
                   <button
@@ -167,7 +200,7 @@ export function VendeurAssignDropdown({
                     <span style={{
                       marginLeft: 'auto', fontSize: 10, fontWeight: 700,
                       padding: '2px 6px', borderRadius: 4,
-                      background: m.role === 'ADMIN' ? '#304035' : '#a67749', color: '#fff',
+                      background: m.role === 'ADMIN' || m.role === 'OWNER' ? '#304035' : '#a67749', color: '#fff',
                       letterSpacing: 0,
                     }}>
                       {m.role}
