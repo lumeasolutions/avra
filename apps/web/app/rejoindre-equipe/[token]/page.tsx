@@ -39,11 +39,14 @@ interface TeamInvitationPreview {
   accountExists: boolean;
 }
 
+// Libellés alignés sur ceux que l'inviteur voit/choisit dans Paramètres →
+// Équipe (ROLE_LABEL + options du formulaire d'invitation), pour que l'invité
+// voie exactement le rôle choisi et pas un synonyme (« Vendeur » ≠ « Membre »).
 function roleLabel(role: string): string {
   const r = (role || '').toUpperCase();
-  if (r === 'ADMIN') return 'Administrateur';
   if (r === 'OWNER') return 'Propriétaire';
-  return 'Vendeur';
+  if (r === 'ADMIN') return 'Administrateur';
+  return 'Membre'; // MEMBER (et variantes) → « Membre »
 }
 
 export default function RejoindreEquipePage() {
@@ -133,7 +136,9 @@ export default function RejoindreEquipePage() {
         </h1>
         <p style={{ fontSize: 14, color: '#5b5045', textAlign: 'center', marginBottom: 22, lineHeight: 1.5 }}>
           <strong>{preview.inviterName}</strong> vous invite à rejoindre
-          {' '}<strong>{preview.workspaceName}</strong> sur AVRA.
+          {preview.workspaceName && preview.workspaceName.trim() !== preview.inviterName.trim()
+            ? <> l'équipe <strong>{preview.workspaceName}</strong> sur AVRA.</>
+            : <> son équipe sur AVRA.</>}
         </p>
 
         <div style={{
