@@ -24,11 +24,26 @@ export class ProjectsService {
           notes: dto.clientNotes,
         },
       });
+      // Phase 2 — le créateur est le vendeur par défaut du dossier. On pose le
+      // lien structuré (vendeurUserId) ET le snapshot du nom dès la création,
+      // pour que la base soit la source de vérité (l'UI n'affiche plus un vendeur
+      // qui n'existe pas côté serveur) et que le dossier compte dans les stats.
+      const creator = userId
+        ? await tx.user.findUnique({
+            where: { id: userId },
+            select: { firstName: true, lastName: true, email: true },
+          })
+        : null;
+      const vendeurName = creator
+        ? `${creator.firstName ?? ''} ${creator.lastName ?? ''}`.trim() || creator.email
+        : null;
       return tx.project.create({
         data: {
           workspaceId,
           clientId: client.id,
           ownerId: userId,
+          vendeurUserId: userId ?? null,
+          vendeurName,
           name: dto.name,
           reference: dto.reference,
           tradeType: dto.tradeType,
