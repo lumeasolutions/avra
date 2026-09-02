@@ -342,6 +342,8 @@ interface ConfigState {
   toggleMemberActive: (id: string) => void;
   removeMember: (id: string) => void;
   updateMemberRole: (id: string, role: 'ADMIN' | 'VENDEUR' | 'POSEUR') => void;
+  /** Remplace la liste des membres (hydratation depuis le backend équipe). */
+  setMembers: (members: UserMember[]) => void;
 
   // Reset
   reset: () => void;
@@ -447,6 +449,8 @@ export const useConfigStore = create<ConfigState>()(
       updateMemberRole: (id, role) => {
         set(s => ({ members: s.members.map(m => m.id === id ? { ...m, role } : m) }));
       },
+
+      setMembers: (members) => set({ members }),
 
       reset: () => set({
         preferences: INITIAL_PREFERENCES,

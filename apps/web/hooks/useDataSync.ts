@@ -27,6 +27,7 @@ import { useStockStore } from '@/store/useStockStore';
 import { stockItemFromApi } from '@/lib/stock-api';
 import { useConfigStore } from '@/store/useConfigStore';
 import { getSettings } from '@/lib/settings-api';
+import { getTeamOverview, teamDisplayName } from '@/lib/team-api';
 import { useAuthStore, clearAllAppStoresHard } from '@/store/useAuthStore';
 import { createQuote, devisToPayload, quoteToDevis } from '@/lib/quotes-api';
 import { createInvoice, invoiceDetailToPayload, invoiceApiToDetail, invoiceApiToBase } from '@/lib/invoices-api';
@@ -205,7 +206,7 @@ export function useDataSync() {
         await Promise.allSettled([syncProjects(), syncIntervenants()]);
         await Promise.allSettled([syncEvents(), syncPayments()]);
         await Promise.allSettled([syncQuotes(), syncInvoices()]);
-        await Promise.allSettled([syncStock(), syncSettings()]);
+        await Promise.allSettled([syncStock(), syncSettings(), syncTeamMembers()]);
       } finally {
         setSynced(true);
         setSyncing(false);
@@ -240,6 +241,35 @@ export function useDataSync() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated, user?.id]);
+
+  // ── Équipe / vendeurs — source de vérité serveur (chantier persistance,
+  //    Phase 1) ───────────────────────────────────────────────────────────
+  // La liste des vendeurs vivait uniquement en localStorage (useConfigStore),
+  // donc variait d'un poste à l'autre. On l'hydrate désormais depuis le backend
+  // équipe (`GET /team/overview` = UserWorkspace du workspace). Best-effort :
+  // l'endpoint est réservé OWNER/ADMIN → pour les autres rôles il renvoie 403 et
+  // on garde la liste locale (les vendeurs n'attribuent pas de dossiers).
+  async function syncTeamMembers() {
+    try {
+      const role = (useAuthStore.getState().user?.role ?? '').toUpperCase();
+      if (role !== 'OWNER' && role !== 'ADMIN') return;
+      const overview = await getTeamOverview();
+      const members = overview?.members ?? [];
+      // Ne JAMAIS vider la liste sur une réponse vide/inattendue.
+      if (!members.length) return;
+      const mapped = members.map((m) => ({
+        id: m.userId,
+        name: teamDisplayName(m),
+        email: m.email,
+        role: (m.role === 'OWNER' || m.role === 'ADMIN' ? 'ADMIN' : 'VENDEUR') as
+          'ADMIN' | 'VENDEUR' | 'POSEUR',
+        active: m.status === 'ACTIVE',
+      }));
+      useConfigStore.getState().setMembers(mapped);
+    } catch {
+      // 403 (non-admin), hors-ligne, ou endpoint indisponible → on garde le local.
+    }
+  }
 
   async function syncProjects() {
     try {
