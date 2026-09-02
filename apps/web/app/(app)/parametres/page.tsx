@@ -93,7 +93,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 const ROLE_LABEL: Record<string, string> = {
-  OWNER: 'Propriétaire', ADMIN: 'Admin', MEMBER: 'Membre', VIEWER: 'Lecture',
+  OWNER: 'Propriétaire', ADMIN: 'Admin', MEMBER: 'Vendeur', VIEWER: 'Lecture',
 };
 
 const fmt = (n: number) =>
@@ -1080,7 +1080,7 @@ export default function ParametresPage() {
                     className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-3 py-2.5 text-sm text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#304035]/20" />
                   <select value={newMember.role} onChange={e => setNewMember(p => ({ ...p, role: e.target.value as 'VENDEUR' | 'POSEUR' | 'ADMIN' }))}
                     className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-3 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20">
-                    <option value="VENDEUR">Membre</option>
+                    <option value="VENDEUR">Vendeur</option>
                     <option value="ADMIN">Administrateur</option>
                   </select>
                   <p className="text-[11px] text-[#304035]/45 leading-snug">

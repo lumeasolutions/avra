@@ -20,6 +20,14 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { resolveVendeurName } from '@/lib/vendeur-name';
 import { VendeurBadge } from './VendeurBadge';
 
+/** Libellé lisible du rôle (vocabulaire produit unifié : non-admin = « Vendeur »). */
+function roleTag(role: string): string {
+  const r = (role || '').toUpperCase();
+  if (r === 'OWNER') return 'Propriétaire';
+  if (r === 'ADMIN') return 'Admin';
+  return 'Vendeur';
+}
+
 interface Props {
   /** Vendeur actuellement attribué (snapshot du nom). */
   currentVendeurName?: string | null;
@@ -205,7 +213,7 @@ export function VendeurAssignDropdown({
                       background: m.role === 'ADMIN' || m.role === 'OWNER' ? '#304035' : '#a67749', color: '#fff',
                       letterSpacing: 0,
                     }}>
-                      {m.role}
+                      {roleTag(m.role)}
                     </span>
                     {isCurrent && <Check size={13} color="#16a34a" />}
                   </button>

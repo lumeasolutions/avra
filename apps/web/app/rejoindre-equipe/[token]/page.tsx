@@ -46,7 +46,7 @@ function roleLabel(role: string): string {
   const r = (role || '').toUpperCase();
   if (r === 'OWNER') return 'Propriétaire';
   if (r === 'ADMIN') return 'Administrateur';
-  return 'Membre'; // MEMBER (et variantes) → « Membre »
+  return 'Vendeur'; // MEMBER (et variantes) → « Vendeur » (vocabulaire produit unifié)
 }
 
 export default function RejoindreEquipePage() {

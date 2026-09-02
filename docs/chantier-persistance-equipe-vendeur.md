@@ -6,7 +6,9 @@
 > depuis `/team/overview`) ✅ déployée · Phase 2 (écriture `vendeurUserId` à
 > l'attribution + à la création) ✅ déployée · Phase 3 (appartenance par
 > `vendeurUserId` + fallback nom dans `useDossierPermissions`) ✅ déployée ·
-> Phase 4 (rétro-remplissage) ✅ faite le 2026-09-02 · Phase 5 (vocabulaire) à faire.
+> Phase 4 (rétro-remplissage) ✅ faite le 2026-09-02 · Phase 5 (vocabulaire unifié
+> sur « Vendeur » pour le rôle non-admin) ✅ déployée. Reste optionnel : la
+> **visibilité** vendeur (nécessite un 2ᵉ compte pour test).
 >
 > Rétro-remplissage (2026-09-02) : 4 dossiers « Esteve Boucheret » rattachés au
 > propriétaire (`vendeurUserId` = `cmnn0qvvj0002tfaaycimmm8g`) — match unique. Les
