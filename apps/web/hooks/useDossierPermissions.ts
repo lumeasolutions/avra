@@ -31,6 +31,8 @@ import { resolveVendeurName } from '@/lib/vendeur-name';
 /** Forme minimale d'un dossier pour le contrôle d'accès. */
 export interface DossierLike {
   vendeurName?: string | null;
+  /** Lien structuré vers le User vendeur (Phase 2/3) — prioritaire sur le nom. */
+  vendeurUserId?: string | null;
 }
 
 const norm = (s?: string | null) => (s ?? '').trim().toLowerCase();
@@ -47,13 +49,24 @@ export function useDossierPermissions() {
     [user, members],
   );
 
-  /** Le dossier appartient-il au vendeur connecté ? */
+  const myUserId = user?.id;
+
+  /**
+   * Le dossier appartient-il au vendeur connecté ?
+   * Phase 3 : on privilégie le lien structuré `vendeurUserId` (fiable, insensible
+   * aux homonymes / emails partagés). On ne retombe sur la comparaison de NOMS
+   * que pour les dossiers pas encore rétro-remplis (`vendeurUserId` absent) —
+   * indispensable tant que les anciens dossiers n'ont que `vendeurName`.
+   */
   const isOwnDossier = useCallback(
     (d?: DossierLike | null): boolean => {
-      if (!d || !d.vendeurName) return false;
+      if (!d) return false;
+      if (d.vendeurUserId) return !!myUserId && d.vendeurUserId === myUserId;
+      // Fallback nom (dossiers legacy sans vendeurUserId).
+      if (!d.vendeurName) return false;
       return !!myVendeurName && norm(d.vendeurName) === norm(myVendeurName);
     },
-    [myVendeurName],
+    [myUserId, myVendeurName],
   );
 
   /** Peut-on modifier/supprimer ce dossier ? (admin = tout, vendeur = les siens) */

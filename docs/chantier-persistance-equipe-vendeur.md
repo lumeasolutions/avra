@@ -4,7 +4,13 @@
 >
 > **Avancement :** Phase 0 (inventaire) ✅ · Phase 1 (hydratation liste vendeurs
 > depuis `/team/overview`) ✅ déployée · Phase 2 (écriture `vendeurUserId` à
-> l'attribution + à la création) ✅ déployée · Phases 3-5 à faire.
+> l'attribution + à la création) ✅ déployée · Phase 3 (appartenance par
+> `vendeurUserId` + fallback nom dans `useDossierPermissions`) ✅ déployée ·
+> Phase 4 (rétro-remplissage) à faire · Phase 5 (vocabulaire) à faire.
+>
+> Note testabilité : la **visibilité** vendeur (un vendeur ne voit que ses
+> dossiers) n'est PAS encore implémentée — aujourd'hui seuls les DROITS d'édition
+> sont cloisonnés. La valider pleinement nécessite un 2ᵉ compte non-OWNER.
 > Objectif : faire de l'équipe et de l'attribution vendeur une donnée
 > **serveur autoritaire**, au lieu du mélange actuel « moitié navigateur,
 > moitié base qui ne se parlent pas ».
