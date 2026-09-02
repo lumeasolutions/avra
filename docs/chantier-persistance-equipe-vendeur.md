@@ -6,7 +6,12 @@
 > depuis `/team/overview`) ✅ déployée · Phase 2 (écriture `vendeurUserId` à
 > l'attribution + à la création) ✅ déployée · Phase 3 (appartenance par
 > `vendeurUserId` + fallback nom dans `useDossierPermissions`) ✅ déployée ·
-> Phase 4 (rétro-remplissage) à faire · Phase 5 (vocabulaire) à faire.
+> Phase 4 (rétro-remplissage) ✅ faite le 2026-09-02 · Phase 5 (vocabulaire) à faire.
+>
+> Rétro-remplissage (2026-09-02) : 4 dossiers « Esteve Boucheret » rattachés au
+> propriétaire (`vendeurUserId` = `cmnn0qvvj0002tfaaycimmm8g`) — match unique. Les
+> 2 dossiers « dfgh » (aucun membre correspondant) laissés `vendeurUserId = null`
+> (orphelins, éditables admin seulement). Réversible (remettre `null`).
 >
 > Note testabilité : la **visibilité** vendeur (un vendeur ne voit que ses
 > dossiers) n'est PAS encore implémentée — aujourd'hui seuls les DROITS d'édition
