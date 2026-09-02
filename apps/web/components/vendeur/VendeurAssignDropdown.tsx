@@ -50,7 +50,7 @@ export function VendeurAssignDropdown({
   // menu). Le propriétaire (OWNER) n'est pas un « membre » config : il est ajouté
   // séparément via l'option « self » ci-dessous.
   const assignableMembers = useMemo(
-    () => members.filter((m) => m.active && (m.role === 'VENDEUR' || m.role === 'ADMIN')),
+    () => members.filter((m) => m.active && (m.role === 'VENDEUR' || m.role === 'ADMIN' || m.role === 'OWNER')),
     [members],
   );
 

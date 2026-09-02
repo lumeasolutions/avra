@@ -251,8 +251,11 @@ export function useDataSync() {
   // on garde la liste locale (les vendeurs n'attribuent pas de dossiers).
   async function syncTeamMembers() {
     try {
-      const role = (useAuthStore.getState().user?.role ?? '').toUpperCase();
-      if (role !== 'OWNER' && role !== 'ADMIN') return;
+      // Pas de garde sur le rôle du store : il est peuplé de façon asynchrone
+      // (self-heal /auth/me) et serait souvent encore vide ici → l'hydratation
+      // ne se déclencherait que selon le chemin de navigation. L'endpoint est
+      // authentifié par cookie et réservé OWNER/ADMIN : un non-admin reçoit un
+      // 403 qu'on avale (on garde alors le local). Indépendant du timing/chemin.
       const overview = await getTeamOverview();
       const members = overview?.members ?? [];
       // Ne JAMAIS vider la liste sur une réponse vide/inattendue.
@@ -261,8 +264,9 @@ export function useDataSync() {
         id: m.userId,
         name: teamDisplayName(m),
         email: m.email,
-        role: (m.role === 'OWNER' || m.role === 'ADMIN' ? 'ADMIN' : 'VENDEUR') as
-          'ADMIN' | 'VENDEUR' | 'POSEUR',
+        // On préserve OWNER (aligné base) ; MEMBER/VIEWER → VENDEUR (libellé UI).
+        role: (m.role === 'OWNER' ? 'OWNER' : m.role === 'ADMIN' ? 'ADMIN' : 'VENDEUR') as
+          'OWNER' | 'ADMIN' | 'VENDEUR' | 'POSEUR',
         active: m.status === 'ACTIVE',
       }));
       useConfigStore.getState().setMembers(mapped);

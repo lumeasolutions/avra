@@ -117,7 +117,10 @@ export interface UserMember {
   id: string;
   name: string;
   email: string;
-  role: 'ADMIN' | 'VENDEUR' | 'POSEUR';
+  // OWNER conservé tel quel (pas rabattu sur ADMIN) pour rester aligné avec le
+  // rôle réel côté base — évite les divergences store/serveur. VENDEUR/POSEUR
+  // sont des libellés UI hérités ; MEMBER (backend) est mappé sur VENDEUR.
+  role: 'OWNER' | 'ADMIN' | 'VENDEUR' | 'POSEUR';
   active: boolean;
 }
 
