@@ -33,6 +33,9 @@ export class SaveDossierDataDto {
   vendeurName?: string | null;
 
   @Allow()
+  vendeurUserId?: string | null;
+
+  @Allow()
   statsSkipped?: boolean;
 
   @Allow()

@@ -23,8 +23,12 @@ import { VendeurBadge } from './VendeurBadge';
 interface Props {
   /** Vendeur actuellement attribué (snapshot du nom). */
   currentVendeurName?: string | null;
-  /** Callback pour persister le changement (passe null pour désassigner). */
-  onChange: (vendeurName: string | null) => void;
+  /**
+   * Callback pour persister le changement. `vendeurName` = snapshot d'affichage,
+   * `vendeurUserId` = lien structuré vers le User (Phase 2). Désassigner => les
+   * deux à null.
+   */
+  onChange: (vendeurName: string | null, vendeurUserId: string | null) => void;
   /** Force le mode readonly (utile en preview). */
   readonly?: boolean;
   /** Affiche un placeholder spécifique quand vide ('Attribuer un vendeur…'). */
@@ -85,7 +89,9 @@ export function VendeurAssignDropdown({
     const norm = (s?: string | null) => (s ?? '').trim().toLowerCase();
     const base: { id: string; name: string; role: string }[] = assignableMembers.map((m) => ({ id: m.id, name: m.name, role: m.role as string }));
     if (myVendeurName && !base.some((o) => norm(o.name) === norm(myVendeurName))) {
-      base.unshift({ id: '__self__', name: myVendeurName, role: role || 'OWNER' });
+      // Fallback : l'utilisateur connecté n'est pas dans la liste hydratée.
+      // On utilise son vrai userId (pour poser vendeurUserId), pas un id factice.
+      base.unshift({ id: authUser?.id ?? '__self__', name: myVendeurName, role: role || 'OWNER' });
     }
     return base;
   }, [assignableMembers, myVendeurName, role]);
@@ -100,8 +106,8 @@ export function VendeurAssignDropdown({
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [open]);
 
-  const handlePick = (name: string | null) => {
-    onChange(name);
+  const handlePick = (name: string | null, userId: string | null) => {
+    onChange(name, userId);
     setOpen(false);
   };
 
@@ -177,7 +183,7 @@ export function VendeurAssignDropdown({
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => handlePick(m.name)}
+                    onClick={() => handlePick(m.name, m.id === '__self__' ? null : m.id)}
                     style={{
                       width: '100%', padding: '7px 10px', borderRadius: 8,
                       border: 'none', background: isCurrent ? 'rgba(166,119,73,0.08)' : 'transparent',
@@ -211,7 +217,7 @@ export function VendeurAssignDropdown({
                   <div style={{ height: 1, background: 'rgba(48,64,53,0.08)', margin: '4px 0' }} />
                   <button
                     type="button"
-                    onClick={() => handlePick(null)}
+                    onClick={() => handlePick(null, null)}
                     style={{
                       width: '100%', padding: '7px 10px', borderRadius: 8,
                       border: 'none', background: 'transparent', cursor: 'pointer',

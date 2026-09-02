@@ -93,6 +93,8 @@ export interface Dossier {
    * Demande asso 19/05/2026.
    */
   vendeurName?: string;
+  /** Lien structuré vers le User vendeur (Phase 2 — en plus du snapshot nom). */
+  vendeurUserId?: string;
   /**
    * Lignes prix achat/vente HT pour les stats (19/05/2026, demande asso).
    * Le gate /statistiques force la saisie sur les dossiers SIGNÉS. Depuis le
@@ -177,6 +179,8 @@ export interface DossierSigne extends Dossier {
    * dossier apparaît dans une catégorie "Sans vendeur attribué".
    */
   vendeurName?: string;
+  /** Lien structuré vers le User vendeur (Phase 2 — en plus du snapshot nom). */
+  vendeurUserId?: string;
   /**
    * Marque le chantier comme entièrement terminé (au-delà de la signature) :
    * pose finie, livraison effectuée, SAV à jour. C'est l'acte final côté pro
@@ -212,6 +216,8 @@ export interface DossierPerdu {
   montantEstime?: number;
   /** Vendeur snapshot pour le TABLEAU 3 stats (19/05/2026). */
   vendeurName?: string;
+  /** Lien structuré vers le User vendeur (Phase 2 — en plus du snapshot nom). */
+  vendeurUserId?: string;
   /**
    * Lignes prix achat/vente HT facultatives (26/05/2026).
    * Pour les dossiers perdus, la saisie est purement informative — utile pour
@@ -678,7 +684,7 @@ interface DossierState {
   commandesAccess: Record<string, Record<string, CommandeAccessEntry[]>>;
 
   // Actions
-  addDossier: (data: { lastName: string; firstName?: string; projectLabel?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string; profession?: string | null; vendeurName?: string }) => string;
+  addDossier: (data: { lastName: string; firstName?: string; projectLabel?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string; profession?: string | null; vendeurName?: string; vendeurUserId?: string }) => string;
   removeSubfolder: (dossierId: string, label: string) => void;
   renameSubfolder: (dossierId: string, oldLabel: string, newLabel: string) => void;
   updateDossierStatus: (id: string, status: DossierStatus) => void;
@@ -729,7 +735,7 @@ interface DossierState {
    */
   setDossierStatsSkipped: (dossierId: string, skipped: boolean) => void;
   /** Set le vendeur attribué (sur Dossier, DossierSigne ou DossierPerdu). */
-  setDossierVendeur: (dossierId: string, vendeurName: string | null) => void;
+  setDossierVendeur: (dossierId: string, vendeurName: string | null, vendeurUserId?: string | null) => void;
   // ─── Commandes ACCESS (panneau ACCEDER de la modale validation) ─────────
   addCommandeAccess: (dossierId: string, label: string, entry: Omit<CommandeAccessEntry, 'id'>) => void;
   updateCommandeAccess: (dossierId: string, label: string, entryId: string, patch: Partial<Omit<CommandeAccessEntry, 'id'>>) => void;
@@ -779,6 +785,7 @@ function pushDossierData(get: () => DossierState, dossierId: string): void {
   const payload: Record<string, unknown> = {
     prixLignes: dd.prixLignes ?? [],
     vendeurName: dd.vendeurName ?? null,
+    vendeurUserId: dd.vendeurUserId ?? null,
     statsSkipped: !!dd.statsSkipped,
     terminated: !!dd.terminated,
     archivedAt: dd.archivedAt ?? null,
@@ -867,6 +874,7 @@ export const useDossierStore = create<DossierState>()(
           // Si non fourni, le dossier reste "Sans vendeur attribué" jusqu'à
           // réassignation manuelle via VendeurAssignDropdown.
           vendeurName: data.vendeurName?.trim() || undefined,
+          vendeurUserId: data.vendeurUserId || undefined,
         };
         set(s => ({ dossiers: [newDossier, ...s.dossiers] }));
         return id;
@@ -1227,13 +1235,20 @@ export const useDossierStore = create<DossierState>()(
         pushDossierData(get, dossierId);
       },
 
-      setDossierVendeur: (dossierId, vendeurName) => {
-        // Met à jour le vendeur sur le dossier où qu'il soit (en cours, signé, perdu)
+      setDossierVendeur: (dossierId, vendeurName, vendeurUserId) => {
+        // Met à jour le vendeur sur le dossier où qu'il soit (en cours, signé, perdu).
+        // Phase 2 : on stocke le lien structuré (vendeurUserId) EN PLUS du snapshot
+        // du nom (vendeurName, gardé pour l'affichage). Désassigner => les deux à
+        // undefined. Si l'appelant ne fournit pas d'userId, on ne l'écrase pas
+        // (undefined) — mais un nom null (désassignation) remet aussi l'userId à null.
         const v = vendeurName?.trim() || undefined;
+        const uidVal = vendeurName == null ? undefined : (vendeurUserId || undefined);
+        const patchDossier = (d: any) =>
+          d.id === dossierId ? { ...d, vendeurName: v, vendeurUserId: uidVal } : d;
         set(s => ({
-          dossiers: s.dossiers.map(d => d.id === dossierId ? { ...d, vendeurName: v } : d),
-          dossiersSignes: s.dossiersSignes.map(d => d.id === dossierId ? { ...d, vendeurName: v } : d),
-          dossiersPerdus: s.dossiersPerdus.map(d => d.id === dossierId ? { ...d, vendeurName: v } : d),
+          dossiers: s.dossiers.map(patchDossier),
+          dossiersSignes: s.dossiersSignes.map(patchDossier),
+          dossiersPerdus: s.dossiersPerdus.map(patchDossier),
         }));
         pushDossierData(get, dossierId);
       },

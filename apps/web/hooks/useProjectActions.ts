@@ -76,7 +76,7 @@ export function useProjectActions() {
     async (data: CreateProjectData): Promise<string> => {
       // Mode démo ou pas de vraie auth → création locale uniquement
       if (user?.id === 'demo' || !user?.workspaceId) {
-        return store.addDossier({ ...data, profession, vendeurName: resolveCurrentVendeurName() });
+        return store.addDossier({ ...data, profession, vendeurName: resolveCurrentVendeurName(), vendeurUserId: user?.id });
       }
 
       // Nom + métier dérivés de la profession (avant : toujours "Cuisine …" / CUISINISTE,
@@ -149,6 +149,8 @@ export function useProjectActions() {
               notes: '',
               // Multi-vendeur (26/05/2026) — auto-assign à la création
               vendeurName: resolveCurrentVendeurName(),
+              // Phase 2 — lien structuré vers le User créateur (vendeurUserId).
+              vendeurUserId: user?.id,
               // FIX P0 (22/07/2026) — sans ce champ, le dossier restait
               // profession: undefined en local (le tradeType envoyé a l'API
               // etait correct, mais l'ajout optimiste local ne le portait pas).

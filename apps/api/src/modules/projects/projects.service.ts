@@ -103,6 +103,7 @@ export class ProjectsService {
         terminatedAt: true,
         archivedAt: true,
         vendeurName: true,
+        vendeurUserId: true,
         statsSkipped: true,
         prixLignes: true,
         confirmations: true,
@@ -267,6 +268,7 @@ export class ProjectsService {
       dateButoires?: unknown;
       dossierBoard?: unknown;
       vendeurName?: string | null;
+      vendeurUserId?: string | null;
       statsSkipped?: boolean;
       terminated?: boolean;
       terminatedAt?: string | null;
@@ -285,6 +287,21 @@ export class ProjectsService {
       if (data.dateButoires !== undefined) patch.dateButoires = data.dateButoires as any;
       if (data.dossierBoard !== undefined) patch.dossierBoard = data.dossierBoard as any;
       if (data.vendeurName !== undefined) patch.vendeurName = data.vendeurName;
+      if (data.vendeurUserId !== undefined) {
+        // Robustesse : ne poser le lien FK que si l'userId est bien un membre de
+        // CE workspace. Un id inconnu (membre local non hydraté, données de test)
+        // ne doit pas faire échouer la contrainte FK — on retombe sur null en
+        // conservant le snapshot vendeurName.
+        let vId = data.vendeurUserId || null;
+        if (vId) {
+          const member = await tx.userWorkspace.findFirst({
+            where: { userId: vId, workspaceId },
+            select: { id: true },
+          });
+          if (!member) vId = null;
+        }
+        patch.vendeurUserId = vId;
+      }
       if (data.statsSkipped !== undefined) patch.statsSkipped = !!data.statsSkipped;
       if (data.terminated !== undefined) patch.terminated = !!data.terminated;
       if (data.terminatedAt !== undefined) {

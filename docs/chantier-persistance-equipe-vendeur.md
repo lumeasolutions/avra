@@ -1,6 +1,10 @@
 # Chantier — Persistance serveur de l'équipe & des vendeurs
 
-> Cadrage (plan, pas encore de code). Rédigé le 2026-09-02.
+> Cadrage + suivi. Rédigé le 2026-09-02.
+>
+> **Avancement :** Phase 0 (inventaire) ✅ · Phase 1 (hydratation liste vendeurs
+> depuis `/team/overview`) ✅ déployée · Phase 2 (écriture `vendeurUserId` à
+> l'attribution + à la création) ✅ déployée · Phases 3-5 à faire.
 > Objectif : faire de l'équipe et de l'attribution vendeur une donnée
 > **serveur autoritaire**, au lieu du mélange actuel « moitié navigateur,
 > moitié base qui ne se parlent pas ».

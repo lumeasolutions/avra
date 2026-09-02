@@ -1286,7 +1286,7 @@ export default function DossierDetailPage() {
               <h2 className="text-sm font-bold text-[#304035]">Vendeur attribué</h2>
               <VendeurAssignDropdown
                 currentVendeurName={dossier.vendeurName}
-                onChange={(name) => setDossierVendeur(id, name)}
+                onChange={(name, userId) => setDossierVendeur(id, name, userId)}
                 size="md"
               />
             </div>

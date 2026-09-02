@@ -381,6 +381,7 @@ export function useDataSync() {
           // cree avant la migration). Fini la perte de donnees au reload.
           prixLignes: (p.prixLignes ?? (local as any)?.prixLignes) ?? [],
           vendeurName: p.vendeurName ?? (local as any)?.vendeurName,
+          vendeurUserId: p.vendeurUserId ?? (local as any)?.vendeurUserId,
           statsSkipped: p.statsSkipped ?? (local as any)?.statsSkipped,
           dateButoires: p.dateButoires ?? (local as any)?.dateButoires,
         };
@@ -431,6 +432,7 @@ export function useDataSync() {
           confirmations: (p.confirmations ?? (local as any)?.confirmations) ?? [],
           prixLignes: (p.prixLignes ?? (local as any)?.prixLignes) ?? [],
           vendeurName: p.vendeurName ?? (local as any)?.vendeurName,
+          vendeurUserId: p.vendeurUserId ?? (local as any)?.vendeurUserId,
           statsSkipped: p.statsSkipped ?? (local as any)?.statsSkipped,
           terminated: p.terminated ?? (local as any)?.terminated,
           terminatedDate: p.terminatedAt
