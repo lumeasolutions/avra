@@ -249,13 +249,15 @@ function RegisterMemberForm({
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Prénom" maxLength={100} style={inputStyle()} />
-        <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Nom" maxLength={100} style={inputStyle()} />
+        <input name="given-name" autoComplete="given-name" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Prénom" maxLength={100} style={inputStyle()} />
+        <input name="family-name" autoComplete="family-name" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Nom" maxLength={100} style={inputStyle()} />
       </div>
 
       <div style={{ position: 'relative' }}>
         <input
           type={showPassword ? 'text' : 'password'}
+          name="new-password"
+          autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onFocus={() => setPwdFocused(true)}

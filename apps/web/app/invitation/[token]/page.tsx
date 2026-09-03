@@ -392,6 +392,8 @@ function NotAuthenticatedActions({
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <input
+          name="given-name"
+          autoComplete="given-name"
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
           placeholder="Prénom"
@@ -399,6 +401,8 @@ function NotAuthenticatedActions({
           style={inputStyle()}
         />
         <input
+          name="family-name"
+          autoComplete="family-name"
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
           placeholder="Nom"
@@ -410,6 +414,8 @@ function NotAuthenticatedActions({
       <div style={{ position: 'relative' }}>
         <input
           type={showPassword ? 'text' : 'password'}
+          name="new-password"
+          autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onFocus={() => setPwdFocused(true)}
