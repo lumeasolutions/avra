@@ -40,6 +40,16 @@ const DEMO_EVENT_IDS = new Set(['e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8'])
 const DEMO_GEST_IDS = new Set(['g1', 'g2', 'g3', 'g4', 'g5']);
 const DEMO_INTERVENANT_IDS = new Set(['i1', 'i2', 'i3', 'i4', 'i5', 'i6']);
 
+// Un id "backend" (cuid Prisma ou UUID) : un dossier qui le porte a forcément
+// eu une ligne en base. S'il est ABSENT d'une liste serveur COMPLÈTE, c'est
+// qu'il a été supprimé côté serveur → on le retire du store (réconciliation des
+// suppressions). Les ids locaux ('d' + uid, démo 'd1'/'s1'/'p1'…) ne matchent
+// pas → jamais retirés par la sync (dossiers hors-ligne / démo préservés).
+function isBackendId(id: string): boolean {
+  return /^c[0-9a-z]{24}$/.test(id) ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
 // Mappings des statuts Prisma → statuts frontend
 function mapLifecycleToStatus(lifecycle: string): 'URGENT' | 'EN COURS' | 'FINITION' | 'A VALIDER' {
   switch (lifecycle) {
@@ -277,9 +287,16 @@ export function useDataSync() {
 
   async function syncProjects() {
     try {
-      const response = await api<any>('/projects?pageSize=100');
+      const response = await api<any>('/projects?pageSize=500');
       // API retourne { data, total, page, pageSize } ou directement un tableau
       const data: any[] = Array.isArray(response) ? response : (response?.data ?? []);
+
+      // Réconciliation des suppressions (fix dossiers fantômes) : on ne peut
+      // retirer du store un dossier absent de la réponse QUE si l'on a bien
+      // récupéré TOUT le workspace (sinon une page tronquée supprimerait des
+      // dossiers non lus → perte de données). `total` vient du backend.
+      const totalCount = typeof response?.total === 'number' ? response.total : data.length;
+      const listIsComplete = data.length >= totalCount;
 
       // Vérifier si le store contient des données démo AVANT le check de longueur
       const store = useDossierStore.getState();
@@ -455,24 +472,27 @@ export function useDataSync() {
         profession: professionFor(p),
       }));
 
-      // Remplacer les données de démo par les données réelles
-      if (hasDemoData || dossiers.length > 0) {
+      // Remplacer les données de démo par les données réelles.
+      // Garder les dossiers locaux absents du backend UNIQUEMENT s'ils ont un id
+      // LOCAL (créé hors-ligne/démo, jamais synchronisé). Un id backend absent
+      // d'une liste COMPLÈTE = dossier supprimé côté serveur → on le retire
+      // (fix fantômes). Si la liste est tronquée, on ne retire rien (sécurité).
+      if (hasDemoData || dossiers.length > 0 || listIsComplete) {
         const realIds = new Set(dossiers.map((d) => d.id));
-        // Garder les dossiers non-démo créés localement (en attente d'un id cuid du backend)
         const localNonDemoActive = hasDemoData
           ? []
-          : store.dossiers.filter((d) => !realIds.has(d.id));
+          : store.dossiers.filter((d) => !realIds.has(d.id) && (!listIsComplete || !isBackendId(d.id)));
 
         useDossierStore.setState({
           dossiers: [...dossiers, ...localNonDemoActive],
         });
       }
 
-      if (hasDemoSigned || dossiersSignes.length > 0) {
+      if (hasDemoSigned || dossiersSignes.length > 0 || listIsComplete) {
         const realSignedIds = new Set(dossiersSignes.map((d) => d.id));
         const localNonDemoSigned = hasDemoSigned
           ? []
-          : store.dossiersSignes.filter((d) => !realSignedIds.has(d.id));
+          : store.dossiersSignes.filter((d) => !realSignedIds.has(d.id) && (!listIsComplete || !isBackendId(d.id)));
 
         useDossierStore.setState({
           dossiersSignes: [...dossiersSignes, ...localNonDemoSigned],
@@ -519,12 +539,12 @@ export function useDataSync() {
         }
       }
 
-      if (hasDemoPerdu || dossiersPerdus.length > 0) {
+      if (hasDemoPerdu || dossiersPerdus.length > 0 || listIsComplete) {
         const realPerduIds = new Set(dossiersPerdus.map((d) => d.id));
         const localNonDemoPerdu = hasDemoPerdu
           ? []
           : store.dossiersPerdus.filter(
-              (d) => !realPerduIds.has(d.id) && !DEMO_PERDU_IDS.has(d.id),
+              (d) => !realPerduIds.has(d.id) && !DEMO_PERDU_IDS.has(d.id) && (!listIsComplete || !isBackendId(d.id)),
             );
 
         useDossierStore.setState({
