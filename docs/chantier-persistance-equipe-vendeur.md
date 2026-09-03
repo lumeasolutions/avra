@@ -7,17 +7,21 @@
 > l'attribution + à la création) ✅ déployée · Phase 3 (appartenance par
 > `vendeurUserId` + fallback nom dans `useDossierPermissions`) ✅ déployée ·
 > Phase 4 (rétro-remplissage) ✅ faite le 2026-09-02 · Phase 5 (vocabulaire unifié
-> sur « Vendeur » pour le rôle non-admin) ✅ déployée. Reste optionnel : la
-> **visibilité** vendeur (nécessite un 2ᵉ compte pour test).
+> sur « Vendeur » pour le rôle non-admin) ✅ déployée · Visibilité/sécurité
+> serveur (cloisonnement `findAll`/`findOne` par `vendeurUserId` pour les
+> non-admins + cache user-scopé) ✅ déployée.
 >
 > Rétro-remplissage (2026-09-02) : 4 dossiers « Esteve Boucheret » rattachés au
 > propriétaire (`vendeurUserId` = `cmnn0qvvj0002tfaaycimmm8g`) — match unique. Les
 > 2 dossiers « dfgh » (aucun membre correspondant) laissés `vendeurUserId = null`
 > (orphelins, éditables admin seulement). Réversible (remettre `null`).
 >
-> Note testabilité : la **visibilité** vendeur (un vendeur ne voit que ses
-> dossiers) n'est PAS encore implémentée — aujourd'hui seuls les DROITS d'édition
-> sont cloisonnés. La valider pleinement nécessite un 2ᵉ compte non-OWNER.
+> Visibilité/sécurité (2026-09-02) : `findAll`/`findOne` filtrent les non-admins
+> sur `vendeurUserId = user.sub` (dossiers orphelins → admin only, pas de fallback
+> nom serveur). Cache rendu user-scopé (`UserScopedCacheInterceptor`) pour éviter
+> qu'un vendeur reçoive la liste non filtrée mise en cache par l'OWNER. Zéro impact
+> tant qu'il n'y a qu'un OWNER (admins non filtrés) ; à valider avec un vrai compte
+> vendeur (créé par l'utilisateur — Cowork ne peut pas s'authentifier).
 > Objectif : faire de l'équipe et de l'attribution vendeur une donnée
 > **serveur autoritaire**, au lieu du mélange actuel « moitié navigateur,
 > moitié base qui ne se parlent pas ».

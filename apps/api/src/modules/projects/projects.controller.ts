@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Put, Patch, Delete, Query, UseGuards, UseInterceptors, Inject } from '@nestjs/common';
 import { CacheTTL, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { WorkspaceScopedCacheInterceptor } from '../../common/interceptors/workspace-scoped-cache.interceptor';
+import { UserScopedCacheInterceptor } from '../../common/interceptors/user-scoped-cache.interceptor';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { CreateProjectWithClientDto } from './dto/create-project-with-client.dto';
@@ -46,7 +46,7 @@ export class ProjectsController {
   }
 
   @Get()
-  @UseInterceptors(WorkspaceScopedCacheInterceptor)
+  @UseInterceptors(UserScopedCacheInterceptor)
   @CacheTTL(300) // 5 minutes
   findAll(
     @CurrentUser() user: JwtPayload,
@@ -55,19 +55,23 @@ export class ProjectsController {
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
-    return this.projects.findAll(user.workspaceId, {
-      status,
-      tradeType,
-      page: page ? parseInt(page, 10) : 1,
-      pageSize: pageSize ? parseInt(pageSize, 10) : 20,
-    });
+    return this.projects.findAll(
+      user.workspaceId,
+      {
+        status,
+        tradeType,
+        page: page ? parseInt(page, 10) : 1,
+        pageSize: pageSize ? parseInt(pageSize, 10) : 20,
+      },
+      { sub: user.sub, role: user.role },
+    );
   }
 
   @Get(':id')
-  @UseInterceptors(WorkspaceScopedCacheInterceptor)
+  @UseInterceptors(UserScopedCacheInterceptor)
   @CacheTTL(600) // 10 minutes for single project
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.projects.findOne(user.workspaceId, id);
+    return this.projects.findOne(user.workspaceId, id, { sub: user.sub, role: user.role });
   }
 
   @Put(':id')

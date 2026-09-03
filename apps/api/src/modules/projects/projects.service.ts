@@ -67,14 +67,28 @@ export class ProjectsService {
   async findAll(
     workspaceId: string,
     filters?: { status?: ProjectLifecycleStatus; tradeType?: TradeType; page?: number; pageSize?: number },
+    actor?: { sub: string; role: string },
   ) {
     const page = filters?.page ?? 1;
     const pageSize = filters?.pageSize ?? 20;
     const skip = (page - 1) * pageSize;
 
+    // Cloisonnement vendeur (sécurité serveur) : un non-admin ne reçoit que SES
+    // dossiers (vendeurUserId = son id). Les dossiers orphelins (vendeurUserId
+    // null, ex. legacy non rétro-remplis) restent réservés aux ADMIN/OWNER.
+    // Pas de fallback par nom côté serveur (trop fragile) : après le
+    // rétro-remplissage, l'appartenance passe par l'id.
+    const isAdmin = !actor || actor.role === 'ADMIN' || actor.role === 'OWNER';
+    const where = {
+      workspaceId,
+      lifecycleStatus: filters?.status,
+      tradeType: filters?.tradeType,
+      ...(isAdmin ? {} : { vendeurUserId: actor!.sub }),
+    };
+
     const [data, total] = await Promise.all([
       this.prisma.project.findMany({
-        where: { workspaceId, lifecycleStatus: filters?.status, tradeType: filters?.tradeType },
+        where,
         include: {
           client: true,
           owner: { select: { id: true, firstName: true, lastName: true } },
@@ -84,18 +98,20 @@ export class ProjectsService {
         skip,
         take: pageSize,
       }),
-      this.prisma.project.count({
-        where: { workspaceId, lifecycleStatus: filters?.status, tradeType: filters?.tradeType },
-      }),
+      this.prisma.project.count({ where }),
     ]);
 
     return { data, total, page, pageSize };
   }
 
-  async findOne(workspaceId: string, id: string) {
+  async findOne(workspaceId: string, id: string, actor?: { sub: string; role: string }) {
+    // Cloisonnement vendeur : un non-admin ne peut charger qu'un dossier qui lui
+    // est attribué (vendeurUserId = son id). Sinon → null (introuvable), pour
+    // qu'il ne puisse pas récupérer le dossier d'un autre via l'API.
+    const isAdmin = !actor || actor.role === 'ADMIN' || actor.role === 'OWNER';
     // OPTIMISATION: Utiliser select pour charger uniquement les champs nécessaires
     return this.prisma.project.findFirst({
-      where: { id, workspaceId },
+      where: { id, workspaceId, ...(isAdmin ? {} : { vendeurUserId: actor!.sub }) },
       select: {
         id: true,
         workspaceId: true,
