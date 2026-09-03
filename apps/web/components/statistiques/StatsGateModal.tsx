@@ -573,6 +573,23 @@ export function StatsGateModal({
     }
   }, [handleAddLigne]);
 
+  // ── [D] Échap ferme la modale (papercut : elle s'ouvre d'office sur
+  //    /statistiques et Échap ne la fermait pas). On NE ferme PAS si le focus est
+  //    dans un champ de saisie : là, Échap garde son rôle « vider le brouillon »
+  //    (cf. handleFormKeyDown), pour ne pas fermer par mégarde pendant la saisie.
+  useEffect(() => {
+    if (!onDone) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return;
+      onDone();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onDone]);
+
   // ── [F] Progression : ratio lignes saisies vs confirmations attendues ──
   const getProgress = useCallback((d: DossierSigne): { ratio: number; tone: 'empty' | 'partial' | 'complete' } => {
     const lignes = d.prixLignes?.length ?? 0;
