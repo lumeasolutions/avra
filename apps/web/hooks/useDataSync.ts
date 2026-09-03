@@ -307,11 +307,18 @@ export function useDataSync() {
       const currentPerduIds = new Set(store.dossiersPerdus.map((d) => d.id));
       const hasDemoPerdu = [...currentPerduIds].some((id) => DEMO_PERDU_IDS.has(id));
 
-      // Backend = source de vérité : si le workspace n'a AUCUN projet, on vide
-      // les stores locaux. Sinon un compte remis à zéro garderait son cache
-      // localStorage et afficherait des dossiers + stats fantômes.
+      // Backend = source de vérité : un workspace réellement vide vide le store
+      // (sinon un compte remis à zéro garderait des dossiers/stats fantômes).
+      // SÉCURITÉ (garde-fou anti-perte) : on ne vide QUE si le serveur confirme
+      // explicitement `total: 0`. Une réponse vide SANS ce signal (cold start,
+      // échec partiel de la Function mono-instance, forme inattendue) NE doit PAS
+      // effacer le store — on préfère garder des données locales le temps d'une
+      // sync saine. (Une vraie erreur réseau throw déjà → catch → aucun change.)
       if (!Array.isArray(data) || data.length === 0) {
-        useDossierStore.setState({ dossiers: [], dossiersSignes: [], dossiersPerdus: [] });
+        const explicitlyEmpty = typeof response?.total === 'number' && response.total === 0;
+        if (explicitlyEmpty) {
+          useDossierStore.setState({ dossiers: [], dossiersSignes: [], dossiersPerdus: [] });
+        }
         return;
       }
 
