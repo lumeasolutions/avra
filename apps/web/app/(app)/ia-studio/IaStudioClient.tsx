@@ -585,6 +585,32 @@ const CSS = `
 /* ─────────────────────────────────────────── TYPES */
 type Module = 'coloriste' | 'rendu' | 'architect' | 'coloriste-archi' | 'coloriste-tex' | 'coloriste-test';
 interface Preset { name:string; facade:string; poignee:string; plan:string; desc:string; mood:string; finish:FinishType; handleMaterial:string; countertopMaterial:string }
+/* ─── « Rendre réaliste » : result Coloriste → /api/ia/render-realistic
+   (re-rendu render/interior en préservant la matière) ─── */
+async function callRenderRealistic(sourceUrl: string): Promise<{ imageUrl: string | null; error?: string }> {
+  const res = await fetch('/api/ia/render-realistic', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sourceUrl }),
+  });
+  const text = await res.text();
+  let parsed: { imageUrl?: string | null; error?: unknown; message?: unknown } | null = null;
+  try { parsed = JSON.parse(text); } catch { parsed = null; }
+  if (parsed) {
+    const err =
+      typeof parsed.error === 'string' ? parsed.error
+      : (!res.ok && typeof parsed.message === 'string') ? parsed.message
+      : undefined;
+    return { imageUrl: typeof parsed.imageUrl === 'string' ? parsed.imageUrl : null, error: err };
+  }
+  let message = 'Le re-rendu réaliste a échoué.';
+  if (res.status === 504) message = 'Le re-rendu a pris trop de temps (timeout). Réessayez.';
+  else if (res.status === 502) message = 'Service IA momentanément indisponible. Réessayez dans une minute.';
+  else if (res.status === 429) message = 'Trop de générations dans la dernière heure.';
+  else if (res.status === 401) message = 'Session expirée — reconnectez-vous.';
+  return { imageUrl: null, error: message };
+}
+
 interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:string; color:string; imageUrl?:string; imageUrls?:string[]; steps?: PipelineStep[] | null }
 
 const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 8);
@@ -910,6 +936,22 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, editing, 
   const [downloading, setDownloading] = useState(false);
   // Retouche non destructive (lumière / chaleur / contraste…) sur le rendu fini.
   const [adjustOpen, setAdjustOpen] = useState(false);
+  // « Rendre réaliste » : re-rend un résultat Coloriste (matière posée « à plat »)
+  // via render/interior pour ajouter lumière/ombres/perspective sans changer la
+  // matière. Opt-in (1 appel IA facturé). Affiche un avant/après plat→réaliste.
+  const isColoristeResult = item.module.startsWith('coloriste');
+  const [realisticUrl, setRealisticUrl] = useState<string | null>(null);
+  const [renderingRealistic, setRenderingRealistic] = useState(false);
+  const [realisticError, setRealisticError] = useState<string | null>(null);
+  const handleRenderRealistic = async () => {
+    if (!mainUrl || isMock || renderingRealistic) return;
+    setRenderingRealistic(true);
+    setRealisticError(null);
+    const r = await callRenderRealistic(mainUrl);
+    setRenderingRealistic(false);
+    if (r.imageUrl) setRealisticUrl(r.imageUrl);
+    else setRealisticError(r.error ?? 'Échec du re-rendu réaliste.');
+  };
   const safeTs   = item.ts.replace(/\D/g, '') || '0';
   const fileName = `Avra-${item.module}-${safeTs}.jpg`;
   const handleDownload = async () => {
@@ -1047,6 +1089,18 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, editing, 
             Ajuster (lumière, chaleur, contraste…)
           </button>
         )}
+        {isColoristeResult && !isMock && mainUrl && !realisticUrl && (
+          <button onClick={handleRenderRealistic} disabled={renderingRealistic}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-bold transition-colors hover:bg-[#f5eee8] disabled:opacity-60 disabled:cursor-wait"
+            style={{ borderColor: accentColor, color: accentColor }}
+            title="Re-rend le résultat de façon photoréaliste (lumière, ombres, perspective) sans changer la matière. 1 génération IA.">
+            {renderingRealistic ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {renderingRealistic ? 'Re-rendu réaliste en cours…' : 'Rendre réaliste ✨'}
+          </button>
+        )}
+        {realisticError && (
+          <p className="text-xs font-semibold text-[#b91c1c] text-center">{realisticError}</p>
+        )}
         {onEdit && !isMock && (
           <button onClick={onEdit} disabled={editing}
             className="flex w-full items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-bold transition-colors hover:bg-[#f5eee8] disabled:opacity-60 disabled:cursor-wait"
@@ -1068,6 +1122,28 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, editing, 
         </div>
       </div>
     </div>
+
+    {/* Résultat du « Rendre réaliste » — carte sœur avec avant/après plat→réaliste. */}
+    {realisticUrl && (
+      <div className="sr rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4" style={{ color: accentColor }} />
+          <p className="font-black text-[#304035]">Version réaliste ✨</p>
+        </div>
+        <p className="text-xs text-[#304035]/55">
+          Avant/après : matière posée par le Coloriste → re-rendu photoréaliste (lumière, ombres, perspective).
+          Glissez le curseur pour comparer.
+        </p>
+        <div className="overflow-hidden rounded-2xl" style={{ border: `1.5px solid ${accentColor}28` }}>
+          <BeforeAfterSlider beforeUrl={mainUrl!} afterUrl={realisticUrl} />
+        </div>
+        <button onClick={() => downloadImageFromUrl(realisticUrl, `Avra-realiste-${safeTs}.jpg`)}
+          className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow-md hover:shadow-lg active:scale-[.98] transition-all"
+          style={{ background: `linear-gradient(135deg,${accentColor},${accentColor}cc)` }}>
+          <Download className="h-4 w-4" /> Télécharger la version réaliste
+        </button>
+      </div>
+    )}
 
     {/* Lightbox plein écran — rendu via un portal sur <body> pour échapper au
         containing-block créé par les ancêtres animés : la classe .fu applique
