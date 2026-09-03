@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, Circle, Phone, Mail, MapPin, FolderOpen, LayoutGrid, List, Trash2, LayoutDashboard } from 'lucide-react';
 import { VendeurBadge } from '@/components/vendeur/VendeurBadge';
 import { useDossierStore, useVisibleDossiers, useVisibleDossiersPerdus } from '@/store';
+import { useAuthStore } from '@/store/useAuthStore';
 import { ValidationDashboard } from '@/components/dossiers/ValidationDashboard';
 import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
 import { OngoingDossierDashboardModal } from '@/components/dossiers/OngoingDossierDashboardModal';
@@ -106,6 +107,28 @@ export default function DossiersPage() {
   const [filterVendeur, setFilterVendeur] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('status');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // ── Purge opt-in des orphelins locaux ───────────────────────────────────
+  // Dossiers présents dans ce navigateur avec un id LOCAL (jamais montés en
+  // base : 'd'+uid). Contrairement aux suppressions serveur (réconciliées
+  // silencieusement dans useDataSync), on ne les retire JAMAIS d'office — ils
+  // pourraient être un travail local. On propose donc à l'utilisateur de les
+  // retirer via un bandeau (opt-in). Détecté sur le store BRUT (tous portails).
+  const rawDossiers = useDossierStore((s) => s.dossiers);
+  const rawSignes = useDossierStore((s) => s.dossiersSignes);
+  const rawPerdus = useDossierStore((s) => s.dossiersPerdus);
+  const removeLocalDossiers = useDossierStore((s) => s.removeLocalDossiers);
+  const authUser = useAuthStore((s) => s.user);
+  const [purgeDismissed, setPurgeDismissed] = useState(false);
+  const localOrphans = useMemo(() => {
+    if (!authUser || authUser.id === 'demo') return [] as { id: string; name: string }[];
+    const isBackendId = (id: string) =>
+      /^c[0-9a-z]{24}$/.test(id) ||
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    return [...rawDossiers, ...rawSignes, ...rawPerdus]
+      .filter((d) => !isBackendId(d.id))
+      .map((d) => ({ id: d.id, name: (d as { name?: string }).name || d.id }));
+  }, [rawDossiers, rawSignes, rawPerdus, authUser]);
 
   // ── Tableau de bord (panel flottant) ────────────────────────────────────
   const [showDashboard, setShowDashboard] = useState(false);
@@ -211,6 +234,35 @@ export default function DossiersPage() {
         }
       `}</style>
 
+      {/* ── Purge opt-in : dossiers présents seulement dans ce navigateur ── */}
+      {localOrphans.length > 0 && !purgeDismissed && (
+        <div className="rounded-2xl border border-amber-300/60 bg-amber-50/70 p-3 px-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start gap-2.5 text-sm min-w-0">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <span className="text-[#304035]">
+              <strong className="font-bold">
+                {localOrphans.length} dossier{localOrphans.length > 1 ? 's' : ''} n{localOrphans.length > 1 ? "'existent" : "'existe"} que dans ce navigateur
+              </strong>
+              {' '}(jamais enregistré{localOrphans.length > 1 ? 's' : ''} sur le serveur) :{' '}
+              <span className="text-[#304035]/70">{localOrphans.map((o) => o.name).join(', ')}</span>.
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => { removeLocalDossiers(localOrphans.map((o) => o.id)); setPurgeDismissed(true); }}
+              className="rounded-xl bg-[#304035] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#304035]/90 transition-colors"
+            >
+              Retirer de ce navigateur
+            </button>
+            <button
+              onClick={() => setPurgeDismissed(true)}
+              className="rounded-xl border border-[#304035]/20 px-3.5 py-2 text-xs font-bold text-[#304035]/70 hover:bg-[#304035]/5 transition-colors"
+            >
+              Garder
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── HEADER ── */}
       <PageHeader

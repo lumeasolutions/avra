@@ -734,6 +734,11 @@ interface DossierState {
    * accéder aux stats même si ce dossier n'a pas de prixLignes.
    */
   setDossierStatsSkipped: (dossierId: string, skipped: boolean) => void;
+  /**
+   * Retire des dossiers du store par id (purge opt-in des orphelins locaux :
+   * dossiers à id local jamais montés en base). Ne touche QUE le store client.
+   */
+  removeLocalDossiers: (ids: string[]) => void;
   /** Set le vendeur attribué (sur Dossier, DossierSigne ou DossierPerdu). */
   setDossierVendeur: (dossierId: string, vendeurName: string | null, vendeurUserId?: string | null) => void;
   // ─── Commandes ACCESS (panneau ACCEDER de la modale validation) ─────────
@@ -1233,6 +1238,16 @@ export const useDossierStore = create<DossierState>()(
           ),
         }));
         pushDossierData(get, dossierId);
+      },
+
+      removeLocalDossiers: (ids) => {
+        const idSet = new Set(ids);
+        if (idSet.size === 0) return;
+        set(s => ({
+          dossiers: s.dossiers.filter(d => !idSet.has(d.id)),
+          dossiersSignes: s.dossiersSignes.filter(d => !idSet.has(d.id)),
+          dossiersPerdus: s.dossiersPerdus.filter(d => !idSet.has(d.id)),
+        }));
       },
 
       setDossierVendeur: (dossierId, vendeurName, vendeurUserId) => {
