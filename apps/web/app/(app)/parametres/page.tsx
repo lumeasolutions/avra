@@ -982,8 +982,8 @@ export default function ParametresPage() {
                           onChange={e => handleMemberRole(m.userId, e.target.value as 'MEMBER' | 'ADMIN')}
                           className={cn('rounded-lg px-2 py-1 text-xs font-bold border-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60', ROLE_COLORS[m.role] ?? ROLE_COLORS.MEMBER)}
                         >
-                          <option value="MEMBER">Membre</option>
-                          <option value="ADMIN">Admin</option>
+                          <option value="MEMBER">Vendeur</option>
+                          <option value="ADMIN">Administrateur</option>
                         </select>
                       )}
                       {/* Actif/suspendu */}
