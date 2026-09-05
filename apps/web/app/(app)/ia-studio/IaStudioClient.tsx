@@ -14,7 +14,7 @@ import {
   Image as ImageIcon, CheckCircle2, ScanLine,
   Lightbulb, Target, Award, AlertTriangle,
   Sun, Lamp, Monitor, Home, Building2,
-  Download, Maximize2, MousePointerClick, ShieldCheck, SlidersHorizontal,
+  Download, Maximize2, MousePointerClick, ShieldCheck, SlidersHorizontal, ArrowLeft,
 } from 'lucide-react';
 import { useDossierStore, useHistoryStore, useAuthStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -920,11 +920,17 @@ function BeforeAfterSlider({ beforeUrl, afterUrl }: { beforeUrl: string; afterUr
   );
 }
 
-function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, editing, icon: Icon, beforeUrl }: {
+function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, onBack, editing, icon: Icon, beforeUrl }: {
   item: Item; accentColor: string;
   onSave: () => void; onRegenerate: () => void;
   /** Si fourni, affiche un bouton « Modifier » qui reprend CE résultat comme base. */
   onEdit?: () => void;
+  /**
+   * Retour au formulaire de réglages. La carte résultat REMPLACE le formulaire :
+   * sans ce retour, une fois le rendu affiché on ne peut plus rien changer
+   * (photo, couleurs, matières) — on restait coincé sur le résultat.
+   */
+  onBack?: () => void;
   /** Chargement du bouton « Modifier » (récupération du résultat). */
   editing?: boolean;
   icon: React.ElementType;
@@ -984,6 +990,14 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, editing, 
           <CheckCircle2 className="h-4 w-4 text-[#10b981]" />
           <p className="font-black text-[#304035]">{allUrls.length > 1 ? `${allUrls.length} variantes prêtes !` : 'Résultat prêt !'}</p>
         </div>
+        {onBack && (
+          <button onClick={onBack}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-[#304035]/15 px-3 py-1.5 text-xs font-bold text-[#304035]/70 hover:bg-[#f5eee8] hover:text-[#304035] transition-colors"
+            title="Revenir aux réglages pour changer la photo, les couleurs ou les matières">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Modifier les réglages
+          </button>
+        )}
       </div>
 
       {/* Grand aperçu — slider avant/après (coloriste) ou image plein cadre.
@@ -2521,7 +2535,7 @@ export default function IaStudioPage() {
                 {/* Résultat — coloriste : avec slider avant/après pour comparer */}
                 {colorResult && !colorLoading && (
                   <ResultCard
-                    item={colorResult}
+                    item={colorResult} onBack={() => setColorResult(null)}
                     accentColor="#a67749"
                     icon={Paintbrush}
                     onSave={saveColor}
@@ -2925,7 +2939,7 @@ export default function IaStudioPage() {
                 {/* Résultat rendu */}
                 {rendResult && !rendLoading && (
                   <ResultCard
-                    item={rendResult}
+                    item={rendResult} onBack={() => setRendResult(null)}
                     accentColor="#5b9bd5"
                     icon={Wand2}
                     onSave={saveRendu}
@@ -3178,7 +3192,7 @@ export default function IaStudioPage() {
                 {/* Résultat */}
                 {archResult && !archLoading && (
                   <ResultCard
-                    item={archResult}
+                    item={archResult} onBack={() => setArchResult(null)}
                     accentColor="#8a6cc2"
                     icon={Building2}
                     onSave={saveArchitect}
@@ -3662,7 +3676,7 @@ export default function IaStudioPage() {
                   </div>
                 )}
                 {colorArchResult && !colorArchLoading && (
-                  <ResultCard item={colorArchResult} accentColor="#2f9e8f" icon={Paintbrush} onSave={saveColoristeArchi} onRegenerate={runColoristeArchi} />
+                  <ResultCard item={colorArchResult} onBack={() => setColorArchResult(null)} accentColor="#2f9e8f" icon={Paintbrush} onSave={saveColoristeArchi} onRegenerate={runColoristeArchi} />
                 )}
                 {!colorArchLoading && !colorArchResult && (
                   <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#2f9e8f]/20 bg-gradient-to-br from-[#2f9e8f]/5 to-white p-12 text-center lg:min-h-[400px]">
@@ -3824,7 +3838,7 @@ export default function IaStudioPage() {
                   </div>
                 )}
                 {colorTexResult && !colorTexLoading && (
-                  <ResultCard item={colorTexResult} accentColor="#2f9e8f" icon={Paintbrush} onSave={saveColoristeTextures} onRegenerate={runColoristeTextures} onEdit={modifierColoristeTextures} editing={colorTexEditing} />
+                  <ResultCard item={colorTexResult} onBack={() => setColorTexResult(null)} accentColor="#2f9e8f" icon={Paintbrush} onSave={saveColoristeTextures} onRegenerate={runColoristeTextures} onEdit={modifierColoristeTextures} editing={colorTexEditing} />
                 )}
                 {!colorTexLoading && !colorTexResult && (
                   <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#2f9e8f]/20 bg-gradient-to-br from-[#2f9e8f]/5 to-white p-12 text-center lg:min-h-[400px]">
@@ -4024,7 +4038,7 @@ export default function IaStudioPage() {
                 )}
                 {colorTestResult && !colorTestLoading && (
                   <>
-                    <ResultCard item={colorTestResult} accentColor="#a67749" icon={Sparkles} beforeUrl={photoURL}
+                    <ResultCard item={colorTestResult} onBack={() => setColorTestResult(null)} accentColor="#a67749" icon={Sparkles} beforeUrl={photoURL}
                       onSave={saveColoristeTest} onRegenerate={runColoristeTest} onEdit={modifierColoristeTest} editing={colorTestEditing} />
                     <div className="flex items-center gap-2 rounded-xl border px-3 py-2" style={{borderColor:'#10b98133', background:'#10b98110'}}>
                       <ShieldCheck className="h-4 w-4 text-[#10b981] shrink-0" />
