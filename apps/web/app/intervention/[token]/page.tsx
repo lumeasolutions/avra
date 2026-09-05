@@ -95,6 +95,17 @@ export default function InterventionPublicPage() {
     setToast(msg);
     window.setTimeout(() => setToast((t) => (t === msg ? null : t)), 3500);
   }, []);
+  // Confirmation PERSISTANTE de la reponse. Le toast disparait en 3,5 s : apres
+  // avoir envoye son message et ses fichiers, l'artisan n'avait plus aucune
+  // trace de ce qu'il avait fait ni de ce qui se passait ensuite. On garde donc
+  // a l'ecran un recapitulatif de ce qui est parti et vers qui.
+  const [sentSummary, setSentSummary] = useState<{ messages: number; documents: number } | null>(null);
+  const noteSent = useCallback((kind: 'message' | 'documents', count = 1) => {
+    setSentSummary((s) => ({
+      messages: (s?.messages ?? 0) + (kind === 'message' ? count : 0),
+      documents: (s?.documents ?? 0) + (kind === 'documents' ? count : 0),
+    }));
+  }, []);
 
   // silent = rafraîchissement en arrière-plan : ne remet PAS l'écran en état
   // « Chargement… » (évite le flash de rechargement visuel toutes les 20 s).
@@ -149,6 +160,7 @@ export default function InterventionPublicPage() {
       });
       if (!r.ok) throw new Error('Envoi impossible');
       showToast('Message envoyé ✓');
+      noteSent('message');
       await load(true); // silencieux
     } catch (e: any) {
       setError(e?.message || 'Envoi impossible');
@@ -198,6 +210,7 @@ export default function InterventionPublicPage() {
       }
       await load(true); // silencieux
       showToast(files.length > 1 ? `${files.length} documents envoyés ✓` : 'Document envoyé ✓');
+      noteSent('documents', files.length);
     } catch (e: any) {
       setError(e?.message || 'Envoi impossible');
     } finally {
@@ -296,6 +309,28 @@ export default function InterventionPublicPage() {
               De <strong style={{ color: '#fff' }}>{data.proName}</strong> · {data.workspaceName}{data.projectName ? <> · dossier <strong style={{ color: '#fff' }}>{data.projectName}</strong></> : null}
             </p>
           </div>
+
+          {/* Confirmation persistante : ce qui a ete envoye, a qui, et la suite. */}
+          {sentSummary && (sentSummary.messages > 0 || sentSummary.documents > 0) && (
+            <div style={{ background: '#eef5ee', borderBottom: '1px solid #cfe0d0', padding: '16px 20px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div style={{ marginTop: 1 }}><Ico name="checkCircle" size={20} color="#256b43" /></div>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1d4d31' }}>
+                  Votre réponse a bien été envoyée à {data.proName}
+                </p>
+                <p style={{ margin: '5px 0 0', fontSize: 13.5, color: '#3b5b45', lineHeight: 1.5 }}>
+                  {[
+                    sentSummary.messages > 0 ? `${sentSummary.messages} message${sentSummary.messages > 1 ? 's' : ''}` : null,
+                    sentSummary.documents > 0 ? `${sentSummary.documents} document${sentSummary.documents > 1 ? 's' : ''}` : null,
+                  ].filter(Boolean).join(' · ')} — {data.workspaceName} a été prévenu.
+                </p>
+                <p style={{ margin: '7px 0 0', fontSize: 13, color: '#5b7566', lineHeight: 1.5 }}>
+                  Vous n&apos;avez rien d&apos;autre à faire : vous pouvez fermer cette page.
+                  Si vous avez oublié quelque chose, ajoutez simplement un message ou un document ci-dessous.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Corps */}
           <div style={{ padding: '18px 20px 20px' }}>

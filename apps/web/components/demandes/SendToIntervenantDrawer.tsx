@@ -101,8 +101,11 @@ function fileBadge(name?: string, mime?: string | null): { bg: string; fg: strin
   return { bg: '#f1efe8', fg: '#7c6c58', image: false };
 }
 
+// « Demande de devis / renseignement » EN PREMIER : c'est le type attendu par
+// defaut. Avant, POSE ouvrait la liste et devenait le type par defaut hors
+// dossier -> l'artisan recevait une demande de POSE alors qu'on voulait un devis.
 const TYPE_OPTIONS: DemandeType[] = [
-  'POSE', 'LIVRAISON', 'SAV', 'MESURE', 'DEVIS',
+  'DEVIS', 'POSE', 'LIVRAISON', 'SAV', 'MESURE',
   'CONFIRMATION_COMMANDE', 'COMPLEMENT', 'AUTRE',
 ];
 
@@ -125,7 +128,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
   const [sentCount, setSentCount] = useState(0);
 
   const [type, setType] = useState<DemandeType>(
-    prefill?.type ?? (prefill?.dossierSigned !== undefined ? 'DEVIS' : 'POSE'),
+    prefill?.type ?? 'DEVIS',
   );
 
   // Types de demande proposes selon le contexte du dossier.
@@ -333,7 +336,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
         setSelectedId(prefill?.intervenantId ?? null);
         // Défaut = Devis dès qu'on est dans un contexte dossier (signé ou en
         // cours) — jamais POSE, qui n'est même pas proposé pour un dossier.
-        setType(prefill?.type ?? (prefill?.dossierSigned !== undefined ? 'DEVIS' : 'POSE'));
+        setType(prefill?.type ?? 'DEVIS');
         setTitle(prefill?.title ?? '');
         setNotes(prefill?.notes ?? '');
         setScheduledFor(prefill?.scheduledFor ?? '');
