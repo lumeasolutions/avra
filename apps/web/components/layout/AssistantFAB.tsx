@@ -4,7 +4,7 @@ import { useAssistantStore } from '@/store/useAssistantStore';
 import { useConfigStore } from '@/store/useConfigStore';
 import { AssistantPanel } from './AssistantPanel';
 
-const OWL_B64 = "/nouveaulogochouette.png";
+const OWL_B64 = "/nouveaulogochouette.webp";
 
 export function AssistantFAB() {
   const open = useAssistantStore(s => s.open);

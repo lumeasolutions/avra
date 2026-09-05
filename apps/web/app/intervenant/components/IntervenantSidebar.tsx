@@ -52,7 +52,7 @@ export function IntervenantSidebar() {
         try {
           const n = new Notification('AVRA — Nouvelle demande', {
             body: `Vous avez ${delta} nouvelle${delta > 1 ? 's' : ''} demande${delta > 1 ? 's' : ''} a traiter.`,
-            icon: '/favicon.ico',
+            icon: '/icons/icon-192x192.png',
             tag: 'avra-new-demande',
           });
           n.onclick = () => {

@@ -49,7 +49,7 @@ export default function AccueilPage() {
         {/* Background logo */}
         <div style={{
           position: 'absolute', inset: 0, zIndex: 0,
-          backgroundImage: 'url(/nouveaulogoA.png)',
+          backgroundImage: 'url(/nouveaulogoA.webp)',
           backgroundSize: 'cover', backgroundPosition: 'center',
           opacity: 0.18,
         }} />
@@ -68,7 +68,7 @@ export default function AccueilPage() {
           padding: '18px 5%',
         }}>
           <Image
-            src="/nouveaulogoA.png"
+            src="/nouveaulogoA.webp"
             alt="AVRA — logo"
             width={64}
             height={64}
@@ -77,7 +77,7 @@ export default function AccueilPage() {
           />
           <div style={{ width: 1, height: 48, background: 'rgba(201,169,110,0.35)' }} />
           <Image
-            src="/nouveaulogochouette.png"
+            src="/nouveaulogochouette.webp"
             alt="AVRA — chouette emblème"
             width={64}
             height={64}

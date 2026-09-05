@@ -458,7 +458,7 @@ function LoginPageInner() {
                 margin: '0 auto',
               }}>
                 <Image
-                  src="/nouveaulogochouette.png"
+                  src="/nouveaulogochouette.webp"
                   alt="AVRA"
                   fill
                   style={{ objectFit: 'contain', padding: 2 }}

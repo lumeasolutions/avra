@@ -140,7 +140,7 @@ function renderMarkdown(text: string, isUser: boolean): React.ReactNode {
   });
 }
 
-const OWL_B64 = "/nouveaulogochouette.png";
+const OWL_B64 = "/nouveaulogochouette.webp";
 const TEXTURE_B64 = "/images/assistant-panel-2.jpeg";
 
 function AlertIconComp({ severity }: { severity: string }) {
@@ -251,7 +251,7 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
           zIndex: 0, pointerEvents: 'none',
           width: 390, height: 390,
         }}>
-          <Image src="/nouveaulogochouette.png" alt="" width={390} height={390}
+          <Image src="/nouveaulogochouette.webp" alt="" width={390} height={390}
             style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.09 }}/>
         </div>
 

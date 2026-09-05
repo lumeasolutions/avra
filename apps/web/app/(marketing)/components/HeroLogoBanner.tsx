@@ -84,7 +84,7 @@ export default function HeroLogoBanner() {
       >
         <div style={{ position: 'absolute', inset: 0 }}>
           <Image
-            src="/nouveaulogoA.png"
+            src="/nouveaulogoA.webp"
             alt="AVRA — logo principal"
             fill
             priority
@@ -110,7 +110,7 @@ export default function HeroLogoBanner() {
         }}
       >
         <Image
-          src="/nouveaulogoavra.png"
+          src="/nouveaulogoavra.webp"
           alt="AVRA — typographie"
           fill
           priority
@@ -137,7 +137,7 @@ export default function HeroLogoBanner() {
       >
         <div style={{ position: 'absolute', inset: 0 }}>
           <Image
-            src="/nouveaulogochouette.png"
+            src="/nouveaulogochouette.webp"
             alt="AVRA — chouette emblème"
             fill
             priority

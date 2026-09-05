@@ -369,7 +369,7 @@ export default function PortalSelectPage() {
       <div className="ps-header" style={{ textAlign: 'center', marginBottom: 48, position: 'relative', zIndex: 10 }}>
         <div className="ps-owl-ring">
           <div className="ps-owl-inner">
-            <img src="/nouveaulogochouette.png" alt="AVRA" />
+            <img src="/nouveaulogochouette.webp" alt="AVRA" />
           </div>
         </div>
         <h1 className="ps-title">AVRA</h1>

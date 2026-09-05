@@ -297,7 +297,7 @@ export function Sidebar() {
 
       <div style={{background: "transparent", boxShadow: "none", width: "220px", height: "220px"}}>
 
-      <Image src="/nouveaulogoA.png"
+      <Image src="/nouveaulogoA.webp"
 
       width={220}
 

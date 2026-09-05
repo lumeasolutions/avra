@@ -118,9 +118,6 @@ export const metadata: Metadata = {
     apple: [
       { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
-    other: [
-      { rel: 'mask-icon', url: '/avra-icon.svg', color: '#1e2b22' },
-    ],
   },
   other: {
     'mobile-web-app-capable': 'yes',

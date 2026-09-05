@@ -135,7 +135,7 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
         pointerEvents: 'none',
       }}>
         <Image
-          src="/nouveaulogochouette.png"
+          src="/nouveaulogochouette.webp"
           alt=""
           width={120}
           height={120}

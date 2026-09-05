@@ -49,7 +49,7 @@ export default function MerciPage() {
             }}
           >
             <Image
-              src="/nouveaulogochouette.png"
+              src="/nouveaulogochouette.webp"
               alt="AVRA"
               width={60}
               height={60}

@@ -53,7 +53,7 @@ export default function Nav() {
         {/* ══ LOGO GAUCHE — A circulaire + AVRA ══ */}
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
           <Image
-            src="/nouveaulogoA.png"
+            src="/nouveaulogoA.webp"
             alt="A"
             width={44}
             height={44}
@@ -61,7 +61,7 @@ export default function Nav() {
             priority
           />
           <Image
-            src="/nouveaulogoavra.png"
+            src="/nouveaulogoavra.webp"
             alt="AVRA"
             width={120}
             height={40}
