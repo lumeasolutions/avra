@@ -584,6 +584,11 @@ const CSS = `
 
 /* ─────────────────────────────────────────── TYPES */
 type Module = 'coloriste' | 'rendu' | 'architect' | 'coloriste-archi' | 'coloriste-tex' | 'coloriste-test';
+
+// Masque les deux anciens onglets Coloriste (« Coloriste IA » = moteur Flux,
+// « Coloriste ✨ » = change-textures) sans supprimer leur code : on garde
+// « Coloriste IA+ » et « Coloriste test ». Repasser à true pour les réafficher.
+const SHOW_LEGACY_COLORISTE = false;
 interface Preset { name:string; facade:string; poignee:string; plan:string; desc:string; mood:string; finish:FinishType; handleMaterial:string; countertopMaterial:string }
 /* ─── « Rendre réaliste » : result Coloriste → /api/ia/render-realistic
    (re-rendu render/interior en préservant la matière) ─── */
@@ -1256,7 +1261,7 @@ export default function IaStudioPage() {
   const userName       = currentUser ? (currentUser.firstName ?? currentUser.email.split('@')[0]) : 'Utilisateur';
 
   /* État global */
-  const [tab,          setTab]          = useState<Module>('coloriste');
+  const [tab,          setTab]          = useState<Module>('coloriste-archi');
   // Bump pour forcer le rafraîchissement du HistoryPanel après une génération
   // réussie. Le panneau écoute ce nombre dans son useEffect.
   const [iaHistoryRefresh, setIaHistoryRefresh] = useState(0);
@@ -2209,6 +2214,7 @@ export default function IaStudioPage() {
 
         {/* ══════════════════════════ TABS SÉLECTEUR */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
+          {SHOW_LEGACY_COLORISTE && (<>
           {/* Coloriste */}
           <button onClick={() => setTab('coloriste')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
@@ -2282,6 +2288,7 @@ export default function IaStudioPage() {
               </div>
             </div>
           </button>
+          </>)}
 
           {/* Coloriste test — 5e onglet, moteur détection+compositing revu (juillet 2026) */}
           <button onClick={() => setTab('coloriste-test')}
