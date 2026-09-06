@@ -1119,13 +1119,13 @@ export function DateButoireValidationModal({
           .dbv-section-docs { flex: 0 0 auto; }
         }
         .dbv-col-right { display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
-        /* Mode aperçu document : viewer en plein cadre.
-           La colonne gauche occupe toute la largeur, la colonne dates est masquée. */
-        .dbv-body-preview { grid-template-columns: 1fr; }
-        .dbv-col-hidden { display: none !important; }
-        .dbv-body-preview .dbv-col-left {
-          border-right: none; border-image: none; box-shadow: none;
-        }
+        /* Mode aperçu document — retour cofondatrice (capture, point 16) :
+           « quand on clique sur voir il faut avoir l'aperçu du document sur la
+           gauche pour pouvoir rentrer les infos sur la droite ».
+           L'aperçu masquait la colonne des dates : on ne pouvait donc PAS lire le
+           document et saisir en même temps, ce qui était tout l'intérêt. On garde
+           les deux colonnes, en donnant un peu plus de largeur au document. */
+        .dbv-body-preview { grid-template-columns: 1.15fr 0.85fr; }
         @media (max-width: 900px) {
           .dbv-col-left {
             border-right: none;
@@ -2012,7 +2012,7 @@ export function DateButoireValidationModal({
             </div>
 
             {/* COLONNE DROITE : Dates butoires (ou drawer ACCEDER si ouvert) */}
-            <div className={`dbv-col-right${previewDoc && !accessDrawer ? ' dbv-col-hidden' : ''}`}>
+            <div className="dbv-col-right">
               {accessDrawer ? (
                 <CommandesAccessPanel
                   label={accessDrawer.label}

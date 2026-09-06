@@ -301,19 +301,41 @@ export function StatsGateModal({
       .filter((g) => g.docs.length > 0);
   }, [selected]);
 
-  // Helper : ouvrir un doc dans un nouvel onglet (URL signee fraiche)
+  /* Apercu du document DANS la colonne du milieu — retour cofondatrice
+     (capture) : « comme le dossier validation, les fichiers doivent apparaitre a
+     gauche pour rentrer facilement a droite les prix achat et prix vente ».
+     Avant, un clic ouvrait un nouvel onglet : on perdait la saisie de vue. */
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; name: string; type?: string } | null>(null);
+  const [previewLoadingKey, setPreviewLoadingKey] = useState<string | null>(null);
+
   const handleOpenDoc = async (doc: DocumentFile) => {
     if (doc.dataUrl) {
-      window.open(doc.dataUrl, '_blank', 'noopener,noreferrer');
+      setPreviewDoc({ url: doc.dataUrl, name: doc.name, type: doc.type });
       return;
     }
     if (!doc.docId || !selected) return;
+    const key = doc.docId;
+    setPreviewLoadingKey(key);
     try {
       const { signedUrl } = await getDocSignedUrl(selected.id, doc.docId);
-      window.open(signedUrl, '_blank', 'noopener,noreferrer');
+      setPreviewDoc({ url: signedUrl, name: doc.name, type: doc.type });
     } catch (err) {
       console.error('[StatsGate] preview failed:', err);
+    } finally {
+      setPreviewLoadingKey((k) => (k === key ? null : k));
     }
+  };
+
+  // Changer de dossier ferme l'apercu : sinon on garderait le document du
+  // dossier precedent affiche par-dessus le nouveau.
+  useEffect(() => { setPreviewDoc(null); setPreviewLoadingKey(null); }, [selected?.id]);
+
+  /** Un document image s'affiche en <img>, le reste (PDF…) dans une <iframe>. */
+  const isPreviewImage = (d: { name: string; type?: string } | null): boolean => {
+    if (!d) return false;
+    const t = (d.type ?? '').toLowerCase();
+    if (t.startsWith('image/')) return true;
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(d.name);
   };
 
   const selectedLignes = selected?.prixLignes ?? [];
@@ -806,7 +828,72 @@ export function StatsGateModal({
             {selected ? (
             <>
             {/* ─── COLONNE MILIEU : CONSULTATION (options + confirmations) ── */}
-            <div style={{ overflowY: 'auto', padding: '18px 22px', borderRight: '1px solid rgba(48,64,53,0.08)' }}>
+            <div style={{ position: 'relative', overflowY: 'auto', padding: '18px 22px', borderRight: '1px solid rgba(48,64,53,0.08)' }}>
+              {/* Apercu du document, en surimpression de CETTE colonne uniquement :
+                  la saisie des prix reste visible et utilisable a droite. */}
+              {(previewDoc || previewLoadingKey) && (
+                <div style={{
+                  position: 'absolute', inset: 0, background: '#fff', zIndex: 5,
+                  display: 'flex', flexDirection: 'column',
+                }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '10px 14px', borderBottom: '1px solid rgba(48,64,53,0.10)', flexShrink: 0,
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewDoc(null)}
+                      title="Revenir aux documents du dossier"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                        border: '1px solid rgba(48,64,53,0.18)', background: '#fff', color: '#304035', cursor: 'pointer',
+                      }}
+                    >
+                      ← Retour
+                    </button>
+                    <span style={{
+                      flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: '#304035',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }} title={previewDoc?.name}>
+                      {previewDoc?.name ?? 'Ouverture du document…'}
+                    </span>
+                    {previewDoc && (
+                      <a
+                        href={previewDoc.url} target="_blank" rel="noopener noreferrer"
+                        title="Ouvrir dans un nouvel onglet"
+                        style={{ display: 'inline-flex', padding: 5, borderRadius: 7, color: '#7c6c58', flexShrink: 0 }}
+                      >
+                        <ExternalLink size={13} />
+                      </a>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minHeight: 0, background: '#f5f2ec' }}>
+                    {!previewDoc ? (
+                      <div style={{
+                        height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 13, color: '#7c6c58',
+                      }}>
+                        Chargement du document…
+                      </div>
+                    ) : isPreviewImage(previewDoc) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={previewDoc.url}
+                        alt={previewDoc.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <iframe
+                        src={previewDoc.url}
+                        title={previewDoc.name}
+                        style={{ width: '100%', height: '100%', border: 'none' }}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Titre dossier + actions [P2] [B] */}
               <div style={{
                 display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
