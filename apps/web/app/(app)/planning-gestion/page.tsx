@@ -200,6 +200,7 @@ export default function PlanningGestionPage() {
   );
   const gestEvents      = usePlanningStore(s => s.gestEvents);
   const addGestEvent    = usePlanningStore(s => s.addGestEvent);
+  const addPlanningEvent = usePlanningStore(s => s.addPlanningEvent);
   const updateGestEvent = usePlanningStore(s => s.updateGestEvent);
   const deleteGestEvent = usePlanningStore(s => s.deleteGestEvent);
   // Métiers custom (créés manuellement par l'user, persistés). 19/05/2026.
@@ -245,6 +246,9 @@ export default function PlanningGestionPage() {
   const [popoverEventId, setPopoverEventId] = useState<string | null>(null);
   const [popoverPosition, setPopoverPosition] = useState<{ x: number; y: number } | null>(null);
   // Modale en mode édition
+  // Doublon vers le planning basique (point 22 : « faire la meme de planning
+  // gestion a planning basique » — le sens inverse existait deja).
+  const [alsoPlanning, setAlsoPlanning] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   // Drag & drop : id de l'event en cours de drag + cellule survolée + minute snap
   const [draggingEventId, setDraggingEventId] = useState<string | null>(null);
@@ -508,6 +512,25 @@ export default function PlanningGestionPage() {
         : undefined,
       intervenantType: assignedIntervenant?.type,
     });
+
+    // Doublon planning basique : copie independante du meme creneau, comme le
+    // fait deja /planning vers le planning gestion. Les deux restent
+    // modifiables et supprimables separement.
+    if (alsoPlanning) {
+      const meta = ALL_TYPES.find((t) => t.key === newEvent.type);
+      addPlanningEvent({
+        day: dayOfWeek,
+        startHour: modalHour,
+        startMinute: modalMinute,
+        duration: newEvent.duration,
+        durationMinutes: Math.round(newEvent.duration * 60),
+        title: `${meta?.icon ?? '🔨'} ${newEvent.client}`.trim(),
+        color: meta?.color || '#a67749',
+        type: newEvent.type,
+        weekOffset: diffWeeks,
+      });
+    }
+
     // Agenda -> e-mail automatique : si un intervenant est assigné, on crée une
     // demande, ce qui lui envoie un e-mail (avec lien d'action sans login).
     // Une demande (donc un e-mail) par intervenant sélectionné.
@@ -539,6 +562,7 @@ export default function PlanningGestionPage() {
         .catch(() => { setIntervSent('__error__'); setTimeout(() => setIntervSent(null), 6000); });
     }
     setWeekOffset(diffWeeks);
+    setAlsoPlanning(false);
     setShowAdd(false);
   };
 
@@ -1615,6 +1639,39 @@ export default function PlanningGestionPage() {
                 </div>
               )}
             </div>
+
+            {/* Doublon planning basique (creation uniquement) — miroir de la
+                case deja presente sur /planning. */}
+            {!editingEventId && (
+              <button
+                type="button"
+                onClick={() => setAlsoPlanning((v) => !v)}
+                aria-pressed={alsoPlanning}
+                className="mt-5 w-full flex items-center gap-3 rounded-2xl border-2 px-3 py-3 text-left transition-all"
+                style={{
+                  borderColor: alsoPlanning ? '#3d5244' : 'rgba(48,64,53,0.15)',
+                  background: alsoPlanning ? 'rgba(61,82,68,0.06)' : 'transparent',
+                }}
+              >
+                <span
+                  className="flex items-center justify-center rounded-md shrink-0"
+                  style={{
+                    width: 20, height: 20,
+                    border: `2px solid ${alsoPlanning ? '#3d5244' : 'rgba(48,64,53,0.3)'}`,
+                    background: alsoPlanning ? '#3d5244' : 'transparent',
+                    color: '#fff', fontSize: 13, fontWeight: 700,
+                  }}
+                >
+                  {alsoPlanning ? '✓' : ''}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-[#304035]">Ajouter aussi au planning</span>
+                  <span className="block text-[11px] text-[#304035]/50 leading-snug">
+                    Crée un doublon de ce rendez-vous dans le planning (copie indépendante, modifiable séparément).
+                  </span>
+                </span>
+              </button>
+            )}
 
             <div className="mt-6 flex gap-3">
               <button
