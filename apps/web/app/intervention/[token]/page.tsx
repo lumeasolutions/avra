@@ -145,42 +145,12 @@ export default function InterventionPublicPage() {
     }
   }, [busy, token, load, showToast]);
 
-  const sendReply = useCallback(async () => {
-    const body = reply.trim();
-    if (sending || uploading || !body) return;
-    setSending(true); setError(null);
-    // Optimiste : le message apparaît IMMÉDIATEMENT dans le fil (zéro attente,
-    // zéro rechargement). On réconcilie ensuite en silence avec le serveur.
-    setReply('');
-    setData((d) => d ? { ...d, messages: [...(d.messages ?? []), { authorRole: 'intervenant', authorName: 'Vous', body, createdAt: new Date().toISOString() }] } : d);
-    try {
-      const r = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/message`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: body }),
-      });
-      if (!r.ok) throw new Error('Envoi impossible');
-      showToast('Message envoyé ✓');
-      noteSent('message');
-      await load(true); // silencieux
-    } catch (e: any) {
-      setError(e?.message || 'Envoi impossible');
-      setReply(body);   // on restaure le texte pour réessayer
-      await load(true); // retire le message optimiste
-    } finally {
-      setSending(false);
-    }
-  }, [sending, uploading, reply, token, load, showToast]);
 
-  const uploadFiles = useCallback(async (files: File[]) => {
+  /** Televerse reellement les fichiers. Ne touche a aucun etat d'UI : c'est
+   *  `sendAll` qui orchestre (upload PUIS message) et gere les erreurs. */
+  const uploadNow = useCallback(async (files: File[]) => {
     if (!files || files.length === 0) return;
-    if (sending) return; // pas d'upload pendant l'envoi d'un message
-    const tooBig = files.find((f) => f.size > MAX_UPLOAD_BYTES);
-    if (tooBig) {
-      setError(`« ${tooBig.name} » dépasse la taille maximale (25 Mo).`);
-      return;
-    }
-    setUploading(true); setError(null);
-    try {
+    {
       for (const f of files) {
         const mimeType = f.type || 'application/octet-stream';
         // 1) Demande une URL d'upload signée (Supabase) au serveur.
@@ -208,15 +178,87 @@ export default function InterventionPublicPage() {
           throw new Error(j?.message || `Enregistrement de « ${f.name} » impossible`);
         }
       }
-      await load(true); // silencieux
-      showToast(files.length > 1 ? `${files.length} documents envoyés ✓` : 'Document envoyé ✓');
-      noteSent('documents', files.length);
-    } catch (e: any) {
-      setError(e?.message || 'Envoi impossible');
-    } finally {
+    }
+  }, [token]);
+
+  // ── Envoi UNIQUE : message + pieces jointes en une seule action ────────────
+  // Retour cofondatrice (point 12) : « il doit envoyer un message a part du
+  // document qu'il faut qu'il envoi a part aussi, il faudrait qu'il puisse
+  // envoyer le message en meme temps qu'un fichier ». Les fichiers ne partent
+  // donc plus au moment ou on les choisit : ils sont mis de cote, listes a
+  // l'ecran, et tout part ensemble.
+  const [pending, setPending] = useState<File[]>([]);
+
+  const stageFiles = useCallback((files: File[]) => {
+    if (!files.length) return;
+    const tooBig = files.find((f) => f.size > MAX_UPLOAD_BYTES);
+    if (tooBig) {
+      setError(`« ${tooBig.name} » dépasse la taille maximale (25 Mo).`);
+      return;
+    }
+    setError(null);
+    setPending((prev) => {
+      // Evite le doublon si on rechoisit deux fois le meme fichier.
+      const key = (f: File) => `${f.name}::${f.size}`;
+      const seen = new Set(prev.map(key));
+      return [...prev, ...files.filter((f) => !seen.has(key(f)))];
+    });
+  }, []);
+
+  const removePending = useCallback((idx: number) => {
+    setPending((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const sendAll = useCallback(async () => {
+    const body = reply.trim();
+    const files = pending;
+    if (sending || uploading || (!body && files.length === 0)) return;
+    setError(null);
+
+    // 1) Les pieces d'abord : quand le pro lit le message, elles sont deja la.
+    if (files.length) {
+      setUploading(true);
+      try {
+        await uploadNow(files);
+        setPending([]);
+        noteSent('documents', files.length);
+      } catch (e: any) {
+        // On ne poste PAS le message : rien n'est perdu, l'artisan peut reessayer.
+        setError(e?.message || 'Envoi du document impossible');
+        setUploading(false);
+        return;
+      }
       setUploading(false);
     }
-  }, [token, load, sending, showToast]);
+
+    // 2) Puis le message, s'il y en a un.
+    if (body) {
+      setSending(true);
+      setReply('');
+      setData((d) => d ? { ...d, messages: [...(d.messages ?? []), { authorRole: 'intervenant', authorName: 'Vous', body, createdAt: new Date().toISOString() }] } : d);
+      try {
+        const r = await fetch(`/api/v1/demandes/public/intervention/${encodeURIComponent(token)}/message`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: body }),
+        });
+        if (!r.ok) throw new Error('Envoi impossible');
+        noteSent('message');
+      } catch (e: any) {
+        setError(e?.message || 'Envoi impossible');
+        setReply(body); // on restaure le texte pour reessayer
+      } finally {
+        setSending(false);
+      }
+    }
+
+    const n = files.length;
+    showToast(
+      body && n ? (n > 1 ? `Message et ${n} documents envoyés ✓` : 'Message et document envoyés ✓')
+      : n ? (n > 1 ? `${n} documents envoyés ✓` : 'Document envoyé ✓')
+      : 'Message envoyé ✓',
+    );
+    await load(true); // silencieux
+  }, [reply, pending, sending, uploading, uploadNow, token, load, showToast, noteSent]);
 
   useEffect(() => { load(); }, [load]);
   // Rafraîchissement périodique : voir les réponses du pro / pièces reçues par e-mail
@@ -388,18 +430,6 @@ export default function InterventionPublicPage() {
               </>
             )}
 
-            {!terminal && allowDocsAndChat && (
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: uploading ? 'wait' : 'pointer', marginTop: 9, background: '#fff', color: '#1a2a1e', border: '1px dashed rgba(48,64,53,0.30)', borderRadius: 11, padding: '12px', fontWeight: 600, fontSize: 14 }}>
-                <Ico name="paperclip" size={17} color="#1a2a1e" />
-                {uploading ? 'Envoi en cours…' : 'Joindre un document'}
-                <input type="file" multiple disabled={uploading || sending} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ''; uploadFiles(files); }} style={{ display: 'none' }} />
-              </label>
-            )}
-            {!terminal && allowDocsAndChat && (
-              <p style={{ margin: '8px 0 0', fontSize: 12, color: '#7c6c58', textAlign: 'center' }}>
-                PDF, photos, plans… (max 25 Mo / fichier). Reçu directement dans le dossier.
-              </p>
-            )}
 
             {myAttachments.length > 0 && (
               <div style={{ margin: '14px 0 0' }}>
@@ -433,16 +463,44 @@ export default function InterventionPublicPage() {
               <div style={{ marginTop: 16, borderTop: '1px solid rgba(48,64,53,0.1)', paddingTop: 15 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Ico name="message" size={18} color="#a67749" />
-                  <span style={{ fontSize: 14.5, fontWeight: 700, color: '#1a2a1e' }}>Écrire un message</span>
+                  <span style={{ fontSize: 14.5, fontWeight: 700, color: '#1a2a1e' }}>Répondre</span>
                 </div>
                 <p style={{ margin: '6px 0 9px', fontSize: 13, color: '#7c6c58' }}>
-                  Une question, une précision, une date à proposer ? Écrivez directement au professionnel.
+                  Écrivez votre message, joignez vos documents si besoin, et envoyez le tout en une seule fois.
                 </p>
                 <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Votre message…" rows={3}
                   style={{ width: '100%', boxSizing: 'border-box', border: '1px solid rgba(48,64,53,0.18)', borderRadius: 10, padding: '11px 13px', fontSize: 15, fontFamily: 'inherit', marginBottom: 9, background: '#fff', color: '#1a2a1e', resize: 'vertical' }} />
-                <button onClick={sendReply} disabled={sending || uploading || !reply.trim()}
-                  style={{ width: '100%', background: '#a67749', color: '#fff', border: 'none', borderRadius: 10, padding: '13px 18px', fontWeight: 700, fontSize: 15, cursor: (sending || uploading) ? 'wait' : 'pointer', opacity: (sending || uploading || !reply.trim()) ? 0.5 : 1 }}>
-                  {sending ? 'Envoi…' : uploading ? 'Patientez…' : 'Envoyer le message'}
+                {/* Pieces jointes mises de cote : elles ne partent qu'au clic sur Envoyer. */}
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: (uploading || sending) ? 'wait' : 'pointer', background: '#fff', color: '#1a2a1e', border: '1px dashed rgba(48,64,53,0.30)', borderRadius: 11, padding: '11px', fontWeight: 600, fontSize: 14, marginBottom: 9 }}>
+                  <Ico name="paperclip" size={17} color="#1a2a1e" />
+                  {pending.length === 0 ? 'Joindre un document' : 'Ajouter un autre document'}
+                  <input type="file" multiple disabled={uploading || sending} onChange={(e) => { const files = Array.from(e.target.files ?? []); e.target.value = ''; stageFiles(files); }} style={{ display: 'none' }} />
+                </label>
+
+                {pending.length > 0 && (
+                  <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {pending.map((f, i) => (
+                      <div key={`${f.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 9, background: '#f7f3ea', border: '1px solid rgba(48,64,53,0.12)', borderRadius: 9, padding: '8px 11px' }}>
+                        <Ico name="paperclip" size={15} color="#7c6c58" />
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: '#1a2a1e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                        <span style={{ fontSize: 12, color: '#9a8c7a', flexShrink: 0 }}>{(f.size / 1024 / 1024).toFixed(1)} Mo</span>
+                        <button type="button" onClick={() => removePending(i)} disabled={uploading || sending}
+                          aria-label={`Retirer ${f.name}`} title="Retirer ce document"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, lineHeight: 0, flexShrink: 0, opacity: (uploading || sending) ? 0.4 : 1 }}>
+                          <Ico name="x" size={15} color="#a06060" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p style={{ margin: '0 0 9px', fontSize: 12, color: '#7c6c58', textAlign: 'center' }}>
+                  PDF, photos, plans… (max 25 Mo / fichier). Reçu directement dans le dossier.
+                </p>
+
+                <button onClick={sendAll} disabled={sending || uploading || (!reply.trim() && pending.length === 0)}
+                  style={{ width: '100%', background: '#a67749', color: '#fff', border: 'none', borderRadius: 10, padding: '13px 18px', fontWeight: 700, fontSize: 15, cursor: (sending || uploading) ? 'wait' : 'pointer', opacity: (sending || uploading || (!reply.trim() && pending.length === 0)) ? 0.5 : 1 }}>
+                  {uploading ? 'Envoi des documents…' : sending ? 'Envoi…' : 'Envoyer'}
                 </button>
               </div>
             )}
