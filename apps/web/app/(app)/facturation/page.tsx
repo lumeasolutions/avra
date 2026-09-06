@@ -12,6 +12,7 @@ import { useFacturationStore, useConfigStore, useUIStore, useVisibleDossiers, us
 import { Pen, Paperclip, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { construireFec } from '@/lib/fec-export';
 import { api } from '@/lib/api';
 
 // ─── Formatters ──────────────────────────────────────────────────────────────
@@ -1147,6 +1148,50 @@ function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
   const [modalOpen, setModalOpen] = useState(autoOpen);
   const [filterStatut, setFilterStatut] = useState<InvoiceStatus | 'TOUTES'>('TOUTES');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [exportInfo, setExportInfo] = useState<string | null>(null);
+
+  /**
+   * Export comptable au format FEC.
+   *
+   * Cassandra voulait une connexion directe a son logiciel de comptabilite ;
+   * elle attend toujours les acces API des editeurs. Le FEC contourne le
+   * probleme : c'est le format legal francais (article A47 A-1 du LPF), que MEG,
+   * Pennylane, Tiime et Sage importent tous, sans accord de personne.
+   */
+  const exporterCompta = useCallback(() => {
+    const fec = construireFec(
+      invoices.map((i) => ({
+        ref: i.ref,
+        client: i.client,
+        date: i.date,
+        montantHT: i.montantHT,
+        totalTTC: i.totalTTC,
+        tva: i.tva,
+        type: i.type,
+      })),
+      { siret: societe.siret },
+    );
+    if (fec.factures === 0) {
+      setExportInfo('Aucune facture datee a exporter.');
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([fec.contenu], { type: 'text/plain;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fec.nomFichier;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setExportInfo(`${fec.factures} facture(s) exportee(s) — ${fec.nomFichier}`);
+  }, [invoices, societe.siret]);
+
+  useEffect(() => {
+    if (!exportInfo) return;
+    const t = setTimeout(() => setExportInfo(null), 8000);
+    return () => clearTimeout(t);
+  }, [exportInfo]);
+
 
   const filtered = filterStatut === 'TOUTES' ? invoices : invoices.filter(i => i.statut === filterStatut);
 
@@ -1209,10 +1254,21 @@ function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
             </button>
           ))}
         </div>
-        <button onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 rounded-xl px-4 py-2 bg-[#304035] text-white text-sm font-bold hover:bg-[#304035]/90 transition-colors shadow-sm">
-          <Plus className="h-4 w-4" /> Nouvelle facture
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {exportInfo && (
+            <span className="text-xs font-semibold text-[#304035]/60">{exportInfo}</span>
+          )}
+          <button
+            onClick={exporterCompta}
+            title="Fichier FEC, importable dans MEG, Pennylane, Tiime, Sage et transmissible a l'expert-comptable"
+            className="flex items-center gap-2 rounded-xl px-4 py-2 bg-white border border-[#304035]/20 text-[#304035] text-sm font-bold hover:border-[#304035]/40 transition-colors shadow-sm">
+            <FileText className="h-4 w-4" /> Export comptable
+          </button>
+          <button onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 rounded-xl px-4 py-2 bg-[#304035] text-white text-sm font-bold hover:bg-[#304035]/90 transition-colors shadow-sm">
+            <Plus className="h-4 w-4" /> Nouvelle facture
+          </button>
+        </div>
       </div>
 
       {/* Liste */}
