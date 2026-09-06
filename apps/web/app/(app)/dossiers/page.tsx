@@ -119,6 +119,10 @@ export default function DossiersPage() {
   const rawPerdus = useDossierStore((s) => s.dossiersPerdus);
   const removeLocalDossiers = useDossierStore((s) => s.removeLocalDossiers);
   const authUser = useAuthStore((s) => s.user);
+  // Vendeur (MEMBER) sans aucun dossier attribue : on explique l'ecran vide
+  // plutot que de le laisser croire a un bug.
+  const isVendeurSansDossier =
+    !!authUser && authUser.role !== 'OWNER' && authUser.role !== 'ADMIN';
   const [purgeDismissed, setPurgeDismissed] = useState(false);
   const localOrphans = useMemo(() => {
     if (!authUser || authUser.id === 'demo') return [] as { id: string; name: string }[];
@@ -578,10 +582,25 @@ export default function DossiersPage() {
               </div>
             </div>
             <p className="text-[#304035]/60 text-sm font-medium mb-1">
-              {search ? `Aucun résultat pour « ${search} »` : filterStatus ? `Aucun dossier ${STATUS_CONFIG[filterStatus]?.label ?? filterStatus}` : 'Aucun dossier'}
+              {search
+                ? `Aucun résultat pour « ${search} »`
+                : filterStatus
+                  ? `Aucun dossier ${STATUS_CONFIG[filterStatus]?.label ?? filterStatus}`
+                  : isVendeurSansDossier
+                    ? 'Aucun dossier ne vous est encore attribué'
+                    : 'Aucun dossier'}
             </p>
             <p className="text-[#304035]/30 text-xs mb-5">
-              {filterStatus && !search ? 'Aucun dossier ne correspond à ce statut pour le moment.' : 'Essayez de modifier votre recherche.'}
+              {/* Un vendeur ne voit QUE les dossiers qui lui sont attribués. A la
+                  premiere connexion il n'en a aucun, et l'ecran vide laissait
+                  croire que l'application etait cassee (retour test sept. 2026). */}
+              {filterStatus && !search
+                ? 'Aucun dossier ne correspond à ce statut pour le moment.'
+                : search
+                  ? 'Essayez de modifier votre recherche.'
+                  : isVendeurSansDossier
+                    ? 'C’est normal : en tant que vendeur, vous ne voyez que les dossiers qui vous sont attribués. Votre responsable doit vous en attribuer depuis la fiche d’un dossier, rubrique « Vendeur attribué ».'
+                    : 'Essayez de modifier votre recherche.'}
             </p>
             <div className="flex items-center justify-center gap-2">
               {search && (
