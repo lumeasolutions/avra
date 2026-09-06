@@ -43,6 +43,26 @@ async function detectIsIntervenant(): Promise<boolean> {
 
 // Wrapper Suspense requis par Next.js 14 dès qu'un enfant utilise useSearchParams.
 // Sans ce wrapper, le build échoue sur le pré-rendering statique de /login.
+
+/**
+ * Suite pseudo-aleatoire deterministe, tiree d'un entier.
+ *
+ * Ces particules decoratives etaient positionnees avec Math.random() pendant le
+ * rendu. Le serveur tirait donc une serie de valeurs, le navigateur une autre,
+ * et React constatait que TOUS les styles divergeaient a l'hydratation : c'est
+ * l'origine des erreurs 418 / 423 / 425 vues en production sur chaque page qui
+ * passe par cet ecran. React s'en remettait en re-rendant tout cote client,
+ * mais au prix d'un rendu jete a la poubelle a chaque chargement.
+ *
+ * Le dessin doit rester irregulier, mais identique des deux cotes : on derive
+ * donc chaque valeur de l'index de la particule. Meme apparence, plus aucune
+ * divergence.
+ */
+function pseudoAleatoire(graine: number): number {
+  const x = Math.sin(graine * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
 export default function LoginPage() {
   return (
     <Suspense fallback={<div style={{ minHeight: '100vh', background: '#0a0a0a' }} />}>
@@ -378,15 +398,15 @@ function LoginPageInner() {
             background: 'radial-gradient(ellipse at 30% 20%, rgba(201,169,110,0.06) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(58,125,90,0.06) 0%, transparent 50%)',
           }} />
 
-          {/* Particules flottantes */}
+          {/* Particules flottantes — valeurs deterministes, voir pseudoAleatoire */}
           {[...Array(14)].map((_, i) => (
             <div key={i} className="login-particle" style={{
-              left: `${Math.random() * 100}%`,
-              animationDuration: `${8 + Math.random() * 12}s`,
-              animationDelay: `${Math.random() * 10}s`,
+              left: `${pseudoAleatoire(i * 4 + 1) * 100}%`,
+              animationDuration: `${8 + pseudoAleatoire(i * 4 + 2) * 12}s`,
+              animationDelay: `${pseudoAleatoire(i * 4 + 3) * 10}s`,
               width: i % 3 === 0 ? '6px' : '3px',
               height: i % 3 === 0 ? '6px' : '3px',
-              opacity: 0.4 + Math.random() * 0.4,
+              opacity: 0.4 + pseudoAleatoire(i * 4 + 4) * 0.4,
             }} />
           ))}
 
