@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Twitter, Linkedin, Facebook } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -45,11 +44,10 @@ export default function Footer() {
     ],
   };
 
-  const socialLinks = [
-    { icon: Twitter, href: 'https://twitter.com/avra_fr', label: 'Twitter' },
-    { icon: Linkedin, href: 'https://linkedin.com/company/avra', label: 'LinkedIn' },
-    { icon: Facebook, href: 'https://facebook.com/avra.fr', label: 'Facebook' },
-  ];
+  // Pas de liens vers des reseaux sociaux : les comptes Twitter, LinkedIn et
+  // Facebook affiches ici n'existaient pas (verifie avec Esteve, sept. 2026).
+  // Un lien mort en pied de page dessert le referencement et la credibilite ;
+  // on les remet le jour ou les comptes existent vraiment.
 
   return (
     <footer>
@@ -61,20 +59,6 @@ export default function Footer() {
             L&apos;ERP intelligent conçu pour les professionnels de l&apos;agencement
             intérieur. Cuisinistes, menuisiers, architectes — tout en un.
           </p>
-          <div style={{ display: 'flex', gap: '12px', marginTop: '1.5rem' }}>
-            {socialLinks.map(({ icon: Icon, href, label }) => (
-              <a
-                key={label}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={label}
-                className="footer-social-icon"
-              >
-                <Icon size={20} />
-              </a>
-            ))}
-          </div>
         </div>
 
         {/* Produit Column */}
@@ -126,24 +110,6 @@ export default function Footer() {
         </div>
       </div>
 
-      <style jsx>{`
-        .footer-social-icon {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          background: rgba(201, 169, 110, 0.1);
-          color: rgba(201, 169, 110, 0.6);
-          transition: all 0.3s ease;
-        }
-
-        .footer-social-icon:hover {
-          background: rgba(201, 169, 110, 0.25);
-          color: #c9a96e;
-        }
-      `}</style>
     </footer>
   );
 }

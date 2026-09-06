@@ -252,7 +252,7 @@ export default function GlossarySearch({ glossary, alphaIndex, availableLetters 
                       </p>
                       {t.related && t.related.length > 0 && (
                         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #ede5dd', fontSize: '0.85rem' }}>
-                          <span style={{ color: '#8c7a4e', fontWeight: 600, marginRight: 6 }}>A lire :</span>
+                          <span style={{ color: '#8c7a4e', fontWeight: 600, marginRight: 6 }}>Pour aller plus loin :</span>
                           {t.related.map((r, i) => (
                             <span key={r.href}>
                               <a href={r.href} style={{ color: '#c9a96e', textDecoration: 'underline', textUnderlineOffset: 3 }}>

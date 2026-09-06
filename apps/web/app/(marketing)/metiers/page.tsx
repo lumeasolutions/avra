@@ -8,6 +8,7 @@ import {
   ChefHat,
   Hammer,
   Pencil,
+  Ruler,
   ArrowRight,
   CheckCircle,
   Sparkles,
@@ -31,7 +32,7 @@ const metiers = [
     emoji: '🍳',
     icon: ChefHat,
     href: '/cuisiniste',
-    label: 'Cuisiniste / Agenceur',
+    label: 'Cuisiniste',
     tagline: 'De la conception à la pose',
     desc: "Le module agenceur/cuisiniste d'AVRA vous permet de suivre facilement vos commandes et vos dossiers en cours, sans risque d'oubli. L'assistant AVRA vous accompagne à chaque étape avec des rappels intelligents, tandis que le rendu IA accélère vos validations visuelles et simplifie votre travail au quotidien.",
     color: '#C9A96E',
@@ -82,6 +83,29 @@ const metiers = [
       'Gestion du stock',
     ],
     stat: { value: 'Studio complet', label: 'coordination artisans & rendus IA' },
+  },
+  {
+    // Ajoutee en sept. 2026 : la page /agenceur existait et etait ciblee, mais
+    // aucun lien du site n'y menait. Elle etait fondue dans la fiche cuisiniste,
+    // qui pointe sur /cuisiniste — l'agencement general n'avait donc aucune
+    // porte d'entree.
+    id: 'agenceur',
+    emoji: '📐',
+    icon: Ruler,
+    href: '/agenceur',
+    label: 'Agenceur',
+    tagline: 'Projets globaux & lots multiples',
+    desc: "Quand un chantier ne se resume pas a une piece : plusieurs lots, plusieurs artisans, un seul dossier. AVRA garde le fil des commandes, des livraisons et des poses, et signale ce qui bloque avant que le client ne le demande.",
+    color: '#8A6F4E',
+    colorLight: 'rgba(138,111,78,0.10)',
+    colorBorder: 'rgba(138,111,78,0.22)',
+    features: [
+      'Un dossier par chantier, tous lots confondus',
+      'Coordination des artisans et des livraisons',
+      'Alertes sur les retards de commande',
+      'Devis, factures et signature en ligne',
+    ],
+    stat: { value: 'Multi-lots', label: 'un seul dossier pour tout le chantier' },
   },
 ];
 
