@@ -87,25 +87,16 @@ export default function HomePage() {
 
   return (
     <>
-      {/* ── JSON-LD SEO ── */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'SoftwareApplication',
-            name: 'AVRA',
-            description: "ERP + IA pour les professionnels de l'agencement intérieur",
-            applicationCategory: 'BusinessApplication',
-            operatingSystem: 'Web',
-            url: 'https://avra-app.fr',
-            offers: { '@type': 'Offer', priceCurrency: 'EUR', price: '149', availability: 'https://schema.org/PreOrder', description: 'Bêta privée jusqu\'au lancement public en janvier 2027' },
-            author: { '@type': 'Organization', name: 'Luméa', url: 'https://avra-app.fr' },
-            // aggregateRating retiré : pas d'avis vérifiables réels (bêta privée) → conformité Google/DGCCRF.
-            // JUR 13/07/2026 — prix aligné sur le tarif publié (149€/mois) ; incohérences 0€/49€ supprimées.
-          }),
-        }}
-      />
+      {/* ── JSON-LD SEO ──
+          Le SoftwareApplication qui vivait ici a ete supprime le 06/09/2026 :
+          il faisait double emploi avec celui du layout racine
+          (app/components/StructuredData.tsx), qui porte un `@id` stable, les
+          deux offres (mensuelle et annuelle) et le lien vers l'Organization.
+          Deux nœuds du meme type sur la meme page, Google en choisit un au
+          hasard. Les rappels juridiques valent toujours pour l'unique nœud
+          restant : pas d'aggregateRating sans avis verifiables (beta privee →
+          conformite Google/DGCCRF), et prix aligne sur le tarif publie.
+          Seule la FAQPage, propre a cette page, reste ici. */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
