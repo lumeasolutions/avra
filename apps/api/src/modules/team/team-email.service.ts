@@ -25,6 +25,22 @@ export interface EmailResult {
   reason?: string;
 }
 
+
+/**
+ * Extrait le message lisible d'une reponse d'erreur Resend.
+ * Resend repond typiquement { "statusCode": 422, "message": "...", "name": "..." }.
+ */
+function extraireMotifResend(corps: string): string | null {
+  if (!corps) return null;
+  try {
+    const j = JSON.parse(corps);
+    const m = j?.message ?? j?.error?.message ?? null;
+    return typeof m === 'string' && m.trim() ? m.trim().slice(0, 300) : null;
+  } catch {
+    return corps.trim().slice(0, 300) || null;
+  }
+}
+
 @Injectable()
 export class TeamEmailService {
   private readonly logger = new Logger(TeamEmailService.name);
@@ -72,7 +88,19 @@ export class TeamEmailService {
               + "celle du proprietaire du compte.",
           };
         }
-        return { ok: false, reason: `Le serveur d’e-mails a refuse l’envoi (erreur ${res.status}).` };
+        // On remonte le motif exact de Resend. Sans lui, l'ecran affichait
+        // « erreur 422 » et personne ne pouvait agir : or ce code signifie le
+        // plus souvent que le domaine de EMAIL_FROM n'est pas verifie chez
+        // Resend (typiquement un expediteur pointant vers un domaine qui n'est
+        // pas celui dont les enregistrements DNS ont ete publies). La route est
+        // reservee aux OWNER/ADMIN du workspace, il n'y a pas de fuite ici.
+        const motif = extraireMotifResend(txt);
+        return {
+          ok: false,
+          reason: motif
+            ? `Le serveur d’e-mails a refuse l’envoi (erreur ${res.status}) : ${motif}`
+            : `Le serveur d’e-mails a refuse l’envoi (erreur ${res.status}).`,
+        };
       }
       return { ok: true };
     } catch (err: any) {
