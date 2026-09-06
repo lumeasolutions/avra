@@ -1144,7 +1144,7 @@ export default function DossierDetailPage() {
                         setRenameError(null);
                         setRenameFolder({ oldLabel: sf.label, value: sf.label.includes(' ▸ ') ? sf.label.split(' ▸ ').pop()! : sf.label });
                       }}
-                      className="p-2 rounded-lg text-[#304035]/40 hover:text-[#a67749] hover:bg-[#a67749]/10 transition-all shrink-0"
+                      className="p-2 rounded-lg text-[#304035]/60 hover:text-[#a67749] hover:bg-[#a67749]/10 transition-all shrink-0"
                       title={`Renommer "${sf.label}"`}
                       aria-label={`Renommer ${sf.label}`}
                     >
@@ -1161,7 +1161,7 @@ export default function DossierDetailPage() {
                         e.stopPropagation();
                         setDeleteConfirm({ label: sf.label, docsCount });
                       }}
-                      className="p-2 rounded-lg text-red-500/60 hover:text-red-600 hover:bg-red-50 transition-all shrink-0"
+                      className="p-2 rounded-lg text-red-500/90 hover:text-red-600 hover:bg-red-50 transition-all shrink-0"
                       title={`Supprimer "${sf.label}"`}
                       aria-label={`Supprimer ${sf.label}`}
                     >
@@ -1741,7 +1741,7 @@ export default function DossierDetailPage() {
                                 }}
                                 title={`Renommer « ${folderDisplayName(cp)} »`}
                                 aria-label={`Renommer ${folderDisplayName(cp)}`}
-                                className="p-1.5 rounded-lg text-[#304035]/45 hover:text-[#a67749] hover:bg-[#a67749]/10 transition-all"
+                                className="p-1.5 rounded-lg text-[#304035]/60 hover:text-[#a67749] hover:bg-[#a67749]/10 transition-all"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
@@ -1753,7 +1753,7 @@ export default function DossierDetailPage() {
                                 }}
                                 title={`Supprimer « ${folderDisplayName(cp)} »`}
                                 aria-label={`Supprimer ${folderDisplayName(cp)}`}
-                                className="p-1.5 rounded-lg text-red-500/55 hover:text-red-600 hover:bg-red-50 transition-all"
+                                className="p-1.5 rounded-lg text-red-500/90 hover:text-red-600 hover:bg-red-50 transition-all"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>

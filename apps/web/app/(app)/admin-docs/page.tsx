@@ -993,7 +993,7 @@ function AdminDocsPageInner() {
                         </button>
                         <button
                           onClick={() => setEditDoc(doc)}
-                          className="p-1.5 rounded-lg hover:bg-[#a67749]/10 text-[#304035]/40 hover:text-[#a67749] transition-colors"
+                          className="p-1.5 rounded-lg hover:bg-[#a67749]/10 text-[#304035]/60 hover:text-[#a67749] transition-colors"
                           title="Modifier"
                           aria-label="Modifier"
                         >
