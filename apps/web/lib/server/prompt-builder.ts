@@ -409,7 +409,21 @@ const TECH_SUFFIX_RENDU =
 
 function buildSeedKey(params: ColoristParams | RenduParams): string {
   if ('facadeHex' in params) {
-    return `coloriste-${params.facadeHex}-${params.facadeFinish}-${params.lightingStyle}`;
+    // La graine doit dependre de TOUTE la configuration, pas seulement des
+    // facades. Avant, changer la couleur des poignees ou du plan de travail
+    // laissait la meme graine : le modele repartait du meme point de bruit
+    // avec un prompt a peine different, et rendait une image quasi identique.
+    // C'est ce que decrivait Cassandra (« la couleur poignees ne marche pas
+    // ni couleur plan de travail ») : le reglage etait bien transmis, mais
+    // son effet etait annule par la graine figee.
+    return [
+      'coloriste',
+      params.facadeHex, params.facadeFinish,
+      params.poigneeHex, params.poigneeFinish ?? '-',
+      params.planHex, params.planFinish ?? '-',
+      params.handleMaterial ?? '-', params.countertopMaterial ?? '-',
+      params.lightingStyle,
+    ].join('-');
   } else {
     return `rendu-${params.style}-${params.lightingStyle}-${params.roomSize}`;
   }
