@@ -25,9 +25,13 @@ interface Props {
   limit?: number;
   /** Compact = pas de status filter, juste la liste. */
   compact?: boolean;
+  /** Remonte le NOMBRE TOTAL de demandes (pas seulement celles affichees).
+   *  Permet a l'appelant d'afficher « Voir tout (12) » alors qu'il n'en montre
+   *  que 3 — l'API renvoie `total` independamment du pageSize. */
+  onLoaded?: (total: number) => void;
 }
 
-export function DemandesPanel({ projectId, intervenantId, limit = 20, compact = false }: Props) {
+export function DemandesPanel({ projectId, intervenantId, limit = 20, compact = false, onLoaded }: Props) {
   const [demandes, setDemandes] = useState<Demande[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<DemandeStatus | 'ALL' | 'OPEN'>('ALL');
@@ -36,10 +40,11 @@ export function DemandesPanel({ projectId, intervenantId, limit = 20, compact = 
     let cancelled = false;
     setLoading(true);
     listDemandesPro({ projectId, intervenantId, pageSize: limit })
-      .then((res) => { if (!cancelled) setDemandes(res.data); })
-      .catch(() => { if (!cancelled) setDemandes([]); })
+      .then((res) => { if (!cancelled) { setDemandes(res.data); onLoaded?.(res.total); } })
+      .catch(() => { if (!cancelled) { setDemandes([]); onLoaded?.(0); } })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, intervenantId, limit]);
 
   const filtered = demandes.filter((d) => {

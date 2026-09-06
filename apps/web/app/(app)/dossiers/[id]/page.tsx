@@ -13,6 +13,7 @@ import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
 import { splitPath, joinPath, displayName as folderDisplayName, childFolders, sanitizeFolderName, isDescendant } from '@/lib/folderTree';
 import { clientDisplayName } from '@/lib/dossier-name';
+import { useOverlayDismiss } from '@/lib/useOverlayDismiss';
 // FIX 22/07/2026 — MENUISIER_MAX_PROJET / CUISINISTE_MAX_OPTION / ARCHITECTE_MAX_VERSION
 // ne sont plus importés ici : le bouton "+" qui les utilisait a été retiré
 // (voir FIX 22/07/2026 plus bas). Les regex restent nécessaires pour le tri/
@@ -188,6 +189,11 @@ export default function DossierDetailPage() {
   // Voir lib/useOverlayDismiss : evite de perdre la saisie quand la selection
   // de texte se termine sur le fond de la modale.
   const renameOverlayStart = useRef(false);
+  // Point 14 : la liste des demandes poussait la fiche client tres bas. On n'en
+  // montre plus que quelques-unes, et une fleche ouvre la liste complete.
+  const [demandesTotal, setDemandesTotal] = useState(0);
+  const [showAllDemandes, setShowAllDemandes] = useState(false);
+  const demandesOverlay = useOverlayDismiss(() => setShowAllDemandes(false));
   // Renommage d'un sous-dossier : { label complet actuel, valeur éditée (feuille) }.
   const [renameFolder, setRenameFolder] = useState<{ oldLabel: string; value: string } | null>(null);
   const [renamingBusy, setRenamingBusy] = useState(false);
@@ -1274,7 +1280,12 @@ export default function DossierDetailPage() {
           {/* Demandes envoyées pour ce dossier */}
           <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-[#304035]/5 flex items-center justify-between">
-              <h2 className="text-sm font-bold text-[#304035]">Demandes envoyées</h2>
+              <div className="flex items-center gap-2 min-w-0">
+                <h2 className="text-sm font-bold text-[#304035]">Demandes envoyées</h2>
+                {demandesTotal > 0 && (
+                  <span className="rounded-full bg-[#304035]/8 px-2 py-0.5 text-[10px] font-bold text-[#304035]/60">{demandesTotal}</span>
+                )}
+              </div>
               <SendToIntervenantButton
                 variant="compact"
                 label="Nouvelle"
@@ -1288,11 +1299,22 @@ export default function DossierDetailPage() {
                 }}
               />
             </div>
-            <div className="p-4 max-h-[540px] overflow-y-auto">
-              {/* limit relevé (10 -> 50) + zone défilante : on accède à TOUTES
-                  les demandes du dossier, plus seulement les 10 dernières. */}
-              <DemandesPanel projectId={dossier.id} limit={50} />
+            <div className="p-4">
+              {/* Retour cofondatrice (point 14) : « si toutes les demandes
+                  s'affichent on ne verra plus les coordonnées en bas du client ».
+                  On n'affiche donc que les 3 plus récentes ; le reste est à un clic. */}
+              <DemandesPanel projectId={dossier.id} limit={3} compact onLoaded={setDemandesTotal} />
             </div>
+            {demandesTotal > 3 && (
+              <button
+                type="button"
+                onClick={() => setShowAllDemandes(true)}
+                className="w-full flex items-center justify-center gap-1.5 border-t border-[#304035]/5 px-5 py-3 text-xs font-bold text-[#a67749] hover:bg-[#a67749]/5 transition-colors"
+              >
+                Voir les {demandesTotal} demandes
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Vendeur attribué — multi-vendeur 26/05/2026 */}
@@ -2176,6 +2198,34 @@ export default function DossierDetailPage() {
         }}
         onClose={() => { setSendFolderAtts(null); setSendFolderPath(null); }}
       />
+
+      {/* ══ MODALE : toutes les demandes du dossier (point 14) ══ */}
+      {showAllDemandes && (
+        <div
+          {...demandesOverlay}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,20,17,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 85 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 720, maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ padding: '16px 20px', background: 'linear-gradient(135deg, #1a2a1e 0%, #3D5449 100%)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>Demandes envoyées</h2>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.65)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {clientDisplayName(dossier)} · {demandesTotal} demande{demandesTotal > 1 ? 's' : ''}
+                </p>
+              </div>
+              <button type="button" onClick={() => setShowAllDemandes(false)} aria-label="Fermer"
+                style={{ background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 10, padding: 7, cursor: 'pointer', lineHeight: 0, flexShrink: 0 }}>
+                <X className="h-4 w-4" style={{ color: '#fff' }} />
+              </button>
+            </div>
+            <div style={{ padding: 18, overflowY: 'auto' }}>
+              {/* compact={false} : on retrouve les filtres Toutes / Ouvertes /
+                  Terminées / Refusées, ce que demandait le point 14. */}
+              <DemandesPanel projectId={dossier.id} limit={100} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Outil « Comparer » (devis / photos) — ouvert depuis le bouton Comparer. */}
       {SHOW_COMPARE_TOOL && showCompare && (
