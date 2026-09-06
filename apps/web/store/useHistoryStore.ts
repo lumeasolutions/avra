@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { STORE_VERSION, preservingMigrate } from './persistVersioning';
+import { useFacturationStore } from './useFacturationStore';
 
 // Types
 export interface HistoryLog {
@@ -56,6 +57,16 @@ interface HistoryState {
 
   // Reset
   reset: () => void;
+}
+
+
+/** Date au format francais « JJ/MM/AAAA » -> Date, ou null si illisible. */
+function parseDateFR(v?: string | null): Date | null {
+  if (!v) return null;
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v.trim());
+  if (!m) return null;
+  const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 export const useHistoryStore = create<HistoryState>()(
@@ -114,6 +125,19 @@ export const useHistoryStore = create<HistoryState>()(
           if (deduped.length !== get().relances.length) set({ relances: deduped });
         }
 
+        // PURGE DES ANCIENNES « RELANCE SOLDE » FAUTIVES.
+        // Elles ont ete creees par la regle precedente, qui se declenchait sur
+        // la seule anciennete du dossier sans regarder la moindre facture. Ce
+        // sont des alertes auto-generees, pas une saisie de l'utilisateur : on
+        // peut les retirer sans rien lui faire perdre. La nouvelle regle les
+        // recreera aussitot si une facture est reellement impayee.
+        {
+          const propre = get().relances.filter(
+            (r) => !(r.type === 'dossier_vente' && r.message.startsWith('Pas de dépôt depuis 2 semaines')),
+          );
+          if (propre.length !== get().relances.length) set({ relances: propre });
+        }
+
         // On relit get().relances FRAIS à chaque test (pas un snapshot figé) :
         // addRelance ajoute au fil de la boucle, donc un snapshot périmé laissait
         // créer des relances EN DOUBLE dans une même passe (accumulation en base).
@@ -140,18 +164,39 @@ export const useHistoryStore = create<HistoryState>()(
             });
           }
 
-          // Check for no deposit in last 2 weeks
-          const signedDate = new Date(dossier.signedDate.split('/').reverse().join('-'));
+          // Solde non regle — une facture du dossier reste impayee.
+          //
+          // Cette relance s'affiche sous le libelle « Relance solde », mais elle
+          // ne regardait aucun paiement : elle se declenchait des qu'un dossier
+          // etait signe depuis plus de deux semaines. Tout dossier un peu ancien
+          // la declenchait donc, meme integralement paye. D'ou la question de
+          // Cassandra (« les alertes relances soldes concernent quoi ? ») :
+          // le libelle promettait une relance de solde, la regle ne parlait que
+          // d'anciennete. Personne ne pouvait faire le lien.
+          //
+          // Elle se base desormais sur les factures : au moins une non soldee
+          // (ni PAYEE ni AVOIR) emise depuis plus de deux semaines.
           const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
-          if (signedDate < twoWeeksAgo && !get().relances.some(r => r.dossierId === dossier.id && r.type === 'dossier_vente' && r.status === 'active')) {
-            get().addRelance({
-              dossierId: dossier.id,
-              type: 'dossier_vente',
-              message: `Pas de dépôt depuis 2 semaines — ${dossier.name}`,
-              dateCreated: today.toLocaleDateString('fr-FR'),
-              dateNextRelance: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR'),
-              status: 'active',
+          const dejaRelance = get().relances.some(
+            (r) => r.dossierId === dossier.id && r.type === 'dossier_vente' && r.status === 'active',
+          );
+          if (!dejaRelance) {
+            const impayee = useFacturationStore.getState().invoices.find((inv) => {
+              if (inv.dossierId !== dossier.id) return false;
+              if (inv.statut === 'PAYÉE' || inv.statut === 'AVOIR') return false;
+              const emise = parseDateFR(inv.date);
+              return !!emise && emise < twoWeeksAgo;
             });
+            if (impayee) {
+              get().addRelance({
+                dossierId: dossier.id,
+                type: 'dossier_vente',
+                message: `Solde non réglé — facture ${impayee.ref} — ${dossier.name}`,
+                dateCreated: today.toLocaleDateString('fr-FR'),
+                dateNextRelance: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR'),
+                status: 'active',
+              });
+            }
           }
 
           // Check for confirmations > 1 week
