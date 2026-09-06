@@ -245,6 +245,7 @@ export default function FonctionnalitesPage() {
             src="/images/kitchen-4.webp"
             alt="Cuisine premium AVRA"
             fill
+            sizes="(max-width: 768px) 100vw, 50vw"
             style={{ objectFit: 'cover', opacity: 0.35 }}
             priority
           />

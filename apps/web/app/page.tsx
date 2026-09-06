@@ -639,6 +639,7 @@ export default function HomePage() {
             src="/images/kitchen-1.webp"
             alt="Rendu IA cuisine"
             fill
+            sizes="(max-width: 768px) 100vw, 45vw"
             style={{ objectFit: 'cover' }}
           />
         </div>
@@ -882,6 +883,7 @@ export default function HomePage() {
                 src="/images/home-ia-preview.webp"
                 alt="Rendu photo-réaliste IA cuisine"
                 fill
+                sizes="(max-width: 768px) 100vw, 50vw"
                 style={{ objectFit: 'cover' }}
               />
               <div
@@ -1126,6 +1128,7 @@ export default function HomePage() {
           src="/images/kitchen-3.webp"
           alt="Agencement intérieur premium"
           fill
+          sizes="(max-width: 768px) 100vw, 45vw"
           style={{ objectFit: 'cover', opacity: 0.12 }}
         />
         <div
@@ -1595,6 +1598,7 @@ export default function HomePage() {
           src="/images/kitchen-2.webp"
           alt="Cuisine agencement premium logiciel AVRA"
           fill
+          sizes="(max-width: 768px) 100vw, 45vw"
           style={{ objectFit: 'cover', opacity: 0.22 }}
         />
         <div

@@ -175,6 +175,7 @@ export default function MetiersPage() {
             src="/images/metiers-hero-bg.webp"
             alt="Intérieur agencement premium"
             fill
+            sizes="100vw"
             priority
             style={{ objectFit: 'cover', opacity: 0.22 }}
           />

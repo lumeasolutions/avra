@@ -481,6 +481,8 @@ function LoginPageInner() {
                   src="/nouveaulogochouette.webp"
                   alt="AVRA"
                   fill
+                  sizes="170px"
+                  priority
                   style={{ objectFit: 'contain', padding: 2 }}
                 />
               </div>

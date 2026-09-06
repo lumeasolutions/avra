@@ -153,7 +153,8 @@ export function MarketingChat() {
               overflow: 'hidden', flexShrink: 0, position: 'relative',
               boxShadow: '0 0 12px rgba(201,169,110,0.3)',
             }}>
-              <Image src="/nouveaulogochouette.webp" alt="Aria" fill style={{ objectFit: 'contain', padding: 2, filter: 'brightness(1.2) saturate(1.3)' }} />
+              <Image src="/nouveaulogochouette.webp" alt="Aria" fill
+              sizes="48px" style={{ objectFit: 'contain', padding: 2, filter: 'brightness(1.2) saturate(1.3)' }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Aria — Assistante AVRA</div>
@@ -183,7 +184,8 @@ export function MarketingChat() {
                     background: '#0a110c', border: '1.5px solid rgba(201,169,110,0.5)',
                     overflow: 'hidden', position: 'relative',
                   }}>
-                    <Image src="/nouveaulogochouette.webp" alt="" fill style={{ objectFit: 'contain', padding: 2, filter: 'brightness(1.15) saturate(1.3)' }} />
+                    <Image src="/nouveaulogochouette.webp" alt="" fill
+                    sizes="48px" style={{ objectFit: 'contain', padding: 2, filter: 'brightness(1.15) saturate(1.3)' }} />
                   </div>
                 )}
                 <div style={{
@@ -298,6 +300,7 @@ export function MarketingChat() {
             src="/nouveaulogochouette.webp"
             alt="Chat AVRA"
             fill
+            sizes="48px"
             style={{ objectFit: 'contain', padding: 8, filter: 'brightness(1.3) saturate(1.3)', animation: open ? 'none' : 'mcBounce 3s ease-in-out infinite' }}
           />
         </div>
