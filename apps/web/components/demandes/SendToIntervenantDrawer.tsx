@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useOverlayDismiss } from '@/lib/useOverlayDismiss';
 import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Folder, Check, Image as ImageIcon, Mail, UserPlus, CheckCircle2, Paperclip, Trash2, Bookmark } from 'lucide-react';
 import { api, apiUpload } from '@/lib/api';
 import { displayName as folderDisplayName, depthOf, isDescendant, splitPath, SEP } from '@/lib/folderTree';
@@ -468,12 +469,15 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
 
   if (!open || !mounted || typeof document === 'undefined') return null;
 
+  // Fermeture au clic sur le fond, sans perdre la saisie (voir useOverlayDismiss).
+  const overlayDismiss = useOverlayDismiss(onClose);
+
   const intervenantHasAccount = !!selectedIntervenant?.userId;
   const intervenantHasPendingInvite = !!selectedIntervenant && !!invitations[selectedIntervenant.id];
 
   return createPortal(
     <div
-      onClick={onClose}
+      {...overlayDismiss}
       style={{
         position: 'fixed', inset: 0,
         background: 'rgba(15, 23, 18, 0.5)',

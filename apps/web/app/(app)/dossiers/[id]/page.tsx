@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -184,6 +184,9 @@ export default function DossierDetailPage() {
 
   // Modale de confirmation de suppression d'un sous-dossier
   const [deleteConfirm, setDeleteConfirm] = useState<{ label: string; docsCount: number } | null>(null);
+  // Voir lib/useOverlayDismiss : evite de perdre la saisie quand la selection
+  // de texte se termine sur le fond de la modale.
+  const renameOverlayStart = useRef(false);
   // Renommage d'un sous-dossier : { label complet actuel, valeur éditée (feuille) }.
   const [renameFolder, setRenameFolder] = useState<{ oldLabel: string; value: string } | null>(null);
   const [renamingBusy, setRenamingBusy] = useState(false);
@@ -2228,7 +2231,14 @@ export default function DossierDetailPage() {
       ═══════════════════════════════════════════════ */}
       {renameFolder && (
         <div
-          onClick={(e) => { if (e.target === e.currentTarget && !renamingBusy) setRenameFolder(null); }}
+          onMouseDown={(e) => { renameOverlayStart.current = e.target === e.currentTarget; }}
+          onClick={(e) => {
+            const started = renameOverlayStart.current;
+            renameOverlayStart.current = false;
+            // Ne ferme que si le geste a COMMENCE sur le fond : selectionner le
+            // texte du champ et relacher a l'exterieur ne doit pas tout annuler.
+            if (started && e.target === e.currentTarget && !renamingBusy) setRenameFolder(null);
+          }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(15,20,17,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 80 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 440, overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>

@@ -13,6 +13,7 @@
  *   4. Affichage du resultat (X envoyees, Y echouees).
  */
 import { useEffect, useState } from 'react';
+import { useOverlayDismiss } from '@/lib/useOverlayDismiss';
 import { X, Send, CheckCircle2, AlertCircle, Mail, Search } from 'lucide-react';
 import { createInvitation, IntervenantInvitation } from '@/lib/demandes-api';
 
@@ -99,9 +100,11 @@ export function DonnerAccesModal({ open, onClose, intervenants, existingInvitati
     setSubmitting(false);
   };
 
+  const overlayDismiss = useOverlayDismiss(onClose);
+
   return (
     <div
-      onClick={onClose}
+      {...overlayDismiss}
       style={{
         position: 'fixed', inset: 0,
         background: 'rgba(15,23,18,0.55)',
