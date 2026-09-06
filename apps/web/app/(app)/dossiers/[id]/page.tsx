@@ -596,11 +596,22 @@ export default function DossierDetailPage() {
       <style>{`
         @media (max-width: 900px) {
           .dos-detail-grid { grid-template-columns: 1fr !important; }
+          /* min-width:0 : sans lui, un enfant de grille garde min-width:auto et
+             refuse de descendre sous la largeur de son contenu. La colonne
+             restait donc a 645 px dans un ecran de 375, et la carte parente
+             etant en overflow:hidden, les boutons des sous-dossiers (envoyer,
+             renommer, supprimer) etaient purement coupes -- inatteignables au
+             doigt, sans meme un defilement horizontal pour aller les chercher. */
           .dos-detail-grid > .col-span-2,
-          .dos-detail-grid > .col-span-1 { grid-column: span 1 !important; }
+          .dos-detail-grid > .col-span-1 { grid-column: span 1 !important; min-width: 0 !important; }
           .dos-sub-grid-2 { grid-template-columns: 1fr !important; }
           /* Sous-dossiers : indentation réduite sur mobile (gagne de la largeur au pouce) */
           .subfolder-row.pl-12 { padding-left: 1.25rem !important; }
+          /* Une seule ligne ne tient pas sur un telephone : on passe le nom sur
+             sa propre ligne et les actions en dessous, plutot que de comprimer
+             le nom jusqu'a le faire disparaitre. */
+          .subfolder-row { flex-wrap: wrap !important; gap: 8px !important; row-gap: 10px !important; }
+          .subfolder-row > .flex-1 { flex: 1 1 100% !important; min-width: 0 !important; order: -1; }
           /* Header fiche : empilé (avatar / infos / actions) au lieu d'aligné en ligne */
           .dossier-header-inner {
             flex-direction: column !important;
