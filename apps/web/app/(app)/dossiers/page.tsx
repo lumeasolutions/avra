@@ -7,6 +7,7 @@ import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, 
 import { VendeurBadge } from '@/components/vendeur/VendeurBadge';
 import { useDossierStore, useVisibleDossiers, useVisibleDossiersPerdus } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
+import { clientDisplayName } from '@/lib/dossier-name';
 import { ValidationDashboard } from '@/components/dossiers/ValidationDashboard';
 import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
 import { OngoingDossierDashboardModal } from '@/components/dossiers/OngoingDossierDashboardModal';
@@ -696,7 +697,7 @@ export default function DossiersPage() {
                     {/* Nom + vendeur (multi-vendeur 26/05/2026) */}
                     <div className="mb-1">
                       <h3 className="font-bold text-[#304035] text-base leading-tight group-hover:text-[#a67749] transition-colors">
-                        {d.name}{d.firstName ? ` ${d.firstName}` : ''}
+                        {clientDisplayName(d)}
                       </h3>
                       <div className="flex items-center justify-between gap-2 mt-1">
                         <p className="text-xs text-[#304035]/40">Créé le {d.createdAt}</p>
@@ -794,7 +795,7 @@ export default function DossiersPage() {
                   {/* Infos */}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-[#304035] group-hover:text-[#a67749] transition-colors text-sm">
-                      {d.name}{d.firstName ? ` ${d.firstName}` : ''}
+                      {clientDisplayName(d)}
                     </p>
                     <p className="text-xs text-[#304035]/40 mt-0.5">
                       {d.createdAt}{d.phone ? ` · ${d.phone}` : ''}

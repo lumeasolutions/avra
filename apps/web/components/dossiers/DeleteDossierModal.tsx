@@ -18,6 +18,7 @@
  */
 
 import { useEffect } from 'react';
+import { clientDisplayName } from '@/lib/dossier-name';
 import { AlertTriangle, Trash2, X, Loader2 } from 'lucide-react';
 
 interface Props {
@@ -59,7 +60,7 @@ export function DeleteDossierModal({
 
   if (!open) return null;
 
-  const fullName = [dossierFirstName, dossierName].filter(Boolean).join(' ');
+  const fullName = clientDisplayName({ name: dossierName, firstName: dossierFirstName });
 
   return (
     <>

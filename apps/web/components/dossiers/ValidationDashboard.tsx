@@ -15,6 +15,7 @@
  */
 
 import { useMemo, useEffect, useState } from 'react';
+import { clientDisplayName } from '@/lib/dossier-name';
 import Link from 'next/link';
 import { CheckCircle2, Clock3, Sparkles, TrendingUp, ArrowUpRight, PartyPopper } from 'lucide-react';
 import { useVisibleDossiers, useDossierStore } from '@/store';
@@ -243,8 +244,7 @@ export function ValidationDashboard() {
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold truncate">
-                        {d.name}
-                        {d.firstName ? ` ${d.firstName}` : ''}
+                        {clientDisplayName(d)}
                       </p>
                       <div className="flex items-center gap-1.5 mt-1">
                         <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">

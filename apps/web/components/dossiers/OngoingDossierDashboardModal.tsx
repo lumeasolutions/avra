@@ -18,6 +18,7 @@
  */
 
 import Link from 'next/link';
+import { clientDisplayName } from '@/lib/dossier-name';
 import {
   X,
   LayoutDashboard,
@@ -296,7 +297,7 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
                 <div className="odb-title-icon"><LayoutDashboard className="h-5 w-5" /></div>
                 <div className="odb-title">
                   <h3>Tableau de bord</h3>
-                  <p>{dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''} · {totalSubs} sous-dossier{totalSubs > 1 ? 's' : ''}</p>
+                  <p>{clientDisplayName(dossier)} · {totalSubs} sous-dossier{totalSubs > 1 ? 's' : ''}</p>
                 </div>
               </div>
               <button type="button" className="odb-close" onClick={onClose} aria-label="Fermer le tableau de bord">

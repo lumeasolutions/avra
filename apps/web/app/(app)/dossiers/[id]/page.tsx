@@ -12,6 +12,7 @@ import {
 import { useDossierStore, useFacturationStore } from '@/store';
 import type { DocumentFile, SubFolderDocument } from '@/store/useDossierStore';
 import { splitPath, joinPath, displayName as folderDisplayName, childFolders, sanitizeFolderName, isDescendant } from '@/lib/folderTree';
+import { clientDisplayName } from '@/lib/dossier-name';
 // FIX 22/07/2026 — MENUISIER_MAX_PROJET / CUISINISTE_MAX_OPTION / ARCHITECTE_MAX_VERSION
 // ne sont plus importés ici : le bouton "+" qui les utilisait a été retiré
 // (voir FIX 22/07/2026 plus bas). Les regex restent nécessaires pour le tri/
@@ -653,7 +654,7 @@ export default function DossierDetailPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h1 className="text-3xl font-black text-white tracking-tight leading-none">
-                {dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''}
+                {clientDisplayName(dossier)}
               </h1>
               {canEditThis && (
                 <button
@@ -1096,7 +1097,7 @@ export default function DossierDetailPage() {
                       prefill={{
                         type: 'DEVIS',
                         dossierSigned: isSigned,
-                        title: `${sf.label} — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
+                        title: `${sf.label} — ${clientDisplayName(dossier)}`,
                         projectId: dossier.id,
                         // Restreint l'envoi à CE sous-dossier uniquement (pas les autres).
                         subfolderLabel: sf.label,
@@ -1283,7 +1284,7 @@ export default function DossierDetailPage() {
                   projectId: dossier.id,
                   // Arbre → sépare Chantier / Avant-vente dans le sélecteur général.
                   subfolders: dossier.subfolders.map((s) => s.label),
-                  title: `Intervention — ${dossier.firstName ?? ''} ${dossier.name}`.trim(),
+                  title: `Intervention — ${clientDisplayName(dossier)}`,
                 }}
               />
             </div>
@@ -2145,7 +2146,7 @@ export default function DossierDetailPage() {
         <ModalDevis
           prefill={{
             dossierId: id,
-            client: dossier.name + (dossier.firstName ? ` ${dossier.firstName}` : ''),
+            client: clientDisplayName(dossier),
             clientEmail: dossier.email ?? '',
             clientAddress: dossier.address ?? '',
           }}
@@ -2168,7 +2169,7 @@ export default function DossierDetailPage() {
           subfolders: dossier?.subfolders?.map((s) => s.label) ?? undefined,
           // Titre informatif pour l'intervenant : « <Dossier> — <Sous-dossier> ».
           title: sendFolderPath
-            ? `${[dossier?.name, dossier?.firstName].filter(Boolean).join(' ')} — ${sendFolderPath.includes(' ▸ ') ? sendFolderPath.split(' ▸ ').pop() : sendFolderPath}`.trim()
+            ? `${clientDisplayName(dossier)} — ${sendFolderPath.includes(' ▸ ') ? sendFolderPath.split(' ▸ ').pop() : sendFolderPath}`.trim()
             : undefined,
           notes: sendFolderPath ? `Sous-dossier : ${sendFolderPath}` : undefined,
           attachments: sendFolderAtts ?? [],
@@ -2873,7 +2874,7 @@ export default function DossierDetailPage() {
                     <div className="ddb-title-icon"><LayoutDashboard className="h-5 w-5" /></div>
                     <div className="ddb-title">
                       <h3>Tableau de bord</h3>
-                      <p>{dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''} · {totalSubs} sous-dossier{totalSubs > 1 ? 's' : ''}</p>
+                      <p>{clientDisplayName(dossier)} · {totalSubs} sous-dossier{totalSubs > 1 ? 's' : ''}</p>
                     </div>
                   </div>
                   <button
@@ -3077,7 +3078,7 @@ export default function DossierDetailPage() {
         // Liste fixe alignée sur la maquette validée (5 dates + 2 ACCEDER + SAV statique).
         // Pas de `signedSubfolders` (déprécié) — la prop `items` par défaut suffit.
         dossierId={id}
-        clientName={`${dossier.firstName ? dossier.firstName + ' ' : ''}${dossier.name}`.trim()}
+        clientName={clientDisplayName(dossier)}
         subfolders={dossier.subfolders}
         // AUDIT 26/05/2026 : on transmet les sous-dossiers cochés dans
         //   OptionSelectionModal pour filtrer la section Documents du dossier

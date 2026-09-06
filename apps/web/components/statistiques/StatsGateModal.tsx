@@ -77,6 +77,7 @@ import {
 import { getDocSignedUrl } from '@/lib/dossier-docs-api';
 import { extractDossier } from '@/lib/ai-extract-api';
 import type { Devis } from '@/store/useFacturationStore';
+import { clientDisplayName } from '@/lib/dossier-name';
 
 // IA des statistiques MISE DE CÔTÉ (14/07/2026). On masque les boutons
 // d'extraction IA sans supprimer le code (moteur runExtraction, handlers,
@@ -788,7 +789,7 @@ export function StatsGateModal({
                           margin: 0, fontSize: 12, fontWeight: 700, color: '#304035',
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>
-                          {d.name}{d.firstName ? ` ${d.firstName}` : ''}
+                          {clientDisplayName(d)}
                         </p>
                         <p style={{ margin: '2px 0 0', fontSize: 10, color, fontWeight: 600 }}>
                           {(d.prixLignes?.length ?? 0)} ligne{(d.prixLignes?.length ?? 0) > 1 ? 's' : ''}
@@ -812,7 +813,7 @@ export function StatsGateModal({
                 gap: 8, marginBottom: 14, flexWrap: 'wrap',
               }}>
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#304035' }}>
-                  {selected.name}{selected.firstName ? ` ${selected.firstName}` : ''}
+                  {clientDisplayName(selected)}
                 </h3>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button

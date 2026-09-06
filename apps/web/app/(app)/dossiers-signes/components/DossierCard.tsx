@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import type { Dossier } from '@/store';
 import { useProjectActions } from '@/hooks/useProjectActions';
+import { clientDisplayName } from '@/lib/dossier-name';
 
 interface DossierCardProps {
   dossier: Dossier & {
@@ -177,7 +178,7 @@ export const DossierCard = React.memo(function DossierCard({ dossier, onSelect }
         {/* Nom client */}
         <div className="mb-1">
           <h3 className="font-bold text-[#304035] text-base leading-tight group-hover:text-[#a67749] transition-colors truncate">
-            {dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''}
+            {clientDisplayName(dossier)}
           </h3>
           <p className="text-xs text-[#304035]/40 mt-0.5">
             Signé le {formatDate(dossier.dateSignature)}

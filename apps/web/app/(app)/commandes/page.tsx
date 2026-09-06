@@ -8,6 +8,7 @@ import {
   listOrders, createOrder, deleteOrder, orderTotal,
   type OrderApi, type OrderLineInput,
 } from '@/lib/orders-api';
+import { clientDisplayName } from '@/lib/dossier-name';
 
 const fmtEUR = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
@@ -199,7 +200,7 @@ export default function CommandesPage() {
                   className="mt-1 w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-3 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20">
                   <option value="">— Choisir un dossier —</option>
                   {allDossiers.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}{d.firstName ? ` ${d.firstName}` : ''}</option>
+                    <option key={d.id} value={d.id}>{clientDisplayName(d)}</option>
                   ))}
                 </select>
                 {allDossiers.length === 0 && (

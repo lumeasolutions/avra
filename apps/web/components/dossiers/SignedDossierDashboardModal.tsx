@@ -17,6 +17,7 @@ import {
   BarChart3, X, Calendar, Phone, Mail, MapPin,
   CheckCircle2, Hourglass, TrendingUp, Check, Clock,
 } from 'lucide-react';
+import { clientDisplayName } from '@/lib/dossier-name';
 import { useDossierStore, type CommandeAccessEntry } from '@/store';
 import { echeanceStatus } from '@/lib/echeanceStatus';
 import {
@@ -152,7 +153,7 @@ export function SignedDossierDashboardModal({
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#304035' }}>
-                    {dossier.name}{dossier.firstName ? ` ${dossier.firstName}` : ''}
+                    {clientDisplayName(dossier)}
                   </h3>
                   <p style={{ margin: '3px 0 0', fontSize: 11, color: 'rgba(48,64,53,0.5)', display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Calendar size={11} /> Signé le {formatDate(dossier.signedDate)}
