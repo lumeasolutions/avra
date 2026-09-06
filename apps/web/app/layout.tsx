@@ -43,6 +43,21 @@ const playfairDisplay = Playfair_Display({
   display: 'swap',
 });
 
+/**
+ * Version des icônes (écran d'accueil, onglet, PWA).
+ *
+ * iOS range les icônes dans une base indexée par URL : tant que l'adresse ne
+ * change pas, le téléphone ressert son ancienne copie, même si on supprime et
+ * recrée le raccourci de l'écran d'accueil. Le seul moyen fiable de forcer un
+ * nouveau téléchargement est de changer l'URL.
+ *
+ * À incrémenter à chaque fois que le contenu des icônes change
+ * (scripts/generate-icons.py), sans oublier public/manifest.json.
+ *
+ * v3 — septembre 2026 : chouette recadrée en carré, remplit 96 % du cadre.
+ */
+const ICON_VERSION = 'v=3';
+
 export const metadata: Metadata = {
   title: {
     default: "AVRA — Logiciel d'agencement avec IA pour cuisinistes & menuisiers",
@@ -72,7 +87,7 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'AVRA',
-    startupImage: '/icons/apple-touch-icon.png',
+    startupImage: `/icons/apple-touch-icon.png?${ICON_VERSION}`,
   },
   openGraph: {
     title: "AVRA — Logiciel d'agencement avec IA pour cuisinistes & menuisiers",
@@ -112,17 +127,17 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+      { url: `/icons/icon-192x192.png?${ICON_VERSION}`, sizes: '192x192', type: 'image/png' },
+      { url: `/icons/icon-512x512.png?${ICON_VERSION}`, sizes: '512x512', type: 'image/png' },
     ],
     apple: [
-      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: `/icons/apple-touch-icon.png?${ICON_VERSION}`, sizes: '180x180', type: 'image/png' },
     ],
   },
   other: {
     'mobile-web-app-capable': 'yes',
     'msapplication-TileColor': '#1e2b22',
-    'msapplication-TileImage': '/icons/icon-144x144.png',
+    'msapplication-TileImage': `/icons/icon-144x144.png?${ICON_VERSION}`,
     'msapplication-config': '/browserconfig.xml',
   },
   category: 'technology',
