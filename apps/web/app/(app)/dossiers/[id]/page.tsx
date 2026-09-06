@@ -34,6 +34,15 @@ import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenant
 import { SendToIntervenantDrawer } from '@/components/demandes/SendToIntervenantDrawer';
 import { SignedDossierDashboardModal } from '@/components/dossiers/SignedDossierDashboardModal';
 import { CompareHubModal } from '@/components/facturation/CompareHubModal';
+
+/**
+ * Outil « Comparer » (devis / photos / plans) — MASQUÉ en beta (sept. 2026).
+ * Retour cofondatrice : l'outil ne donne pas encore de résultat exploitable en
+ * conditions réelles. On le retire de l'interface cliente et on continue à le
+ * travailler en interne. Repasser à `true` pour le réactiver (le code reste en
+ * place, rien n'est supprimé).
+ */
+const SHOW_COMPARE_TOOL = false;
 import { ModalDevis } from '@/app/(app)/facturation/components/ModalDevis';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
 
@@ -867,6 +876,7 @@ export default function DossierDetailPage() {
                 partage du dossier complet (fuite info confidentielles type
                 prix). Utiliser plutot l'icone d'envoi qui apparait a cote
                 de chaque sous-dossier dans la liste 'Dossiers & fichiers'. */}
+            {SHOW_COMPARE_TOOL && (
             <button
               type="button"
               onClick={() => setShowCompare(true)}
@@ -876,6 +886,7 @@ export default function DossierDetailPage() {
               <GitCompare className="h-3.5 w-3.5" />
               Comparer
             </button>
+            )}
           </div>
         </div>
       </div>
@@ -1662,11 +1673,17 @@ export default function DossierDetailPage() {
                     <div className="text-[12px] text-[#304035]/40 italic px-1 py-2">Aucun sous-dossier ici. Créez-en un, ou ajoutez des documents ci-dessous.</div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                      {childPaths.map((cp) => (
+                      {childPaths.map((cp) => {
+                        // Compteur RECURSIF de documents (le dossier + ses descendants),
+                        // necessaire pour la confirmation de suppression.
+                        const cpDocsCount = dossier.subfolders
+                          .filter((o) => o.label === cp || o.label.startsWith(cp + ' ▸ '))
+                          .reduce((sum, o) => sum + (o.documents?.length ?? 0), 0);
+                        return (
                         <div key={cp} className="relative group">
                           <button
                             onClick={() => setOpenedSubfolder(cp)}
-                            className="w-full flex flex-col items-center gap-1.5 p-3 rounded-xl border border-[#304035]/10 hover:border-[#a67749]/45 hover:bg-[#a67749]/5 transition-all text-center"
+                            className="w-full flex flex-col items-center gap-1.5 p-3 pb-9 rounded-xl border border-[#304035]/10 hover:border-[#a67749]/45 hover:bg-[#a67749]/5 transition-all text-center"
                             title={folderDisplayName(cp)}
                           >
                             <span className="text-3xl leading-none">📁</span>
@@ -1684,8 +1701,41 @@ export default function DossierDetailPage() {
                               <Send className="w-3.5 h-3.5" />
                             </button>
                           )}
+                          {/* Renommer / Supprimer — retour cofondatrice sept. 2026 :
+                              ces deux actions existaient sur la liste principale mais
+                              PAS ici, dans la navigation imbriquee. */}
+                          {canEditThis && (
+                            <div className="absolute bottom-1 left-0 right-0 flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRenameError(null);
+                                  setRenameFolder({ oldLabel: cp, value: folderDisplayName(cp) });
+                                }}
+                                title={`Renommer « ${folderDisplayName(cp)} »`}
+                                aria-label={`Renommer ${folderDisplayName(cp)}`}
+                                className="p-1.5 rounded-lg text-[#304035]/45 hover:text-[#a67749] hover:bg-[#a67749]/10 transition-all"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteConfirm({ label: cp, docsCount: cpDocsCount });
+                                }}
+                                title={`Supprimer « ${folderDisplayName(cp)} »`}
+                                aria-label={`Supprimer ${folderDisplayName(cp)}`}
+                                className="p-1.5 rounded-lg text-red-500/55 hover:text-red-600 hover:bg-red-50 transition-all"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2124,7 +2174,7 @@ export default function DossierDetailPage() {
       />
 
       {/* Outil « Comparer » (devis / photos) — ouvert depuis le bouton Comparer. */}
-      {showCompare && (
+      {SHOW_COMPARE_TOOL && showCompare && (
         <CompareHubModal dossierId={id} onClose={() => setShowCompare(false)} />
       )}
 

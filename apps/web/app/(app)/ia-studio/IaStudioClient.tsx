@@ -1777,7 +1777,8 @@ export default function IaStudioPage() {
    *    ou si la sélection/génération échoue, erreur explicite. */
   const runColoristeTest = async () => {
     if (!photoFile) { setColorTestError('Photo requise.'); return; }
-    if (colorTestRefFile && !colorTestClick) { setColorTestError('Cliquez d\'abord la surface où appliquer la texture importée.'); return; }
+    if (!colorTestRefFile) { setColorTestError("Importez l’échantillon de matière à appliquer."); return; }
+    if (!colorTestClick) { setColorTestError("Peignez d’abord la zone où appliquer la matière."); return; }
     setColorTestLoading(true); setColorTestResult(null); setColorTestError(null);
     try {
       // Retour utilisateur (juillet 2026, test live) : une texture importée
@@ -3640,8 +3641,7 @@ export default function IaStudioPage() {
                 value={facadeFinish} onChange={(v) => { setFacadeFinish(v); }}
                 options={[
                   { value: 'mat', label: 'Mat' }, { value: 'satiné', label: 'Satiné' },
-                  { value: 'brillant', label: 'Brillant' }, { value: 'brossé', label: 'Brossé' },
-                  { value: 'bois', label: 'Bois' },
+                  { value: 'brillant', label: 'Brillant' },
                 ]}
               />
               <ChipSelector<LightingType>
@@ -3782,7 +3782,7 @@ export default function IaStudioPage() {
                   <p className="font-bold text-[#304035]">Zone à changer</p>
                   {colorTexClick
                     ? <span className="text-[10px] font-bold text-[#2f9e8f] bg-[#2f9e8f]/10 rounded-full px-2 py-0.5 align-middle">Zone sélectionnée ✓</span>
-                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Cliquez la surface</span>}
+                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Peignez la zone</span>}
                 </div>
                 <p className="text-xs text-[#304035]/50">Cliquez <b>une fois</b> sur une surface — l’IA prend l’objet entier et le surligne. Ajoutez <b>un point par surface</b> en plus (une porte, un plan…), « Retirer » pour corriger. Inutile de cliquer partout.</p>
                 <ColoristeClickSelect file={photoFile} accent="#2f9e8f" onChange={setColorTexClick} />
@@ -3875,10 +3875,10 @@ export default function IaStudioPage() {
                 <ShieldCheck className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-[#304035]">Couleurs sans clic, texture avec sélection précise</p>
+                <p className="text-sm font-black text-[#304035]">Remplacer une matière, sur la zone exacte que vous peignez</p>
                 <p className="text-xs text-[#304035]/60 leading-relaxed mt-0.5">
-                  Pour un changement de <b>couleurs</b> (façade, poignée, plan de travail), lancez directement — aucune sélection requise.
-                  Si vous importez une <b>texture</b>, une zone à cliquer apparaît : son masque est <b>dilaté puis adouci</b>, et le résultat
+                  Importez la photo, puis l'échantillon de la matière voulue (bois, pierre, laque…).
+                  Peignez au pinceau la surface à changer : son masque est <b>dilaté puis adouci</b>, et le résultat
                   final est <b>recomposé pixel par pixel</b> avec votre photo d'origine — le reste de l'image reste garanti identique.
                 </p>
               </div>
@@ -3891,7 +3891,7 @@ export default function IaStudioPage() {
                   <Sparkles className="h-4 w-4 text-[#a67749]" />
                   <p className="font-bold text-[#304035]">Photo de la cuisine <span className="ml-1 rounded-full bg-[#a67749]/10 text-[#a67749] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
                 </div>
-                <p className="text-xs text-[#304035]/50 mb-2">Importez la photo, choisissez vos couleurs — l'IA recolorise en préservant la géométrie.</p>
+                <p className="text-xs text-[#304035]/50 mb-2">Importez la photo de départ — c’est elle qui sera conservée à l’identique hors de la zone peinte.</p>
                 <Drop label="" sub="Déposez la photo de la cuisine"
                   onFile={setPhotoFile} file={photoFile} accent="#a67749"
                   tips={['Photo de la cuisine existante', 'Showroom / catalogue', 'Bien éclairée et nette']} />
@@ -3908,7 +3908,7 @@ export default function IaStudioPage() {
                 {/* Échantillon de matière (optionnel) */}
                 <div className="mt-4">
                   <p className="text-[11px] font-bold text-[#304035]/60 mb-1.5 uppercase tracking-wide">
-                    Échantillon de matière <span className="normal-case font-normal text-[#304035]/40">(optionnel)</span>
+                    Échantillon de matière <span className="ml-1 rounded-full bg-[#a67749]/10 text-[#a67749] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span>
                   </p>
                   <Drop label="" sub="Importer une texture (bois, pierre, tissu…)"
                     onFile={setColorTestRefFile} file={colorTestRefFile} accent="#a67749"
@@ -3924,7 +3924,7 @@ export default function IaStudioPage() {
                   )}
                   {colorTestRefFile && (
                     <p className="mt-2 text-[11px] text-[#304035]/50 leading-relaxed">
-                      La matière sera appliquée à la zone que vous <b>cliquez</b> ci-dessous.
+                      La matière sera appliquée à la zone que vous <b>peignez</b> ci-dessous.
                     </p>
                   )}
                 </div>
@@ -3973,68 +3973,36 @@ export default function IaStudioPage() {
                 {!colorTestLoading && !colorTestResult && (
                   <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#a67749]/20 bg-gradient-to-br from-[#a67749]/5 to-white p-12 text-center lg:min-h-[400px]">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-4 bg-[#a67749]/10"><Sparkles className="h-7 w-7 text-[#a67749]/60" /></div>
-                    <p className="font-bold text-[#304035] mb-1.5">Votre colorisation apparaîtra ici</p>
-                    <p className="text-xs text-[#304035]/50 leading-relaxed">Importez une photo, choisissez vos couleurs et lancez la colorisation.</p>
+                    <p className="font-bold text-[#304035] mb-1.5">Votre résultat apparaîtra ici</p>
+                    <p className="text-xs text-[#304035]/50 leading-relaxed">Importez la photo, l’échantillon de matière, puis peignez la zone à changer.</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Zone à changer — UNIQUEMENT si une texture est importée (retour
-                utilisateur juillet 2026 : le mode couleurs façade/poignée/plan
-                de travail n'a besoin d'aucune sélection, il fonctionne déjà
-                tel quel sur toute l'image). */}
+            {/* Zone à changer — requise : ce module applique une matière sur la
+                zone peinte au pinceau (le mode couleurs a été retiré en sept. 2026,
+                il faisait doublon avec le module « Changer les couleurs »). */}
             {photoFile && colorTestRefFile && (
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-2">
                 <div className="flex items-center gap-2 mb-1">
                   <MousePointerClick className="h-4 w-4 text-[#a67749]" />
-                  <p className="font-bold text-[#304035]">Zone à changer <span className="ml-1 rounded-full bg-[#a67749]/10 text-[#a67749] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS AVEC TEXTURE</span></p>
+                  <p className="font-bold text-[#304035]">Zone à changer <span className="ml-1 rounded-full bg-[#a67749]/10 text-[#a67749] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
                   {colorTestClick
                     ? <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Zone sélectionnée ✓</span>
-                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Cliquez la surface</span>}
+                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Peignez la zone</span>}
                 </div>
-                <p className="text-xs text-[#304035]/50">Une texture a été importée — indiquez où l'appliquer. En mode <b>Clic (auto)</b>, cliquez <b>une fois</b> sur une surface — le contour <span className="font-semibold" style={{color:'#00b8d4'}}>cyan</span> affiche exactement la zone qui sera modifiée ; si le contour déborde sur une autre surface (ex : îlot ou crédence de même teinte), cliquez « Retirer » puis touchez la zone à exclure. Si ça déborde encore, passez en mode <b>Pinceau (manuel)</b> pour peindre vous-même la zone exacte — toujours vérifier avant de générer.</p>
+                <p className="text-xs text-[#304035]/50">Peignez au <b>pinceau</b> la surface où appliquer la matière — le contour <span className="font-semibold" style={{color:'#00b8d4'}}>cyan</span> affiche exactement la zone qui sera modifiée. Utilisez la <b>gomme</b> pour corriger un débordement, et vérifiez toujours avant de générer : tout ce qui est hors de cette zone reste identique à la photo d’origine.</p>
                 <ColoristeTestClickSelect file={photoFile} accent="#a67749" onChange={setColorTestClick} />
               </div>
             )}
-
-            {/* Palettes + couleurs */}
-            <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
-              <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#a67749]" /><p className="font-bold text-[#304035]">Couleurs</p></div>
-              <div className="grid grid-cols-3 gap-3">
-                {([
-                  { label: 'Façades',        val: facadeCol,  set: setFacadeCol },
-                  { label: 'Poignées',       val: poigneeCol, set: setPoigneeCol },
-                  { label: 'Plan de travail',val: planCol,    set: setPlanCol },
-                ] as const).map(({ label, val, set }) => (
-                  <label key={label} className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50">{label}</span>
-                    <span className="flex items-center gap-2 rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-2.5 py-2">
-                      <input type="color" value={val} onChange={e => { set(e.target.value); setPreset(null); setColorsModified(true); }} className="h-7 w-9 rounded cursor-pointer border-0 bg-transparent p-0" />
-                      <span className="text-xs font-mono text-[#304035]/70">{val}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-              <ChipSelector<FinishType>
-                label="Finition des façades" accent="#a67749"
-                value={facadeFinish} onChange={(v) => { setFacadeFinish(v); }}
-                options={[
-                  { value: 'mat', label: 'Mat' }, { value: 'satiné', label: 'Satiné' },
-                  { value: 'brillant', label: 'Brillant' }, { value: 'brossé', label: 'Brossé' },
-                  { value: 'bois', label: 'Bois' },
-                ]}
-              />
-              <ChipSelector<LightingType>
-                label="Éclairage" accent="#a67749"
-                value={colorLight} onChange={(v) => { setColorLight(v); }}
-                options={[
-                  { value: 'naturelle', label: 'Naturelle', icon: Sun },
-                  { value: 'spots', label: 'Spots', icon: Lamp },
-                  { value: 'mixte', label: 'Mixte', icon: Monitor },
-                ]}
-              />
-            </div>
+            {/* Section « Couleurs » SUPPRIMÉE (sept. 2026).
+                Retour cofondatrice : elle faisait doublon avec le module
+                « Changer les couleurs » et perdait l'utilisateur. Ce module
+                ne fait plus qu'une chose : remplacer une MATIÈRE sur une zone
+                peinte au pinceau. Les couleurs (facadeCol…) restent envoyées
+                à l'API pour satisfaire sa validation, mais elles sont ignorées
+                côté serveur dès qu'une texture est fournie (mode "reference"). */}
 
             {/* Dossier + CTA */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
@@ -4043,8 +4011,8 @@ export default function IaStudioPage() {
                   utilisateur juillet 2026) : en mode couleurs pur, on peut
                   générer dès qu'une photo est présente. */}
               <button onClick={runColoristeTest}
-                disabled={colorTestLoading || !photoFile || (!!colorTestRefFile && !colorTestClick)}
-                title={!photoFile ? 'Importez la photo de la cuisine' : (colorTestRefFile && !colorTestClick) ? 'Cliquez la surface où appliquer la texture' : undefined}
+                disabled={colorTestLoading || !photoFile || !colorTestRefFile || !colorTestClick}
+                title={!photoFile ? "Importez la photo de la cuisine" : !colorTestRefFile ? "Importez l’échantillon de matière à appliquer" : !colorTestClick ? "Peignez la zone où appliquer la matière" : undefined}
                 className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{background:'linear-gradient(135deg,#a67749 0%,#8a5f38 100%)'}}>
                 <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
@@ -4052,9 +4020,11 @@ export default function IaStudioPage() {
                     ? <><Loader2 className="h-4 w-4 animate-spin" />Colorisation…</>
                     : !photoFile
                       ? <><FileImage className="h-4 w-4" />Importez d'abord la photo</>
-                      : (colorTestRefFile && !colorTestClick)
-                        ? <><MousePointerClick className="h-4 w-4" />Cliquez la surface pour la texture</>
-                        : <><Sparkles className="h-4 w-4" />Coloriser<ArrowRight className="h-4 w-4 ml-1" /></>
+                      : !colorTestRefFile
+                        ? <><FileImage className="h-4 w-4" />Importez l'échantillon de matière</>
+                        : !colorTestClick
+                          ? <><Paintbrush className="h-4 w-4" />Peignez la zone à changer</>
+                          : <><Sparkles className="h-4 w-4" />Appliquer la matière<ArrowRight className="h-4 w-4 ml-1" /></>
                   }
                 </span>
               </button>

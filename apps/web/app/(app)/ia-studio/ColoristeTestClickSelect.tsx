@@ -93,6 +93,9 @@ interface Props {
 }
 
 /** Réutilise la route EXISTANTE /api/ia/segment-point (SAM2 générique, non modifiée). */
+/** Mode « Clic (auto) » (SAM2) — désactivé en beta. Voir le commentaire dans le JSX. */
+const SHOW_CLICK_AUTO_MODE = false;
+
 export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }: Props) {
   const dispRef = useRef<HTMLCanvasElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -108,7 +111,7 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selMode, setSelMode] = useState<'click' | 'brush'>('click');
+  const [selMode, setSelMode] = useState<'click' | 'brush'>('brush');
   const [addMode, setAddMode] = useState<'add' | 'remove'>('add');
   const [brushTool, setBrushTool] = useState<'draw' | 'erase'>('draw');
   const [brushSize, setBrushSize] = useState(45);
@@ -388,7 +391,12 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
 
   return (
     <div>
-      {/* Bascule Clic auto / Pinceau manuel */}
+      {/* Bascule Clic auto / Pinceau manuel — MASQUÉE (sept. 2026).
+          Retour cofondatrice : le clic auto (SAM2) déborde trop souvent sur
+          les surfaces voisines de même teinte. On ne garde que le pinceau
+          manuel, plus fiable. Repasser SHOW_CLICK_AUTO_MODE à true pour
+          réactiver le choix — le code du mode clic reste en place. */}
+      {SHOW_CLICK_AUTO_MODE && (
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         <button type="button" onClick={() => switchMode('click')} style={{ ...toolBtn(selMode === 'click'), flex: 1, justifyContent: 'center' }}>
           <MousePointerClick size={14} /> Clic (auto)
@@ -397,9 +405,10 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
           <Paintbrush size={14} /> Pinceau (manuel)
         </button>
       </div>
+      )}
       {selMode === 'brush' && (
         <p style={{ margin: '0 0 8px', fontSize: 11, color: 'rgba(48,64,53,0.55)', fontWeight: 600 }}>
-          Peignez à la main la zone exacte à changer — utile quand le clic auto sélectionne trop large (surfaces de même couleur collées, ex : îlot + façades).
+          Peignez la zone exacte à changer avec le pinceau, puis lancez la génération : seule cette zone sera modifiée, le reste de la photo reste identique.
         </p>
       )}
 
