@@ -681,6 +681,11 @@ export default function ParametresPage() {
             vous est demandé à chaque ouverture, en plus de votre connexion. Sa
             réinitialisation nécessite votre mot de passe de compte.
           </p>
+          <p className="text-sm text-[#304035]/55 leading-relaxed">
+            Le code fonctionne <strong className="text-[#304035]">depuis n’importe quel appareil</strong> — ordinateur du
+            bureau, portable, téléphone. Et le dossier se <strong className="text-[#304035]">reverrouille tout seul après
+            5 minutes sans activité</strong> : si vous laissez votre poste ouvert, personne ne peut aller y regarder.
+          </p>
           <AdminDocsPinSettings />
         </div>
       )}
