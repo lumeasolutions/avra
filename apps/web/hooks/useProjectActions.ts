@@ -255,6 +255,10 @@ export function useProjectActions() {
           method: 'PUT',
           body: JSON.stringify({
             lifecycleStatus: 'DRAFT',
+            // On efface la raison de la perte : le dossier redevient actif, la
+            // garder ferait resurgir une vieille raison s'il etait reperdu plus
+            // tard sans en saisir de nouvelle.
+            lostReason: null,
             ...(vendeurName ? { vendeurName } : {}),
           }),
         });
