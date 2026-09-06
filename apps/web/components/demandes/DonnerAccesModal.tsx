@@ -56,6 +56,10 @@ export function DonnerAccesModal({ open, onClose, intervenants, existingInvitati
     return () => { document.body.style.overflow = original; };
   }, [open]);
 
+  // AVANT le return anticipe : un hook appele conditionnellement casse
+  // l'ordre des hooks (React error #310).
+  const overlayDismiss = useOverlayDismiss(onClose);
+
   if (!open) return null;
 
   const filtered = intervenants.filter((i) => {
@@ -99,8 +103,6 @@ export function DonnerAccesModal({ open, onClose, intervenants, existingInvitati
     onSent?.(summary);
     setSubmitting(false);
   };
-
-  const overlayDismiss = useOverlayDismiss(onClose);
 
   return (
     <div

@@ -467,10 +467,12 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
     }
   };
 
+  // IMPORTANT : ce hook doit rester AVANT le return anticipe ci-dessous,
+  // sinon l'ordre des hooks change entre deux rendus (React error #310).
+  const overlayDismiss = useOverlayDismiss(onClose);
+
   if (!open || !mounted || typeof document === 'undefined') return null;
 
-  // Fermeture au clic sur le fond, sans perdre la saisie (voir useOverlayDismiss).
-  const overlayDismiss = useOverlayDismiss(onClose);
 
   const intervenantHasAccount = !!selectedIntervenant?.userId;
   const intervenantHasPendingInvite = !!selectedIntervenant && !!invitations[selectedIntervenant.id];
