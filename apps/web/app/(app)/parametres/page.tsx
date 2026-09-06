@@ -312,15 +312,22 @@ export default function ParametresPage() {
   // (l'echec etait avale) : on affiche desormais franchement si le mail est parti.
   const [inviteMailStatus, setInviteMailStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+  // Repli quand le presse-papier est refuse par le navigateur (iframe, contexte
+  // non securise, permission bloquee) : on AFFICHE le lien dans un champ
+  // selectionnable plutot que de laisser l'utilisateur sans solution.
+  const [revealedInvite, setRevealedInvite] = useState<{ id: string; url: string } | null>(null);
 
   const copyInviteLink = async (inv: { id: string; token?: string | null }) => {
     if (!inv.token) return;
+    const url = buildInvitationLink(inv.token);
     try {
-      await navigator.clipboard.writeText(buildInvitationLink(inv.token));
+      await navigator.clipboard.writeText(url);
       setCopiedInviteId(inv.id);
+      setRevealedInvite(null);
       setTimeout(() => setCopiedInviteId((c) => (c === inv.id ? null : c)), 2500);
     } catch {
-      setTeamErr("Impossible de copier le lien — copiez-le manuellement depuis la barre d'adresse.");
+      // Pas d'acces au presse-papier : on montre le lien, a selectionner a la main.
+      setRevealedInvite({ id: inv.id, url });
     }
   };
 
@@ -1086,7 +1093,8 @@ export default function ParametresPage() {
                 )}
                 <div className="space-y-2">
                   {teamOverview.invitations.map(inv => (
-                    <div key={inv.id} className="flex items-center justify-between rounded-xl border border-dashed border-[#a67749]/40 bg-[#a67749]/5 px-4 py-3">
+                    <div key={inv.id} className="rounded-xl border border-dashed border-[#a67749]/40 bg-[#a67749]/5 px-4 py-3">
+                      <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#a67749]/15 text-[#a67749]">
                           <Bell className="h-4 w-4" />
@@ -1115,6 +1123,21 @@ export default function ParametresPage() {
                           <X className="h-3.5 w-3.5" />
                         </button>
                       </div>
+                      </div>
+                      {revealedInvite?.id === inv.id && (
+                        <div className="mt-2">
+                          <p className="text-[11px] text-[#304035]/60 mb-1">
+                            Copie impossible depuis ce navigateur. Sélectionne le lien ci-dessous et copie-le :
+                          </p>
+                          <input
+                            readOnly
+                            value={revealedInvite.url}
+                            onFocus={(e) => e.currentTarget.select()}
+                            onClick={(e) => e.currentTarget.select()}
+                            className="w-full rounded-lg border border-[#a67749]/40 bg-white px-3 py-2 text-[11px] font-mono text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#a67749]/30"
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
