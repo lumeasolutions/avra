@@ -14,16 +14,24 @@ Il est remplacé par celui-ci, qui utilise Pillow — déjà disponible — plut
 sharp.
 
 TAILLE DE LA CHOUETTE (sept. 2026, demande cofondatrice : « il faudrait la
-grossir »)
+grossir », puis « encore beaucoup »)
 ------------------------------------------------------------------------------
-- Icônes normales et iOS : la chouette occupe 92 % de la hauteur du cadre
-  (avant : 78 %). Sur iOS le système applique lui-même son masque arrondi, on
-  peut donc remplir largement.
-- Icônes « maskable » (Android) : 62 % seulement, et ce n'est pas un oubli.
-  Android peut recadrer l'icône en cercle ; seul un disque de 80 % du côté est
-  garanti visible. La chouette étant en portrait (ratio 0,78), sa demi-diagonale
-  vaut H/2 x 1,27 : au-delà de 63 % de hauteur, les aigrettes sortent du cercle
-  et se font couper. 62 % est donc le maximum sûr.
+Le logo d'origine est en portrait (705 x 900). Rempli à 92 % de la HAUTEUR, il
+laissait encore ~20 % de vide de chaque côté : c'est ce vide latéral qui donnait
+l'impression d'une petite chouette, pas la hauteur.
+
+On recadre donc la source en CARRÉ avant de composer. La queue se termine en
+pointe fine (162 px de large sur les 10 derniers %) : la rogner ne coûte rien
+visuellement et rend la composition carrée, donc la chouette remplit enfin le
+cadre dans les deux sens.
+
+- Icônes normales et iOS : 96 % du cadre. Sur iOS le système applique son propre
+  masque arrondi ; les aigrettes restent loin des coins, elles ne risquent rien.
+- Icônes « maskable » (Android) : 58 %, et ce n'est pas un oubli. Android peut
+  recadrer en cercle et seul un disque de 80 % du côté est garanti visible. Pour
+  une source carrée de côté S, la demi-diagonale vaut S/2 x 1,414 : au-delà de
+  56-58 % les angles sortent du cercle. La chouette y paraît malgré tout plus
+  grosse qu'avant, puisqu'elle n'a plus de vide latéral à combler.
 """
 
 import os
@@ -35,18 +43,26 @@ ICONS_DIR = os.path.join(ROOT, 'public', 'icons')
 APP_DIR = os.path.join(ROOT, 'app')
 
 BG = (0x1e, 0x2b, 0x22, 255)          # vert AVRA, identique au theme_color
-SCALE_ANY = 0.92                       # icônes normales + iOS
-SCALE_MASKABLE = 0.62                  # zone de sécurité Android (voir en-tête)
+SCALE_ANY = 0.96                       # icônes normales + iOS
+SCALE_MASKABLE = 0.58                  # zone de sécurité Android (voir en-tête)
 
 STANDARD_SIZES = [72, 96, 128, 144, 152, 192, 384, 512]
 MASKABLE_SIZES = [192, 512]
 
 
 def load_owl() -> Image.Image:
-    """Charge la chouette et retire d'éventuelles marges transparentes."""
+    """Chouette détourée puis recadrée en carré (voir l'en-tête du fichier).
+
+    On garde le haut de l'image — aigrettes, regard, corps — et on rogne la
+    pointe de la queue, la seule partie sacrifiable.
+    """
     owl = Image.open(SOURCE).convert('RGBA')
     bbox = owl.split()[-1].getbbox()
-    return owl.crop(bbox) if bbox else owl
+    if bbox:
+        owl = owl.crop(bbox)
+    if owl.height > owl.width:
+        owl = owl.crop((0, 0, owl.width, owl.width))
+    return owl
 
 
 def render(owl: Image.Image, size: int, scale: float) -> Image.Image:
