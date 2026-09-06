@@ -9,7 +9,7 @@ import { MapPin, FileText, Clock, Hammer, BarChart3, CheckCircle } from 'lucide-
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Logiciel menuisier Paris — Devis, planning et facturation pour menuisiers parisiens',
+  title: "Logiciel menuisier à Paris et en Île-de-France | AVRA",
   description: 'AVRA aide les menuisiers parisiens à gérer devis, planning de chantier, facturation et conformité e-facture 2026. Demandez une démo.',
   alternates: { canonical: 'https://avra-app.fr/menuisier-paris' },
   openGraph: {

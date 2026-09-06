@@ -10,8 +10,8 @@ import BlogList from './BlogList';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Blog AVRA — Conseils et guides pour les pros de l\'agencement',
-  description: 'Guides pratiques, comparatifs logiciels, conseils métier et actualités pour cuisinistes, menuisiers et architectes d\'intérieur. En savoir plus sur AVRA.',
+  title: "Blog AVRA — guides pour cuisinistes et menuisiers",
+  description: "Devis, marge, e-facturation, choix de logiciel : nos guides pratiques pour les professionnels de l'agencement. Sans blabla.",
   alternates: {
     canonical: 'https://avra-app.fr/blog',
     types: {

@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import '../marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Témoignages — Ils ont choisi AVRA pour gérer leur activité',
+  title: "Témoignages AVRA — le programme bêta en cours",
   description:
-    'AVRA se construit avec ses premiers utilisateurs — cuisinistes, menuisiers et architectes d\'intérieur. Découvrez le programme bêta.',
+    "AVRA se construit avec ses premiers utilisateurs. Pourquoi nous ne publions pas encore d'avis, et comment rejoindre le programme bêta.",
   alternates: { canonical: 'https://avra-app.fr/temoignages' },
   openGraph: {
     title: 'Témoignages AVRA — Programme bêta',

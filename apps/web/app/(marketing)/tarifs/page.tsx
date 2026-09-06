@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import TarifsClient from './TarifsClient';
 
 export const metadata: Metadata = {
-  title: 'Tarifs AVRA — 149€/mois tout inclus, sans engagement',
+  title: "Tarifs AVRA — 149 €/mois tout inclus, sans engagement",
   description:
-    "Tarif simple et transparent : 149€/mois pour 1 showroom et 4 utilisateurs. Toutes les fonctionnalités incluses. Démo sur demande. Plan Entreprise sur devis pour franchises et groupes. Bêta privée — lancement janvier 2027.",
+    "Un seul abonnement, tous les modules compris : 149 €/mois, ou 130 €/mois en annuel. 1 showroom, 4 utilisateurs. Démo gratuite sur demande.",
   alternates: { canonical: 'https://avra-app.fr/tarifs' },
   openGraph: {
     title: 'Tarifs AVRA — 149€/mois tout inclus',

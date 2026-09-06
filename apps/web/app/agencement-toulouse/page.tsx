@@ -9,7 +9,7 @@ import { MapPin, Building2, TrendingUp, BarChart3, Zap, CheckSquare } from 'luci
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Logiciel agencement Toulouse — Pro de l\'agencement intérieur en Occitanie',
+  title: "Logiciel d'agencement à Toulouse et en Occitanie | AVRA",
   description: 'AVRA est la solution ERP pour agenceurs toulousains. Gérez multi-chantiers, budgets clients, facturation e-conformité. Demandez une démo.',
   alternates: { canonical: 'https://avra-app.fr/agencement-toulouse' },
   openGraph: {

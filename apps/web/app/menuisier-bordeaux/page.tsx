@@ -9,7 +9,7 @@ import { MapPin, Briefcase, Zap, BarChart3, Users, Shield } from 'lucide-react';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Logiciel menuisier Bordeaux — Solution complète pour menuisiers en Gironde',
+  title: "Logiciel menuisier à Bordeaux et en Gironde | AVRA",
   description: 'AVRA aide les menuisiers bordelais à gérer leurs devis, planning, stock et facturation. Conforme e-facture 2026. Demandez une démo.',
   alternates: { canonical: 'https://avra-app.fr/menuisier-bordeaux' },
   openGraph: {

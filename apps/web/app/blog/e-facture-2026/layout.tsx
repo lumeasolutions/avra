@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "E-facturation 2026 : tout ce que les pros de l'agencement doivent savoir",
-  description: "Le guide complet sur l'obligation de facture \u00e9lectronique 2026 pour cuisinistes, menuisiers et agenceurs. Calendrier, normes (Factur-X, EN 16931), PDP, sanctions et solutions.",
+  title: "E-facturation 2026 : ce que l'agencement doit savoir",
+  description: "Calendrier, Factur-X, norme EN 16931, PDP, sanctions : le guide de la facture électronique 2026 pour cuisinistes, menuisiers et agenceurs.",
   alternates: { canonical: "/blog/e-facture-2026" },
   openGraph: {
-    title: "E-facturation 2026 : tout ce que les pros de l'agencement doivent savoir",
-    description: "Le guide complet sur l'obligation de facture \u00e9lectronique 2026 pour cuisinistes, menuisiers et agenceurs. Calendrier, normes (Factur-X, EN 16931), PDP, sanctions et solutions.",
+    title: "E-facturation 2026 : ce que l'agencement doit savoir",
+    description: "Calendrier, Factur-X, norme EN 16931, PDP, sanctions : le guide de la facture électronique 2026 pour cuisinistes, menuisiers et agenceurs.",
     url: "https://avra-app.fr/blog/e-facture-2026",
     siteName: 'AVRA',
     locale: 'fr_FR',
@@ -20,8 +20,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: "E-facturation 2026 : tout ce que les pros de l'agencement doivent savoir",
-    description: "Le guide complet sur l'obligation de facture \u00e9lectronique 2026 pour cuisinistes, menuisiers et agenceurs. Calendrier, normes (Factur-X, EN 16931), PDP, sanctions et solutions.",
+    title: "E-facturation 2026 : ce que l'agencement doit savoir",
+    description: "Calendrier, Factur-X, norme EN 16931, PDP, sanctions : le guide de la facture électronique 2026 pour cuisinistes, menuisiers et agenceurs.",
     images: ['/opengraph-image.png'],
   },
 };

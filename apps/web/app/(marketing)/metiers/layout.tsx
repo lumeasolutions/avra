@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Logiciel sur mesure pour cuisiniste, menuisier, architecte et agenceur",
-  description: "AVRA propose un ERP adapt\u00e9 \u00e0 chaque m\u00e9tier de l'agencement : cuisiniste, menuisier, architecte d'int\u00e9rieur, agenceur. 4 portails sp\u00e9cialis\u00e9s, 1 seule plateforme.",
+  title: "AVRA par métier : cuisiniste, menuisier, architecte",
+  description: "AVRA s'adapte à votre métier. Ce que change le logiciel selon que vous êtes cuisiniste, agenceur, menuisier ou architecte d'intérieur.",
   alternates: { canonical: "/metiers" },
   openGraph: {
     title: "Logiciel sur mesure pour cuisiniste, menuisier, architecte et agenceur",

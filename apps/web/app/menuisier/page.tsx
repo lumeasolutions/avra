@@ -19,9 +19,9 @@ import BetaBanner from '../(marketing)/components/BetaBanner';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Logiciel menuisier — Devis, planning et facturation pour menuisiers',
+  title: "Logiciel menuisier : devis, chantier, facture | AVRA",
   description:
-    'AVRA gère tout pour les menuisiers : devis de menuiserie, suivi de chantier, gestion de stock bois et matériaux, facturation conforme e-facture 2026.',
+    "Devis de menuiserie, suivi de chantier, stock bois et facturation conforme 2026. Le logiciel pensé pour les menuisiers. Démo gratuite.",
   alternates: { canonical: 'https://avra-app.fr/menuisier' },
   openGraph: {
     title: 'Logiciel menuisier — AVRA',

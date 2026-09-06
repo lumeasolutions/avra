@@ -19,9 +19,9 @@ import BetaBanner from '../(marketing)/components/BetaBanner';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Logiciel architecte d\'intérieur — Dossiers clients, IA et facturation',
+  title: "Logiciel pour architecte d'intérieur : projets et IA",
   description:
-    'AVRA pour architectes d\'intérieur : gestion des projets, dossiers clients, rendus IA photo-réalistes FLUX Pro, facturation et signature électronique.',
+    "Dossiers clients, rendus photoréalistes par IA, devis, facturation et signature électronique. L'outil des architectes d'intérieur.",
   alternates: { canonical: 'https://avra-app.fr/architecte-interieur' },
   openGraph: {
     title: 'Logiciel architecte d\'intérieur — AVRA',

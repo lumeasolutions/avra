@@ -9,7 +9,7 @@ import { MapPin, Lightbulb, Zap, BarChart3, TrendingUp, Settings } from 'lucide-
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Logiciel cuisiniste Lyon — Solution complète pour cuisinistes à Lyon',
+  title: "Logiciel cuisiniste à Lyon et en Rhône-Alpes | AVRA",
   description: 'AVRA vous permet de gérer vos cuisines à Lyon de la conception à la facturation. Devis, planning, rendus IA et e-facture 2026. Demandez une démo.',
   alternates: { canonical: 'https://avra-app.fr/cuisiniste-lyon' },
   openGraph: {

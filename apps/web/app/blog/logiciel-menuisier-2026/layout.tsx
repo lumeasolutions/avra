@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
-const TITLE = "Logiciel menuisier 2026 : guide complet pour choisir l'ERP qui transforme votre atelier";
-const DESC = "Le guide ultime pour choisir un logiciel menuisier en 2026 : 10 fonctions essentielles, comparatif des solutions, integration plan technique, devis, planning et facturation electronique. Methode pratique en 1 semaine.";
+const TITLE = "Logiciel menuisier 2026 : le guide pour bien choisir";
+const DESC = "Les 10 fonctions qui comptent vraiment, le comparatif des solutions et une méthode de choix en une semaine, pour les ateliers de menuiserie.";
 
 export const metadata: Metadata = {
   title: TITLE,

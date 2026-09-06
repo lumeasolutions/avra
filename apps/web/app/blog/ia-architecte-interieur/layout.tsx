@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
-const TITLE = "IA pour architectes d'intérieur : 7 outils qui changent vraiment le métier en 2026";
-const DESC = "Les outils d'intelligence artificielle qui révolutionnent l'architecture d'intérieur en 2026 : photo-réalisme, coloriste IA, génération de moodboards, reconnaissance de plans. Avis d'experts et cas d'usage concrets.";
+const TITLE = "IA et architecture d'intérieur : 7 outils utiles en 2026";
+const DESC = "Photo-réalisme, coloriste IA, moodboards, lecture de plans : les 7 outils d'IA qui servent vraiment aux architectes d'intérieur en 2026.";
 
 export const metadata: Metadata = {
   title: TITLE,

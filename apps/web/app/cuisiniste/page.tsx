@@ -19,9 +19,9 @@ import BetaBanner from '../(marketing)/components/BetaBanner';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Logiciel cuisiniste — Gérez vos projets cuisine de A à Z avec AVRA',
+  title: "Logiciel cuisiniste : devis, pose et facturation | AVRA",
   description:
-    'AVRA est le logiciel pensé pour les cuisinistes : devis sur mesure, plans, commandes fournisseurs, planification des poses, rendus IA FLUX Pro.',
+    "Devis chiffrés, commandes fournisseurs, planning de pose et facturation dans un seul outil. Rendus IA inclus. Pensé pour les cuisinistes.",
   alternates: { canonical: 'https://avra-app.fr/cuisiniste' },
   openGraph: {
     title: 'Logiciel cuisiniste — AVRA',

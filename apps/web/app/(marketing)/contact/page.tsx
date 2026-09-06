@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import ContactClient from './ContactClient';
 
 export const metadata: Metadata = {
-  title: 'Contact AVRA — Répondons à toutes vos questions',
+  title: "Contact AVRA — une question ? réponse sous 24 h",
   description:
-    "Contactez l'équipe AVRA. Support technique, questions commerciales, partenariats. Réponse sous 24h. Email : contact@avra-app.fr",
+    "Une question sur AVRA, une demande de démo ou un besoin particulier ? Écrivez-nous, on répond sous 24 h ouvrées.",
   alternates: { canonical: 'https://avra-app.fr/contact' },
   openGraph: {
     title: 'Contact AVRA',

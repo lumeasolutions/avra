@@ -18,9 +18,9 @@ import BetaBanner from '../(marketing)/components/BetaBanner';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Logiciel agenceur — Gestion de projets d\'agencement tout-en-un',
+  title: "Logiciel agenceur : projets, chantiers, devis | AVRA",
   description:
-    'AVRA pour agenceurs : gestion de projets d\'agencement, coordination fournisseurs, suivi de chantier, devis et facturation. Solution complète.',
+    "Pilotez vos projets d'agencement de bout en bout : chiffrage, coordination fournisseurs, suivi de chantier, facturation. Démo gratuite.",
   alternates: { canonical: 'https://avra-app.fr/agenceur' },
   openGraph: {
     title: 'Logiciel agenceur — AVRA',

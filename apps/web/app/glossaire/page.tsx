@@ -5,8 +5,8 @@ import '../(marketing)/marketing.css';
 import { GLOSSARY, ALPHA_INDEX, AVAILABLE_LETTERS, ALL_TERMS, TOTAL_TERMS } from './data';
 import GlossarySearch from './GlossarySearch';
 
-const TITLE = "Glossaire de l'agencement intérieur — 80 termes métier (cuisinistes, menuisiers, architectes)";
-const DESC = "Le dictionnaire de référence du métier d'agencement intérieur en 2026 : 80 termes définis simplement (caisson, façade, plinthe, Blumotion, Factur-X, e-facture, devis...). Mis à jour mensuellement.";
+const TITLE = "Glossaire de l'agencement : 80 termes du métier";
+const DESC = "80 termes de l'agencement intérieur expliqués simplement : caisson, façade, chant, plinthe, Factur-X… Le vocabulaire des pros de la cuisine et du bois.";
 
 export const metadata: Metadata = {
   title: TITLE,

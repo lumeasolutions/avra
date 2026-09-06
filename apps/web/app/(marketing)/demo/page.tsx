@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import DemoClient from './DemoClient';
 
 export const metadata: Metadata = {
-  title: 'Demander une démo AVRA — Gratuite, sans engagement, 30 minutes',
+  title: "Démo AVRA gratuite — 30 minutes, sans engagement",
   description:
-    "Réservez une démo personnalisée d'AVRA. Un expert vous montre comment gérer vos dossiers, facturation et IA en 30 minutes. Gratuit et sans engagement.",
+    "On vous montre AVRA sur vos propres dossiers : devis, planning, facturation. 30 minutes en visio, sans engagement ni carte bancaire.",
   alternates: { canonical: 'https://avra-app.fr/demo' },
   openGraph: {
     title: 'Demander une démo AVRA',

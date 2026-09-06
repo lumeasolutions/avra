@@ -9,7 +9,7 @@ import { MapPin, Palette, Zap, Users, TrendingUp, Award } from 'lucide-react';
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Logiciel cuisiniste Marseille — Gérez vos projets cuisine en PACA',
+  title: "Logiciel cuisiniste à Marseille et en PACA | AVRA",
   description: 'AVRA simplifie la gestion de vos cuisines à Marseille. Devis, planning, rendus IA et facturation e-conformité. Demandez une démo.',
   alternates: { canonical: 'https://avra-app.fr/cuisiniste-marseille' },
   openGraph: {

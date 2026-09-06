@@ -9,7 +9,7 @@ import { MapPin, Building2, Zap, DollarSign, Users, Shield } from 'lucide-react'
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Logiciel agencement Nantes — Gérez vos projets en Pays de la Loire',
+  title: "Logiciel d'agencement à Nantes et en Pays de la Loire",
   description: 'AVRA aide les agenceurs nantais à piloter leurs chantiers, budgets clients et facturation. E-facture 2026 intégrée. Demandez une démo.',
   alternates: { canonical: 'https://avra-app.fr/agencement-nantes' },
   openGraph: {

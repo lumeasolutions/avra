@@ -9,7 +9,7 @@ import { MapPin, Briefcase, TrendingUp, Home, AlertCircle, Layers } from 'lucide
 import '../(marketing)/marketing.css';
 
 export const metadata: Metadata = {
-  title: 'Logiciel menuisier Lyon — ERP menuiserie complet pour Lyon et la région',
+  title: "Logiciel menuisier à Lyon et en Rhône-Alpes | AVRA",
   description: 'AVRA est le logiciel ERP pour menuisiers lyonnais. Devis, planning, stock, facturation e-conformité. Demandez une démo.',
   alternates: { canonical: 'https://avra-app.fr/menuisier-lyon' },
   openGraph: {

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
-const TITLE = "Comment choisir son logiciel ERP de cuisiniste en 2026 — Guide complet";
-const DESC = "Le guide ultime pour choisir le bon logiciel ERP de cuisiniste en 2026 : 12 critères essentiels, comparatif des solutions, pièges à éviter et checklist de sélection. 15 minutes pour tout comprendre.";
+const TITLE = "Choisir son ERP de cuisiniste : le guide 2026";
+const DESC = "12 critères de sélection, comparatif des solutions, pièges à éviter et checklist : la méthode pour choisir son ERP de cuisiniste en 2026.";
 
 export const metadata: Metadata = {
   title: TITLE,

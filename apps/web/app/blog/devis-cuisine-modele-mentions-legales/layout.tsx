@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
-const TITLE = "Devis cuisine 2026 : modèle, mentions légales obligatoires et pièges à éviter";
-const DESC = "Le guide complet du devis cuisine en 2026 : modèle conforme à télécharger, 14 mentions légales obligatoires, pièges fréquents et conseils pour augmenter votre taux de signature. Mis à jour pour la réglementation 2026.";
+const TITLE = "Devis cuisine 2026 : modèle et mentions obligatoires";
+const DESC = "Les 14 mentions légales obligatoires sur un devis de cuisine en 2026, un modèle conforme et les pièges qui coûtent une signature.";
 
 export const metadata: Metadata = {
   title: TITLE,

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
-const TITLE = "5 erreurs qui plombent la marge d'un cuisiniste en 2026 (et comment les corriger)";
-const DESC = "Les 5 erreurs les plus frequentes qui rongent silencieusement la marge des cuisinistes en 2026 : devis sous-estimes, sous-traitance non chiffree, retards fournisseurs, SAV oublie, prix matiere non actualises. Avec methode de correction et calculateur d'impact.";
+const TITLE = "5 erreurs qui plombent la marge d'un cuisiniste";
+const DESC = "Devis sous-estimés, sous-traitance non chiffrée, retards fournisseurs, SAV oublié, prix matière figés : 5 fuites de marge et comment les fermer.";
 
 export const metadata: Metadata = {
   title: TITLE,
