@@ -232,6 +232,7 @@ export default function InterventionPublicPage() {
     }
 
     // 2) Puis le message, s'il y en a un.
+    let messageEnvoye = false;
     if (body) {
       setSending(true);
       setReply('');
@@ -243,6 +244,7 @@ export default function InterventionPublicPage() {
         });
         if (!r.ok) throw new Error('Envoi impossible');
         noteSent('message');
+        messageEnvoye = true;
       } catch (e: any) {
         setError(e?.message || 'Envoi impossible');
         setReply(body); // on restaure le texte pour reessayer
@@ -251,12 +253,20 @@ export default function InterventionPublicPage() {
       }
     }
 
+    // Le bandeau ne doit annoncer que ce qui est reellement parti. Sans ce
+    // garde-fou, un message en echec apres des documents envoyes affichait a la
+    // fois l'erreur et « Message et document envoyes ✓ ».
     const n = files.length;
-    showToast(
-      body && n ? (n > 1 ? `Message et ${n} documents envoyés ✓` : 'Message et document envoyés ✓')
-      : n ? (n > 1 ? `${n} documents envoyés ✓` : 'Document envoyé ✓')
-      : 'Message envoyé ✓',
-    );
+    const messageOk = !body || messageEnvoye;
+    if (messageOk || n) {
+      showToast(
+        body && messageEnvoye && n
+          ? (n > 1 ? `Message et ${n} documents envoyés ✓` : 'Message et document envoyés ✓')
+          : n
+            ? (n > 1 ? `${n} documents envoyés ✓` : 'Document envoyé ✓')
+            : 'Message envoyé ✓',
+      );
+    }
     await load(true); // silencieux
   }, [reply, pending, sending, uploading, uploadNow, token, load, showToast, noteSent]);
 
