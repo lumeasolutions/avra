@@ -18,19 +18,23 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           // Routes API
           '/api/',
-          // Auth — on laisse /login indexable (page publique)
-          '/register',
-          '/forgot-password',
-          '/reset-password',
-          // Assets systeme : Google les explore mais on ne veut pas les indexer
-          '/_next/',
-          '/blog/feed.xml',
-          '/manifest.json',
-          '/browserconfig.xml',
-          '/opengraph-image',
+          // 06/09/2026 — Les assets systeme ne sont plus bloques.
+          //
+          // `/_next/` interdisait a Googlebot de telecharger le JS et le CSS
+          // du site : il rendait donc les pages sans style ni hydratation, ce
+          // que Google documente explicitement comme nuisible au classement.
+          // `/favicon.ico` + `/icons/` privaient la SERP mobile du logo, et
+          // `/opengraph-image` cassait l'apercu des liens chez les crawlers
+          // sociaux qui respectent robots.txt (LinkedIn notamment).
+          // Ces fichiers sont explores mais ne remontent pas en resultat :
+          // les bloquer ne servait a rien et coutait cher.
           '/sw.js',
-          '/icons/',
-          '/favicon.ico',
+          // Les pages sans valeur de recherche portent desormais un `noindex`
+          // (voir les layouts /login, /forgot-password, /reset-password,
+          // /rejoindre/merci). On les laisse crawlables A DESSEIN : une URL
+          // bloquee par robots.txt empeche Google de LIRE le noindex, et elle
+          // peut alors rester indexee en URL nue. Interdire OU desindexer,
+          // jamais les deux.
           // Application privée (route group app)
           '/dashboard',
           '/commandes',
@@ -59,8 +63,6 @@ export default function robots(): MetadataRoute.Robots {
           // Module admin-only Plan Technique IA (bêta interne, ne JAMAIS indexer)
           '/plan-technique-ia',
           '/plan-technique-ia/',
-          // Pages de confirmation (pas utiles à indexer)
-          '/rejoindre/merci',
         ],
       },
       // Bloquer les bots IA sur le contenu

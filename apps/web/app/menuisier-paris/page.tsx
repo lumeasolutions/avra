@@ -365,18 +365,8 @@ export default function MenuisierParis() {
 
       <Footer />
 
-      {/* JSON-LD LocalBusiness */}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'LocalBusiness',
-          name: 'AVRA - Logiciel menuisier Paris',
-          description: 'ERP pour menuisiers à Paris et Île-de-France',
-          url: 'https://avra-app.fr/menuisier-paris',
-          address: { '@type': 'PostalAddress', addressLocality: 'Paris', addressRegion: 'Île-de-France', addressCountry: 'FR' },
-          areaServed: ['Paris', 'Île-de-France'],
-          priceRange: '€€',
-          serviceType: 'Logiciel de gestion de projet'
-        }) }} />
+      {/* JSON-LD WebPage */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', '@id': 'https://avra-app.fr/menuisier-paris#webpage', name: 'AVRA - Logiciel menuisier Paris', description: 'ERP pour menuisiers à Paris et Île-de-France', url: 'https://avra-app.fr/menuisier-paris', inLanguage: 'fr-FR', isPartOf: { '@id': 'https://avra-app.fr/#website' }, about: { '@id': 'https://avra-app.fr/#software' } }) }} />
 
       {/* JSON-LD BreadcrumbList */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({

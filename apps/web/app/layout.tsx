@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { DM_Sans, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import nextDynamic from 'next/dynamic';
+import StructuredData from '@/app/components/StructuredData';
 
 // Perf : on supprime `force-dynamic` pour autoriser la pré-génération statique
 // + ISR par segment (marketing = 1h, app = dynamique via 'use client').
@@ -60,13 +61,18 @@ const playfairDisplay = Playfair_Display({
  */
 const ICON_VERSION = 'v=5';
 
+// SEO 06/09/2026 — `template: '%s'` au lieu de `'%s | AVRA'`.
+// Le suffixe automatique s'ajoutait a des titres qui contenaient deja « AVRA »
+// (« Comment ca marche — AVRA, l'ERP … | AVRA ») et poussait 28 des 34 pages
+// au-dela des ~60 caracteres retenus par Google. Chaque page porte maintenant
+// son titre complet, marque comprise quand elle sert a quelque chose.
 export const metadata: Metadata = {
   title: {
-    default: "AVRA — Logiciel d'agencement avec IA pour cuisinistes & menuisiers",
-    template: '%s | AVRA',
+    default: 'Logiciel de gestion pour cuisinistes et menuisiers | AVRA',
+    template: '%s',
   },
   description:
-    "Dossiers, devis, facturation, planning et rendus IA dans une seule app dédiée aux pros de l'agencement : cuisinistes, menuisiers, architectes.",
+    "Devis, dossiers, planning, facturation et rendus IA dans une seule app. Conçu pour les pros de l'agencement : cuisinistes, menuisiers, architectes.",
   keywords: [
     'logiciel agencement',
     'ERP cuisiniste',
@@ -92,9 +98,9 @@ export const metadata: Metadata = {
     startupImage: `/icons/apple-touch-icon.png?${ICON_VERSION}`,
   },
   openGraph: {
-    title: "AVRA — Logiciel d'agencement avec IA pour cuisinistes & menuisiers",
+    title: 'AVRA — Logiciel de gestion pour cuisinistes et menuisiers',
     description:
-      "Dossiers, devis, facturation, planning et rendus IA dans une seule app dédiée aux pros de l'agencement : cuisinistes, menuisiers, architectes.",
+      "Devis, dossiers, planning, facturation et rendus IA dans une seule app. Conçu pour les pros de l'agencement : cuisinistes, menuisiers, architectes.",
     url: 'https://avra-app.fr',
     siteName: 'AVRA',
     locale: 'fr_FR',
@@ -153,6 +159,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr">
       <head>
         <meta name="theme-color" content="#1e2b22" />
+        <StructuredData />
         {/* Auto-reload sur chunk JS 404 — exécuté AVANT hydration React,
             sinon le ChunkErrorReloader ne peut pas catcher car il dépend
             du bundle qui contient le chunk failed. */}

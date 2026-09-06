@@ -148,7 +148,7 @@ export default function AgencementNantes() {
 
       <Footer />
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'LocalBusiness', name: 'AVRA - Logiciel agencement Nantes', description: 'ERP pour agenceurs à Nantes et Pays de la Loire', url: 'https://avra-app.fr/agencement-nantes', address: { '@type': 'PostalAddress', addressLocality: 'Nantes', addressRegion: 'Pays de la Loire', addressCountry: 'FR' }, areaServed: ['Nantes', 'Pays de la Loire'], priceRange: '€€', serviceType: 'Logiciel de gestion de projet' }) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', '@id': 'https://avra-app.fr/agencement-nantes#webpage', name: 'AVRA - Logiciel agencement Nantes', description: 'ERP pour agenceurs à Nantes et Pays de la Loire', url: 'https://avra-app.fr/agencement-nantes', inLanguage: 'fr-FR', isPartOf: { '@id': 'https://avra-app.fr/#website' }, about: { '@id': 'https://avra-app.fr/#software' } }) }} />
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://avra-app.fr/' }, { '@type': 'ListItem', position: 2, name: 'Métiers', item: 'https://avra-app.fr/metiers' }, { '@type': 'ListItem', position: 3, name: 'Agenceur', item: 'https://avra-app.fr/metiers#agenceur' }, { '@type': 'ListItem', position: 4, name: 'Nantes', item: 'https://avra-app.fr/agencement-nantes' }] }) }} />
 

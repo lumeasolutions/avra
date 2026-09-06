@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Script from 'next/script';
 import './marketing.css';
 import { MarketingChatWrapper } from '@/components/layout/MarketingChatWrapper';
 import BetaBanner from './components/BetaBanner';
@@ -11,10 +10,14 @@ import BetaBanner from './components/BetaBanner';
 // Le contenu marketing est quasi-statique, 1h de cache = TTFB ~50ms via le CDN Vercel.
 export const revalidate = 3600;
 
+// `template: '%s'` doit rester aligne sur celui du layout racine : le suffixe
+// « | AVRA » etait ajoute a des titres qui contenaient deja la marque, d'ou des
+// doublons et un debordement au-dela des ~60 caracteres affiches par Google.
+// La marque est desormais portee page par page, la ou elle apporte vraiment.
 export const metadata: Metadata = {
   title: {
-    default: "AVRA — Logiciel d'agencement avec IA pour cuisinistes & menuisiers",
-    template: '%s | AVRA',
+    default: 'Logiciel de gestion pour cuisinistes et menuisiers | AVRA',
+    template: '%s',
   },
   description:
     "AVRA centralise dossiers clients, facturation, planning, stock et IA photo-réalisme en une seule app. Conçu pour cuisinistes, menuisiers et architectes d'intérieur.",
@@ -36,90 +39,6 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       fontFamily: 'var(--font-dm-sans, "DM Sans"), system-ui, sans-serif',
       paddingTop: '36px', // espace pour le BetaBanner fixé en haut
     }}>
-      {/* SEO — Donnees structurees schema.org (Organization + WebSite + SoftwareApplication) */}
-      <Script
-        id="ld-organization"
-        type="application/ld+json"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'Organization',
-            name: 'AVRA',
-            legalName: 'Lumea Solutions',
-            url: 'https://avra-app.fr',
-            logo: 'https://avra-app.fr/icons/icon-512x512.png',
-            description: "AVRA, l'ERP nouvelle generation des professionnels de l'agencement (cuisinistes, menuisiers, architectes d'interieur, agenceurs).",
-            foundingDate: '2026',
-            areaServed: { '@type': 'Country', name: 'France' },
-            contactPoint: {
-              '@type': 'ContactPoint',
-              contactType: 'customer support',
-              email: 'contact@avra-app.fr',
-              availableLanguage: ['French'],
-            },
-          }),
-        }}
-      />
-      <Script
-        id="ld-website"
-        type="application/ld+json"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'WebSite',
-            url: 'https://avra-app.fr',
-            name: 'AVRA',
-            inLanguage: 'fr-FR',
-            potentialAction: {
-              '@type': 'SearchAction',
-              target: 'https://avra-app.fr/search?q={search_term_string}',
-              'query-input': 'required name=search_term_string',
-            },
-          }),
-        }}
-      />
-      <Script
-        id="ld-softwareapp"
-        type="application/ld+json"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'SoftwareApplication',
-            name: 'AVRA',
-            applicationCategory: 'BusinessApplication',
-            applicationSubCategory: 'ERP',
-            operatingSystem: 'Web',
-            url: 'https://avra-app.fr',
-            description: "Logiciel de gestion tout-en-un pour cuisinistes, menuisiers et architectes d'interieur : dossiers, devis, facturation electronique 2026, IA photo-realiste, planning, signature, paiement.",
-            offers: {
-              '@type': 'Offer',
-              price: '149',
-              priceCurrency: 'EUR',
-              availability: 'https://schema.org/PreOrder',
-              description: 'Beta privee jusqu\'au lancement public en janvier 2027',
-            },
-            inLanguage: 'fr-FR',
-            featureList: [
-              'Gestion de dossiers clients',
-              'Facturation electronique conforme 2026',
-              'IA photo-realisme et coloriste',
-              'Planning et planning-gestion',
-              'Signature electronique',
-              'Stock et catalogue produits',
-              'Statistiques et tableau de bord',
-              'Portails partenaires intervenants',
-            ],
-            publisher: {
-              '@type': 'Organization',
-              name: 'Lumea Solutions',
-              url: 'https://avra-app.fr',
-            },
-          }),
-        }}
-      />
       <BetaBanner />
       {children}
       <MarketingChatWrapper />

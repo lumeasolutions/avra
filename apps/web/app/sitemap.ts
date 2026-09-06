@@ -30,7 +30,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     // ── Pages principales ───────────────────────────────────────────
     url('/', { changeFrequency: 'weekly', priority: 1.0 }),
-    url('/accueil', { changeFrequency: 'weekly', priority: 0.9 }),
     url('/fonctionnalites', { changeFrequency: 'weekly', priority: 0.9 }),
     url('/tarifs', { changeFrequency: 'weekly', priority: 0.9 }),
     url('/comment-ca-marche', { changeFrequency: 'weekly', priority: 0.85 }),

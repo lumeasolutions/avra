@@ -366,18 +366,8 @@ export default function CuisinistelyOn() {
 
       <Footer />
 
-      {/* JSON-LD LocalBusiness */}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'LocalBusiness',
-          name: 'AVRA - Logiciel cuisiniste Lyon',
-          description: 'ERP & IA pour cuisinistes à Lyon et Rhône-Alpes',
-          url: 'https://avra-app.fr/cuisiniste-lyon',
-          address: { '@type': 'PostalAddress', addressLocality: 'Lyon', addressRegion: 'Auvergne-Rhône-Alpes', addressCountry: 'FR' },
-          areaServed: ['Lyon', 'Auvergne-Rhône-Alpes'],
-          priceRange: '€€',
-          serviceType: 'Logiciel de gestion de projet'
-        }) }} />
+      {/* JSON-LD WebPage */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', '@id': 'https://avra-app.fr/cuisiniste-lyon#webpage', name: 'AVRA - Logiciel cuisiniste Lyon', description: 'ERP & IA pour cuisinistes à Lyon et Rhône-Alpes', url: 'https://avra-app.fr/cuisiniste-lyon', inLanguage: 'fr-FR', isPartOf: { '@id': 'https://avra-app.fr/#website' }, about: { '@id': 'https://avra-app.fr/#software' } }) }} />
 
       {/* JSON-LD BreadcrumbList */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({

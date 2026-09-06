@@ -144,11 +144,19 @@ const nextConfig = {
   // mauvais domaine) qui créait du duplicate content indexable. Les redirects
   // Next passent AVANT les fichiers /public → ces URLs renvoient désormais 301
   // vers les vraies pages React canoniques.
+  // SEO 06/09/2026 — /accueil dupliquait mot pour mot la page d'accueil (meme
+  // sujet, meme schema SoftwareApplication) sans qu'aucun lien interne n'y
+  // mene : les deux URLs se cannibalisaient dans la SERP. /e-facturation
+  // renvoyait un 404 sec — la racine du segment n'a pas de page, seul
+  // /e-facturation/[token] existe, et ce redirect ne le masque pas car Next
+  // ne fait correspondre `source` qu'au chemin exact.
   async redirects() {
     return [
       { source: '/landing.html', destination: '/', permanent: true },
       { source: '/site', destination: '/', permanent: true },
       { source: '/site/:path*', destination: '/', permanent: true },
+      { source: '/accueil', destination: '/', permanent: true },
+      { source: '/e-facturation', destination: '/blog/e-facture-2026', permanent: true },
     ];
   },
 

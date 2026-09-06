@@ -148,7 +148,7 @@ export default function AgencementToulouse() {
 
       <Footer />
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'LocalBusiness', name: 'AVRA - Logiciel agencement Toulouse', description: 'ERP pour agenceurs à Toulouse et Occitanie', url: 'https://avra-app.fr/agencement-toulouse', address: { '@type': 'PostalAddress', addressLocality: 'Toulouse', addressRegion: 'Occitanie', addressCountry: 'FR' }, areaServed: ['Toulouse', 'Occitanie'], priceRange: '€€', serviceType: 'Logiciel de gestion de projet' }) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', '@id': 'https://avra-app.fr/agencement-toulouse#webpage', name: 'AVRA - Logiciel agencement Toulouse', description: 'ERP pour agenceurs à Toulouse et Occitanie', url: 'https://avra-app.fr/agencement-toulouse', inLanguage: 'fr-FR', isPartOf: { '@id': 'https://avra-app.fr/#website' }, about: { '@id': 'https://avra-app.fr/#software' } }) }} />
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://avra-app.fr/' }, { '@type': 'ListItem', position: 2, name: 'Métiers', item: 'https://avra-app.fr/metiers' }, { '@type': 'ListItem', position: 3, name: 'Agenceur', item: 'https://avra-app.fr/metiers#agenceur' }, { '@type': 'ListItem', position: 4, name: 'Toulouse', item: 'https://avra-app.fr/agencement-toulouse' }] }) }} />
 

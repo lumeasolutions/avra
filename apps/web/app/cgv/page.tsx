@@ -4,9 +4,13 @@ import Footer from '../(marketing)/components/Footer'
 import BetaBanner from '../(marketing)/components/BetaBanner'
 import '../(marketing)/marketing.css'
 
+// La canonical est obligatoire ici : sans elle, la page herite de
+// `alternates.canonical: '/'` declaree dans le layout racine et se declare
+// donc elle-meme duplicata de la page d'accueil.
 export const metadata: Metadata = {
   title: 'Conditions Générales de Vente — AVRA',
   description: 'CGV d\'AVRA. Conditions de vente, tarifs, droit de rétractation et modalités de résiliation de l\'abonnement.',
+  alternates: { canonical: 'https://avra-app.fr/cgv' },
 }
 
 export default function CGVPage() {

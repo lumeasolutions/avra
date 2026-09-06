@@ -4,9 +4,12 @@ import Footer from '../(marketing)/components/Footer'
 import BetaBanner from '../(marketing)/components/BetaBanner'
 import '../(marketing)/marketing.css'
 
+// Cf. /cgv : sans `alternates`, la canonical heritee du layout racine pointe
+// sur la page d'accueil et fait disparaitre la page des resultats.
 export const metadata: Metadata = {
   title: 'Politique de confidentialité — AVRA',
   description: 'Politique de confidentialité d\'AVRA. Comment nous collectons, traitons et protégeons vos données personnelles conformément au RGPD.',
+  alternates: { canonical: 'https://avra-app.fr/confidentialite' },
 }
 
 export default function ConfidentialitePage() {

@@ -4,9 +4,12 @@ import Footer from '../(marketing)/components/Footer'
 import BetaBanner from '../(marketing)/components/BetaBanner'
 import '../(marketing)/marketing.css'
 
+// Cf. /cgv : sans `alternates`, la canonical heritee du layout racine pointe
+// sur la page d'accueil et fait disparaitre la page des resultats.
 export const metadata: Metadata = {
   title: 'Mentions légales — AVRA by Luméa Solutions',
   description: 'Mentions légales d\'AVRA. Éditeur, hébergeur, propriété intellectuelle et conditions d\'utilisation.',
+  alternates: { canonical: 'https://avra-app.fr/mentions-legales' },
 }
 
 export default function MentionsLegalesPage() {

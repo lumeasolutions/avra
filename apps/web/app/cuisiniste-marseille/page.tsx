@@ -366,20 +366,8 @@ export default function CuisinisteMarseille() {
 
       <Footer />
 
-      {/* JSON-LD LocalBusiness */}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'LocalBusiness',
-          name: 'AVRA - Logiciel cuisiniste Marseille',
-          description: 'ERP & IA pour cuisinistes à Marseille et PACA',
-          url: 'https://avra-app.fr/cuisiniste-marseille',
-          addressLocality: 'Marseille',
-          addressRegion: 'Provence-Alpes-Côte d\'Azur',
-          addressCountry: 'FR',
-          areaServed: ['Marseille', 'Provence-Alpes-Côte d\'Azur'],
-          priceRange: '€€',
-          serviceType: 'Logiciel de gestion de projet'
-        }) }} />
+      {/* JSON-LD WebPage */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', '@id': 'https://avra-app.fr/cuisiniste-marseille#webpage', name: 'AVRA - Logiciel cuisiniste Marseille', description: 'ERP & IA pour cuisinistes à Marseille et PACA', url: 'https://avra-app.fr/cuisiniste-marseille', inLanguage: 'fr-FR', isPartOf: { '@id': 'https://avra-app.fr/#website' }, about: { '@id': 'https://avra-app.fr/#software' } }) }} />
 
       {/* JSON-LD BreadcrumbList */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
