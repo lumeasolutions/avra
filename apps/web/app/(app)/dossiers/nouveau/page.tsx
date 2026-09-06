@@ -181,7 +181,6 @@ export default function NouveauDossierPage() {
   const [form, setForm] = useState({
     lastName: '',
     firstName: '',
-    projectLabel: '',
     phone: '',
     email: '',
     address: '',
@@ -210,7 +209,6 @@ export default function NouveauDossierPage() {
       const newId = await createProject({
         lastName: form.lastName,
         firstName: form.firstName || undefined,
-        projectLabel: form.projectLabel.trim() || undefined,
         address: form.address || undefined,
         siteAddress: sameAddress ? form.address : (form.siteAddress || undefined),
         postalCode: form.postalCode || undefined,
@@ -284,37 +282,6 @@ export default function NouveauDossierPage() {
                 <div className="col-span-1">
                   <label className={labelCls}>Prénom</label>
                   <input type="text" value={form.firstName} onChange={set('firstName')} placeholder="Jean" className={inputCls} />
-                </div>
-                <div className="col-span-2">
-                  <label className={labelCls}>Type de projet</label>
-                  <input
-                    type="text"
-                    value={form.projectLabel}
-                    onChange={set('projectLabel')}
-                    placeholder="Cuisine, Dressing, Chambre, Salle de bain…"
-                    className={inputCls}
-                    list="project-label-suggestions"
-                    maxLength={40}
-                  />
-                  <datalist id="project-label-suggestions">
-                    <option value="Cuisine" />
-                    <option value="Dressing" />
-                    <option value="Chambre" />
-                    <option value="Salle de bain" />
-                    <option value="Meuble sur-mesure" />
-                    <option value="Bibliothèque" />
-                    <option value="Rangement" />
-                    <option value="Salon" />
-                    <option value="Bureau" />
-                    <option value="Aménagement" />
-                  </datalist>
-                  <p className="mt-1.5 text-[11px] text-[#304035]/45">
-                    Nom du dossier :{' '}
-                    <span className="font-semibold text-[#304035]/70">
-                      {(form.projectLabel.trim() ? `${form.projectLabel.trim()} ` : '') + (form.lastName.trim() || '…')}
-                    </span>
-                    {!form.projectLabel.trim() && ' — laissez vide pour n’utiliser que le nom du client.'}
-                  </p>
                 </div>
                 <div className="col-span-1">
                   <label className={labelCls}>Téléphone</label>

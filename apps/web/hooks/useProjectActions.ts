@@ -20,7 +20,6 @@ interface CreateProjectData {
   /** Type de projet saisi par le pro (Cuisine, Dressing, Chambre, Salle de bain…).
    *  Devient le préfixe du nom du dossier. Vide → nom = juste le client (plus de
    *  « Cuisine » forcé). */
-  projectLabel?: string;
   address?: string;
   siteAddress?: string;
   postalCode?: string;
@@ -85,11 +84,12 @@ export function useProjectActions() {
         profession === 'menuisier' ? 'MENUISIER'
         : profession === 'architecte' ? 'ARCHITECTE_INTERIEUR'
         : 'CUISINISTE';
-      // Nom du dossier : « <Type de projet> <Client> » si le pro a saisi un type
-      // (Cuisine, Dressing, Chambre…), sinon juste le nom du client — plus de
-      // « Cuisine » forcé qui étiquetait à tort un dressing/une chambre.
-      const projectLabel = data.projectLabel?.trim();
-      const projectName = projectLabel ? `${projectLabel} ${data.lastName}` : data.lastName;
+      // Nom du dossier = nom du client, point. Retour cofondatrice (sept. 2026) :
+      // « il ne faut pas qu'il y ai écrit cuisines/dressings/chambres peu importe
+      // devant les noms » — un même client peut avoir toute la maison à aménager,
+      // préfixer par un type de pièce n'a donc pas de sens. Le prénom est stocké
+      // à part et affiché à la suite du nom par l'interface.
+      const projectName = data.lastName.trim();
 
       // 1. Appel API EN PREMIER pour obtenir un vrai cuid avant tout local
       let result: { id: string };

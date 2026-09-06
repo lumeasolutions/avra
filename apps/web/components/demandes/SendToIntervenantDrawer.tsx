@@ -717,7 +717,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
               {/* Scheduled — pour un DEVIS, c'est la date de réception attendue du
                   devis : si dépassée sans devis reçu → alerte "devis en retard". */}
               <Label style={{ marginTop: 14 }}>
-                {type === 'DEVIS' ? 'Date de réception du devis' : 'Date / heure (optionnelle)'}
+                {type === 'DEVIS' ? 'Date de réception' : 'Date / heure (optionnelle)'}
               </Label>
               <input
                 // DEVIS : date seule (la réception se juge au jour près — pas d'heure

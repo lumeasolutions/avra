@@ -684,7 +684,7 @@ interface DossierState {
   commandesAccess: Record<string, Record<string, CommandeAccessEntry[]>>;
 
   // Actions
-  addDossier: (data: { lastName: string; firstName?: string; projectLabel?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string; profession?: string | null; vendeurName?: string; vendeurUserId?: string }) => string;
+  addDossier: (data: { lastName: string; firstName?: string; address?: string; siteAddress?: string; postalCode?: string; tva?: string; tauxTVA?: number; delaiChantier?: number; delaiChantierUnit?: 'days' | 'weeks'; phone?: string; email?: string; profession?: string | null; vendeurName?: string; vendeurUserId?: string }) => string;
   removeSubfolder: (dossierId: string, label: string) => void;
   renameSubfolder: (dossierId: string, oldLabel: string, newLabel: string) => void;
   updateDossierStatus: (id: string, status: DossierStatus) => void;
@@ -851,9 +851,9 @@ export const useDossierStore = create<DossierState>()(
 
       addDossier: (data) => {
         const id = 'd' + uid();
-        // Nom = « <Type> <Client> » si un type est saisi, sinon juste le client.
-        const label = data.projectLabel?.trim();
-        const name = label ? `${label} ${data.lastName.trim()}` : data.lastName.trim();
+        // Nom = nom du client uniquement (voir useProjectActions) : plus de
+        // préfixe « Cuisine / Dressing / Chambre » devant le nom.
+        const name = data.lastName.trim();
         const newDossier: Dossier = {
           id,
           name,
