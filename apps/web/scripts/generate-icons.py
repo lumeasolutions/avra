@@ -27,11 +27,15 @@ cadre dans les deux sens.
 
 - Icônes normales et iOS : 96 % du cadre. Sur iOS le système applique son propre
   masque arrondi ; les aigrettes restent loin des coins, elles ne risquent rien.
-- Icônes « maskable » (Android) : 58 %, et ce n'est pas un oubli. Android peut
-  recadrer en cercle et seul un disque de 80 % du côté est garanti visible. Pour
-  une source carrée de côté S, la demi-diagonale vaut S/2 x 1,414 : au-delà de
-  56-58 % les angles sortent du cercle. La chouette y paraît malgré tout plus
-  grosse qu'avant, puisqu'elle n'a plus de vide latéral à combler.
+- Icônes « maskable » (Android) : 60 %, et ce n'est pas un oubli. Android peut
+  recadrer l'icône en cercle et seul un disque de 80 % du côté est garanti
+  visible. 60 % n'est pas une marge de confort : c'est le maximum mesuré sur les
+  pixels réels de la chouette (et non sur sa boîte englobante, dont les coins
+  sont vides). À 60 % le point le plus éloigné du dessin est à 0,395 du centre,
+  pour 0,400 autorisé ; à 62 % il passe à 0,408 et les aigrettes se font couper.
+  La chouette touche donc déjà le bord du disque : après recadrage par le
+  lanceur, elle remplit la pastille. On ne peut pas monter plus haut sans
+  rogner le dessin sur certains téléphones.
 """
 
 import os
@@ -44,7 +48,7 @@ APP_DIR = os.path.join(ROOT, 'app')
 
 BG = (0x1e, 0x2b, 0x22, 255)          # vert AVRA, identique au theme_color
 SCALE_ANY = 0.96                       # icônes normales + iOS
-SCALE_MASKABLE = 0.58                  # zone de sécurité Android (voir en-tête)
+SCALE_MASKABLE = 0.60                  # zone de sécurité Android (voir en-tête)
 
 STANDARD_SIZES = [72, 96, 128, 144, 152, 192, 384, 512]
 MASKABLE_SIZES = [192, 512]
