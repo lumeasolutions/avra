@@ -13,29 +13,32 @@ qui n'existe plus (le logo est passé en .webp), il ne pouvait donc plus tourner
 Il est remplacé par celui-ci, qui utilise Pillow — déjà disponible — plutôt que
 sharp.
 
-TAILLE DE LA CHOUETTE (sept. 2026, demande cofondatrice : « il faudrait la
-grossir », puis « encore beaucoup »)
+TAILLE DE LA CHOUETTE (sept. 2026)
 ------------------------------------------------------------------------------
-Le logo d'origine est en portrait (705 x 900). Rempli à 92 % de la HAUTEUR, il
-laissait encore ~20 % de vide de chaque côté : c'est ce vide latéral qui donnait
-l'impression d'une petite chouette, pas la hauteur.
+Historique, parce que la conclusion n'est pas intuitive :
 
-On recadre donc la source en CARRÉ avant de composer. La queue se termine en
-pointe fine (162 px de large sur les 10 derniers %) : la rogner ne coûte rien
-visuellement et rend la composition carrée, donc la chouette remplit enfin le
-cadre dans les deux sens.
+  78 %  version d'origine, jugee trop petite.
+  92 %  simple agrandissement en hauteur. Toujours juge trop petit.
+  96 %  dessin recadre en carre (queue rognee) pour supprimer le vide lateral.
+        Visuellement le plus rempli, mais la chouette perd sa queue : rejete.
+  92 %  RETENU -- chouette entiere, sans recadrage.
 
-- Icônes normales et iOS : 96 % du cadre. Sur iOS le système applique son propre
-  masque arrondi ; les aigrettes restent loin des coins, elles ne risquent rien.
-- Icônes « maskable » (Android) : 60 %, et ce n'est pas un oubli. Android peut
-  recadrer l'icône en cercle et seul un disque de 80 % du côté est garanti
-  visible. 60 % n'est pas une marge de confort : c'est le maximum mesuré sur les
-  pixels réels de la chouette (et non sur sa boîte englobante, dont les coins
-  sont vides). À 60 % le point le plus éloigné du dessin est à 0,395 du centre,
-  pour 0,400 autorisé ; à 62 % il passe à 0,408 et les aigrettes se font couper.
-  La chouette touche donc déjà le bord du disque : après recadrage par le
-  lanceur, elle remplit la pastille. On ne peut pas monter plus haut sans
-  rogner le dessin sur certains téléphones.
+Le logo est en portrait (705 x 900). Garder le dessin complet impose donc de
+le dimensionner par sa HAUTEUR, et il reste un peu de vide sur les cotes :
+c'est le prix de la queue, et c'est un choix assume.
+
+- Icones normales et iOS : 92 % de la hauteur du cadre. Sur iOS le systeme
+  applique lui-meme son masque arrondi, on peut donc remplir largement.
+- Icones « maskable » (Android) : 66 %. Android peut recadrer l'icone en cercle
+  et seul un disque de 80 % du cote est garanti visible. 66 % n'est pas une
+  marge de confort : c'est le maximum mesure sur les pixels reels du dessin (et
+  non sur sa boite englobante, dont les coins sont vides). A 66 % le point le
+  plus eloigne est a 0,396 du centre pour 0,400 autorises ; a 68 % il passe a
+  0,409 et les aigrettes se font couper.
+
+Toute modification ici doit s'accompagner d'un increment de ICON_VERSION dans
+app/layout.tsx ET du meme suffixe dans public/manifest.json : sans changement
+d'URL, iOS continue de servir l'ancienne icone depuis sa base interne.
 """
 
 import os
@@ -47,26 +50,18 @@ ICONS_DIR = os.path.join(ROOT, 'public', 'icons')
 APP_DIR = os.path.join(ROOT, 'app')
 
 BG = (0x1e, 0x2b, 0x22, 255)          # vert AVRA, identique au theme_color
-SCALE_ANY = 0.96                       # icônes normales + iOS
-SCALE_MASKABLE = 0.60                  # zone de sécurité Android (voir en-tête)
+SCALE_ANY = 0.92                       # icônes normales + iOS
+SCALE_MASKABLE = 0.66                  # zone de sécurité Android (voir en-tête)
 
 STANDARD_SIZES = [72, 96, 128, 144, 152, 192, 384, 512]
 MASKABLE_SIZES = [192, 512]
 
 
 def load_owl() -> Image.Image:
-    """Chouette détourée puis recadrée en carré (voir l'en-tête du fichier).
-
-    On garde le haut de l'image — aigrettes, regard, corps — et on rogne la
-    pointe de la queue, la seule partie sacrifiable.
-    """
+    """Chouette detouree, dessin complet (voir l'en-tete du fichier)."""
     owl = Image.open(SOURCE).convert('RGBA')
     bbox = owl.split()[-1].getbbox()
-    if bbox:
-        owl = owl.crop(bbox)
-    if owl.height > owl.width:
-        owl = owl.crop((0, 0, owl.width, owl.width))
-    return owl
+    return owl.crop(bbox) if bbox else owl
 
 
 def render(owl: Image.Image, size: int, scale: float) -> Image.Image:

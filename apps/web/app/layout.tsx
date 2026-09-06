@@ -54,9 +54,11 @@ const playfairDisplay = Playfair_Display({
  * À incrémenter à chaque fois que le contenu des icônes change
  * (scripts/generate-icons.py), sans oublier public/manifest.json.
  *
- * v4 — septembre 2026 : chouette recadrée en carré (96 % du cadre), maskable Android poussée au maximum mesuré (60 %).
+ * v5 — septembre 2026 : chouette entière à 92 % du cadre (le recadrage carré de v4
+ *      rendait l'icône plus pleine mais coupait la queue), maskable Android au
+ *      maximum mesuré (66 %).
  */
-const ICON_VERSION = 'v=4';
+const ICON_VERSION = 'v=5';
 
 export const metadata: Metadata = {
   title: {
