@@ -472,7 +472,9 @@ export function useDataSync() {
       const dossiersPerdus = lostProjects.map((p) => ({
         id: p.id,
         name: p.name || p.client?.lastName || 'Sans nom',
-        reason: p.description || 'Raison non spécifiée',
+        // lostReason est le champ dedie (sept. 2026). Le repli sur description
+        // ne sert qu'aux dossiers perdus avant son introduction.
+        reason: p.lostReason || p.description || 'Raison non spécifiée',
         lostDate: new Date(p.updatedAt).toLocaleDateString('fr-FR'),
         montantEstime: p.saleAmount || 0,
         // Métier propriétaire du dossier — cloisonnement inter-portails (P0).

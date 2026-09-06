@@ -133,6 +133,7 @@ export class ProjectsService {
         terminated: true,
         terminatedAt: true,
         archivedAt: true,
+        lostReason: true,
         vendeurName: true,
         vendeurUserId: true,
         statsSkipped: true,

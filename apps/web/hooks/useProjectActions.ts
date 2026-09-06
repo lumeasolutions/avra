@@ -220,6 +220,10 @@ export function useProjectActions() {
           method: 'PUT',
           body: JSON.stringify({
             lifecycleStatus: 'PERDU',
+            // La raison n'etait envoyee nulle part : elle vivait dans le
+            // navigateur et disparaissait a la premiere resynchronisation,
+            // remplacee par « Raison non specifiee ».
+            lostReason: reason.slice(0, 500),
           }),
         });
       } catch (err) {

@@ -519,6 +519,11 @@ model Project {
   terminated      Boolean                @default(false)
   terminatedAt    DateTime?
   archivedAt      DateTime?
+  /// Raison saisie par le pro quand il marque le dossier perdu. Etait
+  /// auparavant conservee uniquement dans le navigateur : elle disparaissait
+  /// donc a la premiere resynchronisation, remplacee par "Raison non
+  /// specifiee". (sept. 2026)
+  lostReason      String?
   vendeurName     String?
   /// Lien structuré vers le User vendeur (en plus de vendeurName, gardé en
   /// fallback). Sert au cloisonnement : un vendeur ne voit que SES dossiers.
