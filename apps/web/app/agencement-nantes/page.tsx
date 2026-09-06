@@ -29,7 +29,7 @@ export default function AgencementNantes() {
       <ScrollReveal />
 
       <nav className="breadcrumb-nav container" style={{ paddingTop: '16px', paddingBottom: '8px' }}>
-        <a href="/">Accueil</a><span>/</span><a href="/metiers">Métiers</a><span>/</span><a href="/metiers#agenceur">Agenceur</a><span>/</span><span style={{ fontWeight: 600 }}>Nantes</span>
+        <a href="/">Accueil</a><span>/</span><a href="/metiers">Métiers</a><span>/</span><a href="/agenceur">Agenceur</a><span>/</span><span style={{ fontWeight: 600 }}>Nantes</span>
       </nav>
 
       <section className="section-pad" style={{ background: 'linear-gradient(135deg, #f9f6f0 0%, #ede5dd 100%)' }}>
@@ -150,7 +150,7 @@ export default function AgencementNantes() {
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', '@id': 'https://avra-app.fr/agencement-nantes#webpage', name: 'AVRA - Logiciel agencement Nantes', description: 'ERP pour agenceurs à Nantes et Pays de la Loire', url: 'https://avra-app.fr/agencement-nantes', inLanguage: 'fr-FR', isPartOf: { '@id': 'https://avra-app.fr/#website' }, about: { '@id': 'https://avra-app.fr/#software' } }) }} />
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://avra-app.fr/' }, { '@type': 'ListItem', position: 2, name: 'Métiers', item: 'https://avra-app.fr/metiers' }, { '@type': 'ListItem', position: 3, name: 'Agenceur', item: 'https://avra-app.fr/metiers#agenceur' }, { '@type': 'ListItem', position: 4, name: 'Nantes', item: 'https://avra-app.fr/agencement-nantes' }] }) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://avra-app.fr/' }, { '@type': 'ListItem', position: 2, name: 'Métiers', item: 'https://avra-app.fr/metiers' }, { '@type': 'ListItem', position: 3, name: 'Agenceur', item: 'https://avra-app.fr/agenceur' }, { '@type': 'ListItem', position: 4, name: 'Nantes', item: 'https://avra-app.fr/agencement-nantes' }] }) }} />
 
       <style>{`
         .breadcrumb-nav { font-size: 0.95rem; color: #6b7c70; }

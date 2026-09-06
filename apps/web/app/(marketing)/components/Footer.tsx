@@ -16,11 +16,20 @@ export default function Footer() {
       { label: 'Démo', href: '/demo' },
       { label: '🌱 Rejoindre la bêta', href: '/rejoindre' },
     ],
+    // SEO 06/09/2026 — on pointe les vraies pages metier, plus les ancres de
+    // /metiers. Deux raisons : les ancres #cuisiniste et #agenceur n'existent
+    // pas (les identifiants du tableau de /metiers sont « cuisiniste-agenceur »
+    // et « architecte »), et surtout /agenceur n'avait AUCUN lien entrant sur
+    // tout le site alors qu'il est dans le sitemap. Sur /metiers, seule la
+    // fiche du metier actif est rendue : les trois autres liens n'existent pas
+    // dans le HTML. Le pied de page est donc le seul lien permanent vers ces
+    // quatre pages.
     metiers: [
-      { label: 'Cuisiniste', href: '/metiers#cuisiniste' },
-      { label: 'Menuisier', href: '/metiers#menuisier' },
-      { label: "Architecte d'intérieur", href: '/metiers#architecte' },
-      { label: 'Agenceur', href: '/metiers#agenceur' },
+      { label: 'Cuisiniste', href: '/cuisiniste' },
+      { label: 'Menuisier', href: '/menuisier' },
+      { label: "Architecte d'intérieur", href: '/architecte-interieur' },
+      { label: 'Agenceur', href: '/agenceur' },
+      { label: 'Comparer les métiers', href: '/metiers' },
     ],
     resources: [
       { label: 'Blog', href: '/blog' },

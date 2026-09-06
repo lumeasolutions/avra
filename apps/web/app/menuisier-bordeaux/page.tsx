@@ -32,7 +32,7 @@ export default function MenuisierBordeaux() {
       <nav className="breadcrumb-nav container" style={{ paddingTop: '16px', paddingBottom: '8px' }}>
         <a href="/" style={{ color: '#6b7c70' }}>Accueil</a><span style={{ color: '#6b7c70', margin: '0 8px' }}>/</span>
         <a href="/metiers" style={{ color: '#6b7c70' }}>Métiers</a><span style={{ color: '#6b7c70', margin: '0 8px' }}>/</span>
-        <a href="/metiers#menuisier" style={{ color: '#6b7c70' }}>Menuisier</a><span style={{ color: '#6b7c70', margin: '0 8px' }}>/</span>
+        <a href="/menuisier" style={{ color: '#6b7c70' }}>Menuisier</a><span style={{ color: '#6b7c70', margin: '0 8px' }}>/</span>
         <span style={{ color: '#1e2b22', fontWeight: 600 }}>Bordeaux</span>
       </nav>
 
@@ -173,7 +173,7 @@ export default function MenuisierBordeaux() {
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebPage', '@id': 'https://avra-app.fr/menuisier-bordeaux#webpage', name: 'AVRA - Logiciel menuisier Bordeaux', description: 'ERP pour menuisiers à Bordeaux et Nouvelle-Aquitaine', url: 'https://avra-app.fr/menuisier-bordeaux', inLanguage: 'fr-FR', isPartOf: { '@id': 'https://avra-app.fr/#website' }, about: { '@id': 'https://avra-app.fr/#software' } }) }} />
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://avra-app.fr/' }, { '@type': 'ListItem', position: 2, name: 'Métiers', item: 'https://avra-app.fr/metiers' }, { '@type': 'ListItem', position: 3, name: 'Menuisier', item: 'https://avra-app.fr/metiers#menuisier' }, { '@type': 'ListItem', position: 4, name: 'Bordeaux', item: 'https://avra-app.fr/menuisier-bordeaux' }] }) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://avra-app.fr/' }, { '@type': 'ListItem', position: 2, name: 'Métiers', item: 'https://avra-app.fr/metiers' }, { '@type': 'ListItem', position: 3, name: 'Menuisier', item: 'https://avra-app.fr/menuisier' }, { '@type': 'ListItem', position: 4, name: 'Bordeaux', item: 'https://avra-app.fr/menuisier-bordeaux' }] }) }} />
 
       <style>{`
         .breadcrumb-nav { font-size: 0.95rem; color: #6b7c70; }

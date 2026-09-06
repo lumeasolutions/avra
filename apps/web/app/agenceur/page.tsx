@@ -82,8 +82,10 @@ export default function AgenceurPage() {
           <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>
             Pour les agenceurs
           </div>
+          {/* Le H1 porte la requete visee (« logiciel agenceur », position 15,7)
+              qui n'y figurait pas du tout. */}
           <h1 style={{ color: 'var(--white)', marginBottom: '1.5rem' }}>
-            La solution complète pour les agenceurs
+            Logiciel agenceur : la solution complète pour vos projets
           </h1>
           <p
             style={{

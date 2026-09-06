@@ -83,8 +83,10 @@ export default function ArchitecteInteriorPage() {
           <div className="section-label" style={{ margin: '0 auto 1.5rem' }}>
             Pour les architectes d’intérieur
           </div>
+          {/* Le H1 ne nommait pas le metier : ni « architecte d'interieur », ni
+              rien qui permette a Google de rattacher la page a sa requete. */}
           <h1 style={{ color: 'var(--white)', marginBottom: '1.5rem' }}>
-            Le logiciel qui valorise votre créativité
+            Le logiciel qui valorise la créativité des architectes d&apos;intérieur
           </h1>
           <p
             style={{

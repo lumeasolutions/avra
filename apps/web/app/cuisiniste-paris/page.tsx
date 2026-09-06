@@ -34,7 +34,7 @@ export default function CuisinisteParis() {
         <span style={{ color: '#6b7c70', margin: '0 8px' }}>/</span>
         <a href="/metiers" style={{ color: '#6b7c70', fontSize: '0.95rem' }}>Métiers</a>
         <span style={{ color: '#6b7c70', margin: '0 8px' }}>/</span>
-        <a href="/metiers#cuisiniste" style={{ color: '#6b7c70', fontSize: '0.95rem' }}>Cuisiniste</a>
+        <a href="/cuisiniste" style={{ color: '#6b7c70', fontSize: '0.95rem' }}>Cuisiniste</a>
         <span style={{ color: '#6b7c70', margin: '0 8px' }}>/</span>
         <span style={{ color: '#1e2b22', fontSize: '0.95rem', fontWeight: 600 }}>Paris</span>
       </nav>
@@ -389,7 +389,7 @@ export default function CuisinisteParis() {
               '@type': 'ListItem',
               position: 3,
               name: 'Cuisiniste',
-              item: 'https://avra-app.fr/metiers#cuisiniste'
+              item: 'https://avra-app.fr/cuisiniste'
             },
             {
               '@type': 'ListItem',
