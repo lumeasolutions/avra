@@ -111,6 +111,18 @@ export class TokenRotationService {
    * not on the full JWT — the token itself is recomputable from sub + jti
    * + secret, so what we actually need to compare server-side is just `jti`.
    */
+  /**
+   * Index de recherche d'une session a partir du jti.
+   *
+   * Le jti est un aleatoire de 32 octets : un SHA-256 suffit a le retrouver
+   * sans l'exposer, la ou un bcrypt obligerait a comparer toutes les sessions
+   * du compte a chaque rafraichissement. La verification qui fait foi reste le
+   * bcrypt stocke a cote (verifyRefreshToken).
+   */
+  jtiLookup(jti: string): string {
+    return crypto.createHash('sha256').update(jti).digest('hex');
+  }
+
   async hashRefreshToken(token: string): Promise<string> {
     // Cost aligné sur BCRYPT_COST=12 (auth.service) — cohérence + recommandation OWASP.
     return bcrypt.hash(token, 12);

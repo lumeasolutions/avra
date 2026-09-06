@@ -93,15 +93,23 @@ export class AuthService {
     // HOTFIX 29/04/2026 : si la colonne `refreshTokenJtiHash` n'existe pas
     // encore en DB (migration non appliquée), on retombe sur l'ancien
     // schéma `refreshToken` uniquement, pour ne pas crasher le login.
+    // Une session par appareil. Tant qu'elle s'ouvre, on ne touche plus a la
+    // colonne unique de User : c'est elle qui, en s'ecrasant a chaque connexion,
+    // faisait sauter la session des autres appareils.
+    const sessionOuverte = await this.openRefreshSession(user.id, tokenPair, hashedJti);
+
     try {
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          refreshTokenJtiHash: hashedJti,
-          refreshToken: hashedJti, // miroir legacy — même hash, sert au fallback /refresh
-          refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
-        },
-      });
+      // Session ouverte : rien a ecrire sur User, on evite un aller-retour DB.
+      if (!sessionOuverte) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            refreshTokenJtiHash: hashedJti,
+            refreshToken: hashedJti, // miroir legacy — sert au fallback /refresh
+            refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
+          },
+        });
+      }
     } catch (err: any) {
       const msg = String(err?.message ?? err);
       // Prisma P2022 = colonne inexistante (migration manquante).
@@ -155,12 +163,16 @@ export class AuthService {
     const tokenPair = this.tokenRotation.generateTokenPair(payload);
     const hashedJti = await this.tokenRotation.hashRefreshToken(tokenPair.refreshTokenJti);
 
-    const data = {
-      refreshTokenJtiHash: hashedJti,
-      refreshToken: hashedJti,
-      refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
-      lastLoginAt: new Date(),
-    };
+    // Idem cote intervenant : une session par appareil (cf. openRefreshSession).
+    const sessionOuverte = await this.openRefreshSession(user.id, tokenPair, hashedJti);
+    const data = sessionOuverte
+      ? { lastLoginAt: new Date() }
+      : {
+          refreshTokenJtiHash: hashedJti,
+          refreshToken: hashedJti,
+          refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
+          lastLoginAt: new Date(),
+        };
     try {
       await this.prisma.user.update({ where: { id: user.id }, data });
     } catch (err: any) {
@@ -265,11 +277,72 @@ export class AuthService {
   // ONLY consulted when the refresh token is NOT a valid JWT — i.e. when the
   // user is still on a pre-HIGH-4 opaque token. Once that user refreshes
   // once they're migrated and `legacyUserId` stops mattering for them.
+  /**
+   * Ouvre une session de connexion pour le couple de jetons qu'on vient d'emettre.
+   *
+   * Une ligne RefreshSession = un appareil. Avant septembre 2026, l'empreinte du
+   * jeton vivait dans une colonne unique sur User : chaque connexion ou
+   * rafraichissement l'ecrasait, donc un compte ne pouvait avoir qu'une session
+   * vivante. Ouvrir l'application sur le telephone ejectait l'ordinateur au
+   * rafraichissement suivant (401, puis deconnexion au premier appel API).
+   *
+   * Renvoie false si la table n'est pas disponible : l'appelant retombe alors
+   * sur l'ancienne colonne plutot que de faire echouer la connexion.
+   */
+  private async openRefreshSession(
+    userId: string,
+    tokenPair: { refreshTokenJti: string; refreshTokenExpiresAt: Date },
+    // bcrypt coute ~250 ms : les appelants l'ont deja calcule, on evite de le
+    // refaire une seconde fois a chaque connexion.
+    hashedJti?: string,
+  ): Promise<boolean> {
+    try {
+      const jti = tokenPair.refreshTokenJti;
+      await (this.prisma as any).refreshSession.create({
+        data: {
+          userId,
+          jtiLookup: this.tokenRotation.jtiLookup(jti),
+          jtiHash: hashedJti ?? (await this.tokenRotation.hashRefreshToken(jti)),
+          expiresAt: tokenPair.refreshTokenExpiresAt,
+        },
+      });
+      await this.pruneRefreshSessions(userId);
+      return true;
+    } catch (err: any) {
+      console.warn('[auth] RefreshSession indisponible, repli sur la colonne User :', String(err?.message ?? err));
+      return false;
+    }
+  }
+
+  /** Menage : sessions expirees, et plafond d'appareils par compte. */
+  private async pruneRefreshSessions(userId: string): Promise<void> {
+    const MAX_SESSIONS = 20;
+    try {
+      const p = this.prisma as any;
+      await p.refreshSession.deleteMany({ where: { userId, expiresAt: { lt: new Date() } } });
+      const surplus = await p.refreshSession.findMany({
+        where: { userId },
+        orderBy: { lastUsedAt: 'desc' },
+        skip: MAX_SESSIONS,
+        select: { id: true },
+      });
+      if (surplus.length) {
+        await p.refreshSession.deleteMany({
+          where: { id: { in: surplus.map((r: { id: string }) => r.id) } },
+        });
+      }
+    } catch {
+      // Menage best-effort : jamais bloquant pour une connexion.
+    }
+  }
+
   async refreshToken(refreshToken: string, legacyUserId?: string) {
     const decoded = this.tokenRotation.verifyRefreshJwt(refreshToken);
 
     let user;
     let isLegacy = false;
+    /** Session a faire tourner. Null = jeton issu de l'ancienne colonne. */
+    let sessionId: string | null = null;
 
     if (decoded) {
       // ─── New JWT scheme ────────────────────────────────────────────────
@@ -278,9 +351,32 @@ export class AuthService {
       });
       if (!user) throw new UnauthorizedException('Invalid refresh token');
 
+
+      // 1) Session dediee a cet appareil (schema courant). On la retrouve par
+      //    l'index SHA-256 du jti, puis on confirme au bcrypt.
+      try {
+        const session = await (this.prisma as any).refreshSession.findUnique({
+          where: { jtiLookup: this.tokenRotation.jtiLookup(decoded.jti) },
+        });
+        if (
+          session
+          && session.userId === user.id
+          && session.expiresAt > new Date()
+          && (await this.tokenRotation.verifyRefreshToken(decoded.jti, session.jtiHash))
+        ) {
+          sessionId = session.id as string;
+        }
+      } catch (err: any) {
+        // Table absente (migration pas encore passee) : on laisse le repli
+        // ci-dessous decider, plutot que de deconnecter tout le monde.
+        console.warn('[auth] lecture RefreshSession impossible :', String(err?.message ?? err));
+      }
+
       const userAny = user as typeof user & { refreshTokenJtiHash: string | null };
 
-      if (userAny.refreshTokenJtiHash) {
+      if (sessionId) {
+        // Session valide : il n'y a rien d'autre a verifier.
+      } else if (userAny.refreshTokenJtiHash) {
         const ok = await this.tokenRotation.verifyRefreshToken(
           decoded.jti,
           userAny.refreshTokenJtiHash,
@@ -328,16 +424,34 @@ export class AuthService {
     const tokenPair = this.tokenRotation.generateTokenPair(payload);
     const hashedJti = await this.tokenRotation.hashRefreshToken(tokenPair.refreshTokenJti);
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        refreshTokenJtiHash: hashedJti,
-        // Wipe the legacy column on every rotation — once migrated, never
-        // fall back to opaque path again for this user.
-        refreshToken: null,
-        refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
-      },
-    });
+    if (sessionId) {
+      // On fait tourner CETTE session, et elle seule : les autres appareils du
+      // compte gardent la leur. C'est tout l'objet du changement.
+      await (this.prisma as any).refreshSession.update({
+        where: { id: sessionId },
+        data: {
+          jtiLookup: this.tokenRotation.jtiLookup(tokenPair.refreshTokenJti),
+          jtiHash: hashedJti,
+          expiresAt: tokenPair.refreshTokenExpiresAt,
+          lastUsedAt: new Date(),
+        },
+      });
+    } else {
+      // Le jeton presente venait de l'ancienne colonne (session ouverte avant
+      // la bascule, ou repli legacy). On lui ouvre sa propre session, puis on
+      // vide la colonne : elle cesse ainsi d'evincer les autres appareils.
+      const migree = await this.openRefreshSession(user.id, tokenPair, hashedJti);
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: migree
+          ? { refreshTokenJtiHash: null, refreshToken: null, refreshTokenExpiresAt: null }
+          : {
+              refreshTokenJtiHash: hashedJti,
+              refreshToken: null,
+              refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
+            },
+      });
+    }
 
     if (!isLegacy && refreshToken) {
       // Best-effort blacklist of the just-used JWT (defense-in-depth against
@@ -352,15 +466,37 @@ export class AuthService {
     };
   }
 
-  async logout(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+  /**
+   * Deconnecte UN appareil, pas le compte.
+   *
+   * On supprime la session correspondant au jeton presente. Les autres
+   * appareils gardent la leur : se deconnecter du telephone ne doit pas
+   * fermer la session de l'ordinateur.
+   */
+  async logout(userId: string, refreshToken?: string) {
+    let sessionSupprimee = false;
 
-    // Invalider le refresh token en base (protection principale contre la réutilisation)
+    if (refreshToken) {
+      const decoded = this.tokenRotation.verifyRefreshJwt(refreshToken);
+      if (decoded?.jti) {
+        try {
+          const res = await (this.prisma as any).refreshSession.deleteMany({
+            where: { userId, jtiLookup: this.tokenRotation.jtiLookup(decoded.jti) },
+          });
+          sessionSupprimee = res.count > 0;
+        } catch (err: any) {
+          console.warn('[auth] suppression RefreshSession impossible :', String(err?.message ?? err));
+        }
+      }
+    }
+
+    if (sessionSupprimee) return { success: true };
+
+    // Aucune session trouvee : l'appareil s'appuyait encore sur l'ancienne
+    // colonne unique. On la vide, comme avant.
     return this.prisma.user.update({
       where: { id: userId },
-      data: { refreshToken: null, refreshTokenExpiresAt: null },
+      data: { refreshTokenJtiHash: null, refreshToken: null, refreshTokenExpiresAt: null },
     });
   }
 

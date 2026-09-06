@@ -327,6 +327,12 @@ model User {
   refreshToken            String?   // ⚠️ DEPRECATED (HIGH-4): legacy opaque refresh token hash. Kept for backward compat — to be removed once all in-circulation refresh tokens have rotated to the JWT/jti scheme (~30d after deploy).
   refreshTokenExpiresAt   DateTime? // ⚠️ DEPRECATED (HIGH-4): expiry now embedded in JWT. Kept for legacy fallback.
   // ✅ HIGH-4: refresh token is now a signed JWT { sub, jti }; only the bcrypt hash of `jti` is stored server-side for rotation/revocation.
+  /// ⚠️ REPLI HISTORIQUE (sept. 2026) : une seule valeur par utilisateur, donc
+  /// une seule session vivante par compte, tous appareils confondus. Se connecter
+  /// sur le telephone ejectait l ordinateur au rafraichissement suivant. Les
+  /// sessions vivent desormais dans RefreshSession, une ligne par appareil ; cette
+  /// colonne ne sert plus qu a valider les jetons emis avant la bascule, et elle
+  /// est effacee des que la session concernee a tourne.
   refreshTokenJtiHash     String?   @db.VarChar(120)
   // ✅ SEC HIGH-005: dedicated password-reset fields (no longer abuse refreshToken)
   passwordResetTokenHash  String?
@@ -337,6 +343,7 @@ model User {
   updatedAt               DateTime  @updatedAt
 
   userWorkspaces    UserWorkspace[]
+  refreshSessions   RefreshSession[]
   uploadedFiles     StoredFile[]
   createdDocuments  Document[]
   createdAuditLogs  AuditLog[]
@@ -492,6 +499,30 @@ model Address {
 // ─────────────────────────────────────────────────────────────────────────────
 // PROJECTS
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Une session de connexion = un appareil. Remplace la colonne unique
+/// User.refreshTokenJtiHash, qui n autorisait qu une session par compte.
+model RefreshSession {
+  id         String   @id @default(cuid())
+  userId     String
+  /// SHA-256 du jti : sert uniquement d index de recherche. Le jti est un
+  /// aleatoire de 32 octets, donc un hash rapide ne l expose pas au bruteforce,
+  /// et cela evite de comparer en bcrypt toutes les sessions d un compte a
+  /// chaque rafraichissement.
+  jtiLookup  String   @unique @db.VarChar(64)
+  /// bcrypt(jti) : la verification qui fait foi, comme avant.
+  jtiHash    String   @db.VarChar(120)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  /// Aide a reconnaitre l appareil dans une future page « mes sessions ».
+  userAgent  String?  @db.VarChar(300)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
 
 model Project {
   id              String                 @id @default(cuid())

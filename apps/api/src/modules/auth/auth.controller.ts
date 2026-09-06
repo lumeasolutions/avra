@@ -193,9 +193,13 @@ export class AuthController {
   @Post('logout')
   async logout(
     @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    await this.auth.logout(user.sub);
+    // On transmet le refresh token : il identifie l'appareil a deconnecter.
+    // Sans lui, on ne saurait pas quelle session fermer (cf. auth.service).
+    const cookies = (req as Request & { cookies?: Record<string, string> }).cookies ?? {};
+    await this.auth.logout(user.sub, cookies.refresh_token);
     clearAuthCookies(res);
     return { success: true };
   }
