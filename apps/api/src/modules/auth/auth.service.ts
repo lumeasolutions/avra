@@ -490,14 +490,20 @@ export class AuthService {
       }
     }
 
-    if (sessionSupprimee) return { success: true };
-
-    // Aucune session trouvee : l'appareil s'appuyait encore sur l'ancienne
-    // colonne unique. On la vide, comme avant.
-    return this.prisma.user.update({
+    // On vide aussi l'ancienne colonne, dans TOUS les cas.
+    //
+    // Trouve en verifiant le correctif : sans ce nettoyage, se deconnecter
+    // supprimait bien la session de l'appareil, mais laissait vivre un
+    // eventuel jeton d'avant la bascule, valide jusqu'a 30 jours. « Je me suis
+    // deconnecte » doit tout invalider. Cette colonne ne peut porter qu'une
+    // seule session ancienne : la vider ne touche aucun autre appareil, dont
+    // les sessions sont des lignes distinctes.
+    await this.prisma.user.update({
       where: { id: userId },
       data: { refreshTokenJtiHash: null, refreshToken: null, refreshTokenExpiresAt: null },
     });
+
+    return { success: true, session: sessionSupprimee };
   }
 
   // ── HIGH-005: Password reset uses DEDICATED columns (no longer overrides
