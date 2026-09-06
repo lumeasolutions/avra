@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useOverlayDismiss } from '@/lib/useOverlayDismiss';
 import { X, Mail, Send, Copy, CheckCircle2, AlertCircle, ExternalLink, Trash2 } from 'lucide-react';
 import {
   IntervenantInvitation,
@@ -58,6 +59,10 @@ export function InviteIntervenantModal({
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = original; };
   }, [open]);
+
+  // Le hook doit rester AVANT le return anticipe : sinon l'ordre des hooks
+  // change d'un rendu a l'autre (React error #310).
+  const overlayDismiss = useOverlayDismiss(onClose);
 
   if (!open) return null;
 
@@ -119,7 +124,7 @@ export function InviteIntervenantModal({
 
   return (
     <div
-      onClick={onClose}
+      {...overlayDismiss}
       style={{
         position: 'fixed', inset: 0,
         background: 'rgba(15,23,18,0.55)',

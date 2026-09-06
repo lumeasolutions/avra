@@ -5,6 +5,7 @@
  * un intervenant. Ouvert depuis la fiche detail. Sauvegarde via API.
  */
 import { useEffect, useState } from 'react';
+import { useOverlayDismiss } from '@/lib/useOverlayDismiss';
 import { Star, X, Save, Tag, MessageSquare, Loader2 } from 'lucide-react';
 import { updateIntervenantRating } from '@/lib/intervenant-dossiers-api';
 
@@ -47,6 +48,10 @@ export function RatingEditor({
     return () => { document.body.style.overflow = original; };
   }, [open]);
 
+  // Le hook doit rester AVANT le return anticipe : sinon l'ordre des hooks
+  // change d'un rendu a l'autre (React error #310).
+  const overlayDismiss = useOverlayDismiss(onClose);
+
   if (!open) return null;
 
   const handleSave = async () => {
@@ -80,7 +85,7 @@ export function RatingEditor({
 
   return (
     <div
-      onClick={onClose}
+      {...overlayDismiss}
       style={{
         position: 'fixed', inset: 0,
         background: 'rgba(15,23,18,0.55)',

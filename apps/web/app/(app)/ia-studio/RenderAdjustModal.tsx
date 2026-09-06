@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
+import { useOverlayDismiss } from '@/lib/useOverlayDismiss';
 import { createPortal } from 'react-dom';
 import { X, RotateCcw, Download, Loader2, SlidersHorizontal, Sun, Contrast, Droplet, Thermometer, Palette, Aperture } from 'lucide-react';
 
@@ -152,6 +153,10 @@ export function RenderAdjustModal({
     }
   }, [imageUrl, a]);
 
+  // Le hook doit rester AVANT le return anticipe : sinon l'ordre des hooks
+  // change d'un rendu a l'autre (React error #310).
+  const overlayDismiss = useOverlayDismiss(onClose);
+
   if (!open || !imageUrl || !mounted || typeof document === 'undefined') return null;
 
   const warm = warmthOverlay(a.temperature);
@@ -159,7 +164,7 @@ export function RenderAdjustModal({
 
   return createPortal(
     <div
-      onClick={onClose}
+      {...overlayDismiss}
       style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(15,23,18,0.62)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
     >
       <div
