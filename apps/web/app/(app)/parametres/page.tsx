@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import {
-  getTeamOverview, inviteMember, revokeInvitation, resendInvitation,
+  getTeamOverview, inviteMember, revokeInvitation, resendInvitation, buildInvitationLink,
   updateTeamMember, removeTeamMember, teamDisplayName,
   type TeamOverview,
 } from '@/lib/team-api';
@@ -266,12 +266,23 @@ export default function ParametresPage() {
     const lastName = parts.join(' ');
     setTeamBusy(true); setTeamErr(null);
     try {
-      await inviteMember({
+      const res = await inviteMember({
         email,
         role: newMember.role === 'ADMIN' ? 'ADMIN' : 'MEMBER',
         firstName: firstName || undefined,
         lastName: lastName || undefined,
       });
+      setInviteMailStatus(
+        res?.emailSent
+          ? { ok: true, msg: `Invitation envoyée à ${email}.` }
+          : {
+              ok: false,
+              msg:
+                `Invitation créée pour ${email}, mais l'e-mail n'est pas parti`
+                + (res?.emailError ? ` : ${res.emailError}` : '.')
+                + " Utilisez « Copier le lien » ci-dessous et transmettez-le vous-même.",
+            },
+      );
       setNewMember({ name: '', email: '', role: 'VENDEUR', active: true });
       setShowAddMember(false);
       await reloadTeam();
@@ -297,6 +308,22 @@ export default function ParametresPage() {
     catch (e: any) { setTeamErr(e?.message || 'Suppression impossible'); }
     finally { setTeamBusy(false); }
   };
+  // Statut du dernier envoi d'e-mail d'invitation. L'API ne renvoyait rien
+  // (l'echec etait avale) : on affiche desormais franchement si le mail est parti.
+  const [inviteMailStatus, setInviteMailStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+
+  const copyInviteLink = async (inv: { id: string; token?: string | null }) => {
+    if (!inv.token) return;
+    try {
+      await navigator.clipboard.writeText(buildInvitationLink(inv.token));
+      setCopiedInviteId(inv.id);
+      setTimeout(() => setCopiedInviteId((c) => (c === inv.id ? null : c)), 2500);
+    } catch {
+      setTeamErr("Impossible de copier le lien — copiez-le manuellement depuis la barre d'adresse.");
+    }
+  };
+
   const handleRevokeInvite = async (id: string) => {
     setTeamBusy(true); setTeamErr(null);
     try { await revokeInvitation(id); await reloadTeam(); }
@@ -305,7 +332,21 @@ export default function ParametresPage() {
   };
   const handleResendInvite = async (id: string) => {
     setTeamBusy(true); setTeamErr(null);
-    try { await resendInvitation(id); await reloadTeam(); }
+    try {
+      const res = await resendInvitation(id);
+      setInviteMailStatus(
+        res?.emailSent
+          ? { ok: true, msg: "E-mail d'invitation renvoyé." }
+          : {
+              ok: false,
+              msg:
+                "L'e-mail n'est pas parti"
+                + (res?.emailError ? ` : ${res.emailError}` : '.')
+                + " Utilisez « Copier le lien ».",
+            },
+      );
+      await reloadTeam();
+    }
     catch (e: any) { setTeamErr(e?.message || 'Renvoi impossible'); }
     finally { setTeamBusy(false); }
   };
@@ -1032,6 +1073,17 @@ export default function ParametresPage() {
             {teamOverview && teamOverview.invitations.length > 0 && (
               <div className="mt-5">
                 <p className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest mb-2">Invitations en attente</p>
+                {inviteMailStatus && (
+                  <div className={`mb-2 flex items-start gap-2 rounded-xl border px-3 py-2.5 ${inviteMailStatus.ok ? 'border-green-200 bg-green-50' : 'border-amber-300 bg-amber-50'}`}>
+                    <p className={`text-xs leading-relaxed ${inviteMailStatus.ok ? 'text-green-700' : 'text-amber-800'}`}>
+                      {inviteMailStatus.msg}
+                    </p>
+                    <button onClick={() => setInviteMailStatus(null)}
+                      className="ml-auto shrink-0 text-[#304035]/40 hover:text-[#304035]/70" aria-label="Fermer">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
                 <div className="space-y-2">
                   {teamOverview.invitations.map(inv => (
                     <div key={inv.id} className="flex items-center justify-between rounded-xl border border-dashed border-[#a67749]/40 bg-[#a67749]/5 px-4 py-3">
@@ -1045,6 +1097,13 @@ export default function ParametresPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {inv.token && (
+                          <button onClick={() => copyInviteLink(inv)} disabled={teamBusy}
+                            title="Copier le lien d'invitation — a transmettre par SMS, WhatsApp ou e-mail"
+                            className="rounded-lg px-2.5 py-1.5 text-[11px] font-bold bg-[#304035] text-white hover:bg-[#3d5449] transition-colors disabled:opacity-50">
+                            {copiedInviteId === inv.id ? 'Lien copié ✓' : 'Copier le lien'}
+                          </button>
+                        )}
                         <button onClick={() => handleResendInvite(inv.id)} disabled={teamBusy}
                           title="Renvoyer l'e-mail"
                           className="rounded-lg p-1.5 bg-[#304035]/8 text-[#304035]/70 hover:bg-[#304035]/15 transition-colors disabled:opacity-50">

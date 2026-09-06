@@ -14,6 +14,17 @@ import { Injectable, Logger } from '@nestjs/common';
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 
+/**
+ * Resultat d'un envoi. On ne renvoie plus `void` : l'invitation etait cree en base
+ * mais l'echec d'envoi etait avale silencieusement (`.catch(() => {})`), donc
+ * l'utilisateur voyait « invitation envoyee » alors que rien n'etait parti.
+ */
+export interface EmailResult {
+  ok: boolean;
+  /** Message court, lisible par l'utilisateur, quand ok === false. */
+  reason?: string;
+}
+
 @Injectable()
 export class TeamEmailService {
   private readonly logger = new Logger(TeamEmailService.name);
@@ -25,11 +36,16 @@ export class TeamEmailService {
     return !!this.apiKey;
   }
 
-  private async send(opts: { to: string; subject: string; html: string }): Promise<void> {
+  private async send(opts: { to: string; subject: string; html: string }): Promise<EmailResult> {
     if (!this.enabled) {
       this.logger.warn(`[email] RESEND_API_KEY manquante — envoi ignore : "${opts.subject}"`);
-      return;
+      return { ok: false, reason: "La cle d'envoi d'e-mails (RESEND_API_KEY) n'est pas configuree sur le serveur." };
     }
+    // Garde-fou explicite : avec l'expediteur bac a sable de Resend
+    // (onboarding@resend.dev), Resend n'accepte QUE l'adresse du proprietaire du
+    // compte comme destinataire. Toute invitation envoyee a quelqu'un d'autre est
+    // rejetee. C'est exactement le cas quand EMAIL_FROM n'est pas defini.
+    const sandbox = this.from.includes('onboarding@resend.dev');
     try {
       const res = await fetch(RESEND_API_URL, {
         method: 'POST',
@@ -46,10 +62,22 @@ export class TeamEmailService {
       });
       if (!res.ok) {
         const txt = await res.text().catch(() => '');
-        this.logger.error(`[email] Resend ${res.status}: ${txt}`);
+        this.logger.error(`[email] Resend ${res.status}: ${txt} (from=${this.from})`);
+        if (sandbox) {
+          return {
+            ok: false,
+            reason:
+              "L'expediteur d'e-mails n'est pas configure (EMAIL_FROM). Tant qu'un domaine "
+              + "verifie n’est pas utilise, Resend refuse d’envoyer a une autre adresse que "
+              + "celle du proprietaire du compte.",
+          };
+        }
+        return { ok: false, reason: `Le serveur d’e-mails a refuse l’envoi (erreur ${res.status}).` };
       }
+      return { ok: true };
     } catch (err: any) {
       this.logger.error(`[email] envoi echoue : ${err?.message ?? err}`);
+      return { ok: false, reason: "L'envoi de l'e-mail a echoue (probleme reseau ou service indisponible)." };
     }
   }
 
@@ -66,7 +94,7 @@ export class TeamEmailService {
     token: string;
     message?: string | null;
     expiresAt: Date;
-  }): Promise<void> {
+  }): Promise<EmailResult> {
     const link = `${this.webUrl}/rejoindre-equipe/${params.token}`;
     const expiry = formatDateFR(params.expiresAt);
     const roleLabel = params.role === 'ADMIN' ? 'administrateur' : 'vendeur';

@@ -69,6 +69,10 @@ export class TeamService {
           message: true,
           expiresAt: true,
           createdAt: true,
+          // Le token remonte volontairement : la route est reservee OWNER/ADMIN
+          // (RolesGuard), et il permet a l'UI d'afficher « Copier le lien
+          // d'invitation » pour le transmettre a la main quand l'e-mail ne part pas.
+          token: true,
         },
       }),
     ]);
@@ -148,6 +152,7 @@ export class TeamService {
         message: true,
         expiresAt: true,
         createdAt: true,
+        token: true,
       },
     });
 
@@ -159,7 +164,9 @@ export class TeamService {
         select: { firstName: true, lastName: true, email: true },
       }),
     ]);
-    this.email
+    // On ATTEND le resultat (avant : `.catch(() => {})`, l'echec etait avale et
+    // l'UI affichait « invitation envoyee » alors que rien n'etait parti).
+    const emailResult = await this.email
       .notifyMemberInvitation({
         to: email,
         inviteeName:
@@ -171,10 +178,18 @@ export class TeamService {
         message: invitation.message,
         expiresAt,
       })
-      .catch(() => {});
+      .catch((err) => ({
+        ok: false as const,
+        reason: `L'envoi de l'e-mail a echoue : ${err?.message ?? 'erreur inconnue'}`,
+      }));
 
     const seats = await this.recountSeats(workspaceId);
-    return { invitation, seats };
+    return {
+      invitation,
+      seats,
+      emailSent: emailResult.ok,
+      emailError: emailResult.ok ? null : (emailResult.reason ?? null),
+    };
   }
 
   async revokeInvitation(workspaceId: string, invitationId: string) {
@@ -216,7 +231,7 @@ export class TeamService {
         select: { firstName: true, lastName: true, email: true },
       }),
     ]);
-    this.email
+    const emailResult = await this.email
       .notifyMemberInvitation({
         to: inv.email,
         inviteeName: [inv.firstName, inv.lastName].filter(Boolean).join(' ').trim() || inv.email,
@@ -227,9 +242,18 @@ export class TeamService {
         message: inv.message,
         expiresAt,
       })
-      .catch(() => {});
+      .catch((err) => ({
+        ok: false as const,
+        reason: `L’envoi de l’e-mail a echoue : ${err?.message ?? 'erreur inconnue'}`,
+      }));
 
-    return { resent: true, id: invitationId, expiresAt };
+    return {
+      resent: true,
+      id: invitationId,
+      expiresAt,
+      emailSent: emailResult.ok,
+      emailError: emailResult.ok ? null : (emailResult.reason ?? null),
+    };
   }
 
   // ──────────────────────────────────────────────────────────────────────

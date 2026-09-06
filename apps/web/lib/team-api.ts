@@ -30,6 +30,16 @@ export interface TeamInvitation {
   message: string | null;
   expiresAt: string;
   createdAt: string;
+  /** Jeton de l'invitation — sert a reconstruire le lien /rejoindre-equipe/<token>
+   *  pour le transmettre a la main quand l'e-mail ne part pas. Renvoye uniquement
+   *  aux OWNER/ADMIN (route protegee par RolesGuard cote API). */
+  token?: string | null;
+}
+
+/** Reponse des routes qui declenchent un envoi d'e-mail. */
+export interface InvitationEmailResult {
+  emailSent: boolean;
+  emailError: string | null;
 }
 
 export interface TeamSeats {
@@ -58,13 +68,17 @@ export const inviteMember = (body: {
   firstName?: string;
   lastName?: string;
   message?: string;
-}) => api<unknown>('/team/invitations', { method: 'POST', body: JSON.stringify(body) });
+}) => api<InvitationEmailResult>('/team/invitations', { method: 'POST', body: JSON.stringify(body) });
 
 export const revokeInvitation = (id: string) =>
   api<unknown>(`/team/invitations/${id}`, { method: 'DELETE' });
 
 export const resendInvitation = (id: string) =>
-  api<unknown>(`/team/invitations/${id}/resend`, { method: 'POST' });
+  api<InvitationEmailResult>(`/team/invitations/${id}/resend`, { method: 'POST' });
+
+/** Lien public d'acceptation d'une invitation, a copier/coller. */
+export const buildInvitationLink = (token: string) =>
+  `${typeof window !== 'undefined' ? window.location.origin : ''}/rejoindre-equipe/${token}`;
 
 export const updateTeamMember = (
   userId: string,
