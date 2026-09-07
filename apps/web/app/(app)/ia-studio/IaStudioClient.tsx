@@ -47,6 +47,8 @@ async function callColoristAPI(params: {
   poigneeColorMode?: 'color' | 'texture' | 'mix';
   planColorMode?:    'color' | 'texture' | 'mix';
   numImages?: number;
+  /** Rattache le rendu au dossier client (la route l'accepte, cf. route.ts). */
+  projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string; steps?: PipelineStep[] | null }> {
   const res = await fetch('/api/ia/coloriste', {
     method: 'POST',
@@ -1649,7 +1651,22 @@ export default function IaStudioPage() {
     openSaveModal(colorResult, 'Coloriste IA', '🎨', () => setColorResult(null));
   };
 
-  /* ── Coloriste MyArchitectAI : lancer (même couleurs, moteur MyArchitectAI) */
+  /* ── « Changer les couleurs » : lancer.
+   *
+   * MOTEUR : Flux Kontext (/api/ia/coloriste), et non plus MyArchitectAI.
+   *
+   * Le module tournait sur myarchitectai/render-interior, qui RE-REND une piece
+   * a partir d'une esquisse ou d'un rendu 3D. Donne une photo deja
+   * photorealiste, ce moteur n'a presque rien a faire : il renvoyait une quasi
+   * copie de la source, et aucune couleur demandee n'etait appliquee. C'est ce
+   * que decrivait Cassandra depuis le debut (« ça ne marche toujours pas »).
+   *
+   * Constate le 7 septembre 2026 sur une meme photo : facades demandees en
+   * rouge vif, MyArchitectAI rend du vert fonce (teinte moyenne R127 V110),
+   * Flux Kontext rend du rouge (R178 V146). Kontext est un moteur d'edition par
+   * instruction, c'est l'outil adapte a une recolorisation de photo, et il
+   * etait deja present dans l'application mais masque de l'interface.
+   */
   const runColoristeArchi = async () => {
     if (!photoFile) { setColorArchError('Photo de la cuisine requise.'); return; }
     setColorArchLoading(true); setColorArchResult(null); setColorArchError(null);
@@ -1657,7 +1674,7 @@ export default function IaStudioPage() {
       let sourceImageDataUrl: string;
       try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280); }
       catch { setColorArchError('Impossible de lire la photo. Réessayez avec un autre fichier.'); setColorArchLoading(false); return; }
-      const result = await callColoristeArchitectAPI({
+      const result = await callColoristAPI({
         facadeHex:          preset?.facade   ?? facadeCol,
         poigneeHex:         preset?.poignee  ?? poigneeCol,
         planHex:            preset?.plan     ?? planCol,
@@ -1668,6 +1685,7 @@ export default function IaStudioPage() {
         countertopMaterial: preset?.countertopMaterial,
         lightingStyle:      colorLight,
         sourceImageDataUrl,
+        numImages:          1,
         projectId:          dossierId || null,
       });
       if (result.error) { setColorArchError(result.error); setColorArchLoading(false); return; }
