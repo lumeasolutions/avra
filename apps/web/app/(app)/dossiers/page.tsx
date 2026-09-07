@@ -502,7 +502,7 @@ export default function DossiersPage() {
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 sortBy === opt.key
                   ? 'bg-[#304035] text-white shadow-sm'
-                  : 'text-[#304035]/50 hover:text-[#304035]'
+                  : 'text-[#304035]/65 hover:text-[#304035]'
               }`}
             >
               {opt.label}
@@ -524,7 +524,7 @@ export default function DossiersPage() {
         {/* Acces aux dossiers perdus (non signes) */}
         <Link
           href="/dossiers-perdus"
-          className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border bg-white text-red-500/80 border-red-200 hover:bg-red-50"
+          className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border bg-white text-red-600 border-red-200 hover:bg-red-50"
           title="Voir les dossiers perdus (non signes)"
         >
           Perdus ({dossiersPerdus.length})

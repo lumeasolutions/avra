@@ -232,7 +232,7 @@ function ConfirmationsPanel({ dossierId, confirmations = [] }: { dossierId: stri
             </p>
           )}
           <div className="flex justify-end gap-2">
-            <button onClick={() => setShowAdd(false)} className="px-3 py-1.5 text-xs text-[#304035]/50 hover:text-[#304035]">Annuler</button>
+            <button onClick={() => setShowAdd(false)} className="px-3 py-1.5 text-xs text-[#304035]/65 hover:text-[#304035]">Annuler</button>
             <button onClick={handleAdd} disabled={!form.fournisseur || !form.produit} className="flex items-center gap-1 rounded-lg bg-[#304035] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#304035]/90 disabled:opacity-40">
               <Plus className="h-3 w-3" /> Ajouter
             </button>
@@ -241,7 +241,7 @@ function ConfirmationsPanel({ dossierId, confirmations = [] }: { dossierId: stri
       ) : (
         <button
           onClick={() => setShowAdd(true)}
-          className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#304035]/20 py-2 text-xs font-bold text-[#304035]/50 hover:text-[#304035] hover:border-[#304035]/40 transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#304035]/20 py-2 text-xs font-bold text-[#304035]/65 hover:text-[#304035] hover:border-[#304035]/40 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" /> Ajouter une confirmation
         </button>
@@ -435,19 +435,19 @@ export default function DossiersSignesPage() {
       <div className="sig-tab-bar flex items-center gap-1 bg-white rounded-xl border border-[#304035]/10 p-1 shadow-sm w-fit">
         <button
           onClick={() => setActiveTab('commandes')}
-          className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all', activeTab === 'commandes' ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/50 hover:text-[#304035]')}
+          className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all', activeTab === 'commandes' ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/65 hover:text-[#304035]')}
         >
           <FolderCheck className="h-4 w-4" /> Dossier signé
         </button>
         <button
           onClick={() => setActiveTab('commande-fournisseur')}
-          className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all', activeTab === 'commande-fournisseur' ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/50 hover:text-[#304035]')}
+          className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all', activeTab === 'commande-fournisseur' ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/65 hover:text-[#304035]')}
         >
           <ShoppingCart className="h-4 w-4" /> Commandes fournisseurs
         </button>
         <button
           onClick={() => setActiveTab('confirmations')}
-          className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all', activeTab === 'confirmations' ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/50 hover:text-[#304035]')}
+          className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all', activeTab === 'confirmations' ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/65 hover:text-[#304035]')}
         >
           <Package className="h-4 w-4" /> Confirmations fournisseurs
           {confsAttente.length > 0 && <span className="bg-amber-400 text-white text-[9px] font-bold rounded-full px-1.5 py-0.5">{confsAttente.length}</span>}
@@ -469,7 +469,7 @@ export default function DossiersSignesPage() {
         <div className="flex items-center gap-1 bg-white rounded-xl border border-[#304035]/10 p-1 shadow-sm">
           {[{ key: 'date', label: 'Date' }, { key: 'name', label: 'Nom' }, { key: 'montant', label: 'Montant' }].map(opt => (
             <button key={opt.key} onClick={() => setSortBy(opt.key as typeof sortBy)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${sortBy === opt.key ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/50 hover:text-[#304035]'}`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${sortBy === opt.key ? 'bg-[#304035] text-white shadow-sm' : 'text-[#304035]/65 hover:text-[#304035]'}`}
             >{opt.label}</button>
           ))}
         </div>
