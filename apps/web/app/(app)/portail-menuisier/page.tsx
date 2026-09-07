@@ -23,6 +23,15 @@ const getStatusColor = (status: string) => {
   }
 };
 
+/**
+ * Tri des dossiers par urgence. Hors du composant a dessein : ces deux valeurs
+ * ne dependent d'aucun etat, les laisser a l'interieur les recreait a chaque
+ * rendu et empechait les useMemo qui les utilisent d'etre reellement stables.
+ */
+const STATUS_ORDER: Record<string, number> = { URGENT: 0, 'EN COURS': 1, 'A VALIDER': 2, FINITION: 3 };
+const byUrgency = (a: { status: string }, b: { status: string }) =>
+  (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+
 export default function PortailMenuisierPage() {
   usePortailGuard('menuisier');
   const dossiers = useVisibleDossiers();
@@ -35,9 +44,6 @@ export default function PortailMenuisierPage() {
   const [filterEnCours, setFilterEnCours] = useState<string|null>(null);
   const [filterSignes, setFilterSignes] = useState<string|null>(null);
 
-  const STATUS_ORDER: Record<string,number> = { URGENT: 0, 'EN COURS': 1, 'A VALIDER': 2, FINITION: 3 };
-  const byUrgency = (a: {status:string}, b: {status:string}) =>
-    (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
 
   const dossiersFiltered = useMemo(() => {
     const sorted = [...dossiers].sort(byUrgency);
@@ -58,7 +64,7 @@ export default function PortailMenuisierPage() {
     const livraisonsPrevues = dossiers.filter(d => d.status === 'FINITION').length;
     const chantiersBloques = dossiers.filter(d => d.status === 'URGENT').length;
     return { ca, fabricationsEnCours, livraisonsPrevues, chantiersBloques };
-  }, [dossiers, dossiersSignes, invoices]);
+  }, [dossiers, invoices]);
 
   const renderDossierItem = (d: typeof dossiers[0]) => {
     const colors = getStatusColor(d.status);

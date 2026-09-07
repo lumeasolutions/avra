@@ -29,12 +29,16 @@ export default function IntervenantPlanningPage() {
       .sort((a, b) => new Date(a.scheduledFor!).getTime() - new Date(b.scheduledFor!).getTime());
   }, [myDemandes]);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const nextWeek = new Date(today);
-  nextWeek.setDate(nextWeek.getDate() + 7);
+  // Ces trois dates etaient construites a chaque rendu : le useMemo des
+  // regroupements ci-dessous les prenait en dependance et se recalculait donc
+  // systematiquement, ce qui annulait tout l'interet du memo.
+  const { today, tomorrow, nextWeek } = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    const d = new Date(t); d.setDate(d.getDate() + 1);
+    const w = new Date(t); w.setDate(w.getDate() + 7);
+    return { today: t, tomorrow: d, nextWeek: w };
+  }, []);
 
   // Buckets : Aujourd'hui / Demain / Cette semaine / Plus tard / Passées
   const groups = useMemo(() => {

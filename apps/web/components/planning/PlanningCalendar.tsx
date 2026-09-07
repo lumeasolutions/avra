@@ -82,16 +82,21 @@ export function PlanningCalendar({ calendarType }: PlanningCalendarProps) {
     }
   }, [current, view]);
 
+  // On depend des dates SERIALISEES, pas des objets Date : deux Date distinctes
+  // representant le meme jour ne sont pas egales par reference et relanceraient
+  // la requete a chaque rendu. Extraites en variables pour que la regle des
+  // hooks puisse les verifier, ce qu'une expression dans le tableau interdit.
+  const from = rangeStart.toISOString().slice(0, 10);
+  const to = rangeEnd.toISOString().slice(0, 10);
+
   useEffect(() => {
     setLoading(true);
-    const from = rangeStart.toISOString().slice(0, 10);
-    const to = rangeEnd.toISOString().slice(0, 10);
     const typeParam = calendarType ? `&calendarType=${calendarType}` : '';
     api<EventItem[]>(`/events?from=${from}&to=${to}${typeParam}`)
       .then(setEvents)
       .catch(() => setEvents([]))
       .finally(() => setLoading(false));
-  }, [rangeStart.toISOString(), rangeEnd.toISOString(), calendarType]);
+  }, [from, to, calendarType]);
 
   const getEventsForDay = (date: Date) => {
     const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());

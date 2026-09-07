@@ -102,7 +102,7 @@ export function VendeurAssignDropdown({
       base.unshift({ id: authUser?.id ?? '__self__', name: myVendeurName, role: role || 'OWNER' });
     }
     return base;
-  }, [assignableMembers, myVendeurName, role]);
+  }, [assignableMembers, myVendeurName, role, authUser?.id]);
 
   // Click outside pour fermer le menu
   useEffect(() => {

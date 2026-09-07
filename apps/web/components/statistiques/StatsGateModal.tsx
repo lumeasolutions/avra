@@ -160,7 +160,11 @@ export function StatsGateModal({
   const allForRubric = (rubric === 'VENDU' ? allSignes : rubric === 'EN_COURS' ? dossiersEnCours : dossiersPerdus) as unknown as DossierSigne[];
   const [selectedId, setSelectedId] = useState<string | null>(missingDossiers[0]?.id ?? null);
   // Au changement de rubrique, on sélectionne le 1er dossier de la nouvelle liste.
-  useEffect(() => { setSelectedId(missing[0]?.id ?? null); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [rubric]);
+  // Volontairement sur `rubric` seul : on ne veut re-selectionner un dossier
+  // qu'au changement de rubrique. Ajouter `missing` relancerait la selection a
+  // chaque recalcul de la liste et ferait sauter le dossier en cours de saisie.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setSelectedId(missing[0]?.id ?? null); }, [rubric]);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [toast, setToast] = useState<{ message: string; tone: 'ok' | 'info' } | null>(null);
   const fournisseurInputRef = useRef<HTMLInputElement>(null);
@@ -195,16 +199,22 @@ export function StatsGateModal({
   }, [missing, selected]);
 
   // ── [E] Brouillon : restauration au changement de dossier ───────────────
+  // Depend de l'IDENTIFIANT, pas de l'objet : `selected` est recalcule a chaque
+  // rendu, dependre de lui rejouerait la restauration en boucle et ecraserait
+  // ce que l'utilisateur est en train de taper.
   useEffect(() => {
     if (!selected) return;
     setDraft(readDraft(selected.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
 
   // ── [E] Brouillon : persistance throttlée à chaque keystroke ────────────
+  // Meme raison que ci-dessus : l'identifiant suffit et reste stable.
   useEffect(() => {
     if (!selected) return;
     const t = setTimeout(() => writeDraft(selected.id, draft), 250);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, selected?.id]);
 
   // ── Toast auto-clear ────────────────────────────────────────────────────
@@ -338,7 +348,9 @@ export function StatsGateModal({
     return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(d.name);
   };
 
-  const selectedLignes = selected?.prixLignes ?? [];
+  // `?? []` fabriquait un tableau neuf a chaque rendu : les useCallback qui en
+  // dependent etaient recrees systematiquement.
+  const selectedLignes = useMemo(() => selected?.prixLignes ?? [], [selected?.prixLignes]);
   const totalAchat = selectedLignes.reduce((s, l) => s + l.prixAchatHT, 0);
   const totalVente = selectedLignes.reduce((s, l) => s + l.prixVenteHT, 0);
   const marge = totalVente - totalAchat;

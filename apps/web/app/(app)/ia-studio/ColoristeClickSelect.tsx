@@ -74,7 +74,7 @@ export function ColoristeClickSelect({ file, accent = '#2f9e8f', onChange }: Pro
       ctx.fill();
       ctx.stroke();
     }
-  }, [accent]);
+  }, []);
 
   // ── Chargement image + capture de la source capée ─────────────────────────
   useEffect(() => {
@@ -164,7 +164,7 @@ export function ColoristeClickSelect({ file, accent = '#2f9e8f', onChange }: Pro
       setError('Connexion interrompue. Réessayez.');
     }
     setLoading(false);
-  }, [onChange, redraw]);
+  }, [onChange, redraw, accent]);
 
   // ── Géométrie clic → pixel image ──────────────────────────────────────────
   const getPos = (e: ReactPointerEvent<HTMLCanvasElement>) => {
