@@ -113,7 +113,7 @@ export default function BlogPage() {
         <div className="container">
           <h2 style={{ fontSize: '1.75rem', marginBottom: '48px', color: '#1e2b22' }}>À la une</h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '40px', marginBottom: '60px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(350px, 100%), 1fr))', gap: '40px', marginBottom: '60px' }}>
             {articles.map((article) => (
               <BlogArticleCard
                 key={article.slug}

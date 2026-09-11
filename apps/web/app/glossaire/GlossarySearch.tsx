@@ -144,7 +144,7 @@ export default function GlossarySearch({ glossary, alphaIndex, availableLetters 
           <p style={{ color: '#6b7c70', marginBottom: 24 }}>
             pour "{query}"{filtered.length === 0 ? ' — essayez un autre terme.' : ''}
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 20 }}>
             {filtered.map((t) => (
               <article
                 key={t.id}
@@ -225,7 +225,7 @@ export default function GlossarySearch({ glossary, alphaIndex, availableLetters 
               <p style={{ color: '#6b7c70', fontSize: '0.98rem', marginBottom: 24 }}>
                 {cat.description} · {cat.terms.length} termes
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 18 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 18 }}>
                 {cat.terms.map((t) => {
                   const firstLetter = t.term.charAt(0).toUpperCase();
                   const sameLetter = alphaIndex[firstLetter] || [];
