@@ -51,21 +51,28 @@ export default function Nav() {
         }}
       >
         {/* ══ LOGO GAUCHE — A circulaire + AVRA ══ */}
-        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
+        {/* Écart réel entre le A cerclé et le mot : l'ancien gap 0 + marge de −4 px
+            collait le cercle au premier A d'AVRA, qui se lisait « AAVRA ».
+            Dimensions natives + hauteur en CSS / largeur auto : le navigateur
+            garde le rapport exact de chaque image au lieu de la loger dans une
+            boîte arbitraire (120×40 réduisait les lettres à 23 px de haut). */}
+        <Link href="/" aria-label="AVRA — accueil" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0 }}>
           <Image
             src="/nouveaulogoA.webp"
-            alt="A"
-            width={44}
-            height={44}
-            style={{ objectFit: 'contain', display: 'block' }}
+            alt=""
+            width={1086}
+            height={1069}
+            sizes="40px"
+            style={{ height: 38, width: 'auto', display: 'block' }}
             priority
           />
           <Image
             src="/nouveaulogoavra.webp"
             alt="AVRA"
-            width={120}
-            height={40}
-            style={{ objectFit: 'contain', display: 'block', marginLeft: '-4px' }}
+            width={1800}
+            height={353}
+            sizes="120px"
+            style={{ height: 21, width: 'auto', display: 'block' }}
             priority
           />
         </Link>

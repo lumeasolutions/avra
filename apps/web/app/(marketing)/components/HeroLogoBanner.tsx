@@ -3,47 +3,45 @@
 import Image from 'next/image';
 
 /**
- * Bannière hero AVRA — version professionnelle et épurée.
+ * Bannière hero AVRA : logo A circulaire, mot AVRA, chouette.
  *
- * - Fond vert foncé uni (identique à la maquette produit)
- * - 3 éléments : logo A circulaire (gauche), mot AVRA (centre), chouette (droite)
- * - Aucun "wow effect" : pas de particules, comètes, auroras, anneaux, prismes…
- * - Animations conservées : entrée en fondu + léger flottement vertical
+ * POURQUOI CETTE MISE EN PAGE (sept. 2026)
+ * ----------------------------------------
+ * Les trois éléments se chevauchaient : le A cerclé mordait sur le premier A
+ * du mot, la chouette sur le dernier. La bannière reposait sur des marges
+ * négatives (−150 px, puis −100, −30, −20 selon l'écran) qui compensaient
+ * l'espace vide qu'avait autrefois l'image du mot AVRA sur ses côtés. L'image
+ * actuelle est rognée au ras des lettres : il n'y a plus de vide à combler, et
+ * ces marges tiraient donc les logos directement sur le texte.
  *
- * Le CSS responsive est passe via dangerouslySetInnerHTML pour eviter une
- * reconciliation React du contenu du <style> (sinon un bundle JS stale cote
- * client peut declencher une erreur d'hydration sur le texte CSS).
+ * Désormais aucune marge négative. Une seule grandeur, --h, fixe la hauteur des
+ * lettres ; le A, la chouette et les écarts en sont des multiples. Les
+ * proportions restent donc identiques du grand écran au téléphone, sans point
+ * de rupture à régler à la main — c'est justement la multiplication de ces
+ * réglages manuels qui avait fini par se dérégler.
+ *
+ * Les images gardent leurs dimensions natives (width/height) et la hauteur est
+ * imposée en CSS avec une largeur automatique : le navigateur respecte ainsi le
+ * rapport largeur/hauteur exact de chaque dessin, sans le déformer ni le rogner.
  */
 const HERO_BANNER_CSS = `
-@keyframes heroLogoFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+.hero-logo-banner {
+  /* Hauteur des lettres. Le groupe entier mesure environ 7,6 fois --h de large :
+     11,5vw garde donc ~8 % de marge sur les côtés, et 150px plafonne sur grand
+     écran (la bannière retrouve alors ses 250 px d'origine). */
+  --h: clamp(34px, 11.5vw, 150px);
+  height: calc(var(--h) * 1.65);
+  gap: calc(var(--h) * 0.26);
 }
-@media (max-width: 1200px) {
-  .hero-logo-banner { gap: 24px !important; padding: 20px 3% !important; height: 240px !important; }
-  .hero-logo-center { width: 520px !important; height: 230px !important; }
-  .hero-logo-left, .hero-logo-right { width: 160px !important; height: 160px !important; margin-left: -100px !important; margin-right: -100px !important; }
-  .hero-logo-left { margin-right: -100px !important; margin-left: 0 !important; }
-  .hero-logo-right { margin-left: -100px !important; margin-right: 0 !important; }
-}
-@media (max-width: 768px) {
-  .hero-logo-banner { gap: 0 !important; padding: 24px 4% !important; height: 140px !important; margin-top: 0 !important; flex-wrap: nowrap; }
-  .hero-logo-center { width: 260px !important; height: 90px !important; }
-  .hero-logo-left { width: 80px !important; height: 80px !important; margin-right: -30px !important; margin-left: 0 !important; }
-  .hero-logo-right { width: 80px !important; height: 80px !important; margin-left: -30px !important; margin-right: 0 !important; }
-}
-@media (max-width: 480px) {
-  .hero-logo-banner { padding: 20px 4% !important; height: 120px !important; }
-  .hero-logo-center { width: 200px !important; height: 72px !important; }
-  .hero-logo-left { width: 64px !important; height: 64px !important; margin-right: -20px !important; }
-  .hero-logo-right { width: 64px !important; height: 64px !important; margin-left: -20px !important; }
-}
+.hero-logo-banner img { display: block; width: auto; max-width: none; }
+/* Un cercle paraît plus petit qu'une lettre de même hauteur : léger surdimension. */
+.hero-logo-a    { height: calc(var(--h) * 1.08); }
+.hero-logo-avra { height: var(--h); }
+/* La chouette est plus étroite que haute : un peu plus grande pour peser autant. */
+.hero-logo-owl  { height: calc(var(--h) * 1.15); }
 `;
 
 export default function HeroLogoBanner() {
-  // Logos toujours visibles — pas de flash invisible au chargement
-  const mounted = true;
-
   return (
     <div
       className="hero-logo-banner"
@@ -51,101 +49,44 @@ export default function HeroLogoBanner() {
         position: 'relative',
         zIndex: 2,
         width: '100%',
-        marginTop: 0,   // 19/05/2026 : retire l'overlap negatif (-76px) qui ne marche plus avec une banniere fine (130px)
-        // Fond vert foncé identique à la maquette
         background: '#0f1a14',
         borderTop: '1px solid rgba(201,169,110,0.18)',
         borderBottom: '1px solid rgba(201,169,110,0.18)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '0px',
-        padding: '0 2%',
+        padding: '0 4%',
         flexShrink: 0,
         overflow: 'hidden',
-        height: '250px', // 130 → 250 (08/06/2026) : logos affichés en entier, plus rognés
       }}
     >
-      {/* Logo A circulaire (gauche) */}
-      <div
-        className="hero-logo-left"
-        style={{
-          position: 'relative',
-          width: 240,
-          height: 240,
-          flexShrink: 0,
-          marginRight: '-150px',
-          alignSelf: 'center',
-          transition: 'transform 1s ease-out, opacity 1s ease-out',
-          transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(-40px,0,0)',
-          opacity: mounted ? 1 : 0,
-          zIndex: 1,
-        }}
-      >
-        <div style={{ position: 'absolute', inset: 0 }}>
-          <Image
-            src="/nouveaulogoA.webp"
-            alt="AVRA — logo principal"
-            fill
-            priority
-            sizes="240px"
-            style={{ objectFit: 'contain' }}
-          />
-        </div>
-      </div>
-
-      {/* Mot AVRA (centre) */}
-      <div
-        className="hero-logo-center"
-        style={{
-          position: 'relative',
-          width: 920,
-          height: 250,
-          flexShrink: 0,
-          alignSelf: 'center',
-          zIndex: 2,
-          transition: 'transform 1.1s ease-out, opacity 1.1s ease-out',
-          transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(0,20px,0)',
-          opacity: mounted ? 1 : 0,
-        }}
-      >
-        <Image
-          src="/nouveaulogoavra.webp"
-          alt="AVRA — typographie"
-          fill
-          priority
-          sizes="(max-width: 768px) 90vw, 920px"
-          style={{ objectFit: 'contain' }}
-        />
-      </div>
-
-      {/* Chouette (droite) */}
-      <div
-        className="hero-logo-right"
-        style={{
-          position: 'relative',
-          width: 240,
-          height: 240,
-          flexShrink: 0,
-          marginLeft: '-150px',
-          alignSelf: 'center',
-          transition: 'transform 1s ease-out, opacity 1s ease-out',
-          transform: mounted ? 'translate3d(0,0,0)' : 'translate3d(40px,0,0)',
-          opacity: mounted ? 1 : 0,
-          zIndex: 1,
-        }}
-      >
-        <div style={{ position: 'absolute', inset: 0 }}>
-          <Image
-            src="/nouveaulogochouette.webp"
-            alt="AVRA — chouette emblème"
-            fill
-            priority
-            sizes="240px"
-            style={{ objectFit: 'contain' }}
-          />
-        </div>
-      </div>
+      <Image
+        className="hero-logo-a"
+        src="/nouveaulogoA.webp"
+        alt="AVRA — logo principal"
+        width={1086}
+        height={1069}
+        priority
+        sizes="170px"
+      />
+      <Image
+        className="hero-logo-avra"
+        src="/nouveaulogoavra.webp"
+        alt="AVRA"
+        width={1800}
+        height={353}
+        priority
+        sizes="(max-width: 768px) 60vw, 770px"
+      />
+      <Image
+        className="hero-logo-owl"
+        src="/nouveaulogochouette.webp"
+        alt="AVRA — chouette emblème"
+        width={705}
+        height={900}
+        priority
+        sizes="140px"
+      />
 
       <style dangerouslySetInnerHTML={{ __html: HERO_BANNER_CSS }} />
     </div>
