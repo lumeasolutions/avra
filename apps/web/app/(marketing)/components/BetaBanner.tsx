@@ -67,7 +67,7 @@ export default function BetaBanner() {
         }}
         className="beta-banner"
       >
-        <span style={{ fontSize: '0.9rem' }}>🌱</span>
+        <span className="beta-banner-sprout" style={{ fontSize: '0.9rem' }}>🌱</span>
         <span className="beta-banner-text">
           AVRA est en bêta privée · Lancement public en janvier 2027
         </span>
@@ -80,23 +80,34 @@ export default function BetaBanner() {
             whiteSpace: 'nowrap',
           }}
         >
-          Rejoindre la liste d&apos;attente →
+          <span className="beta-cta-long">Rejoindre la liste d&apos;attente</span>
+          <span className="beta-cta-short">Liste d&apos;attente</span> →
         </Link>
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
+        .beta-cta-short { display: none; }
+        /* Sur telephone le bandeau (36 px de haut, la navigation est calee dessus)
+           doit tenir sur UNE ligne. Avant, le texte se coupait et laissait
+           « 2027 » seul sur la sienne, et la pousse apparaissait deux fois : celle
+           du texte ci-dessous plus celle du <span>, jamais masque. On masque le
+           span, on interdit la coupure et on raccourcit le lien pour tenir a 320 px. */
         @media (max-width: 640px) {
           .beta-banner {
             font-size: 0.72rem !important;
             padding: 0 10px !important;
-            gap: 6px !important;
+            gap: 8px !important;
           }
-          .beta-banner-text {
+          .beta-banner-text,
+          .beta-banner-sprout,
+          .beta-cta-long {
             display: none;
           }
+          .beta-cta-short { display: inline; }
           .beta-banner::before {
-            content: '🌱 Bêta privée · Janvier 2027';
+            content: '🌱 Bêta privée · janvier 2027';
             font-weight: 600;
+            white-space: nowrap;
           }
         }
       ` }} />
