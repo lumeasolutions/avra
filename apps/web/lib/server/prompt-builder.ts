@@ -827,7 +827,7 @@ export function buildKontextColoristPrompt(
   refs: KontextImageRefs,
   level: PromptLevel = 'standard',
 ): BuiltPrompt {
-  const facadeName  = hexToName(params.facadeHex);
+  const facadeName  = params.facadeMaterial ?? hexToName(params.facadeHex);
   const facadeDescs = colorDescriptors(params.facadeHex);
   const poigneeName = params.handleMaterial      ?? hexToName(params.poigneeHex) + ' handles';
   const planName    = params.countertopMaterial  ?? hexToName(params.planHex)    + ' countertop';
