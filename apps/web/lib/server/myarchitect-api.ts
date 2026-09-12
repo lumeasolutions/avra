@@ -167,9 +167,14 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
    * l'ancien prompt, 0,592 avec une version qui decrivait MIEUX la piece. Plus
    * le prompt decrit, moins le moteur regarde l'image. */
   if (!materiaux && !ambiance) {
-    return params.mode === 'exterior'
+    // La description /auto-prompt de l'editeur passe EN TETE quand elle existe :
+    // c'est la forme qu'ils recommandent (pre-remplir le champ prompt), et elle
+    // ancre le modele sur ce que la source contient reellement.
+    const scene = params.sourceDescription?.trim();
+    const consigne = params.mode === 'exterior'
       ? 'Photorealistic architectural exterior photograph of this exact building. Every volume, opening, material, colour and position stays identical to the source. Natural daylight, tack-sharp, fine material detail, high resolution.'
       : 'Photorealistic architectural interior photograph of this exact room. Every wall, opening, cabinet, appliance, accessory, material, colour and position stays identical to the source. Natural daylight, tack-sharp, fine material detail, high resolution.';
+    return scene ? `${scene}. ${consigne}` : consigne;
   }
 
   return [qualite, materiaux, ambiance, fidelite].filter(Boolean).join('. ') + '.';
@@ -240,15 +245,35 @@ async function callEndpoint(
       const friendly =
         res.status === 403
           ? 'Clé API du moteur de rendu invalide ou crédit épuisé.'
-          : res.status === 400
-            ? `Entrée refusée par le moteur de rendu${msg ? ` : ${msg}` : ''}.`
-            : `Le moteur de rendu a renvoyé une erreur ${res.status}${msg ? ` : ${msg}` : ''}.`;
+          : res.status === 402
+            ? 'Crédit épuisé chez le moteur de rendu. Rechargez le compte avant de relancer.'
+            : res.status === 429
+              ? 'Moteur de rendu saturé (trop de demandes en même temps). Réessayez dans quelques secondes.'
+              : res.status === 413
+                ? 'Image source trop lourde pour le moteur de rendu (limite 10 Mo).'
+                : res.status === 400
+                  ? `Entrée refusée par le moteur de rendu${msg ? ` : ${msg}` : ''}.`
+                  : `Le moteur de rendu a renvoyé une erreur ${res.status}${msg ? ` : ${msg}` : ''}.`;
       return { ok: false, outputs: [], error: friendly };
     }
 
+    // ⚠️ Un 200 ne vaut PAS succès. La doc est explicite : les endpoints de
+    // génération répondent en flux, le statut HTTP est donc figé avant la fin du
+    // job. Un échec pendant la génération renvoie 200 avec une clé `error` (et
+    // la requête est remboursée). On lit donc le corps, pas le statut.
     const outputs = extractOutputs(parsed);
     if (outputs.length === 0) {
-      return { ok: false, outputs: [], error: 'Le moteur de rendu n\'a renvoyé aucune image.' };
+      const reason =
+        parsed && typeof parsed === 'object' && 'error' in parsed
+          ? String((parsed as { error?: unknown }).error)
+          : '';
+      return {
+        ok: false,
+        outputs: [],
+        error: reason
+          ? `Le moteur de rendu a échoué : ${reason}`
+          : 'Le moteur de rendu n\'a renvoyé aucune image.',
+      };
     }
     return { ok: true, outputs };
   } catch (err) {
@@ -324,13 +349,21 @@ export async function generateArchitectRender(
     };
   }
 
-  // L'appel /auto-prompt a ete retire (audit 12/09/2026) : il injectait une
-  // description de la scene generee par le moteur, aussitot contredite par le
-  // bloc des finitions (« these take priority over the scene description
-  // above »). Le modele arbitrait entre deux descriptions du meme objet, ce qui
-  // coutait de la nettete — et l'endpoint voit deja l'image source. La clause
-  // de fidelite couvre desormais la preservation des accessoires.
-  const prompt = buildArchitectPrompt(params);
+  // /auto-prompt : l'editeur le recommande explicitement pour pre-remplir le
+  // champ prompt des endpoints de rendu (« We highly recommend using it for
+  // pre-filling the prompt field of the render endpoints »), et la mesure lui
+  // donne raison — fidelite structurelle 0,701 avec, 0,592 sans.
+  //
+  // Je l'avais retire le 12/09 en pensant que deux descriptions se
+  // concurrencaient. C'etait faux : ce qui nuisait, c'etait la LONGUEUR du
+  // prompt maison, pas la description de la scene. On garde donc leur
+  // description factuelle, suivie de notre instruction courte.
+  //
+  // Non bloquant : si l'appel echoue, on rend avec le seul prompt maison.
+  const sourceDescription = await autoPrompt(imageUrl);
+  const prompt = buildArchitectPrompt(
+    sourceDescription ? { ...params, sourceDescription } : params,
+  );
 
   // ── Rendu principal
   const endpoint = params.mode === 'exterior' ? 'render/exterior' : 'render/interior';
