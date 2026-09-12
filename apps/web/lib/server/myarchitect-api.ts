@@ -149,7 +149,11 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
 
   /* 4 ─ Fidelite, formulee en positif : ce qui reste identique. */
   const fidelite =
-    'Keep the exact same room: identical layout, camera position, perspective, proportions and framing. Every wall, window, door, opening, niche, alcove, open shelf, appliance, fixture and accessory stays exactly where it is, at its own size, and keeps its own material — including small items resting on the worktop. Every element visible in the source appears in the render. Straight true edges, accurate perspective, geometry faithful to the source, clean crisp surfaces';
+    'Keep the exact same room: identical layout, camera position, perspective, proportions and framing. '
+    + 'Reproduce the source surface for surface: a flat plain wall stays a flat plain wall, a closed cabinet front stays closed, a smooth panel stays smooth. '
+    + 'The render contains exactly the openings, windows, doors, niches, alcoves, recesses and open shelves that are already visible in the source, each at its own place, size and shape — and only those. '
+    + 'Every appliance, fixture, accessory and small item resting on the worktop appears in the render, at its place, in its own material. '
+    + 'Straight true edges, accurate perspective, geometry faithful to the source, clean crisp surfaces';
 
   return [qualite, materiaux, ambiance, fidelite].filter(Boolean).join('. ') + '.';
 }
