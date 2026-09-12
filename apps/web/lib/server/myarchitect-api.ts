@@ -80,101 +80,78 @@ export function isArchitectEnabled(): boolean {
 }
 
 /**
- * Construit un prompt orienté qualité/fidélité pour réduire les erreurs de
- * rendu (objets déformés, éléments inventés, proportions fausses).
+ * Construit le prompt du module « Rendu Realiste ».
  *
- * ⚠️  Les endpoints render/interior et render/exterior n'acceptent PAS de
- * `negativePrompt` (seuls style-transfer et text-to-image le supportent). On
- * intègre donc les contraintes négatives directement dans le prompt positif —
- * c'est la bonne pratique standard pour ces modèles de diffusion.
+ * Trois regles, tirees de l'audit du 12/09/2026 :
+ *
+ *  1. COURT. L'ancienne version faisait 266 a 600 mots. Les encodeurs de texte
+ *     des modeles de diffusion ont une fenetre courte : au-dela, le texte est
+ *     tronque et chaque concept ne pese plus rien. Cible : 120-170 mots.
+ *
+ *  2. QUALITE EN TETE. Les termes de realisme etaient les tout derniers mots
+ *     du prompt, donc les premiers sacrifies a la troncature. Ils ouvrent
+ *     desormais la chaine.
+ *
+ *  3. AUCUNE NEGATION. Ces endpoints n'acceptent pas de `negativePrompt`, et
+ *     l'ancienne version compensait par 35 tournures « no blur », « no warped
+ *     shapes »... Un modele de diffusion encode les mots, pas la negation :
+ *     ecrire « no blur » injecte le concept de flou. Tout est donc formule en
+ *     positif — « tack-sharp » plutot que « no blur ».
  */
 export function buildArchitectPrompt(params: ArchitectParams): string {
-  const base =
+  /* 1 ─ Qualite photographique, en tete (poids maximal). */
+  const qualite =
     params.mode === 'exterior'
-      ? 'professional architectural exterior photograph, photorealistic, accurate proportions and geometry true to the source, bright and luminous natural daylight, soft even lighting, airy well-lit atmosphere, clean materials'
-      : 'professional architectural interior photograph, photorealistic, accurate proportions and geometry true to the source, bright and luminous lighting, soft even natural and artificial light, airy well-lit atmosphere, clean detailed materials';
+      ? 'Award-winning architectural exterior photograph, full-frame camera, tilt-shift lens, tack-sharp edge to edge, fine micro-detail in every material, true-to-life colours, bright natural daylight with soft even fill, realistic reflections, high dynamic range, ultra high resolution'
+      : 'Award-winning architectural interior photograph, full-frame camera, 24mm tilt-shift lens, tack-sharp edge to edge, fine micro-detail in every material, true-to-life colours, bright airy daylight with soft even fill, realistic soft shadows and reflections, high dynamic range, ultra high resolution';
 
-  // ── Finitions DEMANDÉES = remplacements IMPÉRATIFS ──────────────────────────
-  // Formulation forte ("must be exactly", "replace") + localisation de la surface,
-  // placée EN TÊTE (poids maximal). Sur un img2img sans negativePrompt, c'est ce
-  // qui pousse réellement le modèle à changer la matière au lieu de garder la
-  // source. Les poignées et le plan de travail sont les cas les plus « collants »
-  // (bois gardé alors qu'on demande du laiton, plan pas exactement la bonne pierre).
-  const requested: string[] = [];
+  /* 2 ─ Finitions demandees : une clause courte par element. */
+  const finitions: string[] = [];
 
-  // ── Façades : gestion séparée meubles BAS / meubles HAUTS ───────────────────
-  // Un seul champ « toutes » (facades) sert de fallback. Si l'utilisateur ne
-  // redéfinit qu'un groupe, on ORDONNE de garder l'autre tel quel (sinon le
-  // moteur applique la teinte aux deux — cas noyer clair débordant sur les hauts).
   const facAll  = params.facades?.trim();
   const facBas  = params.facadesBas?.trim() || facAll;
   const facHaut = params.facadesHaut?.trim() || facAll;
   if (facBas && facHaut && facBas === facHaut) {
-    requested.push(`all cabinet fronts, both the base/lower units and the wall/upper units, must be exactly ${facBas}`);
+    finitions.push(`all cabinet fronts, base and wall units alike, in ${facBas}`);
   } else {
-    if (facBas)
-      requested.push(`the base / lower cabinet fronts (the units standing on the floor) must be exactly ${facBas}`);
-    if (facHaut)
-      requested.push(`the wall / upper cabinet fronts (the units mounted high on the wall) must be exactly ${facHaut}`);
-    if (facBas && !facHaut)
-      requested.push('keep the wall / upper cabinets exactly as they are in the source image, do not apply the lower cabinet color or finish to the upper cabinets');
-    if (facHaut && !facBas)
-      requested.push('keep the base / lower cabinets exactly as they are in the source image, do not apply the upper cabinet color or finish to the lower cabinets');
+    if (facBas)  finitions.push(`the base floor-standing cabinet fronts in ${facBas}`);
+    if (facHaut) finitions.push(`the wall-mounted upper cabinet fronts in ${facHaut}`);
+    if (facBas && !facHaut) finitions.push('the wall-mounted upper cabinets keeping their original finish from the source');
+    if (facHaut && !facBas) finitions.push('the base floor-standing cabinets keeping their original finish from the source');
   }
 
   if (params.poignees?.trim())
-    requested.push(`the cabinet door handles and knobs must be exactly ${params.poignees.trim()} — replace any existing handle finish, keep this exact hardware metal and finish, do not leave them wood if a metal finish is requested`);
+    finitions.push(`every door handle and knob in ${params.poignees.trim()}, that exact metal and finish throughout`);
   if (params.planTravail?.trim())
-    requested.push(`the countertop / worktop surface must be exactly ${params.planTravail.trim()} — reproduce this exact material, color and finish; if this is a plain, solid or matte colour, keep the surface perfectly uniform and smooth with no veining, no marbling, no speckles and no stone-like pattern, and do NOT turn it into marble or any veined stone unless the requested material is explicitly a veined stone`);
+    finitions.push(`the worktop in ${params.planTravail.trim()}, reproduced as that exact material — a plain colour stays perfectly uniform and smooth, veining appears only if the requested material is itself a veined stone`);
   if (params.credence?.trim())
-    requested.push(`the backsplash must be exactly ${params.credence.trim()} — if this is a plain or matte colour, keep it uniform with no veining, marbling or pattern unless a pattern is explicitly requested`);
+    finitions.push(`the backsplash in ${params.credence.trim()}, uniform unless a pattern is part of the requested material`);
   if (params.evier?.trim())
-    requested.push(`the kitchen sink must be exactly ${params.evier.trim()} — keep this exact sink colour and material, do not make it stainless steel unless stainless steel is what is requested`);
+    finitions.push(`the sink in ${params.evier.trim()}, keeping that exact colour and material`);
   if (params.sol?.trim())
-    requested.push(`the floor must be exactly ${params.sol.trim()}`);
+    finitions.push(`the floor in ${params.sol.trim()}`);
   if (params.murs?.trim())
-    requested.push(`the walls must be exactly ${params.murs.trim()}`);
+    finitions.push(`the walls in ${params.murs.trim()}`);
+
   if (params.cooktop === 'induction')
-    requested.push('the cooktop is a flat frameless black induction glass-ceramic hob, with no burners and no grates');
+    finitions.push('a flat frameless black induction glass-ceramic hob, its surface entirely smooth');
   else if (params.cooktop === 'gas')
-    requested.push('the cooktop is a gas hob with visible metal burners and cast-iron pan support grates');
+    finitions.push('a gas hob with visible metal burners and cast-iron pan supports');
   else if (params.cooktop === 'downdraft')
-    requested.push('the cooktop is a black induction glass-ceramic hob with a central downdraft extractor: a venting hob with an integrated central extraction slot or grille running down the middle of the cooktop that draws air downward (a downdraft venting cooktop, like a BORA or Elica NikolaTesla), no burners, no grates, and because it vents downward there is no overhead range hood or extractor hood above it');
+    finitions.push('a black induction hob with a central downdraft extractor slot running down its middle, venting downward through the hob itself, the ceiling directly above it left clear and empty');
 
-  // Description auto de la scène (via /auto-prompt) : ancre les accessoires
-  // réellement présents (égouttoir, objets sur le plan…) pour que le rendu ne
-  // les supprime pas. Placée après le style, avant les remplacements.
-  const sourceDescription = params.sourceDescription?.trim();
-  const sceneBlock = sourceDescription
-    ? `the source image shows the following scene — reproduce all of it faithfully and keep every element and small accessory listed here, especially any items resting on the worktop or countertop: ${sourceDescription}`
+  const materiaux = finitions.length
+    ? `Render these finishes exactly, overriding whatever material is currently there: ${finitions.join('; ')}`
     : '';
 
-  const mandatory = requested.length
-    ? `${sourceDescription ? 'however, ' : ''}apply these exact finishes, which take priority over and override any material or finish mentioned in the scene description above, replacing whatever is currently there and reproducing each requested material, color and finish precisely, do not substitute any of them: ${requested.join('; ')}`
-    : '';
+  /* 3 ─ Ambiance libre saisie par l'utilisateur. */
+  const ambiance = params.ambiance?.trim() ?? '';
 
-  const ambiance = params.ambiance?.trim() ? params.ambiance.trim() : '';
+  /* 4 ─ Fidelite, formulee en positif : ce qui reste identique. */
+  const fidelite =
+    'Keep the exact same room: identical layout, camera position, perspective, proportions and framing. Every wall, window, door, opening, niche, alcove, open shelf, appliance, fixture and accessory stays exactly where it is, at its own size, and keeps its own material — including small items resting on the worktop. Every element visible in the source appears in the render. Straight true edges, accurate perspective, geometry faithful to the source, clean crisp surfaces';
 
-  // Fidélité : s'applique UNIQUEMENT à ce qui n'a PAS été explicitement redéfini
-  // ci-dessus (fini la contradiction « garde l'original SAUF… » qui diluait la
-  // demande). On ne nomme aucun objet potentiellement absent (évier/robinet/hotte)
-  // pour ne pas pousser le modèle à en inventer.
-  const fidelity =
-    'for every element that is not explicitly requested above, keep it exactly as it appears in the source image; keep and faithfully reproduce every object, accessory and item that is visible in the source, including small accessories and items resting on the worktop and countertop, do not remove, omit, hide, erase or simplify any existing element or accessory; if a sink is visible in the source, keep its exact colour and material and do NOT turn a white, ceramic, composite or coloured sink into stainless steel unless a stainless steel sink is explicitly requested; do not recolor, do not change or invent materials, do not alter the wood species or its tone, do not add, invent or imagine any new object, fixture, appliance, plumbing or furniture that is not clearly visible in the source, and do not move or duplicate existing elements';
-
-  // Rappel « critical » sur les 2 finitions les plus souvent mal respectées.
-  const criticalBits: string[] = [];
-  if (params.planTravail?.trim()) criticalBits.push(`the worktop must be exactly ${params.planTravail.trim()}`);
-  if (params.poignees?.trim()) criticalBits.push(`the handles must be exactly ${params.poignees.trim()}`);
-  const critical = criticalBits.length ? `critical: ${criticalBits.join(' and ')}, match these precisely` : '';
-
-  // Contraintes anti-dérive baked-in (faute de negativePrompt sur ces endpoints).
-  const guard =
-    'preserve the original layout and camera angle, no extra furniture, no added objects, no new window, no new door, no new opening, do not add windows, do not convert a niche, alcove, open shelf, recess or open cupboard into a window or into an opening, keep every existing wall opening, niche, alcove, recess and open shelving exactly as it is in the source image, no warped or deformed shapes, no distorted lines, no text, crisp clean image, sharp focus, fine high detail, high resolution, smooth surfaces, no grain, no noise, no blur, no compression artifacts';
-
-  return [base, sceneBlock, mandatory, ambiance, fidelity, critical, guard]
-    .filter(Boolean)
-    .join('. ');
+  return [qualite, materiaux, ambiance, fidelite].filter(Boolean).join('. ') + '.';
 }
 
 /** Extrait les URLs depuis la réponse MyArchitectAI ({ output: [...] } ou string). */
@@ -326,13 +303,13 @@ export async function generateArchitectRender(
     };
   }
 
-  // ── Enrichissement fidélité (non bloquant) : on décrit d'abord la scène source
-  // pour que le rendu conserve les petits accessoires (égouttoir, objets…). Si
-  // l'auto-prompt échoue, on rend quand même avec le prompt statique.
-  const sourceDescription = await autoPrompt(imageUrl);
-  const prompt = buildArchitectPrompt(
-    sourceDescription ? { ...params, sourceDescription } : params,
-  );
+  // L'appel /auto-prompt a ete retire (audit 12/09/2026) : il injectait une
+  // description de la scene generee par le moteur, aussitot contredite par le
+  // bloc des finitions (« these take priority over the scene description
+  // above »). Le modele arbitrait entre deux descriptions du meme objet, ce qui
+  // coutait de la nettete — et l'endpoint voit deja l'image source. La clause
+  // de fidelite couvre desormais la preservation des accessoires.
+  const prompt = buildArchitectPrompt(params);
 
   // ── Rendu principal
   const endpoint = params.mode === 'exterior' ? 'render/exterior' : 'render/interior';

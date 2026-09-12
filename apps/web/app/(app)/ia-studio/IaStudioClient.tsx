@@ -1524,7 +1524,10 @@ export default function IaStudioPage() {
   const [archEvier,    setArchEvier]    = useState('');
   const [archCooktop,  setArchCooktop]  = useState<'' | 'induction' | 'gas' | 'downdraft'>('');
   const [archAmbiance, setArchAmbiance] = useState('');
-  const [archHighRes,  setArchHighRes]  = useState(false);
+  // Upscale 4K actif par defaut : sans lui on recupere la resolution native de
+  // l'endpoint, modeste, et c'est ce qui se lit comme « pas assez realiste ».
+  // Coute un appel /upscale-4k supplementaire (~0,03 $) — decochable dans l'UI.
+  const [archHighRes,  setArchHighRes]  = useState(true);
   const [archLoading,  setArchLoading]  = useState(false);
   const [archResult,   setArchResult]   = useState<Item | null>(null);
   const [archError,    setArchError]    = useState<string | null>(null);
