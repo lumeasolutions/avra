@@ -596,94 +596,194 @@ interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:s
 
 const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 8);
 
-/* ─────────────────────────────  NUANCIERS  ─────────────────────────────
- * Teintes nommees en vocabulaire cuisiniste. Chaque teinte porte sa couleur
- * ET sa description matiere en anglais, transmise au moteur de rendu : sans
- * elle, le prompt se contente du nom deduit du code hexadecimal ("brown
+/* NUANCIERS ─────────────────────────────────────────────────────────────
+ * Teintes nommees en vocabulaire cuisiniste. Les teintes COURANTES sont
+ * visibles d'emblee ; le reste (familles completes + teinte libre) se deplie
+ * derriere le bouton "+".
+ *
+ * Chaque teinte porte sa description matiere en anglais, transmise au moteur :
+ * sans elle le prompt se contente du nom deduit du code hexadecimal ("brown
  * handles" au lieu de "antique copper handles"). */
-interface Teinte { nom: string; hex: string; matiere?: string }
+interface Teinte  { nom: string; hex: string; matiere?: string }
+interface Famille { nom: string; teintes: Teinte[] }
+interface Nuance  { principales: Teinte[]; familles: Famille[] }
 
-const TEINTES_FACADE: Teinte[] = [
-  { nom:'Blanc pur',      hex:'#FFFFFF', matiere:'pure white lacquered' },
-  { nom:'Blanc cassé',    hex:'#F2EDE4', matiere:'off-white cream lacquered' },
-  { nom:'Gris clair',     hex:'#C9C9C4', matiere:'light grey lacquered' },
-  { nom:'Gris anthracite',hex:'#3D3D3D', matiere:'anthracite grey lacquered' },
-  { nom:'Noir',           hex:'#111111', matiere:'deep black lacquered' },
-  { nom:'Beige sable',    hex:'#D9C9AF', matiere:'sand beige lacquered' },
-  { nom:'Taupe',          hex:'#8A7A6A', matiere:'taupe lacquered' },
-  { nom:'Vert sauge',     hex:'#6B8F71', matiere:'sage green lacquered' },
-  { nom:'Vert forêt',     hex:'#304035', matiere:'deep forest green lacquered' },
-  { nom:'Bleu nuit',      hex:'#1B3254', matiere:'midnight blue lacquered' },
-  { nom:'Terracotta',     hex:'#C4602A', matiere:'terracotta lacquered' },
-  { nom:'Chêne naturel',  hex:'#B08858', matiere:'natural oak wood' },
-  { nom:'Chêne fumé',     hex:'#7A5C3A', matiere:'smoked oak wood' },
-  { nom:'Noyer',          hex:'#6B4A2F', matiere:'walnut wood' },
-];
+const NUANCIER_FACADE: Nuance = {
+  principales: [
+    { nom:'Blanc pur',       hex:'#FFFFFF', matiere:'pure white lacquered' },
+    { nom:'Blanc cassé',     hex:'#F4F0E8', matiere:'off-white cream lacquered' },
+    { nom:'Gris clair',      hex:'#C2C2BC', matiere:'light grey lacquered' },
+    { nom:'Gris anthracite', hex:'#3D3D3D', matiere:'anthracite grey lacquered' },
+    { nom:'Noir mat',        hex:'#141414', matiere:'deep matte black lacquered' },
+    { nom:'Vert sauge',      hex:'#6B8F71', matiere:'sage green lacquered' },
+    { nom:'Bleu nuit',       hex:'#1B3254', matiere:'midnight blue lacquered' },
+    { nom:'Chêne naturel',   hex:'#B08858', matiere:'natural oak wood' },
+  ],
+  familles: [
+    { nom:'Neutres', teintes:[
+      { nom:'Ivoire',        hex:'#EDE4D3', matiere:'ivory lacquered' },
+      { nom:'Gris perle',    hex:'#DCDCD8', matiere:'pearl grey lacquered' },
+      { nom:'Gris ciment',   hex:'#9B9B94', matiere:'cement grey lacquered' },
+      { nom:'Taupe',         hex:'#8A7A6A', matiere:'taupe lacquered' },
+      { nom:'Gris ardoise',  hex:'#6E6E68', matiere:'slate grey lacquered' },
+    ]},
+    { nom:'Couleurs', teintes:[
+      { nom:'Beige sable',   hex:'#D9C9AF', matiere:'sand beige lacquered' },
+      { nom:'Lin',           hex:'#CFC3AE', matiere:'linen beige lacquered' },
+      { nom:'Rose poudré',   hex:'#D9B8AE', matiere:'powder pink lacquered' },
+      { nom:'Jaune moutarde',hex:'#C9A227', matiere:'mustard yellow lacquered' },
+      { nom:'Terracotta',    hex:'#C4602A', matiere:'terracotta lacquered' },
+      { nom:'Rouge brique',  hex:'#8C3A2B', matiere:'brick red lacquered' },
+      { nom:'Vert olive',    hex:'#6F7550', matiere:'olive green lacquered' },
+      { nom:'Vert forêt',    hex:'#304035', matiere:'deep forest green lacquered' },
+      { nom:'Bleu ciel',     hex:'#A8BFD0', matiere:'sky blue lacquered' },
+      { nom:'Bleu canard',   hex:'#1F5F6B', matiere:'teal blue lacquered' },
+    ]},
+    { nom:'Bois', teintes:[
+      { nom:'Frêne blanchi', hex:'#E0D5C3', matiere:'whitewashed ash wood' },
+      { nom:'Chêne clair',   hex:'#D3B189', matiere:'light oak wood' },
+      { nom:'Teck',          hex:'#8B5A2B', matiere:'teak wood' },
+      { nom:'Chêne fumé',    hex:'#7A5C3A', matiere:'smoked oak wood' },
+      { nom:'Noyer',         hex:'#6B4A2F', matiere:'walnut wood' },
+      { nom:'Wengé',         hex:'#3E2B22', matiere:'wenge dark wood' },
+    ]},
+  ],
+};
 
-const TEINTES_POIGNEE: Teinte[] = [
-  { nom:'Inox brossé',    hex:'#C0C0C0', matiere:'brushed stainless steel handles' },
-  { nom:'Chrome poli',    hex:'#DCDCDC', matiere:'polished chrome handles' },
-  { nom:'Noir mat',       hex:'#1A1A1A', matiere:'matte black handles' },
-  { nom:'Anthracite',     hex:'#5A5A5A', matiere:'dark pewter grey bar handles' },
-  { nom:'Laiton',         hex:'#C8A050', matiere:'brushed brass handles' },
-  { nom:'Cuivre',         hex:'#B07848', matiere:'antique copper handles' },
-  { nom:'Bronze',         hex:'#6A5040', matiere:'dark bronze handles' },
-  { nom:'Blanc',          hex:'#F5F3EF', matiere:'white handles' },
-];
+const NUANCIER_POIGNEE: Nuance = {
+  principales: [
+    { nom:'Inox brossé',  hex:'#C0C0C0', matiere:'brushed stainless steel handles' },
+    { nom:'Noir mat',     hex:'#1A1A1A', matiere:'matte black handles' },
+    { nom:'Chrome poli',  hex:'#DCDCDC', matiere:'polished chrome handles' },
+    { nom:'Laiton doré',  hex:'#D4A855', matiere:'golden brass handles' },
+    { nom:'Cuivre',       hex:'#B07848', matiere:'antique copper handles' },
+    { nom:'Blanc',        hex:'#F5F3EF', matiere:'white handles' },
+  ],
+  familles: [
+    { nom:'Autres finitions', teintes:[
+      { nom:'Aluminium',     hex:'#B8BCC0', matiere:'anodised aluminium handles' },
+      { nom:'Nickel satiné', hex:'#A8A8A2', matiere:'satin nickel handles' },
+      { nom:'Titane',        hex:'#5E6266', matiere:'titanium grey handles' },
+      { nom:'Gris étain',    hex:'#7C7C78', matiere:'pewter grey handles' },
+      { nom:'Anthracite',    hex:'#4A4A4A', matiere:'dark pewter grey bar handles' },
+      { nom:'Laiton brossé', hex:'#C8A050', matiere:'brushed brass handles' },
+      { nom:'Or rose',       hex:'#C9907E', matiere:'rose gold handles' },
+      { nom:'Bronze',        hex:'#6A5040', matiere:'dark bronze handles' },
+    ]},
+  ],
+};
 
-const TEINTES_PLAN: Teinte[] = [
-  { nom:'Marbre blanc',   hex:'#F2EBE0', matiere:'white Calacatta marble countertop' },
-  { nom:'Quartz crème',   hex:'#E8E0D0', matiere:'cream quartz countertop' },
-  { nom:'Gris clair',     hex:'#D5D5D0', matiere:'light grey quartz countertop' },
-  { nom:'Béton ciré',     hex:'#9A9A92', matiere:'polished concrete countertop' },
-  { nom:'Anthracite',     hex:'#2A2A2A', matiere:'charcoal anthracite countertop' },
-  { nom:'Granit noir',    hex:'#1A1A1A', matiere:'black granite countertop' },
-  { nom:'Pierre calcaire',hex:'#D4C9A8', matiere:'limestone beige countertop' },
-  { nom:'Chêne massif',   hex:'#B08858', matiere:'solid oak wood countertop' },
-];
+const NUANCIER_PLAN: Nuance = {
+  principales: [
+    { nom:'Marbre blanc',  hex:'#F2EBE0', matiere:'white Calacatta marble countertop' },
+    { nom:'Quartz crème',  hex:'#E8E0D0', matiere:'cream quartz countertop' },
+    { nom:'Gris clair',    hex:'#D5D5D0', matiere:'light grey quartz countertop' },
+    { nom:'Béton ciré',    hex:'#9A9A92', matiere:'polished concrete countertop' },
+    { nom:'Anthracite',    hex:'#2F2F2F', matiere:'charcoal anthracite countertop' },
+    { nom:'Chêne massif',  hex:'#B08858', matiere:'solid oak wood countertop' },
+  ],
+  familles: [
+    { nom:'Pierres claires', teintes:[
+      { nom:'Quartz blanc',   hex:'#F7F5F0', matiere:'white quartz countertop' },
+      { nom:'Terrazzo',       hex:'#E6DED2', matiere:'terrazzo countertop' },
+      { nom:'Marbre veiné',   hex:'#E3E1DC', matiere:'grey veined marble countertop' },
+      { nom:'Travertin',      hex:'#DCC9A8', matiere:'travertine countertop' },
+      { nom:'Pierre calcaire',hex:'#D4C9A8', matiere:'limestone beige countertop' },
+    ]},
+    { nom:'Pierres foncées & métal', teintes:[
+      { nom:'Gris ciment',    hex:'#A9A9A2', matiere:'cement grey countertop' },
+      { nom:'Ardoise',        hex:'#3A3F42', matiere:'slate countertop' },
+      { nom:'Granit noir',    hex:'#1A1A1A', matiere:'black granite countertop' },
+      { nom:'Noir mat',       hex:'#141414', matiere:'matte black countertop' },
+      { nom:'Inox',           hex:'#C4C6C8', matiere:'stainless steel countertop' },
+    ]},
+    { nom:'Bois', teintes:[
+      { nom:'Bambou',         hex:'#C9A876', matiere:'bamboo wood countertop' },
+      { nom:'Noyer',          hex:'#6B4A2F', matiere:'walnut wood countertop' },
+    ]},
+  ],
+};
 
-/** Nuancier : pastilles nommees + teinte libre repliee. */
-function Nuancier({ label, teintes, hex, onPick, accent }:{
-  label: string; teintes: Teinte[]; hex: string;
+/** Une pastille de nuancier : couleur + nom dessous. */
+function Pastille({ t, actif, accent, onClick }:{ t:Teinte; actif:boolean; accent:string; onClick:()=>void }) {
+  return (
+    <button type="button" onClick={onClick} title={t.nom} aria-pressed={actif}
+      className="group flex flex-col items-center text-center focus:outline-none">
+      <span
+        className="block h-11 w-full rounded-[10px] border-2 transition-all duration-150 group-hover:-translate-y-0.5 group-hover:shadow-md"
+        style={{ background: t.hex,
+                 borderColor: actif ? accent : 'rgba(48,64,53,0.12)',
+                 boxShadow: actif ? `0 0 0 3px ${accent}38` : undefined }} />
+      <span className={`mt-1.5 block text-[10px] leading-tight ${actif ? 'font-bold text-[#304035]' : 'text-[#304035]/60'}`}>
+        {t.nom}
+      </span>
+    </button>
+  );
+}
+
+/** Nuancier d'un element : teintes courantes, puis familles completes au "+". */
+function Nuancier({ label, nuance, hex, onPick, accent }:{
+  label: string; nuance: Nuance; hex: string;
   onPick: (hex: string, matiere?: string) => void; accent: string;
 }) {
-  const [libre, setLibre] = useState(false);
-  const connue = teintes.find(t => t.hex.toLowerCase() === hex.toLowerCase());
+  const toutes = useMemo(
+    () => [...nuance.principales, ...nuance.familles.flatMap(f => f.teintes)],
+    [nuance],
+  );
+  const courante = toutes.find(t => t.hex.toLowerCase() === hex.toLowerCase());
+  const dansPrincipales = nuance.principales.some(t => t.hex.toLowerCase() === hex.toLowerCase());
+  // Si la teinte choisie vient des familles (ou est libre), on ouvre pour la montrer.
+  const [ouvert, setOuvert] = useState(!dansPrincipales);
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50">{label}</span>
-        <span className="text-[11px] font-medium text-[#304035]/60">{connue ? connue.nom : 'Teinte personnalisée'}</span>
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {teintes.map(t => {
-          const actif = t.hex.toLowerCase() === hex.toLowerCase();
-          return (
-            <button key={t.nom} type="button" title={t.nom}
-              onClick={() => { onPick(t.hex, t.matiere); setLibre(false); }}
-              aria-label={t.nom} aria-pressed={actif}
-              className="h-8 w-8 rounded-lg border-2 transition-all duration-150 hover:scale-110"
-              style={{ background: t.hex, borderColor: actif ? accent : 'rgba(48,64,53,0.14)',
-                       boxShadow: actif ? `0 0 0 2px ${accent}33` : undefined }} />
-          );
-        })}
-        <button type="button" onClick={() => setLibre(v => !v)}
-          title="Teinte personnalisée"
-          className="h-8 w-8 rounded-lg border-2 border-dashed border-[#304035]/25 text-[#304035]/50 text-base leading-none transition-colors hover:border-[#304035]/45">
-          +
-        </button>
-      </div>
-      {libre && (
-        <span className="flex items-center gap-2 rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-2.5 py-2">
-          <input type="color" value={hex} onChange={e => onPick(e.target.value, undefined)}
-            className="h-7 w-9 rounded cursor-pointer border-0 bg-transparent p-0" />
-          <span className="text-xs font-mono text-[#304035]/70">{hex}</span>
+        <span className="text-[11px] font-semibold" style={{ color: accent }}>
+          {courante ? courante.nom : 'Teinte personnalisée'}
         </span>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
+        {nuance.principales.map(t => (
+          <Pastille key={t.nom} t={t} accent={accent}
+            actif={t.hex.toLowerCase() === hex.toLowerCase()}
+            onClick={() => onPick(t.hex, t.matiere)} />
+        ))}
+      </div>
+
+      <button type="button" onClick={() => setOuvert(v => !v)}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[#304035]/25 px-3 py-1.5 text-[11px] font-semibold text-[#304035]/60 transition-colors hover:border-[#304035]/45 hover:text-[#304035]/80">
+        {ouvert ? '− Moins de teintes' : '+ Plus de teintes'}
+      </button>
+
+      {ouvert && (
+        <div className="space-y-3 rounded-xl border border-[#304035]/8 bg-[#f5eee8]/30 p-3">
+          {nuance.familles.map(f => (
+            <div key={f.nom}>
+              <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-[#304035]/35">{f.nom}</p>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
+                {f.teintes.map(t => (
+                  <Pastille key={t.nom} t={t} accent={accent}
+                    actif={t.hex.toLowerCase() === hex.toLowerCase()}
+                    onClick={() => onPick(t.hex, t.matiere)} />
+                ))}
+              </div>
+            </div>
+          ))}
+          <div>
+            <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-[#304035]/35">Teinte sur mesure</p>
+            <span className="inline-flex items-center gap-2 rounded-xl border border-[#304035]/12 bg-white px-2.5 py-2">
+              <input type="color" value={hex} onChange={e => onPick(e.target.value, undefined)}
+                className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0" />
+              <span className="font-mono text-xs text-[#304035]/70">{hex}</span>
+            </span>
+          </div>
+        </div>
       )}
     </div>
   );
 }
-
 
 /* ─────────────────────────────────────────── DONNÉES */
 
@@ -1285,8 +1385,8 @@ export default function IaStudioPage() {
   const [photoURL,     setPhotoURL]     = useState<string|null>(null);
   const [preset,       setPreset]       = useState<Preset|null>(null);
   const [facadeCol,    setFacadeCol]    = useState('#304035');
-  const [poigneeCol,   setPoigneeCol]   = useState('#a67749');
-  const [planCol,      setPlanCol]      = useState('#f5f0e8');
+  const [poigneeCol,   setPoigneeCol]   = useState('#B07848');
+  const [planCol,      setPlanCol]      = useState('#E8E0D0');
   // Matiere associee a la teinte choisie (undefined si teinte libre) : elle
   // est transmise au moteur, sinon le prompt retombe sur le nom deduit du hex.
   const [facadeMat,    setFacadeMat]    = useState<string|undefined>('deep forest green lacquered');
@@ -3676,11 +3776,11 @@ export default function IaStudioPage() {
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Couleurs</p></div>
               <div className="space-y-4">
-                <Nuancier label="Façades" teintes={TEINTES_FACADE} hex={facadeCol} accent="#2f9e8f"
+                <Nuancier label="Façades" nuance={NUANCIER_FACADE} hex={facadeCol} accent="#2f9e8f"
                   onPick={(h, m) => { setFacadeCol(h); setFacadeMat(m); setColorsModified(true); }} />
-                <Nuancier label="Poignées" teintes={TEINTES_POIGNEE} hex={poigneeCol} accent="#2f9e8f"
+                <Nuancier label="Poignées" nuance={NUANCIER_POIGNEE} hex={poigneeCol} accent="#2f9e8f"
                   onPick={(h, m) => { setPoigneeCol(h); setPoigneeMat(m); setColorsModified(true); }} />
-                <Nuancier label="Plan de travail" teintes={TEINTES_PLAN} hex={planCol} accent="#2f9e8f"
+                <Nuancier label="Plan de travail" nuance={NUANCIER_PLAN} hex={planCol} accent="#2f9e8f"
                   onPick={(h, m) => { setPlanCol(h); setPlanMat(m); setColorsModified(true); }} />
               </div>
               <ChipSelector<FinishType>
@@ -3840,11 +3940,11 @@ export default function IaStudioPage() {
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Couleurs</p></div>
               <div className="space-y-4">
-                <Nuancier label="Façades" teintes={TEINTES_FACADE} hex={facadeCol} accent="#2f9e8f"
+                <Nuancier label="Façades" nuance={NUANCIER_FACADE} hex={facadeCol} accent="#2f9e8f"
                   onPick={(h, m) => { setFacadeCol(h); setFacadeMat(m); setColorsModified(true); }} />
-                <Nuancier label="Poignées" teintes={TEINTES_POIGNEE} hex={poigneeCol} accent="#2f9e8f"
+                <Nuancier label="Poignées" nuance={NUANCIER_POIGNEE} hex={poigneeCol} accent="#2f9e8f"
                   onPick={(h, m) => { setPoigneeCol(h); setPoigneeMat(m); setColorsModified(true); }} />
-                <Nuancier label="Plan de travail" teintes={TEINTES_PLAN} hex={planCol} accent="#2f9e8f"
+                <Nuancier label="Plan de travail" nuance={NUANCIER_PLAN} hex={planCol} accent="#2f9e8f"
                   onPick={(h, m) => { setPlanCol(h); setPlanMat(m); setColorsModified(true); }} />
               </div>
               <ChipSelector<FinishType>
