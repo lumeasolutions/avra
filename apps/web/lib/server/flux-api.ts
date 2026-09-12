@@ -660,12 +660,14 @@ export async function generateColoristImageKontext(
 
   try {
     console.log(`[fal.subscribe] ${model} images=${imageUrls.length}`);
+    // Pas d'aspect_ratio forcé : on laisse Kontext préserver le ratio source.
+    // Forcer '16:9' recadrait les photos carrées ou verticales (côtés rognés,
+    // sol et colonnes coupés) — même choix que le chemin Rendu plus bas.
     const input: Record<string, unknown> = {
       prompt:        built.prompt,
       num_images:    Math.min(Math.max(numImages, 1), 4),
       seed:          built.seed,
       output_format: 'jpeg',
-      aspect_ratio:  '16:9',
     };
     if (isSingle) input.image_url = imageUrls[0];
     else          input.image_urls = imageUrls;
