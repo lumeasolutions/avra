@@ -155,6 +155,23 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
     + 'Every appliance, fixture, accessory and small item resting on the worktop appears in the render, at its place, in its own material. '
     + 'Straight true edges, accurate perspective, geometry faithful to the source, clean crisp surfaces';
 
+  /* 5 ─ Cas MINIMAL : aucune matiere redefinie, aucune ambiance demandee.
+   *
+   * C'est le cas d'usage reel et majoritaire : la source est un rendu 3D sorti
+   * du logiciel de conception, ses materiaux sont DEJA les bons, et la demande
+   * se resume a « cette scene, en photo ». Lui redecrire la piece revient a lui
+   * demander de la reinterpreter — et une reinterpretation, c'est precisement
+   * ce qui fabrique une niche sur un mur plat.
+   *
+   * Mesure du 12/09/2026 sur une meme source : fidelite structurelle 0,701 avec
+   * l'ancien prompt, 0,592 avec une version qui decrivait MIEUX la piece. Plus
+   * le prompt decrit, moins le moteur regarde l'image. */
+  if (!materiaux && !ambiance) {
+    return params.mode === 'exterior'
+      ? 'Photorealistic architectural exterior photograph of this exact building. Every volume, opening, material, colour and position stays identical to the source. Natural daylight, tack-sharp, fine material detail, high resolution.'
+      : 'Photorealistic architectural interior photograph of this exact room. Every wall, opening, cabinet, appliance, accessory, material, colour and position stays identical to the source. Natural daylight, tack-sharp, fine material detail, high resolution.';
+  }
+
   return [qualite, materiaux, ambiance, fidelite].filter(Boolean).join('. ') + '.';
 }
 
