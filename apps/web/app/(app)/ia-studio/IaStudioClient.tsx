@@ -1524,14 +1524,16 @@ export default function IaStudioPage() {
   const [archEvier,    setArchEvier]    = useState('');
   const [archCooktop,  setArchCooktop]  = useState<'' | 'induction' | 'gas' | 'downdraft'>('');
   const [archAmbiance, setArchAmbiance] = useState('');
-  // Upscale 4K laisse DESACTIVE par defaut. Mesure du 12/09/2026 sur un rendu
-  // 3840x2032 : le reduire a 1920 px puis le re-agrandir ne change l'image que
-  // de 1,35 niveau sur 255, et de 2,50 en passant par 960 px. Autrement dit le
-  // fichier 4K ne porte pas plus d'information qu'une image de ~1000 px :
-  // l'upscale interpole, il n'ajoute aucun detail. Le proposer par defaut
-  // couterait un appel /upscale-4k (~0,03 $) et huit fois le poids par rendu,
-  // sans gain visible. L'option reste disponible dans l'UI.
-  const [archHighRes,  setArchHighRes]  = useState(false);
+  // Upscale 4K ACTIF par defaut. Test A/B du 12/09/2026, meme source et meme
+  // prompt, seule la case changeait :
+  //           px     nettete   fidelite   niche(ecart-type)
+  //   1K    1272        354      0,692        7,8
+  //   4K    3840        485      0,733        8,5
+  // +37 % de nettete ET meilleure fidelite structurelle. L'upscale n'ajoute pas
+  // de resolution reelle (un aller-retour 3840 -> 1920 -> 3840 ne change l'image
+  // que de 1,35 niveau sur 255) mais il ajoute du CONTRASTE LOCAL, et c'est cela
+  // que l'oeil appelle « net ». Cout : un appel /upscale-4k (~0,03 $) par rendu.
+  const [archHighRes,  setArchHighRes]  = useState(true);
   const [archLoading,  setArchLoading]  = useState(false);
   const [archResult,   setArchResult]   = useState<Item | null>(null);
   const [archError,    setArchError]    = useState<string | null>(null);
