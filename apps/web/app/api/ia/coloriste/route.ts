@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
     facadeFinish:       facadeFinish as ColoristParams['facadeFinish'],
     poigneeFinish:      (body.poigneeFinish      as ColoristParams['poigneeFinish'])      ?? undefined,
     planFinish:         (body.planFinish         as ColoristParams['planFinish'])         ?? undefined,
+    facadeMaterial:     (body.facadeMaterial     as string | undefined)                   ?? undefined,
     handleMaterial:     (body.handleMaterial     as string | undefined)                   ?? undefined,
     countertopMaterial: (body.countertopMaterial as string | undefined)                   ?? undefined,
     lightingStyle:      lightingStyle as ColoristParams['lightingStyle'],

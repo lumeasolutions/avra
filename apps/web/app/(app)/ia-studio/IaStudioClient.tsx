@@ -32,7 +32,7 @@ async function callColoristAPI(params: {
   facadeHex: string; poigneeHex: string; planHex: string;
   facadeFinish: FinishType; lightingStyle: LightingType;
   poigneeFinish?: FinishType; planFinish?: FinishType;
-  handleMaterial?: string; countertopMaterial?: string;
+  facadeMaterial?: string; handleMaterial?: string; countertopMaterial?: string;
   sourceImageDataUrl?: string;
   /** Texture data URL ACTIVE (utilisée en hint matière côté serveur). */
   facadeTextureDataUrl?: string;
@@ -285,7 +285,7 @@ async function callColoristeArchitectAPI(params: {
   facadeHex: string; poigneeHex: string; planHex: string;
   facadeFinish: FinishType; lightingStyle: LightingType;
   poigneeFinish?: FinishType; planFinish?: FinishType;
-  handleMaterial?: string; countertopMaterial?: string;
+  facadeMaterial?: string; handleMaterial?: string; countertopMaterial?: string;
   sourceImageDataUrl: string; projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste-architect', {
@@ -321,7 +321,7 @@ async function callColoristeTexturesAPI(params: {
   facadeHex: string; poigneeHex: string; planHex: string;
   facadeFinish: FinishType; lightingStyle: LightingType;
   poigneeFinish?: FinishType; planFinish?: FinishType;
-  handleMaterial?: string; countertopMaterial?: string;
+  facadeMaterial?: string; handleMaterial?: string; countertopMaterial?: string;
   sourceImageDataUrl?: string; referenceImageDataUrl?: string; maskUrl?: string; sourceUrl?: string; projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste-textures', {
@@ -359,7 +359,7 @@ async function callColoristeTestAPI(params: {
   facadeHex: string; poigneeHex: string; planHex: string;
   facadeFinish: FinishType; lightingStyle: LightingType;
   poigneeFinish?: FinishType; planFinish?: FinishType;
-  handleMaterial?: string; countertopMaterial?: string;
+  facadeMaterial?: string; handleMaterial?: string; countertopMaterial?: string;
   sourceImageDataUrl?: string; referenceImageDataUrl?: string; maskUrl?: string; sourceUrl?: string; maskDataUrl?: string; projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste-test', {
@@ -595,6 +595,95 @@ interface Preset { name:string; facade:string; poignee:string; plan:string; desc
 interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:string; color:string; imageUrl?:string; imageUrls?:string[]; steps?: PipelineStep[] | null }
 
 const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 8);
+
+/* ─────────────────────────────  NUANCIERS  ─────────────────────────────
+ * Teintes nommees en vocabulaire cuisiniste. Chaque teinte porte sa couleur
+ * ET sa description matiere en anglais, transmise au moteur de rendu : sans
+ * elle, le prompt se contente du nom deduit du code hexadecimal ("brown
+ * handles" au lieu de "antique copper handles"). */
+interface Teinte { nom: string; hex: string; matiere?: string }
+
+const TEINTES_FACADE: Teinte[] = [
+  { nom:'Blanc pur',      hex:'#FFFFFF', matiere:'pure white lacquered' },
+  { nom:'Blanc cassé',    hex:'#F2EDE4', matiere:'off-white cream lacquered' },
+  { nom:'Gris clair',     hex:'#C9C9C4', matiere:'light grey lacquered' },
+  { nom:'Gris anthracite',hex:'#3D3D3D', matiere:'anthracite grey lacquered' },
+  { nom:'Noir',           hex:'#111111', matiere:'deep black lacquered' },
+  { nom:'Beige sable',    hex:'#D9C9AF', matiere:'sand beige lacquered' },
+  { nom:'Taupe',          hex:'#8A7A6A', matiere:'taupe lacquered' },
+  { nom:'Vert sauge',     hex:'#6B8F71', matiere:'sage green lacquered' },
+  { nom:'Vert forêt',     hex:'#304035', matiere:'deep forest green lacquered' },
+  { nom:'Bleu nuit',      hex:'#1B3254', matiere:'midnight blue lacquered' },
+  { nom:'Terracotta',     hex:'#C4602A', matiere:'terracotta lacquered' },
+  { nom:'Chêne naturel',  hex:'#B08858', matiere:'natural oak wood' },
+  { nom:'Chêne fumé',     hex:'#7A5C3A', matiere:'smoked oak wood' },
+  { nom:'Noyer',          hex:'#6B4A2F', matiere:'walnut wood' },
+];
+
+const TEINTES_POIGNEE: Teinte[] = [
+  { nom:'Inox brossé',    hex:'#C0C0C0', matiere:'brushed stainless steel handles' },
+  { nom:'Chrome poli',    hex:'#DCDCDC', matiere:'polished chrome handles' },
+  { nom:'Noir mat',       hex:'#1A1A1A', matiere:'matte black handles' },
+  { nom:'Anthracite',     hex:'#5A5A5A', matiere:'dark pewter grey bar handles' },
+  { nom:'Laiton',         hex:'#C8A050', matiere:'brushed brass handles' },
+  { nom:'Cuivre',         hex:'#B07848', matiere:'antique copper handles' },
+  { nom:'Bronze',         hex:'#6A5040', matiere:'dark bronze handles' },
+  { nom:'Blanc',          hex:'#F5F3EF', matiere:'white handles' },
+];
+
+const TEINTES_PLAN: Teinte[] = [
+  { nom:'Marbre blanc',   hex:'#F2EBE0', matiere:'white Calacatta marble countertop' },
+  { nom:'Quartz crème',   hex:'#E8E0D0', matiere:'cream quartz countertop' },
+  { nom:'Gris clair',     hex:'#D5D5D0', matiere:'light grey quartz countertop' },
+  { nom:'Béton ciré',     hex:'#9A9A92', matiere:'polished concrete countertop' },
+  { nom:'Anthracite',     hex:'#2A2A2A', matiere:'charcoal anthracite countertop' },
+  { nom:'Granit noir',    hex:'#1A1A1A', matiere:'black granite countertop' },
+  { nom:'Pierre calcaire',hex:'#D4C9A8', matiere:'limestone beige countertop' },
+  { nom:'Chêne massif',   hex:'#B08858', matiere:'solid oak wood countertop' },
+];
+
+/** Nuancier : pastilles nommees + teinte libre repliee. */
+function Nuancier({ label, teintes, hex, onPick, accent }:{
+  label: string; teintes: Teinte[]; hex: string;
+  onPick: (hex: string, matiere?: string) => void; accent: string;
+}) {
+  const [libre, setLibre] = useState(false);
+  const connue = teintes.find(t => t.hex.toLowerCase() === hex.toLowerCase());
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50">{label}</span>
+        <span className="text-[11px] font-medium text-[#304035]/60">{connue ? connue.nom : 'Teinte personnalisée'}</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {teintes.map(t => {
+          const actif = t.hex.toLowerCase() === hex.toLowerCase();
+          return (
+            <button key={t.nom} type="button" title={t.nom}
+              onClick={() => { onPick(t.hex, t.matiere); setLibre(false); }}
+              aria-label={t.nom} aria-pressed={actif}
+              className="h-8 w-8 rounded-lg border-2 transition-all duration-150 hover:scale-110"
+              style={{ background: t.hex, borderColor: actif ? accent : 'rgba(48,64,53,0.14)',
+                       boxShadow: actif ? `0 0 0 2px ${accent}33` : undefined }} />
+          );
+        })}
+        <button type="button" onClick={() => setLibre(v => !v)}
+          title="Teinte personnalisée"
+          className="h-8 w-8 rounded-lg border-2 border-dashed border-[#304035]/25 text-[#304035]/50 text-base leading-none transition-colors hover:border-[#304035]/45">
+          +
+        </button>
+      </div>
+      {libre && (
+        <span className="flex items-center gap-2 rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-2.5 py-2">
+          <input type="color" value={hex} onChange={e => onPick(e.target.value, undefined)}
+            className="h-7 w-9 rounded cursor-pointer border-0 bg-transparent p-0" />
+          <span className="text-xs font-mono text-[#304035]/70">{hex}</span>
+        </span>
+      )}
+    </div>
+  );
+}
+
 
 /* ─────────────────────────────────────────── DONNÉES */
 
@@ -1198,6 +1287,11 @@ export default function IaStudioPage() {
   const [facadeCol,    setFacadeCol]    = useState('#304035');
   const [poigneeCol,   setPoigneeCol]   = useState('#a67749');
   const [planCol,      setPlanCol]      = useState('#f5f0e8');
+  // Matiere associee a la teinte choisie (undefined si teinte libre) : elle
+  // est transmise au moteur, sinon le prompt retombe sur le nom deduit du hex.
+  const [facadeMat,    setFacadeMat]    = useState<string|undefined>('deep forest green lacquered');
+  const [poigneeMat,   setPoigneeMat]   = useState<string|undefined>('antique copper handles');
+  const [planMat,      setPlanMat]      = useState<string|undefined>('cream quartz countertop');
   const [facadeFinish, setFacadeFinish] = useState<FinishType>('mat');
   // Finitions optionnelles par élément (poignées + plan travail). Null = pas
   // de finition spécifique (on garde le matériau standard du preset).
@@ -1497,8 +1591,9 @@ export default function IaStudioPage() {
         facadeFinish:       preset?.finish   ?? facadeFinish,
         poigneeFinish:      poigneeFinish ?? undefined,
         planFinish:         planFinish ?? undefined,
-        handleMaterial:     preset?.handleMaterial,
-        countertopMaterial: preset?.countertopMaterial,
+        facadeMaterial:     facadeMat,
+        handleMaterial:     poigneeMat,
+        countertopMaterial: planMat,
         lightingStyle:      colorLight,
         sourceImageDataUrl,
         // Textures importées (mode manuel uniquement — les presets gardent leurs couleurs).
@@ -1631,8 +1726,9 @@ export default function IaStudioPage() {
         facadeFinish:       preset?.finish   ?? facadeFinish,
         poigneeFinish:      poigneeFinish ?? undefined,
         planFinish:         planFinish ?? undefined,
-        handleMaterial:     preset?.handleMaterial,
-        countertopMaterial: preset?.countertopMaterial,
+        facadeMaterial:     facadeMat,
+        handleMaterial:     poigneeMat,
+        countertopMaterial: planMat,
         lightingStyle:      colorLight,
         sourceImageDataUrl,
         numImages:          1,
@@ -1679,8 +1775,9 @@ export default function IaStudioPage() {
         facadeFinish:       preset?.finish   ?? facadeFinish,
         poigneeFinish:      poigneeFinish ?? undefined,
         planFinish:         planFinish ?? undefined,
-        handleMaterial:     preset?.handleMaterial,
-        countertopMaterial: preset?.countertopMaterial,
+        facadeMaterial:     facadeMat,
+        handleMaterial:     poigneeMat,
+        countertopMaterial: planMat,
         lightingStyle:      colorLight,
         referenceImageDataUrl,
         // Sélection au clic (SAM2) : masque + source déjà segmentés côté serveur.
@@ -3578,20 +3675,13 @@ export default function IaStudioPage() {
             {/* Palettes + couleurs */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Couleurs</p></div>
-              <div className="grid grid-cols-3 gap-3">
-                {([
-                  { label: 'Façades',        val: facadeCol,  set: setFacadeCol },
-                  { label: 'Poignées',       val: poigneeCol, set: setPoigneeCol },
-                  { label: 'Plan de travail',val: planCol,    set: setPlanCol },
-                ] as const).map(({ label, val, set }) => (
-                  <label key={label} className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50">{label}</span>
-                    <span className="flex items-center gap-2 rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-2.5 py-2">
-                      <input type="color" value={val} onChange={e => { set(e.target.value); setPreset(null); setColorsModified(true); }} className="h-7 w-9 rounded cursor-pointer border-0 bg-transparent p-0" />
-                      <span className="text-xs font-mono text-[#304035]/70">{val}</span>
-                    </span>
-                  </label>
-                ))}
+              <div className="space-y-4">
+                <Nuancier label="Façades" teintes={TEINTES_FACADE} hex={facadeCol} accent="#2f9e8f"
+                  onPick={(h, m) => { setFacadeCol(h); setFacadeMat(m); setColorsModified(true); }} />
+                <Nuancier label="Poignées" teintes={TEINTES_POIGNEE} hex={poigneeCol} accent="#2f9e8f"
+                  onPick={(h, m) => { setPoigneeCol(h); setPoigneeMat(m); setColorsModified(true); }} />
+                <Nuancier label="Plan de travail" teintes={TEINTES_PLAN} hex={planCol} accent="#2f9e8f"
+                  onPick={(h, m) => { setPlanCol(h); setPlanMat(m); setColorsModified(true); }} />
               </div>
               <ChipSelector<FinishType>
                 label="Finition des façades" accent="#2f9e8f"
@@ -3749,20 +3839,13 @@ export default function IaStudioPage() {
             {/* Palettes + couleurs */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Couleurs</p></div>
-              <div className="grid grid-cols-3 gap-3">
-                {([
-                  { label: 'Façades',        val: facadeCol,  set: setFacadeCol },
-                  { label: 'Poignées',       val: poigneeCol, set: setPoigneeCol },
-                  { label: 'Plan de travail',val: planCol,    set: setPlanCol },
-                ] as const).map(({ label, val, set }) => (
-                  <label key={label} className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50">{label}</span>
-                    <span className="flex items-center gap-2 rounded-xl border border-[#304035]/12 bg-[#f5eee8]/40 px-2.5 py-2">
-                      <input type="color" value={val} onChange={e => { set(e.target.value); setPreset(null); setColorsModified(true); }} className="h-7 w-9 rounded cursor-pointer border-0 bg-transparent p-0" />
-                      <span className="text-xs font-mono text-[#304035]/70">{val}</span>
-                    </span>
-                  </label>
-                ))}
+              <div className="space-y-4">
+                <Nuancier label="Façades" teintes={TEINTES_FACADE} hex={facadeCol} accent="#2f9e8f"
+                  onPick={(h, m) => { setFacadeCol(h); setFacadeMat(m); setColorsModified(true); }} />
+                <Nuancier label="Poignées" teintes={TEINTES_POIGNEE} hex={poigneeCol} accent="#2f9e8f"
+                  onPick={(h, m) => { setPoigneeCol(h); setPoigneeMat(m); setColorsModified(true); }} />
+                <Nuancier label="Plan de travail" teintes={TEINTES_PLAN} hex={planCol} accent="#2f9e8f"
+                  onPick={(h, m) => { setPlanCol(h); setPlanMat(m); setColorsModified(true); }} />
               </div>
               <ChipSelector<FinishType>
                 label="Finition des façades" accent="#2f9e8f"

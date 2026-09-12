@@ -114,6 +114,7 @@ export async function POST(req: NextRequest) {
     poigneeFinish: str(body.poigneeFinish) as ColoristParams['poigneeFinish'],
     planFinish: str(body.planFinish) as ColoristParams['planFinish'],
     lightingStyle: lightingStyle as ColoristParams['lightingStyle'],
+    facadeMaterial: str(body.facadeMaterial),
     handleMaterial: str(body.handleMaterial),
     countertopMaterial: str(body.countertopMaterial),
   };

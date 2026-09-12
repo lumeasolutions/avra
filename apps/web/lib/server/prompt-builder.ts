@@ -23,6 +23,8 @@ export interface ColoristParams {
   poigneeFinish?:    FinishType;
   /** Finition optionnelle du plan de travail (override du matériau standard). */
   planFinish?:       FinishType;
+  /** Matière des façades (override du nom déduit de la couleur) : ex. "natural oak wood". */
+  facadeMaterial?:   string;
   handleMaterial?:   string;   // ex: "laiton brossé"
   countertopMaterial?:string;  // ex: "marbre blanc Calacatta"
   lightingStyle:     LightingType;
@@ -457,7 +459,7 @@ export function buildColoristPrompt(
   params: ColoristParams,
   level: PromptLevel = 'standard'
 ): BuiltPrompt {
-  const facadeName   = hexToName(params.facadeHex);
+  const facadeName   = params.facadeMaterial ?? hexToName(params.facadeHex);
   // Suffixe finition pour poignées / plan si l'utilisateur a choisi une finition
   // spécifique (sinon on garde le matériau standard sans modifier).
   const poigneeFinishSuffix = params.poigneeFinish
@@ -746,7 +748,7 @@ export function isPromptValid(built: BuiltPrompt): boolean {
  * Renforcé 18/05/2026 (v3) : descripteurs HSL pour précision couleur.
  */
 export function buildFacadeRegionPrompt(params: ColoristParams): string {
-  const color  = hexToName(params.facadeHex);
+  const color  = params.facadeMaterial ?? hexToName(params.facadeHex);
   const descs  = colorDescriptors(params.facadeHex);
   const finish = FINISH_BLOCKS[params.facadeFinish];
   return `kitchen cabinet door panel painted in solid ${color} (${descs}), uniform consistent color across entire surface, ${finish}, flat smooth panel surface, photorealistic high-end kitchen material, sharp clean edges`;
@@ -789,7 +791,7 @@ export function buildCountertopRegionPrompt(params: ColoristParams): string {
  * n'empile donc pas les lourdes contraintes anti-déformation du coloriste render.
  */
 export function buildTextureEditPrompt(params: ColoristParams): string {
-  const facadeName   = hexToName(params.facadeHex);
+  const facadeName   = params.facadeMaterial ?? hexToName(params.facadeHex);
   const facadeFinish = FINISH_BLOCKS[params.facadeFinish];
   const handle       = params.handleMaterial ?? `${hexToName(params.poigneeHex)} metal`;
   const handleFinish = params.poigneeFinish ? `, ${FINISH_BLOCKS[params.poigneeFinish]}` : '';
