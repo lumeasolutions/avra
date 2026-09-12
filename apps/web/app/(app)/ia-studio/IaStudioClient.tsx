@@ -736,14 +736,23 @@ function Nuancier({ label, nuance, hex, onPick, accent }:{
   const [ouvert, setOuvert] = useState(!dansPrincipales);
 
   return (
-    <div className="space-y-2.5">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/50">{label}</span>
-        <span className="text-[11px] font-semibold" style={{ color: accent }}>
-          {courante ? courante.nom : 'Teinte personnalisée'}
+    <div className="overflow-hidden rounded-xl border border-[#304035]/12 bg-white shadow-sm">
+      {/* En-tete : barre d'accent + nom de l'element + apercu de la teinte active.
+          Sans ce cadre, les trois nuanciers se confondaient une fois deplies. */}
+      <div className="flex items-center justify-between gap-3 border-b border-[#304035]/10 bg-[#f5eee8]/60 px-3.5 py-2.5">
+        <span className="flex items-center gap-2.5">
+          <span className="h-4 w-1.5 rounded-full" style={{ background: accent }} />
+          <span className="text-[11px] font-black uppercase tracking-widest text-[#304035]">{label}</span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="h-5 w-9 rounded-md border border-[#304035]/20 shadow-sm" style={{ background: hex }} />
+          <span className="text-[11px] font-semibold" style={{ color: accent }}>
+            {courante ? courante.nom : 'Teinte personnalisée'}
+          </span>
         </span>
       </div>
 
+      <div className="space-y-2.5 p-3.5">
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
         {nuance.principales.map(t => (
           <Pastille key={t.nom} t={t} accent={accent}
@@ -781,6 +790,7 @@ function Nuancier({ label, nuance, hex, onPick, accent }:{
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -3775,7 +3785,7 @@ export default function IaStudioPage() {
             {/* Palettes + couleurs */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Couleurs</p></div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <Nuancier label="Façades" nuance={NUANCIER_FACADE} hex={facadeCol} accent="#2f9e8f"
                   onPick={(h, m) => { setFacadeCol(h); setFacadeMat(m); setColorsModified(true); }} />
                 <Nuancier label="Poignées" nuance={NUANCIER_POIGNEE} hex={poigneeCol} accent="#2f9e8f"
@@ -3939,7 +3949,7 @@ export default function IaStudioPage() {
             {/* Palettes + couleurs */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Couleurs</p></div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <Nuancier label="Façades" nuance={NUANCIER_FACADE} hex={facadeCol} accent="#2f9e8f"
                   onPick={(h, m) => { setFacadeCol(h); setFacadeMat(m); setColorsModified(true); }} />
                 <Nuancier label="Poignées" nuance={NUANCIER_POIGNEE} hex={poigneeCol} accent="#2f9e8f"
