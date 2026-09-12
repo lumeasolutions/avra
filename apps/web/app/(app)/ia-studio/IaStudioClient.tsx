@@ -874,6 +874,40 @@ function ElapsedTimer() {
 }
 
 /** Zone de dépôt de fichier */
+/**
+ * Avertit quand une image importee est trop petite pour donner un resultat
+ * propre. MyArchitectAI l'ecrit dans son guide d'edition : « Upload images of
+ * high-resolution textures. Low-res images might make the result look blurry
+ * or patchy. » Une vignette de 447 px produit exactement les taches sombres
+ * observees le 12/09/2026 — et la generation est facturee quand meme.
+ */
+function AvertissementResolution({ file, minPx, quoi }: { file: File | null; minPx: number; quoi: string }) {
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    if (!file) { setDims(null); return; }
+    let mort = false;
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => { if (!mort) setDims({ w: img.naturalWidth, h: img.naturalHeight }); URL.revokeObjectURL(url); };
+    img.onerror = () => { if (!mort) setDims(null); URL.revokeObjectURL(url); };
+    img.src = url;
+    return () => { mort = true; URL.revokeObjectURL(url); };
+  }, [file]);
+
+  if (!file || !dims) return null;
+  const cote = Math.max(dims.w, dims.h);
+  if (cote >= minPx) return null;
+  return (
+    <div className="mt-2 flex items-start gap-2 rounded-xl border border-amber-300/70 bg-amber-50 px-3 py-2">
+      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+      <p className="text-[11px] leading-relaxed text-amber-900">
+        {quoi} fait <b>{dims.w} × {dims.h} px</b>. En dessous de {minPx} px, le rendu ressort
+        souvent flou ou par plaques. Utilisez une image plus grande si vous en avez une.
+      </p>
+    </div>
+  );
+}
+
 function Drop({ label, sub, onFile, file, tips, accent }:{
   label:string; sub:string; onFile:(f:File)=>void; file:File|null; tips?:string[]; accent:string
 }) {
@@ -3737,6 +3771,7 @@ export default function IaStudioPage() {
                 <Drop label="" sub="Déposez la photo de la cuisine"
                   onFile={setPhotoFile} file={photoFile} accent="#2f9e8f"
                   tips={['Photo de la cuisine existante', 'Showroom / catalogue', 'Bien éclairée et nette']} />
+                <AvertissementResolution file={photoFile} minPx={1200} quoi="Cette photo" />
                 {photoFile && photoURL && (
                   <div className="mt-3 relative rounded-xl overflow-hidden">
                     <Image src={photoURL} alt="Cuisine" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
@@ -3880,6 +3915,7 @@ export default function IaStudioPage() {
                   <Drop label="" sub="Importer une texture (bois, pierre, tissu…)"
                     onFile={setColorTexRefFile} file={colorTexRefFile} accent="#2f9e8f"
                     tips={['Photo nette de la matière voulue', 'Haute résolution = meilleur rendu']} />
+                  <AvertissementResolution file={colorTestRefFile} minPx={800} quoi="Cet échantillon" />
                   {colorTexRefFile && colorTexRefURL && (
                     <div className="mt-3 relative rounded-xl overflow-hidden">
                       <Image src={colorTexRefURL} alt="Texture" width={500} height={120} loading="lazy" className="w-full max-h-32 object-cover" />
@@ -3948,7 +3984,7 @@ export default function IaStudioPage() {
                   <p className="font-bold text-[#304035]">Zone à changer</p>
                   {colorTexClick
                     ? <span className="text-[10px] font-bold text-[#2f9e8f] bg-[#2f9e8f]/10 rounded-full px-2 py-0.5 align-middle">Zone sélectionnée ✓</span>
-                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Peignez la zone</span>}
+                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Sélectionnez la zone</span>}
                 </div>
                 <p className="text-xs text-[#304035]/50">Cliquez <b>une fois</b> sur une surface — l’IA prend l’objet entier et le surligne. Ajoutez <b>un point par surface</b> en plus (une porte, un plan…), « Retirer » pour corriger. Inutile de cliquer partout.</p>
                 <ColoristeClickSelect file={photoFile} accent="#2f9e8f" onChange={setColorTexClick} />
@@ -4077,9 +4113,16 @@ export default function IaStudioPage() {
                     </div>
                   )}
                   {colorTestRefFile && (
+                    <>
                     <p className="mt-2 text-[11px] text-[#304035]/50 leading-relaxed">
-                      La matière sera appliquée à la zone que vous <b>peignez</b> ci-dessous.
+                      La matière sera appliquée à la zone que vous <b>sélectionnez</b> ci-dessous.
                     </p>
+                    <ul className="mt-1.5 space-y-1 text-[11px] leading-relaxed text-[#304035]/45">
+                      <li>• <b>Orientation</b> : les veines de l’échantillon ressortiront dans le sens où vous l’importez.</li>
+                      <li>• <b>Échelle</b> : si le motif apparaît trop gros, reprenez un échantillon plus détaillé — et l’inverse s’il est trop fin.</li>
+                      <li>• Si la matière passe mal du premier coup, relancez avec <b>Régénérer</b> sans toucher à la sélection : le second essai est souvent meilleur.</li>
+                    </ul>
+                    </>
                   )}
                 </div>
               </div>
@@ -4144,9 +4187,9 @@ export default function IaStudioPage() {
                   <p className="font-bold text-[#304035]">Zone à changer <span className="ml-1 rounded-full bg-[#a67749]/10 text-[#a67749] text-[9px] font-bold px-2 py-0.5 align-middle">REQUIS</span></p>
                   {colorTestClick
                     ? <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Zone sélectionnée ✓</span>
-                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Peignez la zone</span>}
+                    : <span className="text-[10px] font-bold text-[#a67749] bg-[#a67749]/10 rounded-full px-2 py-0.5 align-middle">Sélectionnez la zone</span>}
                 </div>
-                <p className="text-xs text-[#304035]/50">Peignez au <b>pinceau</b> la surface où appliquer la matière — le contour <span className="font-semibold" style={{color:'#00b8d4'}}>cyan</span> affiche exactement la zone qui sera modifiée. Utilisez la <b>gomme</b> pour corriger un débordement, et vérifiez toujours avant de générer : tout ce qui est hors de cette zone reste identique à la photo d’origine.</p>
+                <p className="text-xs text-[#304035]/50">Commencez à la <b>baguette</b> : un clic détecte la surface. Complétez au <b>rectangle</b> pour une rangée entière, affinez au <b>pinceau</b>, corrigez à la <b>gomme</b> — les quatre outils travaillent sur la même sélection. Le contour <span className="font-semibold" style={{color:'#00b8d4'}}>cyan</span> affiche exactement la zone qui sera modifiée : tout ce qui est en dehors reste identique à la photo d’origine, au pixel près.</p>
                 <ColoristeTestClickSelect file={photoFile} accent="#a67749" onChange={setColorTestClick} />
               </div>
             )}
@@ -4166,7 +4209,7 @@ export default function IaStudioPage() {
                   générer dès qu'une photo est présente. */}
               <button onClick={runColoristeTest}
                 disabled={colorTestLoading || !photoFile || !colorTestRefFile || !colorTestClick}
-                title={!photoFile ? "Importez la photo de la cuisine" : !colorTestRefFile ? "Importez l’échantillon de matière à appliquer" : !colorTestClick ? "Peignez la zone où appliquer la matière" : undefined}
+                title={!photoFile ? "Importez la photo de la cuisine" : !colorTestRefFile ? "Importez l’échantillon de matière à appliquer" : !colorTestClick ? "Sélectionnez la zone où appliquer la matière" : undefined}
                 className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{background:'linear-gradient(135deg,#a67749 0%,#8a5f38 100%)'}}>
                 <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
@@ -4177,7 +4220,7 @@ export default function IaStudioPage() {
                       : !colorTestRefFile
                         ? <><FileImage className="h-4 w-4" />Importez l'échantillon de matière</>
                         : !colorTestClick
-                          ? <><Paintbrush className="h-4 w-4" />Peignez la zone à changer</>
+                          ? <><Paintbrush className="h-4 w-4" />Sélectionnez la zone à changer</>
                           : <><Sparkles className="h-4 w-4" />Appliquer la matière<ArrowRight className="h-4 w-4 ml-1" /></>
                   }
                 </span>
