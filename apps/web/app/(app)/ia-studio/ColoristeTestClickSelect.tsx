@@ -412,14 +412,24 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
         </p>
       )}
 
-      <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', background: '#f5eee8', border: '1px solid rgba(48,64,53,0.1)' }}>
+      {/* Le canevas etait en width:100% sans limite de hauteur : sur une carte
+          large la photo s'etalait sur toute la largeur, et un canevas de 1280 px
+          affiche a ~1150 px CSS se retrouve agrandi pres de deux fois sur un
+          ecran haute densite — d'ou le flou. On le borne donc, centre, en
+          preservant son ratio (width/height auto + max-*). */}
+      <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', background: '#f5eee8', border: '1px solid rgba(48,64,53,0.1)', display: 'flex', justifyContent: 'center' }}>
         <canvas
           ref={dispRef}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
-          style={{ width: '100%', height: 'auto', display: 'block', touchAction: 'none', cursor: loading ? 'wait' : 'crosshair' }}
+          style={{
+            width: 'auto', height: 'auto',
+            maxWidth: '100%', maxHeight: 'min(52vh, 440px)',
+            display: 'block', touchAction: 'none',
+            cursor: loading ? 'wait' : 'crosshair',
+          }}
         />
         {!hasSelection && !loading && (
           <div style={{ position: 'absolute', left: 10, bottom: 10, background: 'rgba(26,42,30,0.72)', color: '#fff', fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 999, pointerEvents: 'none' }}>
