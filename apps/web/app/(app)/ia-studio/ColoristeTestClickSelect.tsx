@@ -469,7 +469,16 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
           large la photo s'étalait, et un canevas de 1280 px affiché à ~1150 px
           CSS se retrouvait agrandi près de deux fois sur un écran haute densité
           — d'où le flou. On le borne donc, centré, en préservant son ratio. */}
-      <div style={{ position: 'relative', width: '100%', borderRadius: 14, overflow: 'hidden', background: '#f5eee8', border: '1px solid rgba(48,64,53,0.1)', display: 'flex', justifyContent: 'center' }}>
+      <div style={{
+        position: 'relative',
+        // Le cadre epouse l'image au lieu de s'etirer sur toute la carte :
+        // une photo verticale bornee en hauteur ne fait plus que ~470 px de
+        // large, et un conteneur pleine largeur laissait de grandes bandes
+        // vides de chaque cote (et reléguait le badge loin de la photo).
+        width: 'fit-content', maxWidth: '100%', margin: '0 auto',
+        borderRadius: 14, overflow: 'hidden', background: '#f5eee8',
+        border: '1px solid rgba(48,64,53,0.1)', display: 'flex', justifyContent: 'center',
+      }}>
         <canvas
           ref={dispRef}
           onPointerDown={onPointerDown}
@@ -478,7 +487,7 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
           onPointerLeave={onPointerUp}
           style={{
             width: 'auto', height: 'auto',
-            maxWidth: '100%', maxHeight: 'min(52vh, 440px)',
+            maxWidth: '100%', maxHeight: 'min(68vh, 620px)',
             display: 'block', touchAction: 'none',
             cursor: loading ? 'wait' : 'crosshair',
           }}
