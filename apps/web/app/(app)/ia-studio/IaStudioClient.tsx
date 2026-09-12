@@ -597,16 +597,6 @@ interface Item   { id:string; module:Module; prompt:string; dossier:string; ts:s
 const uid = () => crypto.randomUUID().replace(/-/g, '').slice(0, 8);
 
 /* ─────────────────────────────────────────── DONNÉES */
-const PRESETS: Preset[] = [
-  { name:'Noir Absolu',    facade:'#111111', poignee:'#C0C0C0', plan:'#F2EBE0', desc:'Inox brossé · Marbre blanc',      mood:'Luxe contemporain',      finish:'mat',     handleMaterial:'brushed stainless steel handles',     countertopMaterial:'white Calacatta marble countertop' },
-  { name:'Blanc Satiné',   facade:'#F5F3EF', poignee:'#C8A050', plan:'#1A1A1A', desc:'Or poli · Ardoise noire',          mood:'Élégance classique',     finish:'satiné',  handleMaterial:'polished gold handles',               countertopMaterial:'black slate countertop' },
-  { name:'Chêne Fumé',     facade:'#7A5C3A', poignee:'#6A5040', plan:'#E8E0D0', desc:'Cuir · Quartz crème',              mood:'Chaleur naturelle',      finish:'bois',    handleMaterial:'dark leather pull handles',           countertopMaterial:'cream quartz countertop' },
-  { name:'Gris Ardoise',   facade:'#3D3D3D', poignee:'#909090', plan:'#FAFAFA', desc:'Inox mat · Blanc neige',           mood:'Sobre & moderne',        finish:'mat',     handleMaterial:'matte nickel bar handles',            countertopMaterial:'bright white quartz countertop' },
-  { name:'Sauge Premium',  facade:'#6B8F71', poignee:'#B07848', plan:'#D4C9A8', desc:'Cuivre · Pierre calcaire',         mood:'Nature raffinée',        finish:'satiné',  handleMaterial:'antique copper handles',              countertopMaterial:'limestone beige countertop' },
-  { name:'Bleu Nuit',      facade:'#1B3254', poignee:'#D4A855', plan:'#EDE8DC', desc:'Laiton · Travertin clair',         mood:'Prestige & profondeur',  finish:'mat',     handleMaterial:'warm brass bar handles',              countertopMaterial:'travertine ivory countertop' },
-  { name:'Terracotta',     facade:'#C4602A', poignee:'#2C2C2C', plan:'#F0EAD8', desc:'Noir mat · Bois clair',            mood:'Soleil méditerranéen',   finish:'mat',     handleMaterial:'matte graphite black handles',        countertopMaterial:'light oak wood countertop' },
-  { name:'Béton Ciré',     facade:'#8A8A82', poignee:'#5A5A5A', plan:'#2A2A2A', desc:'Graphite · Ardoise noire',         mood:'Industriel chic',        finish:'brossé',  handleMaterial:'dark pewter grey bar handles',        countertopMaterial:'charcoal anthracite countertop' },
-];
 
 // Pipeline Kontext (mai 2026 v4) : édition image guidée par instruction.
 // 3 vraies étapes côté serveur, on les surface ici pour l'UI.
@@ -746,37 +736,6 @@ function Drop({ label, sub, onFile, file, tips, accent }:{
   );
 }
 
-/** Carte préset couleur */
-function PresetCard({ p, active, onClick }:{ p:Preset; active:boolean; onClick:()=>void }) {
-  return (
-    <button onClick={onClick}
-      className={`group relative flex flex-col gap-2.5 rounded-2xl border-2 p-3.5 text-left transition-all duration-250 overflow-hidden ${
-        active
-          ? 'border-[#a67749] bg-gradient-to-br from-[#a67749]/8 to-white shadow-lg scale-[1.02]'
-          : 'border-[#304035]/8 bg-white hover:border-[#a67749]/40 hover:shadow-md hover:scale-[1.01] hover:-translate-y-0.5'
-      }`}
-    >
-      <div className="flex h-8 w-full overflow-hidden rounded-xl shadow-sm">
-        <div className="flex-[3] transition-all duration-300 group-hover:flex-[3.5]" style={{background:p.facade}} />
-        <div className="flex-1"                                                       style={{background:p.poignee}} />
-        <div className="flex-[2] transition-all duration-300 group-hover:flex-[2.5]" style={{background:p.plan}} />
-      </div>
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-xs font-bold text-[#304035] leading-tight">{p.name}</p>
-          <p className="text-[10px] text-[#304035]/50 mt-0.5">{p.desc}</p>
-        </div>
-        {active && <Check className="h-4 w-4 shrink-0 text-[#a67749] mt-0.5" />}
-      </div>
-      {active && (
-        <div className="flex items-center gap-1.5 rounded-lg bg-[#a67749]/10 px-2 py-1">
-          <div className="h-1.5 w-1.5 rounded-full bg-[#a67749] dp" />
-          <span className="text-[10px] font-bold text-[#a67749]">{p.mood}</span>
-        </div>
-      )}
-    </button>
-  );
-}
 
 /** Sélecteur de chip (boutons radio stylisés) */
 function ChipSelector<T extends string>({
@@ -1424,23 +1383,14 @@ export default function IaStudioPage() {
   /* Phase 5 — reset du compteur "userRetry" quand l'image source change */
   useEffect(() => { setRendUserRetry(0); }, [rendRefFile]);
 
-  /* ── Appliquer un preset */
-  const applyPreset = (p: Preset) => {
-    setPreset(p);
-    setFacadeCol(p.facade);
-    setPoigneeCol(p.poignee);
-    setPlanCol(p.plan);
-    setFacadeFinish(p.finish);
-  };
 
   /* ── Coloriste : peut-on lancer ?
    * Flux Kontext édite une photo existante → la photo de cuisine est obligatoire.
    * Le reste (preset, couleurs, textures) est optionnel mais sans la photo
    * source on ne peut rien éditer. */
-  const canRunColor = !!photoFile && (
-    !!preset || colorsModified
-    || !!facadeTexture || !!poigneeTexture || !!planTexture
-  );
+  // Les palettes prédéfinies ont été retirées : la photo suffit à lancer, les
+  // couleurs affichées (modifiées ou non) sont celles qui seront appliquées.
+  const canRunColor = !!photoFile;
 
   /**
    * Charge une image de texture depuis un <input type=file/>, la convertit en
@@ -2511,15 +2461,9 @@ export default function IaStudioPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Palette className="h-4 w-4 text-[#a67749]" />
-                    <p className="font-bold text-[#304035]">Palettes prêtes à l'emploi</p>
+                    <p className="font-bold text-[#304035]">Couleurs</p>
                   </div>
                   <span className="text-[10px] text-[#304035]/40 font-medium">Façade · Poignée · Plan</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                  {PRESETS.map(p => (
-                    <PresetCard key={p.name} p={p} active={preset?.name===p.name}
-                      onClick={() => applyPreset(p)} />
-                  ))}
                 </div>
 
                 {/* Color pickers manuels — chaque élément accepte couleur ET/OU finition.
@@ -3633,12 +3577,7 @@ export default function IaStudioPage() {
 
             {/* Palettes + couleurs */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
-              <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Palettes & couleurs</p></div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {PRESETS.map(pr => (
-                  <PresetCard key={pr.name} p={pr} active={preset?.name === pr.name} onClick={() => applyPreset(pr)} />
-                ))}
-              </div>
+              <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Couleurs</p></div>
               <div className="grid grid-cols-3 gap-3">
                 {([
                   { label: 'Façades',        val: facadeCol,  set: setFacadeCol },
@@ -3809,12 +3748,7 @@ export default function IaStudioPage() {
 
             {/* Palettes + couleurs */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
-              <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Palettes & couleurs</p></div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {PRESETS.map(pr => (
-                  <PresetCard key={pr.name} p={pr} active={preset?.name === pr.name} onClick={() => applyPreset(pr)} />
-                ))}
-              </div>
+              <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Couleurs</p></div>
               <div className="grid grid-cols-3 gap-3">
                 {([
                   { label: 'Façades',        val: facadeCol,  set: setFacadeCol },
