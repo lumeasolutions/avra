@@ -1524,10 +1524,14 @@ export default function IaStudioPage() {
   const [archEvier,    setArchEvier]    = useState('');
   const [archCooktop,  setArchCooktop]  = useState<'' | 'induction' | 'gas' | 'downdraft'>('');
   const [archAmbiance, setArchAmbiance] = useState('');
-  // Upscale 4K actif par defaut : sans lui on recupere la resolution native de
-  // l'endpoint, modeste, et c'est ce qui se lit comme « pas assez realiste ».
-  // Coute un appel /upscale-4k supplementaire (~0,03 $) — decochable dans l'UI.
-  const [archHighRes,  setArchHighRes]  = useState(true);
+  // Upscale 4K laisse DESACTIVE par defaut. Mesure du 12/09/2026 sur un rendu
+  // 3840x2032 : le reduire a 1920 px puis le re-agrandir ne change l'image que
+  // de 1,35 niveau sur 255, et de 2,50 en passant par 960 px. Autrement dit le
+  // fichier 4K ne porte pas plus d'information qu'une image de ~1000 px :
+  // l'upscale interpole, il n'ajoute aucun detail. Le proposer par defaut
+  // couterait un appel /upscale-4k (~0,03 $) et huit fois le poids par rendu,
+  // sans gain visible. L'option reste disponible dans l'UI.
+  const [archHighRes,  setArchHighRes]  = useState(false);
   const [archLoading,  setArchLoading]  = useState(false);
   const [archResult,   setArchResult]   = useState<Item | null>(null);
   const [archError,    setArchError]    = useState<string | null>(null);
