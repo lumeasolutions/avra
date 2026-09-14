@@ -166,17 +166,48 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
    * Mesure du 12/09/2026 sur une meme source : fidelite structurelle 0,701 avec
    * l'ancien prompt, 0,592 avec une version qui decrivait MIEUX la piece. Plus
    * le prompt decrit, moins le moteur regarde l'image. */
+  // Description /auto-prompt de l'editeur : passe EN TETE quand elle existe.
+  // C'est la forme qu'ils recommandent (pre-remplir le champ prompt), et c'est
+  // elle qui porte les ANCRES DE COULEUR des petits elements — micro-ondes
+  // noir, fond de niche en bois, interieur de colonne noir, socles.
+  const scene = params.sourceDescription?.trim();
+
   if (!materiaux && !ambiance) {
-    // La description /auto-prompt de l'editeur passe EN TETE quand elle existe :
-    // c'est la forme qu'ils recommandent (pre-remplir le champ prompt), et elle
-    // ancre le modele sur ce que la source contient reellement.
-    const scene = params.sourceDescription?.trim();
     const consigne = params.mode === 'exterior'
       ? 'Photorealistic architectural exterior photograph of this exact building. Every volume, opening, material, colour and position stays identical to the source. Natural daylight, tack-sharp, fine material detail, high resolution.'
       : 'Photorealistic architectural interior photograph of this exact room. Every wall, opening, cabinet, appliance, accessory, material, colour and position stays identical to the source. Natural daylight, tack-sharp, fine material detail, high resolution.';
     return scene ? `${scene}. ${consigne}` : consigne;
   }
 
+  /* 6 ─ Finitions redefinies (ou ambiance) ET description disponible.
+   *
+   * Correctif du 14/09/2026. Cette branche n'existait pas : des qu'un champ
+   * etait rempli, le code tombait sur la structure longue ci-dessous, qui
+   * n'injecte PAS la description de scene. L'appel /auto-prompt etait donc
+   * effectue et facture... puis sa reponse etait jetee. Constate sur les huit
+   * rendus de Cassandra du matin (evier « Inox » + plaque induction) : aucun des
+   * huit prompts ne contenait la description. Sans elle le moteur ne sait pas
+   * que le micro-ondes est noir ou le fond des niches en bois, et comble avec
+   * les valeurs les plus courantes — micro-ondes inox, interieur blanc.
+   *
+   * On reprend donc la structure du cas minimal, MESUREE la meilleure le
+   * 12/09 (fidelite 0,733, netteté 485), et on y ajoute les changements
+   * demandes en les CANTONNANT a l'element qu'ils nomment : « Inox » tape pour
+   * l'evier ne doit pas deteindre sur les appareils voisins. */
+  if (scene) {
+    const avecChangements = finitions.length > 0;
+    const consigne = params.mode === 'exterior'
+      ? `Photorealistic architectural exterior photograph of this exact building. Every volume, opening, material, colour and position stays identical to the source${avecChangements ? ', except for the finish changes listed below' : ''}. Natural daylight, tack-sharp, fine material detail, high resolution`
+      : `Photorealistic architectural interior photograph of this exact room. Every wall, opening, cabinet, appliance, accessory, material, colour and position stays identical to the source${avecChangements ? ', except for the finish changes listed below' : ''}. Natural daylight, tack-sharp, fine material detail, high resolution`;
+    const changements = avecChangements
+      ? `Apply these finish changes, each one only to the element it names: ${finitions.join('; ')}. Every other element keeps exactly the colour and material described at the start`
+      : '';
+    return [scene, consigne, changements, ambiance].filter(Boolean).join('. ') + '.';
+  }
+
+  // Repli : /auto-prompt indisponible (appel echoue). Structure longue, dont la
+  // clause de fidelite porte a elle seule la protection contre les niches et
+  // etageres inventees.
   return [qualite, materiaux, ambiance, fidelite].filter(Boolean).join('. ') + '.';
 }
 
