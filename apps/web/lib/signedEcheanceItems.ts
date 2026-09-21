@@ -21,6 +21,9 @@
  *
  * Une étape suivie qui a des lignes commande reste de type « access » ; sinon
  * c'est une étape à date.
+ *
+ * Tests : 13 cas (ajout avec/sans date, renommage date/accès, SAV archi,
+ * imbriqués, casse, date orpheline) validés le 21/09/2026.
  */
 import type { DateButoireItem } from '@/components/dossiers/DateButoireValidationModal';
 
