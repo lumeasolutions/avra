@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useOverlayDismiss } from '@/lib/useOverlayDismiss';
 import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Folder, Check, Image as ImageIcon, Mail, UserPlus, CheckCircle2, Paperclip, Trash2, Bookmark } from 'lucide-react';
-import { api, apiUpload } from '@/lib/api';
+import { api } from '@/lib/api';
+import { uploadDossierDocDirect } from '@/lib/dossier-docs-api';
 import { displayName as folderDisplayName, depthOf, isDescendant, splitPath, SEP } from '@/lib/folderTree';
 import { useDemandeTemplatesStore } from '@/store/useDemandeTemplatesStore';
 import {
@@ -15,6 +16,13 @@ import {
   createInvitation as apiCreateInvitation,
 } from '@/lib/demandes-api';
 import { useDemandesStore } from '@/store/useDemandesStore';
+
+/** Taille maximale d'un fichier joint, alignée sur MAX_FILE_BYTES côté serveur
+ *  (dossier-documents.service.ts) et sur la limite du plan de stockage actuel.
+ *  Vérifiée AVANT l'envoi : l'utilisateur est prévenu tout de suite au lieu
+ *  d'attendre la fin d'un envoi voué à l'échec. */
+const MAX_FICHIER_OCTETS = 50 * 1024 * 1024;
+const enMo = (octets: number) => `${(octets / (1024 * 1024)).toFixed(octets < 10 * 1024 * 1024 ? 1 : 0)} Mo`;
 
 /**
  * Drawer universel "Envoyer a un intervenant".
@@ -176,6 +184,11 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
     dossierDocumentId?: string; documentId?: string;
     displayName: string; mimeType?: string;
     uploading?: boolean; error?: string;
+    /** Identifiant local d'un envoi en cours : deux fichiers de même nom ne se
+     *  confondent plus (l'ancien code les retrouvait par leur nom). */
+    key?: string;
+    /** Progression 0..1 de l'envoi direct vers le stockage. */
+    progress?: number;
   }>>(prefill?.attachments ?? []);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   // Sélecteur de pièces : dossiers repliés (par défaut tout est déplié).
@@ -916,7 +929,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                       <FileText size={14} style={{ color: a.error ? '#b91c1c' : '#3D5449' }} />
                       <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {a.displayName}
-                        {a.uploading && <span style={{ color: '#1d4ed8', marginLeft: 6 }}>· upload…</span>}
+                        {a.uploading && <span style={{ color: '#1d4ed8', marginLeft: 6 }}>· {typeof a.progress === 'number' ? `${Math.round(a.progress * 100)} %` : 'envoi…'}</span>}
                         {a.error && <span style={{ color: '#b91c1c', marginLeft: 6 }}>· {a.error}</span>}
                       </span>
                       {!a.uploading && (
@@ -953,28 +966,43 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                         const files = Array.from(e.target.files ?? []);
                         e.target.value = '';
                         if (files.length === 0 || !prefill.projectId) return;
+                        const projectId = prefill.projectId;
+                        // ENVOI DIRECT vers le stockage (correctif sept. 2026).
+                        // Cette fenêtre passait par la fonction serveur Vercel, dont
+                        // le corps de requête est plafonné à 4,5 Mo : tout PDF
+                        // d'architecte plus lourd échouait (« échec transmission
+                        // dossier »). L'envoi direct accepte jusqu'à la limite du
+                        // stockage, part en parallèle et donne la progression.
+                        const lot = files.map((f, i) => ({
+                          f,
+                          key: `${Date.now()}-${i}-${f.name}`,
+                          tropLourd: f.size > MAX_FICHIER_OCTETS,
+                        }));
+                        setUploads(u => [
+                          ...u,
+                          ...lot.map(({ f, key, tropLourd }) => tropLourd
+                            ? { key, displayName: f.name, mimeType: f.type, uploading: false,
+                                error: `trop lourd : ${enMo(f.size)} (limite ${enMo(MAX_FICHIER_OCTETS)})` }
+                            : { key, displayName: f.name, mimeType: f.type, uploading: true, progress: 0 }),
+                        ]);
+                        const aEnvoyer = lot.filter(x => !x.tropLourd);
+                        if (aEnvoyer.length === 0) return;
                         setUploadingFiles(true);
-                        for (const f of files) {
-                          // Push placeholder loading
-                          setUploads(u => [...u, { displayName: f.name, mimeType: f.type, uploading: true }]);
+                        await Promise.all(aEnvoyer.map(async ({ f, key }) => {
                           try {
-                            const fd = new FormData();
-                            fd.append('file', f);
-                            fd.append('subfolderLabel', 'Dossier - Documents Intervenants');
-                            const doc = await apiUpload<any>(`/dossiers/${encodeURIComponent(prefill.projectId)}/documents`, fd);
-                            setUploads(u => u.map((x) =>
-                              x.displayName === f.name && x.uploading
-                                ? { displayName: f.name, mimeType: f.type, dossierDocumentId: doc.id }
-                                : x
-                            ));
+                            const doc = await uploadDossierDocDirect(
+                              projectId, 'Dossier - Documents Intervenants', f,
+                              (p) => setUploads(u => u.map(x => x.key === key ? { ...x, progress: p } : x)),
+                            );
+                            setUploads(u => u.map(x => x.key === key
+                              ? { key, displayName: f.name, mimeType: f.type, dossierDocumentId: doc.id }
+                              : x));
                           } catch (err: any) {
-                            setUploads(u => u.map((x) =>
-                              x.displayName === f.name && x.uploading
-                                ? { displayName: f.name, mimeType: f.type, error: err?.message ?? 'echec upload', uploading: false }
-                                : x
-                            ));
+                            setUploads(u => u.map(x => x.key === key
+                              ? { key, displayName: f.name, mimeType: f.type, uploading: false, error: err?.message ?? 'échec de l\'envoi' }
+                              : x));
                           }
-                        }
+                        }));
                         setUploadingFiles(false);
                       }}
                     />
