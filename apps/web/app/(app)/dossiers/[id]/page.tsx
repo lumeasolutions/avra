@@ -1897,7 +1897,7 @@ export default function DossierDetailPage() {
                   {childPaths.length === 0 ? (
                     <div className="text-[12px] text-[#304035]/40 italic px-1 py-2">Aucun sous-dossier ici. Créez-en un, ou ajoutez des documents ci-dessous.</div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2.5">
                       {childPaths.map((cp) => {
                         // Compteur RECURSIF de documents (le dossier + ses descendants),
                         // necessaire pour la confirmation de suppression.
@@ -1912,7 +1912,7 @@ export default function DossierDetailPage() {
                             title={folderDisplayName(cp)}
                           >
                             <span className="text-3xl leading-none">📁</span>
-                            <span className="text-[12px] font-semibold leading-tight text-[#304035] break-words w-full">{folderDisplayName(cp)}</span>
+                            <span className="text-[12px] font-semibold leading-tight text-[#304035] break-words hyphens-auto w-full">{folderDisplayName(cp)}</span>
                           </button>
                           {folderHasSendable(cp) && (
                             <button
