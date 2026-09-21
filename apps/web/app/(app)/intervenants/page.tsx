@@ -25,11 +25,10 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantDrawer, type SendToIntervenantPrefill } from '@/components/demandes/SendToIntervenantDrawer';
 import { InviteIntervenantModal } from '@/components/demandes/InviteIntervenantModal';
 import { DonnerAccesModal } from '@/components/demandes/DonnerAccesModal';
-import { MiniCalendarWeek } from '@/components/demandes/MiniCalendarWeek';
 import { RatingEditor } from '@/components/demandes/RatingEditor';
 import {
   listInvitations, listDemandesPro, relanceDemandePro,
-  type IntervenantInvitation, type Demande, type DemandeType, type DemandeStatus,
+  type IntervenantInvitation, type Demande, type DemandeStatus,
 } from '@/lib/demandes-api';
 import { api } from '@/lib/api';
 
@@ -96,41 +95,6 @@ const BACKEND_TYPES = new Set([
 ]);
 const toBackendType = (t: string) => (BACKEND_TYPES.has(t) ? t : 'AUTRE');
 
-// ─── Quick demandes ──────────────────────────────────────────────────────────
-
-interface QuickDemandeDef {
-  key: string;
-  label: string;
-  icon: string;
-  type: DemandeType;
-  titlePrefix: string;
-  notesTemplate?: string;
-  uiMode: 'list-projects' | 'calendar' | 'list-tickets' | 'form';
-}
-
-const QUICK_DEMANDES: QuickDemandeDef[] = [
-  { key: 'PLANNING',     label: 'Planning',                icon: '📅', type: 'POSE',
-    titlePrefix: 'Intervention planning — ', uiMode: 'calendar' },
-  { key: 'DEVIS',        label: 'Devis',                   icon: '📄', type: 'DEVIS',
-    titlePrefix: 'Demande de devis — ', uiMode: 'list-projects' },
-  { key: 'LIVRAISON',    label: 'Livraison',               icon: '📦', type: 'LIVRAISON',
-    titlePrefix: 'Livraison — ', uiMode: 'calendar' },
-  { key: 'SAV',          label: 'SAV',                     icon: '🛠', type: 'SAV',
-    titlePrefix: 'SAV — ', uiMode: 'list-tickets' },
-  { key: 'MESURE',       label: 'Prise de mesures',        icon: '📏', type: 'MESURE',
-    titlePrefix: 'Prise de mesures — ', uiMode: 'list-tickets' },
-  { key: 'COMPTE_RENDU', label: 'Compte rendu chantier',   icon: '📝', type: 'AUTRE',
-    titlePrefix: 'Compte rendu chantier — ',
-    notesTemplate: 'Date de visite :\nPersonnes presentes :\nObservations :\nPoints d\'attention :\nProchaines etapes :',
-    uiMode: 'list-tickets' },
-  { key: 'COMPLEMENT',   label: 'Compléments',             icon: '➕', type: 'COMPLEMENT',
-    titlePrefix: 'Complément — ', uiMode: 'form' },
-  { key: 'CONFIRMATION', label: 'Confirmations commandes', icon: '✅', type: 'CONFIRMATION_COMMANDE',
-    titlePrefix: 'Confirmation commande — ', uiMode: 'list-tickets' },
-];
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  PAGE
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function IntervenantsHubPage() {
@@ -158,7 +122,6 @@ export default function IntervenantsHubPage() {
   // UI state
   const [filterType, setFilterType] = useState<string>('POSEUR');
   const [search, setSearch] = useState('');
-  const [selectedChipKey, setSelectedChipKey] = useState<string | null>(null);
   const [selectedIntervenantId, setSelectedIntervenantId] = useState<string | null>(null);
   const [selectedDossierId, setSelectedDossierId] = useState<string | null>(null);
 
@@ -288,16 +251,7 @@ export default function IntervenantsHubPage() {
 
   // ── Handlers ───────────────────────────────────────────────────────────
 
-  const handlePickChip = (key: string) => {
-    setSelectedChipKey(key === selectedChipKey ? null : key);
-    if (key !== selectedChipKey) {
-      setSelectedIntervenantId(null);
-      setSelectedDossierId(null);
-    }
-  };
-
   const handleOpenIntervenant = (id: string) => {
-    setSelectedChipKey(null);
     setSelectedIntervenantId(id);
     setSelectedDossierId(null);
   };
@@ -305,7 +259,6 @@ export default function IntervenantsHubPage() {
   const handleBack = () => {
     if (selectedDossierId) setSelectedDossierId(null);
     else if (selectedIntervenantId) setSelectedIntervenantId(null);
-    else if (selectedChipKey) setSelectedChipKey(null);
   };
 
   const handleRelanceAll = async () => {
@@ -423,7 +376,7 @@ export default function IntervenantsHubPage() {
 
   // ─── NIVEAU 0 : accueil ───────────────────────────────────────────────
 
-  if (!selectedChipKey && !selectedIntervenantId) {
+  if (!selectedIntervenantId) {
     return (
       <div className="space-y-5">
         <PageHeader
@@ -459,7 +412,6 @@ export default function IntervenantsHubPage() {
         <FiltersBar types={TYPES} activeType={filterType} onPick={setFilterType} />
 
         <QuickDemandesSection
-          onPickChip={handlePickChip}
           proDemandes={proDemandes}
           onRelance={handleRelanceOne}
         />
@@ -607,44 +559,6 @@ export default function IntervenantsHubPage() {
             }}
           />
         )}
-
-        <SendToIntervenantDrawer
-          open={!!drawerPrefill}
-          onClose={() => setDrawerPrefill(null)}
-          prefill={drawerPrefill ?? undefined}
-        />
-      </div>
-    );
-  }
-
-  // ─── NIVEAU 1a : drill-down chip ──────────────────────────────────────
-
-  if (selectedChipKey) {
-    const chip = QUICK_DEMANDES.find(q => q.key === selectedChipKey)!;
-    return (
-      <div className="space-y-5">
-        <PageHeader icon={<HardHat className="h-7 w-7" />} title="Intervenants" />
-        <button onClick={handleBack} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#304035]/60 hover:text-[#304035]">
-          <ArrowLeft className="h-3.5 w-3.5" /> Retour
-        </button>
-
-        <QuickDemandesSection
-          activeChip={selectedChipKey}
-          onPickChip={handlePickChip}
-          proDemandes={proDemandes}
-          onRelance={handleRelanceOne}
-        />
-
-        <ChipDrilldown
-          chip={chip}
-          intervenants={intervenants}
-          selectedIntervenant={selectedIntervenant}
-          dossiersOfSelected={selectedIntervenant ? dossiers.filter(d => d.intervenantId === selectedIntervenant.id) : []}
-          onPickIntervenant={(id) => { setSelectedIntervenantId(id); setSelectedDossierId(null); }}
-          proDemandes={proDemandes}
-          onAddDossier={(intId, name) => handleAddDossier(intId, name)}
-          onSendDemande={(prefill) => setDrawerPrefill(prefill)}
-        />
 
         <SendToIntervenantDrawer
           open={!!drawerPrefill}
@@ -946,39 +860,20 @@ function DemandesEnCoursList({
   );
 }
 
+/**
+ * Demandes en cours (suivi + relance). La grille « Demande rapide » a été
+ * retirée (retour cofondatrice 22/09/2026) : les demandes s'envoient depuis
+ * la fiche d'un intervenant ou depuis un dossier.
+ */
 function QuickDemandesSection({
-  activeChip, onPickChip, proDemandes, onRelance,
+  proDemandes, onRelance,
 }: {
-  activeChip?: string | null;
-  onPickChip: (key: string) => void;
   proDemandes: Demande[];
   onRelance: (id: string) => Promise<void>;
 }) {
   return (
     <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm p-5 space-y-4">
       <DemandesEnCoursList demandes={proDemandes} onRelance={onRelance} />
-
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-wider text-[#7c6c58] mb-2.5">Demande rapide</p>
-        <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-          {QUICK_DEMANDES.map(a => {
-            const active = activeChip === a.key;
-            return (
-              <button
-                key={a.key}
-                onClick={() => onPickChip(a.key)}
-                className={cn(
-                  'flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-left bg-white transition-all hover:border-[#a67749]/40 hover:shadow-sm border',
-                  active ? 'border-[#a67749] ring-1 ring-[#a67749]/30' : 'border-[#304035]/10'
-                )}
-              >
-                <span className="h-8 w-8 rounded-lg bg-[#e8efe6] text-base flex items-center justify-center shrink-0">{a.icon}</span>
-                <span className="text-[12.5px] font-medium text-[#1a2a1e] truncate flex-1">{a.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }
@@ -1061,160 +956,6 @@ function ActionButton({
       {icon}
       <span>{label}</span>
     </button>
-  );
-}
-
-// ─── Drill-down chip ─────────────────────────────────────────────────────────
-
-function ChipDrilldown({
-  chip, intervenants, selectedIntervenant, dossiersOfSelected,
-  onPickIntervenant, proDemandes, onAddDossier, onSendDemande,
-}: {
-  chip: QuickDemandeDef;
-  intervenants: Intervenant[];
-  selectedIntervenant: Intervenant | null;
-  dossiersOfSelected: ApiDossier[];
-  onPickIntervenant: (id: string) => void;
-  proDemandes: Demande[];
-  onAddDossier: (intervenantId: string, name: string) => void;
-  onSendDemande: (prefill: SendToIntervenantPrefill) => void;
-}) {
-  return (
-    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm overflow-hidden">
-      <div className="px-5 py-3 border-b border-[#304035]/8 flex items-center justify-between">
-        <h2 className="text-sm font-bold text-[#304035] flex items-center gap-2">
-          <span>{chip.icon}</span> {chip.label}
-        </h2>
-        {selectedIntervenant && (
-          <AddDossierInline onAdd={(name) => onAddDossier(selectedIntervenant.id, name)} />
-        )}
-      </div>
-
-      <div className="p-5">
-        {!selectedIntervenant ? (
-          <div>
-            <p className="text-xs text-[#304035]/55 mb-3">Choisir un intervenant pour cette demande :</p>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {intervenants.length === 0 ? (
-                <p className="col-span-full text-sm text-[#304035]/55 italic">Aucun intervenant. Ajoutez-en depuis la vue principale.</p>
-              ) : (
-                intervenants.map(i => (
-                  <button
-                    key={i.id}
-                    onClick={() => onPickIntervenant(i.id)}
-                    className="text-left p-3 rounded-xl border border-[#304035]/10 hover:border-[#a67749] hover:shadow-sm transition-all"
-                  >
-                    <p className="text-sm font-bold text-[#304035] truncate">{i.name}</p>
-                    <p className="text-xs text-[#304035]/55">{i.type}</p>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 pb-3 border-b border-[#304035]/8">
-              <HardHat className="h-5 w-5 text-[#304035]/55" />
-              <p className="text-base font-bold text-[#304035] underline underline-offset-2">{selectedIntervenant.name}</p>
-            </div>
-
-            {chip.uiMode === 'list-projects' && (
-              <DevisDrilldown
-                dossiers={dossiersOfSelected}
-                onSend={() => onSendDemande({ type: chip.type, title: chip.titlePrefix, intervenantId: selectedIntervenant.id })}
-              />
-            )}
-            {chip.uiMode === 'calendar' && (
-              <MiniCalendarWeek
-                demandes={proDemandes.filter(d => d.intervenant?.id === selectedIntervenant.id)}
-                filterType={chip.type}
-                onCellClick={(date, hour) => {
-                  const iso = new Date(date);
-                  iso.setHours(hour, 0, 0, 0);
-                  onSendDemande({
-                    type: chip.type,
-                    title: chip.titlePrefix,
-                    scheduledFor: iso.toISOString().slice(0, 16),
-                    intervenantId: selectedIntervenant.id,
-                  });
-                }}
-              />
-            )}
-            {chip.uiMode === 'list-tickets' && (
-              <TicketsDrilldown
-                proDemandes={proDemandes.filter(d => d.intervenant?.id === selectedIntervenant.id && d.type === chip.type).slice(0, 10)}
-                filterType={chip.type}
-                onSend={() => onSendDemande({ type: chip.type, title: chip.titlePrefix, notes: chip.notesTemplate, intervenantId: selectedIntervenant.id })}
-              />
-            )}
-            {chip.uiMode === 'form' && (
-              <button
-                onClick={() => onSendDemande({ type: chip.type, title: chip.titlePrefix, notes: chip.notesTemplate, intervenantId: selectedIntervenant.id })}
-                className="w-full py-3 rounded-xl bg-[#304035] hover:bg-[#3D5449] text-white font-semibold text-sm transition-colors"
-              >
-                <Send className="inline h-4 w-4 mr-2" />
-                Composer la demande {chip.label}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DevisDrilldown({ dossiers, onSend }: { dossiers: ApiDossier[]; onSend: () => void }) {
-  return (
-    <div className="space-y-3">
-      <button onClick={onSend} className="text-blue-600 hover:underline text-sm font-bold flex items-center gap-2">
-        <ChevronRight className="h-4 w-4" />
-        Envoyer la demande de devis
-      </button>
-      <div className="pl-2 space-y-2">
-        <div className="flex items-center gap-2 text-sm font-bold text-[#304035]">
-          <Folder className="h-4 w-4" />
-          <span className="underline">PROJETS DESCRIPTIFS</span>
-        </div>
-        {dossiers.length === 0 ? (
-          <p className="text-xs text-[#304035]/55 italic pl-6">Aucun projet — ajoutez-en avec "+ DOSSIER".</p>
-        ) : (
-          <ul className="pl-6 space-y-1">
-            {dossiers.map((d) => <li key={d.id} className="text-sm text-[#304035]">{d.name}</li>)}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TicketsDrilldown({
-  proDemandes, filterType, onSend,
-}: { proDemandes: Demande[]; filterType: DemandeType; onSend: () => void }) {
-  return (
-    <div className="space-y-3">
-      <button onClick={onSend} className="text-blue-600 hover:underline text-sm font-bold flex items-center gap-2">
-        <ChevronRight className="h-4 w-4" />
-        Nouvelle demande {filterType}
-      </button>
-      {proDemandes.length === 0 ? (
-        <p className="text-xs text-[#304035]/55 italic">Aucun ticket {filterType} pour cet intervenant.</p>
-      ) : (
-        <div className="space-y-2">
-          <p className="text-xs font-bold text-[#304035]/55 uppercase tracking-wider">Tickets récents</p>
-          {proDemandes.map(d => (
-            <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border border-[#304035]/10">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#304035] truncate">{d.title}</p>
-                <p className="text-xs text-[#304035]/55">{new Date(d.createdAt).toLocaleDateString('fr-FR')}</p>
-              </div>
-              <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5 bg-[#304035]/8 text-[#304035]">
-                {d.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
