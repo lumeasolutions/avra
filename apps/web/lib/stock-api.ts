@@ -74,7 +74,30 @@ export function stockItemFromApi(a: StockItemApi): StockItem {
   };
 }
 
-export const listStockItems = () => api<{ data: StockItemApi[] }>('/stock?pageSize=200');
+/**
+ * TOUT le stock, page par page (100 par page : chaque article peut porter une
+ * photo, on reste loin de la limite de réponse Vercel de 4,5 Mo).
+ * Avant : un seul appel `pageSize=200`… que le serveur ignorait → 50 max.
+ */
+export async function listAllStockItems(): Promise<StockItemApi[]> {
+  const all: StockItemApi[] = [];
+  for (let page = 1; page <= 100; page++) {
+    const res = await api<{ data: StockItemApi[]; total?: number }>(`/stock?page=${page}&pageSize=100`);
+    const data = Array.isArray(res) ? (res as unknown as StockItemApi[]) : (res?.data ?? []);
+    all.push(...data);
+    const total = typeof res?.total === 'number' ? res.total : undefined;
+    if (data.length < 100 || (total !== undefined && all.length >= total)) break;
+  }
+  return all;
+}
+export const listStockItems = () => listAllStockItems().then((data) => ({ data }));
+
+/** Import groupé (≤ 100 articles par appel). */
+export const bulkCreateStockItemsApi = (items: Partial<StockItem>[]) =>
+  api<{ count: number }>('/stock/bulk', {
+    method: 'POST',
+    body: JSON.stringify({ items: items.map(stockItemToPayload) }),
+  });
 export const createStockItemApi = (item: Partial<StockItem>) =>
   api<StockItemApi>('/stock', { method: 'POST', body: JSON.stringify(stockItemToPayload(item)) });
 export const updateStockItemApi = (id: string, item: Partial<StockItem>) =>

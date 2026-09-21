@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
@@ -31,7 +32,12 @@ async function bootstrap() {
 
   // ✅ rawBody enabled so HMAC webhook verifiers (YouSign etc.) can use the
   //    untouched bytes instead of a re-serialised JSON.
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  // 22/09/2026 — limite JSON 100 Ko (défaut Express) → 4 Mo (Vercel plafonne
+  //   à 4,5 Mo). À 100 Ko, un article de stock avec photo (data-URL) échouait
+  //   en 500 et n'était jamais enregistré ; l'import Excel groupé aussi.
+  //   rawBody reste disponible (useBodyParser le conserve quand rawBody: true).
+  app.useBodyParser('json', { limit: '4mb' });
 
   // HIGH-5 (passe-2): route NestJS logging through SanitizedLogger so secrets
   //   (Bearer tokens, password fields, emails…) are scrubbed before they hit
@@ -72,7 +78,7 @@ async function bootstrap() {
     maxAge: 86400,
   });
 
-  app.getHttpAdapter().get('/health', (_req, res) => {
+  app.getHttpAdapter().get('/health', (_req: unknown, res: any) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 

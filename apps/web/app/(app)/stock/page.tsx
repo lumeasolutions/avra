@@ -13,6 +13,8 @@ import { useStockStore, type StockItem } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { exportStockToExcel } from '@/lib/stock-excel';
+import { fileToResizedDataUrl } from '@/lib/image-resize';
+import { StockImportModal } from '@/components/stock/StockImportModal';
 
 /* ── CONSTANTES ── */
 /** Liste de catégories par défaut (menuisier / hors cuisiniste / hors architecte). */
@@ -181,6 +183,7 @@ export default function StockPage() {
   const [sortDir,     setSortDir]     = useState<SortDir>('asc');
   const [showAdd,     setShowAdd]     = useState(false);
   const [exporting,   setExporting]   = useState(false);
+  const [showImport,  setShowImport]  = useState(false);
   const handleExport = async () => {
     if (exporting) return;
     setExporting(true);
@@ -366,6 +369,15 @@ export default function StockPage() {
             >
               <Download className="h-4 w-4" />
               {exporting ? 'Export…' : 'Exporter Excel'}
+            </button>
+            {/* Import Excel / CSV (22/09/2026) */}
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-2 rounded-xl border border-white/30 bg-white/15 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/25 transition-all active:scale-95"
+              title="Importer des articles depuis un fichier Excel (.xlsx) ou CSV"
+            >
+              <Upload className="h-4 w-4" />
+              Importer Excel
             </button>
             {/* Vue toggle */}
             <div className="flex rounded-xl border border-white/20 bg-white/15 overflow-hidden shadow-sm">
@@ -560,7 +572,7 @@ export default function StockPage() {
           <div className="stk-table-inner">
           {/* En-tête colonnes */}
           <div className="grid items-center px-5 py-3 border-b border-[#304035]/8 bg-gradient-to-r from-[#304035]/3 to-transparent"
-            style={{ gridTemplateColumns: '2.5rem 5.5rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem' }}>
+            style={{ gridTemplateColumns: '2.5rem 5.5rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem', columnGap: '0.75rem' }}>
             <span />
             <span className="text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider text-center">Photo</span>
             <button onClick={() => handleSort('supplier')} className="text-left text-[10px] font-bold text-[#304035]/50 uppercase tracking-wider hover:text-[#a67749] transition-colors">
@@ -595,7 +607,7 @@ export default function StockPage() {
                 <div
                   key={item.id}
                   className="row-in grid items-center px-5 py-3.5 hover:bg-[#f5eee8]/40 transition-all group"
-                  style={{ gridTemplateColumns: '2.5rem 5.5rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem', animationDelay: `${idx * 30}ms` }}
+                  style={{ gridTemplateColumns: '2.5rem 5.5rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem', columnGap: '0.75rem', animationDelay: `${idx * 30}ms` }}
                 >
                   {/* Statut dot */}
                   <button
@@ -644,7 +656,7 @@ export default function StockPage() {
                       className="w-full rounded-lg border border-[#304035]/20 bg-[#f5eee8]/60 px-2.5 py-1.5 text-sm font-semibold text-[#304035] focus:outline-none focus:ring-1 focus:ring-[#304035]/30 mr-2"
                     />
                   ) : (
-                    <span className="font-semibold text-[#304035] text-sm truncate">{item.supplier}</span>
+                    <span className="font-semibold text-[#304035] text-sm min-w-0 break-words leading-snug">{item.supplier}</span>
                   )}
 
                   {/* Modèle */}
@@ -660,7 +672,7 @@ export default function StockPage() {
                       className="w-full rounded-lg border border-[#304035]/20 bg-[#f5eee8]/60 px-2.5 py-1.5 text-sm text-[#304035] focus:outline-none focus:ring-1 focus:ring-[#304035]/30 mr-2"
                     />
                   ) : (
-                    <span className="text-sm text-[#304035]/75 truncate">
+                    <span className="text-sm text-[#304035]/75 min-w-0 break-words leading-snug">
                       {item.model}{item.material ? ` — ${item.material}` : ''}
                     </span>
                   )}
@@ -808,7 +820,7 @@ export default function StockPage() {
 
           {/* Footer total */}
           <div className="grid px-5 py-3 border-t border-[#304035]/8 bg-gradient-to-r from-[#304035]/3 to-transparent text-xs font-bold text-[#304035]/60 uppercase tracking-wider"
-            style={{ gridTemplateColumns: '2.5rem 5.5rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem' }}>
+            style={{ gridTemplateColumns: '2.5rem 5.5rem 1fr 1fr 1fr 4rem 5.5rem 5.5rem 5rem 2.5rem', columnGap: '0.75rem' }}>
             <span />
             <span />
             <span>{filtered.length} article{filtered.length > 1 ? 's' : ''}</span>
@@ -976,6 +988,14 @@ export default function StockPage() {
           19/05/2026 : restructure en flex-col avec body scrollable + footer
           sticky pour que le bouton "Enregistrer l'article" reste accessible
           meme quand le formulaire deborde du viewport (demande asso). */}
+      {showImport && (
+        <StockImportModal
+          categories={CAT_LABEL}
+          categorieParDefaut={DEFAULT_CAT}
+          onClose={() => setShowImport(false)}
+        />
+      )}
+
       {showAdd && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
@@ -1152,18 +1172,14 @@ export default function StockPage() {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      if (file.size > 1 * 1024 * 1024) {
-                        alert("Image trop lourde (max 1 Mo). Compressez-la et réessayez.");
-                        e.currentTarget.value = '';
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        setForm(f => ({ ...f, image: reader.result as string }));
-                      };
-                      reader.onerror = () => alert("Impossible de lire le fichier.");
-                      reader.readAsDataURL(file);
                       e.currentTarget.value = '';
+                      // Photo réduite (800 px, JPEG) : une photo de téléphone de
+                      // plusieurs Mo passe sous les ~100 Ko et s'enregistre bien
+                      // sur le serveur (avant : > 1 Mo refusée, et entre ~75 Ko
+                      // et 1 Mo l'enregistrement échouait sans message).
+                      fileToResizedDataUrl(file, 800)
+                        .then((img) => setForm(f => ({ ...f, image: img })))
+                        .catch(() => alert("Impossible de lire l'image."));
                     }}
                     className="hidden"
                   />
@@ -1196,7 +1212,7 @@ export default function StockPage() {
                     </button>
                   </div>
                 ) : (
-                  <p className="text-[9px] text-[#304035]/30 mt-1">Optionnel — JPG / PNG / WEBP · 1 Mo max · affiché en miniature dans la liste des articles</p>
+                  <p className="text-[9px] text-[#304035]/30 mt-1">Optionnel — JPG / PNG / WEBP · réduite automatiquement · affichée en miniature dans la liste</p>
                 )}
               </div>
 

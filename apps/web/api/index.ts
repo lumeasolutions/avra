@@ -8,7 +8,7 @@
 import 'reflect-metadata';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { NestFactory } from '@nestjs/core';
-import { ExpressAdapter } from '@nestjs/platform-express';
+import { ExpressAdapter, type NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import express, { Express } from 'express';
 import helmet from 'helmet';
@@ -38,6 +38,12 @@ async function bootstrapServer(): Promise<Express> {
 
   // ✅ Cookie parser (auth + CSRF guards depend on req.cookies).
   app.use(cookieParser());
+
+  // 22/09/2026 — limite JSON 100 Ko (défaut Express) → 4 Mo (Vercel plafonne
+  //   à 4,5 Mo). À 100 Ko, un article de stock avec photo (data-URL) échouait
+  //   en 500 et n'était jamais enregistré ; l'import Excel groupé aussi.
+  //   rawBody reste disponible (useBodyParser le conserve quand rawBody: true).
+  (app as unknown as NestExpressApplication).useBodyParser('json', { limit: '4mb' });
 
   app.setGlobalPrefix('api/v1');
 

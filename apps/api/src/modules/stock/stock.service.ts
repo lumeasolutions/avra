@@ -19,6 +19,20 @@ export class StockService {
     });
   }
 
+  /** Import groupé : crée tous les articles en une seule écriture. */
+  async bulkCreate(workspaceId: string, items: CreateStockItemDto[]) {
+    if (!items?.length) return { count: 0 };
+    const result = await this.prisma.stockItem.createMany({
+      data: items.map((dto) => {
+        // supplierId non accepté ici (l'import porte le fournisseur en texte
+        // libre dans `extra.supplier`, comme la saisie manuelle).
+        const { supplierId: _s, ...rest } = dto as CreateStockItemDto & { supplierId?: string };
+        return { ...rest, workspaceId } as any;
+      }),
+    });
+    return { count: result.count };
+  }
+
   async findAll(workspaceId: string, status?: StockItemStatus, page = 1, pageSize = 50) {
     // OPTIMISATION: Ajouter pagination et select ciblé
     const skip = (page - 1) * pageSize;

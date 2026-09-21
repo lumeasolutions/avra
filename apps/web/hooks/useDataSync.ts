@@ -24,7 +24,7 @@ import { usePlanningStore } from '@/store/usePlanningStore';
 import { useFacturationStore } from '@/store/useFacturationStore';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { useStockStore } from '@/store/useStockStore';
-import { stockItemFromApi } from '@/lib/stock-api';
+import { stockItemFromApi, listAllStockItems } from '@/lib/stock-api';
 import { useConfigStore } from '@/store/useConfigStore';
 import { getSettings } from '@/lib/settings-api';
 import { getTeamOverview, teamDisplayName } from '@/lib/team-api';
@@ -568,8 +568,8 @@ export function useDataSync() {
 
   async function syncStock() {
     try {
-      const response = await api<any>('/stock?pageSize=200');
-      const data: any[] = Array.isArray(response) ? response : (response?.data ?? []);
+      // Toutes les pages (avant : 1 seul appel, 50 articles max côté serveur).
+      const data: any[] = await listAllStockItems();
       // Backend vide → on vide aussi le stock local (compte remis à zéro).
       if (!Array.isArray(data) || data.length === 0) {
         useStockStore.setState({ stockItems: [] });

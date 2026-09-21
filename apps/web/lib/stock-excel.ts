@@ -13,6 +13,7 @@
  * dans la dernière colonne (formats PNG / JPEG / GIF acceptés par Excel).
  */
 import type { StockItem } from '@/store';
+import { resizeImageToJpeg } from './image-resize';
 
 const DISPO: Record<StockItem['dot'], string> = {
   green: 'Disponible',
@@ -38,37 +39,17 @@ function imageExtension(dataUrl: string): 'png' | 'jpeg' | 'gif' | null {
  * lisible par Excel, sinon null.
  */
 async function toExcelImage(src: string): Promise<{ base64: string; extension: 'png' | 'jpeg' | 'gif' } | null> {
+  const jpeg = await resizeImageToJpeg(src, 240);
+  if (jpeg) return { base64: jpeg, extension: 'jpeg' };
   const original = imageExtension(src);
-  if (typeof document === 'undefined' || typeof Image === 'undefined') {
-    return original ? { base64: src, extension: original } : null;
-  }
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error('image illisible'));
-      el.src = src;
-    });
-    const scale = Math.min(1, 240 / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
-    const w = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
-    const h = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('canvas indisponible');
-    ctx.fillStyle = '#ffffff'; // fond blanc (les PNG transparents ne virent pas au noir en JPEG)
-    ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(img, 0, 0, w, h);
-    return { base64: canvas.toDataURL('image/jpeg', 0.85), extension: 'jpeg' };
-  } catch {
-    return original ? { base64: src, extension: original } : null;
-  }
+  return original ? { base64: src, extension: original } : null;
 }
 
 export async function exportStockToExcel(
   items: StockItem[],
   categoryLabel: (c: string) => string,
+  /** Nom du fichier sans extension (défaut : stock-AAAA-MM-JJ). */
+  nomFichier?: string,
 ): Promise<void> {
   // exceljs est un module CommonJS : selon le bundler, il arrive en `default`
   // ou directement en espace de noms.
@@ -151,7 +132,7 @@ export async function exportStockToExcel(
   // Date LOCALE (toISOString est en UTC : après minuit en France, il donnait la veille).
   const d = new Date();
   const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  a.download = `stock-${jour}.xlsx`;
+  a.download = `${nomFichier ?? `stock-${jour}`}.xlsx`;
   document.body.appendChild(a);
   a.click();
   a.remove();

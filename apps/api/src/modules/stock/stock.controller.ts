@@ -4,6 +4,7 @@ import { Cache } from 'cache-manager';
 import { WorkspaceScopedCacheInterceptor } from '../../common/interceptors/workspace-scoped-cache.interceptor';
 import { StockService } from './stock.service';
 import { CreateStockItemDto } from './dto/create-stock-item.dto';
+import { BulkCreateStockItemsDto } from './dto/bulk-create-stock-items.dto';
 import { UpdateStockItemDto } from './dto/update-stock-item.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -29,16 +30,36 @@ export class StockController {
     return result;
   }
 
+  /**
+   * Import groupé (Excel / CSV) : jusqu'à 100 articles par appel. Un seul
+   * aller-retour au lieu de 100 POST (limite anti-abus 300 req/min).
+   */
+  @Post('bulk')
+  @Roles('OWNER', 'ADMIN', 'MEMBER')
+  bulkCreate(@CurrentUser() user: JwtPayload, @Body() dto: BulkCreateStockItemsDto) {
+    return this.stock.bulkCreate(user.workspaceId, dto.items);
+  }
+
+  // 22/09/2026 — plus de cache sur les lectures du stock : l'invalidation
+  // visait la clé `stock:<ws>` alors que l'intercepteur indexe sur l'URL
+  // (`/stock?…::ws:<ws>`) → après un ajout, la liste restait figée jusqu'à
+  // 5 min et l'article « disparaissait » au rechargement. La requête est
+  // légère (un index workspace), le cache n'apportait rien.
+  // Pagination réelle : `page` / `pageSize` (1-200) sont enfin pris en compte
+  // (avant : pageSize ignoré → 50 articles max à l'écran).
   @Get()
-  @UseInterceptors(WorkspaceScopedCacheInterceptor)
-  @CacheTTL(300) // 5 minutes
-  findAll(@CurrentUser() user: JwtPayload, @Query('status') status?: StockItemStatus) {
-    return this.stock.findAll(user.workspaceId, status);
+  findAll(
+    @CurrentUser() user: JwtPayload,
+    @Query('status') status?: StockItemStatus,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const p = Math.max(1, parseInt(page ?? '1', 10) || 1);
+    const ps = Math.min(200, Math.max(1, parseInt(pageSize ?? '50', 10) || 50));
+    return this.stock.findAll(user.workspaceId, status, p, ps);
   }
 
   @Get(':id')
-  @UseInterceptors(WorkspaceScopedCacheInterceptor)
-  @CacheTTL(600) // 10 minutes
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.stock.findOne(user.workspaceId, id);
   }
