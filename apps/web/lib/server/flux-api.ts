@@ -25,6 +25,35 @@
  */
 
 import { fal } from '@fal-ai/client';
+
+/**
+ * Message d'erreur fal.ai LISIBLE (22/09/2026).
+ *
+ * Le SDK lève une ApiError dont `message` n'est que le libellé HTTP
+ * (« Forbidden ») : l'explication réelle est dans `body.detail` (ex. « User is
+ * locked. Reason: Exhausted balance »). L'interface n'affichait donc que
+ * « Colorisation échouée — Forbidden », sans dire quoi faire.
+ */
+export function messageErreurFal(err: unknown): string {
+  const e = err as { status?: number; message?: string; body?: unknown };
+  const body = e?.body as { detail?: unknown } | string | undefined;
+  const detailBrut = typeof body === 'string' ? body : body?.detail;
+  const detail = typeof detailBrut === 'string'
+    ? detailBrut
+    : Array.isArray(detailBrut)
+      ? detailBrut.map((d: any) => d?.msg ?? JSON.stringify(d)).join(' ; ')
+      : '';
+  const txt = `${detail} ${e?.message ?? ''}`.toLowerCase();
+  if (/balance|exhausted|locked|billing|insufficient|credit/.test(txt)) {
+    return 'Crédit épuisé chez le moteur d\u2019images (fal.ai). Rechargez le compte (fal.ai → Billing) puis relancez.';
+  }
+  if (e?.status === 401) return 'Clé du moteur d\u2019images (fal.ai) invalide ou absente. Vérifiez FAL_KEY.';
+  if (e?.status === 403) return `Accès refusé par le moteur d\u2019images (fal.ai)${detail ? ` : ${detail}` : ''}. Vérifiez le crédit et la clé du compte fal.ai.`;
+  if (e?.status === 429) return 'Trop de demandes simultanées au moteur d\u2019images. Patientez une minute puis relancez.';
+  if (e?.status === 422 && detail) return `Image ou réglages refusés par le moteur : ${detail}`;
+  if (detail) return `${e?.message ?? 'Erreur'} : ${detail}`;
+  return err instanceof Error ? err.message : String(err);
+}
 import {
   buildColoristPrompt,
   buildKontextColoristPrompt,
@@ -453,7 +482,7 @@ export async function generateColoristImageSAM(
     };
 
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = messageErreurFal(err);
     console.error(`[SAM+Inpaint] Pipeline ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
     return {
       success:    false,
@@ -615,7 +644,7 @@ export async function generateColoristImage(
       error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = messageErreurFal(err);
     console.warn(`[fal.subscribe] ${FLUX_MODEL_COLORISTE_I2I} ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
     return {
       success:    false,
@@ -688,7 +717,7 @@ export async function generateColoristImageKontext(
       error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = messageErreurFal(err);
     console.warn(`[fal.subscribe] ${model} ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
     return {
       success:    false,
@@ -760,7 +789,7 @@ export async function generateRenduFromReferenceKontext(
       error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = messageErreurFal(err);
     console.warn(`[fal.subscribe] ${FLUX_MODEL_KONTEXT_SINGLE} (rendu) ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
     return {
       success:    false,
@@ -831,7 +860,7 @@ export async function generateRenduFromReferenceKontextMulti(
       error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = messageErreurFal(err);
     console.warn(`[fal.subscribe] ${FLUX_MODEL_KONTEXT_MULTI} (rendu+textures) ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
     return {
       success:    false,
@@ -969,7 +998,7 @@ export async function generateRenduFromReferenceControlNet(
       error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = messageErreurFal(err);
     console.warn(`[fal.subscribe] ${FLUX_CONTROL_LORA_CANNY} ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
     return {
       success:    false,
@@ -1069,7 +1098,7 @@ export async function generateRenduUltraFidelity(
       error:      urls.length === 0 ? 'fal.ai n\'a pas retourné d\'image' : undefined,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = messageErreurFal(err);
     console.warn(`[fal.subscribe] ${FLUX_GENERAL_I2I} (ultra) ÉCHEC en ${Date.now() - tStart}ms: ${message}`);
     return {
       success:    false,
