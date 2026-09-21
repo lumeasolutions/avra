@@ -106,7 +106,10 @@ export async function exportStockToExcel(
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `stock-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  // Date LOCALE (toISOString est en UTC : après minuit en France, il donnait la veille).
+  const d = new Date();
+  const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  a.download = `stock-${jour}.xlsx`;
   document.body.appendChild(a);
   a.click();
   a.remove();
