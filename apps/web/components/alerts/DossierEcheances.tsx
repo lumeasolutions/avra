@@ -75,7 +75,7 @@ function EcheanceRow({
   return (
     <div id={anchor} style={{ scrollMarginTop: 90 }} className="flex items-center gap-2 px-2 py-2 rounded-lg">
       <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor(status), flexShrink: 0 }} />
-      <span className="flex-1 text-sm text-[#304035] font-medium truncate">
+      <span className="flex-1 min-w-0 text-sm text-[#304035] font-medium break-words">
         {label}
         {sub ? <span className="text-[#304035]/45 font-normal"> · {sub}</span> : null}
       </span>

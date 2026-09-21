@@ -813,6 +813,16 @@ export default function DossierDetailPage() {
         </div>
       )}
       <style>{`
+        /* Colonne « Dossiers & fichiers » étroite (petit écran d'ordinateur) :
+           à côté des 5 boutons d'action il ne reste que ~40 px pour le nom,
+           qui se cassait lettre par lettre. On passe le nom sur sa propre
+           ligne, actions en dessous — même rendu que sur téléphone. */
+        .sf-card { container-type: inline-size; }
+        @container (max-width: 440px) {
+          .subfolder-row { flex-wrap: wrap !important; row-gap: 8px !important; }
+          .subfolder-row > .flex-1 { flex: 1 1 calc(100% - 48px) !important; min-width: 0 !important; }
+          .subfolder-row > .flex-1 ~ * { margin-top: 0; }
+        }
         @media (max-width: 900px) {
           .dos-detail-grid { grid-template-columns: 1fr !important; }
           /* min-width:0 : sans lui, un enfant de grille garde min-width:auto et
@@ -1142,8 +1152,9 @@ export default function DossierDetailPage() {
         {/* ── COLONNE GAUCHE (2/3) — dossiers & fichiers ── */}
         <div className="col-span-2 col-left space-y-4">
 
-          {/* Section fichiers */}
-          <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
+          {/* Section fichiers — container query : sur un écran d'ordinateur étroit
+              (colonne < 440 px), le nom passe sur sa propre ligne comme sur mobile. */}
+          <div className="sf-card bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#304035]/5">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-[#304035]/5 rounded-xl">
