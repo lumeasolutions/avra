@@ -15,11 +15,16 @@
  */
 import {
   BarChart3, X, Calendar, Phone, Mail, MapPin,
-  CheckCircle2, Hourglass, TrendingUp, Check, Clock,
+  CheckCircle2, Hourglass, TrendingUp, Check, Clock, CalendarPlus,
 } from 'lucide-react';
 import { clientDisplayName } from '@/lib/dossier-name';
 import { useDossierStore, type CommandeAccessEntry } from '@/store';
-import { echeanceStatus } from '@/lib/echeanceStatus';
+import {
+  SIGNED_SUBFOLDERS, MENUISIER_SIGNED_SUBFOLDERS,
+  CUISINISTE_SIGNED_SUBFOLDERS, ARCHITECTE_SIGNED_SUBFOLDERS,
+} from '@/store/useDossierStore';
+import { echeanceStatus, parseLocalDate } from '@/lib/echeanceStatus';
+import { buildSignedEcheanceItems } from '@/lib/signedEcheanceItems';
 import {
   MENUISIER_DATE_BUTOIRE_ITEMS,
   CUISINISTE_DATE_BUTOIRE_ITEMS,
@@ -60,6 +65,52 @@ function getDateButoireItemsForProfession(profession: string | null): DateButoir
   return DEFAULT_DATE_BUTOIRE_ITEMS;
 }
 
+function getSignedTemplateLabels(profession: string | null): string[] {
+  const list = profession === 'menuisier' ? MENUISIER_SIGNED_SUBFOLDERS
+    : profession === 'cuisiniste' ? CUISINISTE_SIGNED_SUBFOLDERS
+    : profession === 'architecte' ? ARCHITECTE_SIGNED_SUBFOLDERS
+    : SIGNED_SUBFOLDERS;
+  return list.map((sf) => sf.label);
+}
+
+/** Date stockée (ISO ou jj/mm/aaaa) → valeur d'un <input type="date">. */
+function toInputDate(dateStr?: string): string {
+  const d = parseLocalDate(dateStr);
+  if (!d || isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/**
+ * Petit bouton calendrier qui ouvre le sélecteur de date natif. Sert à poser
+ * ou modifier la date butoir d'une étape directement depuis le tableau de bord
+ * (indispensable pour les étapes ajoutées après la signature).
+ */
+function DatePickButton({ value, label, onPick }: { value?: string; label: string; onPick: (iso: string) => void }) {
+  return (
+    <span
+      title={value ? `Modifier la date butoir de « ${label} »` : `Ajouter une date butoir à « ${label} » (alerte + suivi)`}
+      style={{
+        position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0,
+        padding: value ? 4 : '4px 9px', borderRadius: 8, cursor: 'pointer',
+        border: '1px solid rgba(48,64,53,0.15)', background: 'white',
+        color: 'rgba(48,64,53,0.65)', fontSize: '0.72rem', fontWeight: 700,
+      }}
+    >
+      <CalendarPlus style={{ width: 12, height: 12 }} />
+      {!value && 'Date'}
+      <input
+        type="date"
+        aria-label={value ? `Modifier la date butoir de ${label}` : `Ajouter une date butoir à ${label}`}
+        value={toInputDate(value)}
+        onChange={(e) => onPick(e.target.value)}
+        onClick={(e) => { try { (e.currentTarget as HTMLInputElement).showPicker?.(); } catch { /* navigateur ancien : saisie clavier */ } }}
+        style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+      />
+    </span>
+  );
+}
+
 export function SignedDossierDashboardModal({
   dossierId, onClose, profession,
 }: { dossierId: string; onClose: () => void; profession: string | null }) {
@@ -68,13 +119,36 @@ export function SignedDossierDashboardModal({
   const echeancesValidees = useDossierStore(s => s.echeancesValidees);
   const commandesAccess = useDossierStore(s => s.commandesAccess);
   const updateCommandeAccess = useDossierStore(s => s.updateCommandeAccess);
+  const updateDateButoireSignee = useDossierStore(s => s.updateDateButoireSignee);
+  const suivreEcheance = useDossierStore(s => s.suivreEcheance);
   const dossier = useDossierStore(s => s.dossiersSignes.find(d => d.id === dossierId));
   const saved = datesButoiresSignes[dossierId] ?? {};
 
   const getLines = (label: string): CommandeAccessEntry[] => commandesAccess[dossierId]?.[label] ?? [];
   const getLineStatus = (dateButoir: string, validee?: boolean) => echeanceStatus(dateButoir, validee === true);
 
-  const items = getDateButoireItemsForProfession(profession);
+  // Étapes fixes du métier + étapes ajoutées / renommées dans le dossier signé.
+  const items = buildSignedEcheanceItems(getDateButoireItemsForProfession(profession), {
+    subfolderLabels: (dossier?.signedSubfolders ?? []).map(sf => sf.label),
+    templateLabels: getSignedTemplateLabels(profession),
+    dates: saved,
+    flags: echeancesValidees[dossierId],
+    access: commandesAccess[dossierId],
+  });
+  const pickDate = (label: string, iso: string) => updateDateButoireSignee(dossierId, label, iso);
+
+  // Sous-dossiers de 1er niveau PAS encore suivis (ex. créés avant que la
+  // création ne les suive automatiquement) → proposés en « Ajouter une étape ».
+  // Les boîtes système des intervenants restent exclues, comme partout.
+  const suivis = new Set(items.map(i => i.label.trim().toLowerCase()));
+  const nonSuivis = (dossier?.signedSubfolders ?? [])
+    .map(sf => sf.label)
+    .filter(l => !l.includes(' ▸ '))
+    .filter(l => {
+      const low = l.trim().toLowerCase();
+      if ((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant')) return false;
+      return !suivis.has(low);
+    });
 
   const findSubfolder = (label: string) => {
     const norm = label.trim().toLowerCase();
@@ -400,8 +474,11 @@ export function SignedDossierDashboardModal({
                       >
                         <Check style={{ width: 11, height: 11 }} />Valider
                       </button>
+                      <DatePickButton value={val} label={item.label} onPick={(iso) => pickDate(item.label, iso)} />
                     </div>
                   ) : (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <DatePickButton label={item.label} onPick={(iso) => pickDate(item.label, iso)} />
                     <button
                       type="button"
                       onClick={() => validateStep(item.label)}
@@ -412,11 +489,36 @@ export function SignedDossierDashboardModal({
                     >
                       <Hourglass style={{ width: 11, height: 11 }} />À valider
                     </button>
+                    </div>
                   )}
                 </div>
               );
             })}
           </div>
+
+          {nonSuivis.length > 0 && (
+            <label style={{
+              marginTop: '0.6rem', display: 'flex', alignItems: 'center', gap: 8,
+              padding: '0.6rem 1rem', borderRadius: '0.75rem', border: '1px dashed rgba(166,119,73,0.45)',
+              background: 'rgba(166,119,73,0.04)', color: '#a67749', fontSize: '0.78rem', fontWeight: 700,
+            }}>
+              <CalendarPlus style={{ width: 14, height: 14, flexShrink: 0 }} />
+              <span style={{ flexShrink: 0 }}>Ajouter une étape au suivi :</span>
+              <select
+                value=""
+                onChange={(e) => { if (e.target.value) suivreEcheance(dossierId, e.target.value); }}
+                aria-label="Choisir un sous-dossier à ajouter au tableau de bord"
+                style={{
+                  flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: 8, cursor: 'pointer',
+                  border: '1px solid rgba(166,119,73,0.35)', background: 'white', color: '#304035',
+                  fontSize: '0.78rem', fontWeight: 600,
+                }}
+              >
+                <option value="">Choisir un sous-dossier…</option>
+                {nonSuivis.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </label>
+          )}
 
           {/* Confirmations summary */}
           {(dossier?.confirmations?.length ?? 0) > 0 && (

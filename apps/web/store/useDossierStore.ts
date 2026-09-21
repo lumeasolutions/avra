@@ -761,7 +761,16 @@ interface DossierState {
    * En backend l'appel API est fait depuis useProjectActions.deleteProject.
    */
   deleteDossier: (id: string) => void;
+  /**
+   * Pose (ou retire, date vide) la date butoir d'UNE étape d'un dossier signé,
+   * sans toucher aux autres. L'étape devient suivie (alerte + tableau de bord).
+   */
   updateDateButoireSignee: (dossierId: string, label: string, date: string) => void;
+  /**
+   * Suit une étape SANS date (ex. sous-dossier ajouté après signature) : elle
+   * apparaît « à valider » dans le tableau de bord ; la date viendra plus tard.
+   */
+  suivreEcheance: (dossierId: string, label: string) => void;
   updateDossierSigneDateButoires: (dossierId: string, dateButoires: DossierSigne['dateButoires']) => void;
   setDatesButoiresSignes: (dossierId: string, dates: Record<string, string>) => void;
   /** Marque une étape faite (true) ou non faite (false). */
@@ -903,17 +912,36 @@ export const useDossierStore = create<DossierState>()(
             ),
           }));
         } else {
-          set(s => ({
-            dossiersSignes: s.dossiersSignes.map(d =>
-              d.id === dossierId
-                ? {
-                    ...d,
-                    subfolders: d.subfolders.filter(sf => sf.label !== label),
-                    signedSubfolders: d.signedSubfolders.filter(sf => sf.label !== label),
-                  }
-                : d,
-            ),
-          }));
+          // Retire aussi la date butoir / le suivi de l'étape : sinon le
+          // sous-dossier supprimé continuerait de lever des alertes fantômes.
+          const dropKey = <V,>(m?: Record<string, V>): Record<string, V> | undefined => {
+            if (!m || !(label in m)) return m;
+            const { [label]: _drop, ...rest } = m;
+            return rest;
+          };
+          set(s => {
+            const patch: Partial<DossierState> = {
+              dossiersSignes: s.dossiersSignes.map(d =>
+                d.id === dossierId
+                  ? {
+                      ...d,
+                      subfolders: d.subfolders.filter(sf => sf.label !== label),
+                      signedSubfolders: d.signedSubfolders.filter(sf => sf.label !== label),
+                    }
+                  : d,
+              ),
+            };
+            const dates = dropKey(s.datesButoiresSignes[dossierId]);
+            if (dates !== s.datesButoiresSignes[dossierId]) {
+              patch.datesButoiresSignes = { ...s.datesButoiresSignes, [dossierId]: dates! };
+            }
+            const flags = dropKey(s.echeancesValidees[dossierId]);
+            if (flags !== s.echeancesValidees[dossierId]) {
+              patch.echeancesValidees = { ...s.echeancesValidees, [dossierId]: flags! };
+            }
+            return patch;
+          });
+          pushDossierData(get, dossierId);
         }
       },
 
@@ -1409,10 +1437,27 @@ export const useDossierStore = create<DossierState>()(
       },
 
       updateDateButoireSignee: (dossierId, label, date) => {
+        set(s => {
+          const dates = { ...(s.datesButoiresSignes[dossierId] ?? {}) };
+          if (date) dates[label] = date; else delete dates[label];
+          const flags = { ...(s.echeancesValidees[dossierId] ?? {}) };
+          // Même règle que setDatesButoiresSignes : une échéance nouvelle est
+          // NON validée ; une validation existante est conservée.
+          if (flags[label] === undefined) flags[label] = false;
+          return {
+            datesButoiresSignes: { ...s.datesButoiresSignes, [dossierId]: dates },
+            echeancesValidees: { ...s.echeancesValidees, [dossierId]: flags },
+          };
+        });
+        pushDossierData(get, dossierId);
+      },
+
+      suivreEcheance: (dossierId, label) => {
+        if (get().echeancesValidees[dossierId]?.[label] !== undefined) return;
         set(s => ({
-          datesButoiresSignes: {
-            ...s.datesButoiresSignes,
-            [dossierId]: { ...(s.datesButoiresSignes[dossierId] ?? {}), [label]: date },
+          echeancesValidees: {
+            ...s.echeancesValidees,
+            [dossierId]: { ...(s.echeancesValidees[dossierId] ?? {}), [label]: false },
           },
         }));
         pushDossierData(get, dossierId);

@@ -23,7 +23,11 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
 import { uploadDossierDoc, uploadDossierDocDirect, listDossierDocs, getDocSignedUrl, deleteDossierDoc, renameDossierSubfolder, moveDossierDoc } from '@/lib/dossier-docs-api';
 import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
-import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
+import {
+  DateButoireValidationModal,
+  MENUISIER_DATE_BUTOIRE_ITEMS, CUISINISTE_DATE_BUTOIRE_ITEMS,
+  ARCHITECTE_DATE_BUTOIRE_ITEMS, DEFAULT_DATE_BUTOIRE_ITEMS,
+} from '@/components/dossiers/DateButoireValidationModal';
 import { OptionSelectionModal } from '@/components/dossiers/OptionSelectionModal';
 import { VendeurAssignDropdown } from '@/components/vendeur/VendeurAssignDropdown';
 import { useProjectActions } from '@/hooks/useProjectActions';
@@ -189,6 +193,8 @@ export default function DossierDetailPage() {
   const setDatesButoiresSignes = useDossierStore(s => s.setDatesButoiresSignes);
   const echeancesValidees = useDossierStore(s => s.echeancesValidees);
   const setEcheanceValidee = useDossierStore(s => s.setEcheanceValidee);
+  const updateDateButoireSignee = useDossierStore(s => s.updateDateButoireSignee);
+  const suivreEcheance = useDossierStore(s => s.suivreEcheance);
   const toggleDossierTermine = useDossierStore(s => s.toggleDossierTermine);
   const profession = useAuthStore(s => s.profession);
   const isMenuisier = profession === 'menuisier';
@@ -319,6 +325,8 @@ export default function DossierDetailPage() {
     return () => document.removeEventListener('keydown', onKey);
   }, [showDashboard]);
   const [newFolderLabel, setNewFolderLabel] = useState('');
+  // Date butoir du sous-dossier créé dans un dossier SIGNÉ (optionnelle).
+  const [newFolderDate, setNewFolderDate] = useState('');
   // Modal "documents dans le sous-dossier"
   const [openedSubfolder, setOpenedSubfolder] = useState<string | null>(null);
   const [newDocName, setNewDocName] = useState('');
@@ -658,6 +666,19 @@ export default function DossierDetailPage() {
     try {
       await renameDossierSubfolder(id, oldLabel, newLabel);
       renameSubfolder(id, oldLabel, newLabel);
+      // Dossier signé : une étape du métier renommée « à sa sauce » reste une
+      // étape suivie (sinon elle disparaîtrait du tableau de bord). Sa date et
+      // sa validation suivent déjà le renommage dans le store.
+      if (isSigned && !parent) {
+        const etapes = profession === 'menuisier' ? MENUISIER_DATE_BUTOIRE_ITEMS
+          : profession === 'cuisiniste' ? CUISINISTE_DATE_BUTOIRE_ITEMS
+          : profession === 'architecte' ? ARCHITECTE_DATE_BUTOIRE_ITEMS
+          : DEFAULT_DATE_BUTOIRE_ITEMS;
+        const norm = (s: string) => s.trim().toLowerCase();
+        if (etapes.some((it) => it.kind !== 'static' && norm(it.label) === norm(oldLabel))) {
+          suivreEcheance(id, newLabel);
+        }
+      }
       if (openedSubfolder === oldLabel) setOpenedSubfolder(newLabel);
       else if (openedSubfolder && openedSubfolder.startsWith(oldLabel + SEP)) {
         setOpenedSubfolder(newLabel + SEP + openedSubfolder.slice(oldLabel.length + SEP.length));
@@ -768,7 +789,14 @@ export default function DossierDetailPage() {
     // imbrication par chemin : "Parent ▸ Enfant"
     const label = addFolderParent ? `${addFolderParent}${SUBFOLDER_SEP}${name}` : name;
     addSubfolder(id, label);
-    setNewFolderLabel(''); setShowAddFolder(false); setAddFolderParent(null);
+    // Dossier signé : toute nouvelle étape de 1er niveau est suivie (tableau
+    // de bord « à valider ») ; avec une date, elle alimente aussi les alertes
+    // et la bande Échéances.
+    if (isSigned && !addFolderParent) {
+      if (newFolderDate) updateDateButoireSignee(id, label, newFolderDate);
+      else suivreEcheance(id, label);
+    }
+    setNewFolderLabel(''); setNewFolderDate(''); setShowAddFolder(false); setAddFolderParent(null);
   };
   const handlePerdu = async () => {
     if (!perduReason.trim()) return;
@@ -2358,9 +2386,22 @@ export default function DossierDetailPage() {
               onKeyDown={e => e.key === 'Enter' && handleAddFolder()}
               placeholder="RELEVE DE MESURES, CUISINE, DRESSING..."
               className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-4 py-3 text-[#304035] placeholder:text-[#304035]/30 focus:outline-none focus:ring-2 focus:ring-[#304035]/20 mb-5" />
+            {isSigned && !addFolderParent && (
+              <div className="mb-5 -mt-2">
+                <label htmlFor="new-folder-date" className="block text-xs font-bold text-[#304035]/70 mb-1.5">
+                  Date butoir <span className="font-normal text-[#304035]/45">(recommandée)</span>
+                </label>
+                <input id="new-folder-date" type="date" value={newFolderDate}
+                  onChange={e => setNewFolderDate(e.target.value)}
+                  className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/50 px-4 py-2.5 text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20" />
+                <p className="mt-1.5 text-[11px] leading-snug text-[#304035]/50">
+                  L'étape est ajoutée au tableau de bord. Avec une date, elle apparaît aussi dans les échéances et déclenche les alertes. Modifiable ensuite depuis le tableau de bord.
+                </p>
+              </div>
+            )}
             <div className="flex gap-3">
               <button onClick={handleAddFolder} className="flex-1 rounded-xl bg-[#304035] py-3 font-bold text-white hover:bg-[#304035]/90 transition-colors">Ajouter</button>
-              <button onClick={() => { setShowAddFolder(false); setAddFolderParent(null); }} className="flex-1 rounded-xl border border-[#304035]/20 py-3 font-medium text-[#304035] hover:bg-[#f5eee8] transition-colors">Annuler</button>
+              <button onClick={() => { setShowAddFolder(false); setAddFolderParent(null); setNewFolderDate(''); }} className="flex-1 rounded-xl border border-[#304035]/20 py-3 font-medium text-[#304035] hover:bg-[#f5eee8] transition-colors">Annuler</button>
             </div>
           </div>
         </div>

@@ -43,6 +43,7 @@ import {
 } from '@/store/useDossierStore';
 import { getDocSignedUrl } from '@/lib/dossier-docs-api';
 import { extractDossier, dateTargetsForProfession, type ExtractionDatesButoires } from '@/lib/ai-extract-api';
+import { buildSignedEcheanceItems } from '@/lib/signedEcheanceItems';
 
 /**
  * Suggestions auto-complete pour le panneau ACCEDER → COMMANDES.
@@ -370,7 +371,21 @@ export function DateButoireValidationModal({
   //     - cuisiniste → CUISINISTE_DATE_BUTOIRE_ITEMS (OPTION N VALIDÉE)
   //     - architecte → ARCHITECTE_DATE_BUTOIRE_ITEMS (APD VERSION N — DOSSIER SIGNÉ)
   //     - default → DEFAULT_DATE_BUTOIRE_ITEMS générique
-  const resolvedItems: DateButoireItem[] = useMemo(() => {
+  // Mode édition d'un dossier signé : on ajoute aux étapes fixes du métier les
+  // étapes créées / renommées dans le dossier (même liste que le tableau de bord).
+  const flagsSigne = useDossierStore((s) => s.echeancesValidees[dossierId]);
+  const accessSigne = useDossierStore((s) => s.commandesAccess[dossierId]);
+  const withSignedExtras = (list: DateButoireItem[]): DateButoireItem[] =>
+    isEditMode
+      ? buildSignedEcheanceItems(list, {
+          subfolderLabels: (subfolders ?? []).map((sf) => sf.label),
+          templateLabels: [], // ici on ajoute seulement, on ne masque rien
+          dates: initialDates,
+          flags: flagsSigne,
+          access: accessSigne,
+        })
+      : list;
+  const resolvedItems: DateButoireItem[] = useMemo(() => withSignedExtras((() => {
     if (items && items.length > 0) return items;
     if (signedSubfolders && signedSubfolders.length > 0) {
       return signedSubfolders.map((label) => ({ label, kind: 'date' as const }));
@@ -408,7 +423,9 @@ export function DateButoireValidationModal({
       }
       return it;
     });
-  }, [items, signedSubfolders, profession, subfolders]);
+  })()),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [items, signedSubfolders, profession, subfolders, isEditMode, initialDates, flagsSigne, accessSigne]);
 
   /** Items qui demandent une saisie de date — ce sont eux qui comptent dans la progression. */
   const dateItems = useMemo(
