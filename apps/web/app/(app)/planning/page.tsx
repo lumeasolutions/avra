@@ -391,8 +391,13 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
     return map;
   }, [currentEvents]);
 
+  // allDossiers sert aux recherches (un RDV déjà lié à un dossier archivé garde
+  // son nom). Le SÉLECTEUR « Dossier client », lui, n'expose que les dossiers
+  // actifs — archivés exclus, comme dans le Planning gestion (retour
+  // cofondatrice 22/09/2026). Les perdus ne sont déjà pas dans ces listes.
   const allDossiers = [...dossiers, ...dossiersSignes];
-  const clientNames = allDossiers.map(d => ({ id: d.id, label: `${d.name}${('firstName' in d && d.firstName) ? ' ' + d.firstName : ''}` }));
+  const clientNames = [...dossiers, ...dossiersSignes.filter(d => !d.archivedAt)]
+    .map(d => ({ id: d.id, label: `${d.name}${('firstName' in d && d.firstName) ? ' ' + d.firstName : ''}` }));
 
   /* KPIs */
   const eventsThisWeek = currentEvents.length;
