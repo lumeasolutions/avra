@@ -1258,7 +1258,7 @@ export default function DossierDetailPage() {
                     {getIconForType(sf.icon)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className={`font-semibold text-sm block truncate ${isChildVersion ? 'text-[#304035]/85' : 'text-[#304035]'}`}>{sf.label.includes(' ▸ ') ? sf.label.split(' ▸ ').pop() : sf.label}</span>
+                    <span className={`font-semibold text-sm block break-words ${isChildVersion ? 'text-[#304035]/85' : 'text-[#304035]'}`}>{sf.label.includes(' ▸ ') ? sf.label.split(' ▸ ').pop() : sf.label}</span>
                     <span className="text-xs text-[#304035]/50 mt-0.5 block">
                       Modifié le {displayDate} · {docsCount} document{docsCount > 1 ? 's' : ''}
                     </span>
@@ -1828,7 +1828,7 @@ export default function DossierDetailPage() {
                       );
                     })}
                   </div>
-                  <h3 className="text-xl font-bold text-[#304035] truncate">{folderDisplayName(sf.label)}</h3>
+                  <h3 className="text-xl font-bold text-[#304035] break-words">{folderDisplayName(sf.label)}</h3>
                   <p className="text-xs text-[#304035]/50 mt-1">
                     {childPaths.length > 0 ? `${childPaths.length} sous-dossier${childPaths.length > 1 ? 's' : ''} · ` : ''}{docs.length} document{docs.length > 1 ? 's' : ''}{sf.date ? ` · Modifié le ${sf.date}` : ''}
                   </p>
@@ -1912,7 +1912,7 @@ export default function DossierDetailPage() {
                             title={folderDisplayName(cp)}
                           >
                             <span className="text-3xl leading-none">📁</span>
-                            <span className="text-[12px] font-semibold text-[#304035] truncate w-full">{folderDisplayName(cp)}</span>
+                            <span className="text-[12px] font-semibold leading-tight text-[#304035] break-words w-full">{folderDisplayName(cp)}</span>
                           </button>
                           {folderHasSendable(cp) && (
                             <button
