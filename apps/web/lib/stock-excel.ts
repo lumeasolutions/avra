@@ -28,6 +28,44 @@ function imageExtension(dataUrl: string): 'png' | 'jpeg' | 'gif' | null {
   return t === 'jpg' ? 'jpeg' : (t as 'png' | 'jpeg' | 'gif');
 }
 
+/**
+ * Prépare une photo pour Excel : réduite à 240 px de côté et convertie en JPEG
+ * par le navigateur. Deux gains :
+ *   - les formats qu'Excel ne lit pas (WebP, HEIC selon navigateur…) deviennent
+ *     lisibles ;
+ *   - une photo de téléphone (3-5 Mo) ne gonfle plus le fichier (≈ 15 Ko).
+ * Sans navigateur (ou si le décodage échoue) : on garde l'original s'il est
+ * lisible par Excel, sinon null.
+ */
+async function toExcelImage(src: string): Promise<{ base64: string; extension: 'png' | 'jpeg' | 'gif' } | null> {
+  const original = imageExtension(src);
+  if (typeof document === 'undefined' || typeof Image === 'undefined') {
+    return original ? { base64: src, extension: original } : null;
+  }
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('image illisible'));
+      el.src = src;
+    });
+    const scale = Math.min(1, 240 / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+    const w = Math.max(1, Math.round((img.naturalWidth || 1) * scale));
+    const h = Math.max(1, Math.round((img.naturalHeight || 1) * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('canvas indisponible');
+    ctx.fillStyle = '#ffffff'; // fond blanc (les PNG transparents ne virent pas au noir en JPEG)
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    return { base64: canvas.toDataURL('image/jpeg', 0.85), extension: 'jpeg' };
+  } catch {
+    return original ? { base64: src, extension: original } : null;
+  }
+}
+
 export async function exportStockToExcel(
   items: StockItem[],
   categoryLabel: (c: string) => string,
@@ -65,6 +103,10 @@ export async function exportStockToExcel(
   ws.autoFilter = { from: 'A1', to: 'M1' };
 
   const euro = '#,##0.00 "€"';
+  // Photos préparées en parallèle avant d'écrire les lignes.
+  const photos = await Promise.all(
+    items.map((it) => (it.image && it.image.startsWith('data:image/') ? toExcelImage(it.image) : Promise.resolve(null))),
+  );
   items.forEach((item, i) => {
     const sale = item.sale ?? null;
     const row = ws.addRow({
@@ -88,10 +130,10 @@ export async function exportStockToExcel(
     row.getCell('sale').numFmt = euro;
     row.getCell('marge').numFmt = '0%';
 
-    const ext = item.image ? imageExtension(item.image) : null;
-    if (item.image && ext) {
+    const photo = photos[i];
+    if (photo) {
       row.height = 60;
-      const imageId = wb.addImage({ base64: item.image, extension: ext });
+      const imageId = wb.addImage(photo);
       // Colonne M (index 12), ligne i+1 (0-based, l'en-tête est la ligne 0).
       ws.addImage(imageId, { tl: { col: 12.1, row: i + 1.1 }, ext: { width: 72, height: 72 } });
     } else if (item.image) {
