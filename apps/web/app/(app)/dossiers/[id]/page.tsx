@@ -1248,7 +1248,7 @@ export default function DossierDetailPage() {
                   onClick={() => setOpenedSubfolder(sf.label)}
                   onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); } }}
                   {...dropZoneProps(sf.label)}
-                  className={`subfolder-row flex w-full items-center gap-4 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749] hover:bg-[#304035]/[0.02] cursor-pointer ${isChildVersion ? 'bg-[#a67749]/[0.025]' : ''}`}
+                  className={`subfolder-row flex w-full items-center gap-2 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749] hover:bg-[#304035]/[0.02] cursor-pointer ${isChildVersion ? 'bg-[#a67749]/[0.025]' : ''}`}
                   style={{ ...(depth > 0 ? { paddingLeft: 20 + depth * 26 } : {}), ...dropHighlight(sf.label) }}
                 >
                   {isChildVersion && (
@@ -1258,7 +1258,7 @@ export default function DossierDetailPage() {
                     {getIconForType(sf.icon)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className={`font-semibold text-sm block break-words ${isChildVersion ? 'text-[#304035]/85' : 'text-[#304035]'}`}>{sf.label.includes(' ▸ ') ? sf.label.split(' ▸ ').pop() : sf.label}</span>
+                    <span className={`font-semibold text-sm block break-words hyphens-auto ${isChildVersion ? 'text-[#304035]/85' : 'text-[#304035]'}`}>{sf.label.includes(' ▸ ') ? sf.label.split(' ▸ ').pop() : sf.label}</span>
                     <span className="text-xs text-[#304035]/50 mt-0.5 block">
                       Modifié le {displayDate} · {docsCount} document{docsCount > 1 ? 's' : ''}
                     </span>
