@@ -20,6 +20,10 @@ import { useDossierStore, useHistoryStore, useAuthStore, useVisibleDossiers, use
 import { PageHeader } from '@/components/layout/PageHeader';
 import HistoryPanel, { type IaJobRow } from './HistoryPanel';
 import { RenderAdjustModal } from './RenderAdjustModal';
+import { uploadDossierDocDirect } from '@/lib/dossier-docs-api';
+import {
+  phasesDuDossier, phaseParDefaut, dossierRendus, prochaineVersion, nomRendu, extensionImage,
+} from '@/lib/ia-render-filing';
 
 /* ─── Types front-end uniquement (pas d'import depuis lib/server) ─── */
 type FinishType   = 'mat' | 'satiné' | 'brillant' | 'brossé' | 'bois' | 'miroir' | 'verre-mat';
@@ -1090,7 +1094,8 @@ function BeforeAfterSlider({ beforeUrl, afterUrl }: { beforeUrl: string; afterUr
 
 function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, onBack, editing, icon: Icon, beforeUrl }: {
   item: Item; accentColor: string;
-  onSave: () => void; onRegenerate: () => void;
+  /** Reçoit l'URL de la variante AFFICHÉE (et non toujours la 1re). */
+  onSave: (selectedUrl?: string) => void; onRegenerate: () => void;
   /** Si fourni, affiche un bouton « Modifier » qui reprend CE résultat comme base. */
   onEdit?: () => void;
   /**
@@ -1269,7 +1274,7 @@ function ResultCard({ item, accentColor, onSave, onRegenerate, onEdit, onBack, e
           </button>
         )}
         <div className="grid grid-cols-2 gap-2.5">
-          <button onClick={onSave}
+          <button onClick={() => onSave(mainUrl)}
             className="flex items-center justify-center gap-2 rounded-xl border-2 py-3 text-sm font-bold transition-colors hover:bg-[#f5eee8]"
             style={{borderColor:`${accentColor}55`, color:accentColor}}>
             <Plus className="h-4 w-4" />Sauvegarder
@@ -1420,9 +1425,35 @@ export default function IaStudioPage() {
   const [dossierId,    setDossierId]    = useState(allDossiers[0]?.id ?? '');
   const dossierName = allDossiers.find(d=>d.id===dossierId)?.name ?? 'Sans dossier';
   // Sauvegarde IA → dossier : sélection du dossier + des sous-dossiers (multi-choix).
-  const [saveTarget, setSaveTarget] = useState<{ item: Item; action: string; icon: string; onDone: () => void } | null>(null);
+  // Sauvegarde IA → dossier (22/09/2026) : enregistrement RÉEL côté serveur,
+  // rangé dans la phase du projet (« OPTION 2 ▸ RENDUS 3D »). Voir lib/ia-render-filing.
+  const [saveTarget, setSaveTarget] = useState<{
+    item: Item; action: string; icon: string; onDone: () => void;
+    /** Variante choisie dans la carte résultat. */
+    imageUrl: string;
+    /** Photo d'origine du module (avant / après), si disponible. */
+    source?: File | null;
+  } | null>(null);
   const [saveDossierId, setSaveDossierId] = useState('');
-  const [saveSubfolders, setSaveSubfolders] = useState<string[]>([]);
+  const [savePhase, setSavePhase] = useState('');
+  const [saveWithSource, setSaveWithSource] = useState(true);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveDoneLabel, setSaveDoneLabel] = useState('');
+  // Phase demandée par le lien « Rendu réaliste » d'un dossier (?dossier=…&ranger=…).
+  const [lienPhase, setLienPhase] = useState<{ dossierId: string; phase: string } | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    const d = q.get('dossier');
+    const onglet = q.get('onglet') as Module | null;
+    if (onglet && ['coloriste', 'rendu', 'architect', 'coloriste-archi', 'coloriste-tex', 'coloriste-test'].includes(onglet)) setTab(onglet);
+    if (d && allDossiers.some((x) => x.id === d)) {
+      setDossierId(d);
+      if (q.has('ranger')) setLienPhase({ dossierId: d, phase: q.get('ranger') ?? '' });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ── COLORISTE — état */
   const [photoFile,    setPhotoFile]    = useState<File|null>(null);
@@ -1790,63 +1821,80 @@ export default function IaStudioPage() {
     setColorLoading(false);
   };
 
+  /** Sous-dossiers (labels) d'un dossier. */
+  const labelsDe = (dId: string) => (allDossiers.find(d => d.id === dId)?.subfolders ?? []).map(sf => sf.label);
+  const phasePour = (dId: string) =>
+    phaseParDefaut(labelsDe(dId), lienPhase && lienPhase.dossierId === dId ? lienPhase.phase : undefined);
+
+  /** Ouvre la fenêtre d'enregistrement : dossier + phase pré-choisis. */
+  const openSaveModal = (item: Item, action: string, icon: string, onDone: () => void, selectedUrl?: string, source?: File | null) => {
+    const imageUrl = selectedUrl || item.imageUrl;
+    if (!imageUrl) return;
+    const dId = dossierId || allDossiers[0]?.id || '';
+    setSaveTarget({ item, action, icon, onDone, imageUrl, source: source ?? null });
+    setSaveDossierId(dId);
+    setSavePhase(phasePour(dId));
+    setSaveWithSource(true);
+    setSaveState('idle');
+    setSaveError(null);
+  };
+
+  /** Récupère une image (URL signée ia-renders…) en File, via le proxy même origine. */
+  const imageEnFichier = async (url: string, nom: string): Promise<File> => {
+    const r = await fetch(`/api/ia/download?url=${encodeURIComponent(url)}&name=rendu.jpg`);
+    if (!r.ok) throw new Error(`image indisponible (${r.status})`);
+    const blob = await r.blob();
+    if (!blob.type.startsWith('image/')) throw new Error("le fichier reçu n'est pas une image");
+    return new File([blob], nom.replace(/\.[a-z]+$/i, `.${extensionImage(blob.type)}`), { type: blob.type });
+  };
+
   /**
-   * Attache l'image IA générée au dossier sélectionné (sous-dossier "RENDUS IA").
-   * Crée le sous-dossier s'il n'existe pas. Le DocumentFile pointe vers l'URL
-   * signée Supabase (valable 30 jours — au-delà, on devra implémenter une copie
-   * vers le bucket dossier-documents pour la conservation long terme).
-   *
-   * 19/05/2026 : feature critique demandée user "ca ne fonctionne pas".
+   * Enregistre le rendu (et la photo d'origine) DANS LE DOSSIER, côté serveur :
+   * même chemin qu'un document ajouté à la main → conservé sans limite de
+   * durée, visible sur tous les appareils, avec aperçu, envoyable.
    */
-  const IA_SUBFOLDER_LABEL = 'RENDUS IA';
-  const attachToDossier = (item: Item, moduleLabel: string) => {
-    if (!dossierId || !item.imageUrl) return;
-    const dossier = allDossiers.find(d => d.id === dossierId);
-    if (!dossier) return;
-    // Crée le sous-dossier "RENDUS IA" si absent
-    const hasIaFolder = (dossier.subfolders ?? []).some(sf => sf.label === IA_SUBFOLDER_LABEL);
-    if (!hasIaFolder) addSubfolder(dossierId, IA_SUBFOLDER_LABEL);
-    // Pousse le document dans le sous-dossier (URL signée Supabase ia-renders)
-    addDocumentToSubfolder(dossierId, IA_SUBFOLDER_LABEL, {
-      name:    `${moduleLabel} — ${item.prompt.slice(0, 60)} (${item.ts}).jpg`,
-      type:    'image/jpeg',
-      url:     item.imageUrl,
-      addedAt: new Date().toLocaleDateString('fr-FR'),
-    });
-  };
-
-  /** Ouvre la modale de sauvegarde : choix du dossier + sous-dossier(s). */
-  const openSaveModal = (item: Item, action: string, icon: string, onDone: () => void) => {
-    if (!item.imageUrl) return;
-    setSaveTarget({ item, action, icon, onDone });
-    setSaveDossierId(dossierId || allDossiers[0]?.id || '');
-    setSaveSubfolders([IA_SUBFOLDER_LABEL]);
-  };
-  /** Confirme : enregistre le visuel dans CHAQUE sous-dossier coché. */
-  const confirmSave = () => {
-    if (!saveTarget || !saveDossierId || saveSubfolders.length === 0) return;
-    const { item, action, icon, onDone } = saveTarget;
+  const confirmSave = async () => {
+    if (!saveTarget || !saveDossierId || saveState === 'saving') return;
+    const { item, action, icon, onDone, imageUrl, source } = saveTarget;
     const dossier = allDossiers.find(d => d.id === saveDossierId);
-    const dName = dossier?.name ?? 'Sans dossier';
-    for (const label of saveSubfolders) {
-      const exists = (dossier?.subfolders ?? []).some(sf => sf.label === label);
-      if (!exists) addSubfolder(saveDossierId, label);
-      addDocumentToSubfolder(saveDossierId, label, {
-        name: `${action} — ${item.prompt.slice(0, 60)} (${item.ts}).jpg`,
-        type: 'image/jpeg',
-        url: item.imageUrl!,
-        addedAt: new Date().toLocaleDateString('fr-FR'),
-      });
+    if (!dossier) return;
+    const label = dossierRendus(savePhase);
+    setSaveState('saving');
+    setSaveError(null);
+    try {
+      const existants = (dossier.subfolders.find(sf => sf.label === label)?.documents ?? [])
+        .map(d => (typeof d === 'string' ? d : d.name));
+      const v = prochaineVersion(existants);
+      const fichiers: File[] = [await imageEnFichier(imageUrl, nomRendu(action, savePhase, v, 'jpg'))];
+      if (source && saveWithSource) {
+        fichiers.push(new File([source], nomRendu(action, savePhase, v, extensionImage(source.type), true), { type: source.type || 'image/jpeg' }));
+      }
+      // Sous-dossier créé localement s'il n'existe pas encore (le parent = la phase existe).
+      if (!dossier.subfolders.some(sf => sf.label === label)) addSubfolder(saveDossierId, label);
+      for (const f of fichiers) {
+        const up = await uploadDossierDocDirect(saveDossierId, label, f);
+        addDocumentToSubfolder(saveDossierId, label, {
+          docId: up.id,
+          name: up.originalName,
+          type: up.mimeType ?? f.type,
+          size: up.sizeBytes ?? f.size,
+          addedAt: up.createdAt,
+        });
+      }
+      setGallery(p => [item, ...p]);
+      addLog({ user: userName, action, target: `${dossier.name} — ${label}`, icon });
+      setSaveDoneLabel(label);
+      setSaveState('done');
+      onDone();
+    } catch (e: any) {
+      setSaveError(e?.message ? `Enregistrement impossible : ${e.message}` : 'Enregistrement impossible. Vérifiez la connexion et réessayez.');
+      setSaveState('error');
     }
-    setGallery(p => [item, ...p]);
-    addLog({ user: userName, action, target: `${dName} — "${item.prompt.slice(0, 40)}"`, icon });
-    onDone();
-    setSaveTarget(null);
   };
 
-  const saveColor = () => {
+  const saveColor = (selectedUrl?: string) => {
     if (!colorResult) return;
-    openSaveModal(colorResult, 'Coloriste IA', '🎨', () => setColorResult(null));
+    openSaveModal(colorResult, 'Coloriste IA', '🎨', () => setColorResult(null), selectedUrl, photoFile);
   };
 
   /* ── « Changer les couleurs » : lancer.
@@ -1904,9 +1952,9 @@ export default function IaStudioPage() {
     setColorArchLoading(false);
   };
 
-  const saveColoristeArchi = () => {
+  const saveColoristeArchi = (selectedUrl?: string) => {
     if (!colorArchResult) return;
-    openSaveModal(colorArchResult, 'Coloriste IA', '🎨', () => setColorArchResult(null));
+    openSaveModal(colorArchResult, 'Coloriste IA', '🎨', () => setColorArchResult(null), selectedUrl, photoFile);
   };
 
   /* ── Coloriste ✨ (/change-textures) : lancer sur la zone sélectionnée au clic */
@@ -1979,9 +2027,9 @@ export default function IaStudioPage() {
     setColorTexEditing(false);
   };
 
-  const saveColoristeTextures = () => {
+  const saveColoristeTextures = (selectedUrl?: string) => {
     if (!colorTexResult) return;
-    openSaveModal(colorTexResult, 'Coloriste IA', '🎨', () => setColorTexResult(null));
+    openSaveModal(colorTexResult, 'Coloriste IA', '🎨', () => setColorTexResult(null), selectedUrl, photoFile);
   };
 
   /* ── Coloriste test (5e module, isolé). Différences volontaires avec
@@ -2084,9 +2132,9 @@ export default function IaStudioPage() {
     setColorTestEditing(false);
   };
 
-  const saveColoristeTest = () => {
+  const saveColoristeTest = (selectedUrl?: string) => {
     if (!colorTestResult) return;
-    openSaveModal(colorTestResult, 'Coloriste IA', '🎨', () => setColorTestResult(null));
+    openSaveModal(colorTestResult, 'Coloriste IA', '🎨', () => setColorTestResult(null), selectedUrl, photoFile);
   };
 
   /* ── Rendu : lancer */
@@ -2177,9 +2225,9 @@ export default function IaStudioPage() {
     setRendLoading(false);
   };
 
-  const saveRendu = () => {
+  const saveRendu = (selectedUrl?: string) => {
     if (!rendResult) return;
-    openSaveModal(rendResult, 'Rendu Réaliste', '✨', () => setRendResult(null));
+    openSaveModal(rendResult, 'Rendu Réaliste', '✨', () => setRendResult(null), selectedUrl, rendRefFile);
   };
 
   /* ── IA Architect (MyArchitectAI) : lancer */
@@ -2239,9 +2287,9 @@ export default function IaStudioPage() {
     setArchLoading(false);
   };
 
-  const saveArchitect = () => {
+  const saveArchitect = (selectedUrl?: string) => {
     if (!archResult) return;
-    openSaveModal(archResult, 'Rendu Réaliste', '🏛️', () => setArchResult(null));
+    openSaveModal(archResult, 'Rendu Réaliste', '🏛️', () => setArchResult(null), selectedUrl, archRefFile);
   };
 
   /* ── RETOUCHE PHOTO : édition ciblée du rendu affiché via /api/ia/retouch */
@@ -4240,44 +4288,87 @@ export default function IaStudioPage() {
 
       </div>
 
-      {/* ── Modale : sauvegarder le visuel dans le(s) sous-dossier(s) choisi(s) ── */}
+      {/* ── Modale : enregistrer le visuel dans le dossier (phase ▸ RENDUS 3D) ── */}
       {saveTarget && (() => {
         const sd = allDossiers.find(d => d.id === saveDossierId);
-        const subs = (sd?.subfolders ?? []).map(sf => sf.label);
-        const options = Array.from(new Set([IA_SUBFOLDER_LABEL, ...subs]));
-        const toggle = (label: string) => setSaveSubfolders(prev => prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]);
+        const phases = phasesDuDossier((sd?.subfolders ?? []).map(sf => sf.label));
+        const cible = dossierRendus(savePhase);
+        const fermer = () => { if (saveState !== 'saving') { setSaveTarget(null); setSaveState('idle'); } };
+        const lbl: React.CSSProperties = { display: 'block', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(48,64,53,0.5)', marginBottom: 6 };
         return (
-          <div onClick={() => setSaveTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(26,42,30,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, background: '#fff', borderRadius: 18, padding: 22, boxShadow: '0 24px 60px rgba(0,0,0,0.3)', maxHeight: '88vh', overflow: 'auto' }}>
-              <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: '#1a2a1e' }}>Sauvegarder le visuel</h3>
-              <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#6b6256' }}>Choisis le dossier et le ou les sous-dossiers où enregistrer le rendu.</p>
-              {saveTarget.item.imageUrl && (
-                <img src={saveTarget.item.imageUrl} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 12, marginBottom: 16 }} />
+          <div
+            onMouseDown={(e) => { (e.currentTarget as any).__down = e.target === e.currentTarget; }}
+            onClick={(e) => { if ((e.currentTarget as any).__down && e.target === e.currentTarget) fermer(); }}
+            style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(26,42,30,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: '#fff', borderRadius: 18, padding: 22, boxShadow: '0 24px 60px rgba(0,0,0,0.3)', maxHeight: '88vh', overflow: 'auto' }}>
+              {saveState === 'done' ? (
+                <div style={{ textAlign: 'center', padding: '10px 4px' }}>
+                  <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: 26 }}>✓</div>
+                  <h3 style={{ margin: '0 0 6px', fontSize: 17, fontWeight: 800, color: '#1a2a1e' }}>Rendu enregistré dans le dossier</h3>
+                  <p style={{ margin: '0 0 18px', fontSize: 13, color: '#6b6256' }}>
+                    {sd?.name} · <strong>{saveDoneLabel}</strong>
+                  </p>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <a href={`/dossiers/${saveDossierId}`}
+                      style={{ flex: 1, borderRadius: 11, padding: '11px', fontWeight: 800, fontSize: 13.5, color: '#fff', textDecoration: 'none', background: 'linear-gradient(135deg,#1a2a1e,#3D5449)' }}>
+                      Ouvrir le dossier
+                    </a>
+                    <button onClick={fermer}
+                      style={{ flex: 1, borderRadius: 11, border: '1px solid rgba(48,64,53,0.2)', padding: '11px', fontWeight: 700, fontSize: 13.5, color: '#1a2a1e', background: '#fff', cursor: 'pointer' }}>
+                      Continuer
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: '#1a2a1e' }}>Enregistrer dans le dossier</h3>
+                  <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#6b6256' }}>Le rendu est rangé avec l&apos;option à laquelle il correspond et conservé définitivement.</p>
+                  <img src={saveTarget.imageUrl} alt="" style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 12, marginBottom: 16 }} />
+
+                  <label style={lbl}>Dossier</label>
+                  <select value={saveDossierId} disabled={saveState === 'saving'}
+                    onChange={(e) => { setSaveDossierId(e.target.value); setSavePhase(phasePour(e.target.value)); }}
+                    style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(48,64,53,0.18)', padding: '9px 12px', fontSize: 13.5, color: '#1a2a1e', background: '#fff', marginBottom: 16 }}>
+                    {allDossiers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+
+                  <label style={lbl}>Ranger avec</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 200, overflow: 'auto', border: '1px solid rgba(48,64,53,0.1)', borderRadius: 10, padding: 8, marginBottom: 10 }}>
+                    {phases.map(ph => (
+                      <label key={ph.label || '__racine'} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 8, cursor: 'pointer', background: savePhase === ph.label ? 'rgba(166,119,73,0.10)' : 'transparent' }}>
+                        <input type="radio" name="phase-rendu" checked={savePhase === ph.label} disabled={saveState === 'saving'} onChange={() => setSavePhase(ph.label)} />
+                        <span style={{ fontSize: 13, color: '#22281f', fontWeight: savePhase === ph.label ? 700 : 500 }}>{ph.titre}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p style={{ margin: '0 0 14px', fontSize: 12, color: '#6b6256' }}>
+                    📁 Enregistré dans : <strong style={{ color: '#1a2a1e' }}>{cible}</strong>
+                  </p>
+
+                  {saveTarget.source && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: '#22281f', marginBottom: 16, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={saveWithSource} disabled={saveState === 'saving'} onChange={(e) => setSaveWithSource(e.target.checked)} />
+                      Joindre aussi la photo d&apos;origine (avant / après)
+                    </label>
+                  )}
+
+                  {saveError && (
+                    <p style={{ margin: '0 0 12px', fontSize: 12.5, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '8px 10px' }}>{saveError}</p>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={confirmSave} disabled={saveState === 'saving' || !saveDossierId}
+                      style={{ flex: 1, borderRadius: 11, border: 'none', padding: '11px', fontWeight: 800, fontSize: 13.5, color: '#fff', cursor: saveState === 'saving' ? 'wait' : 'pointer', background: saveState === 'saving' ? 'rgba(48,64,53,0.45)' : 'linear-gradient(135deg,#1a2a1e,#3D5449)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      {saveState === 'saving' && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {saveState === 'saving' ? 'Enregistrement…' : saveState === 'error' ? 'Réessayer' : 'Enregistrer'}
+                    </button>
+                    <button onClick={fermer} disabled={saveState === 'saving'}
+                      style={{ flex: 1, borderRadius: 11, border: '1px solid rgba(48,64,53,0.2)', padding: '11px', fontWeight: 700, fontSize: 13.5, color: '#1a2a1e', background: '#fff', cursor: 'pointer' }}>
+                      Annuler
+                    </button>
+                  </div>
+                </>
               )}
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(48,64,53,0.5)', marginBottom: 6 }}>Dossier</label>
-              <select value={saveDossierId} onChange={(e) => { setSaveDossierId(e.target.value); setSaveSubfolders([IA_SUBFOLDER_LABEL]); }}
-                style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(48,64,53,0.18)', padding: '9px 12px', fontSize: 13.5, color: '#1a2a1e', background: '#fff', marginBottom: 16 }}>
-                {allDossiers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(48,64,53,0.5)', marginBottom: 6 }}>Sous-dossier(s) — coche un ou plusieurs</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 220, overflow: 'auto', border: '1px solid rgba(48,64,53,0.1)', borderRadius: 10, padding: 8, marginBottom: 18 }}>
-                {options.map(label => (
-                  <label key={label} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 8, cursor: 'pointer', background: saveSubfolders.includes(label) ? 'rgba(166,119,73,0.10)' : 'transparent' }}>
-                    <input type="checkbox" checked={saveSubfolders.includes(label)} onChange={() => toggle(label)} />
-                    <span style={{ fontSize: 13, color: '#22281f' }}>{label}{label === IA_SUBFOLDER_LABEL ? ' (par défaut)' : ''}</span>
-                  </label>
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={confirmSave} disabled={saveSubfolders.length === 0}
-                  style={{ flex: 1, borderRadius: 11, border: 'none', padding: '11px', fontWeight: 800, fontSize: 13.5, color: '#fff', cursor: saveSubfolders.length ? 'pointer' : 'not-allowed', background: saveSubfolders.length ? 'linear-gradient(135deg,#1a2a1e,#3D5449)' : 'rgba(48,64,53,0.3)' }}>
-                  Sauvegarder{saveSubfolders.length > 1 ? ` (${saveSubfolders.length})` : ''}
-                </button>
-                <button onClick={() => setSaveTarget(null)}
-                  style={{ flex: 1, borderRadius: 11, border: '1px solid rgba(48,64,53,0.2)', padding: '11px', fontWeight: 700, fontSize: 13.5, color: '#1a2a1e', background: '#fff', cursor: 'pointer' }}>
-                  Annuler
-                </button>
-              </div>
             </div>
           </div>
         );

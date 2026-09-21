@@ -23,6 +23,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
 import { uploadDossierDoc, uploadDossierDocDirect, listDossierDocs, getDocSignedUrl, deleteDossierDoc, renameDossierSubfolder, moveDossierDoc } from '@/lib/dossier-docs-api';
 import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
+import { estPhase } from '@/lib/ia-render-filing';
 import {
   DateButoireValidationModal,
   MENUISIER_DATE_BUTOIRE_ITEMS, CUISINISTE_DATE_BUTOIRE_ITEMS,
@@ -1874,20 +1875,42 @@ export default function DossierDetailPage() {
                   {/* Envoyer TOUT le sous-dossier à un intervenant. Marche aussi
                       pour un dossier EN COURS : les fichiers locaux sont televerses
                       automatiquement avant l'envoi. */}
-                  {folderHasSendable(openedSubfolder) && (
-                    <div className="mt-2">
-                      <button
-                        type="button"
-                        onClick={() => handleSendFolder(openedSubfolder)}
-                        disabled={preparingSend}
-                        className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold text-[#cbb98a] disabled:opacity-60"
-                        style={{ background: 'linear-gradient(135deg, #1a2a1e 0%, #3D5449 100%)' }}
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        {preparingSend ? 'Préparation…' : 'Envoyer ce sous-dossier'}
-                      </button>
-                    </div>
-                  )}
+                  {(() => {
+                    // Rendu réaliste (22/09/2026) : depuis une OPTION / un PROJET
+                    // (ou son sous-dossier « RENDUS 3D »), ouvre l'IA Studio déjà
+                    // réglé sur ce dossier et cette option — le rendu y sera rangé.
+                    const racine = openedSubfolder.split(' ▸ ')[0];
+                    const phase = estPhase(racine) ? racine : null;
+                    const peutEnvoyer = folderHasSendable(openedSubfolder);
+                    if (!phase && !peutEnvoyer) return null;
+                    return (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {peutEnvoyer && (
+                          <button
+                            type="button"
+                            onClick={() => handleSendFolder(openedSubfolder)}
+                            disabled={preparingSend}
+                            className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold text-[#cbb98a] disabled:opacity-60"
+                            style={{ background: 'linear-gradient(135deg, #1a2a1e 0%, #3D5449 100%)' }}
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            {preparingSend ? 'Préparation…' : 'Envoyer ce sous-dossier'}
+                          </button>
+                        )}
+                        {phase && !readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/ia-studio?onglet=architect&dossier=${encodeURIComponent(id)}&ranger=${encodeURIComponent(phase)}`)}
+                            className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
+                            style={{ background: 'linear-gradient(135deg, #8a6cc2 0%, #6b4fa3 100%)' }}
+                            title={`Créer un rendu réaliste, rangé dans « ${phase} ▸ RENDUS 3D »`}
+                          >
+                            ✨ Rendu réaliste
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {/* Toggle affichage : liste / grille (vignettes) */}

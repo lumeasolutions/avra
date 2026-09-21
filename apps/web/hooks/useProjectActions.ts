@@ -13,6 +13,59 @@ import { useDossierStore, getDefaultSubfoldersForProfession, type ValidatedOptio
 import { useAuthStore } from '@/store/useAuthStore';
 import { useConfigStore } from '@/store/useConfigStore';
 import { resolveVendeurName } from '@/lib/vendeur-name';
+import { moveDossierDoc } from '@/lib/dossier-docs-api';
+
+type SousDossier = { label: string; documents?: Array<string | { docId?: string }> };
+
+/** docId → emplacements (labels) où le document apparaît. */
+function emplacementsDesDocs(subfolders: SousDossier[] | undefined): Map<string, string[]> {
+  const m = new Map<string, string[]>();
+  for (const sf of subfolders ?? []) {
+    for (const d of sf.documents ?? []) {
+      const id = typeof d === 'string' ? undefined : d.docId;
+      if (!id) continue;
+      const l = m.get(id);
+      if (l) l.push(sf.label); else m.set(id, [sf.label]);
+    }
+  }
+  return m;
+}
+
+/**
+ * Après la signature, aligne l'emplacement des documents CÔTÉ SERVEUR sur la
+ * nouvelle arborescence du dossier signé (22/09/2026).
+ *
+ * La signature reconstruit les sous-dossiers localement : l'option validée
+ * devient « OPTION 2 VALIDÉE » (avec ses sous-dossiers, ex. « ▸ RENDUS 3D ») et
+ * tout l'avant-vente est archivé sous « AVANT VENTE ▸ … ». Mais le serveur
+ * gardait l'ancien emplacement (« OPTION 2 ▸ RENDUS 3D ») : sur un autre
+ * appareil, les documents réapparaissaient au mauvais endroit, voire dans un
+ * dossier invisible. Règle : un document présent dans l'option validée y est
+ * rangé ; sinon il va dans son archive « AVANT VENTE ▸ … ».
+ */
+async function alignerDocsApresSignature(
+  dossierId: string,
+  avant: Map<string, string[]>,
+  apres: Map<string, string[]>,
+): Promise<void> {
+  const deplacements: Array<{ docId: string; label: string }> = [];
+  for (const [docId, anciens] of avant) {
+    const nouveaux = apres.get(docId);
+    if (!nouveaux || nouveaux.length === 0) continue; // document non repris : on n'y touche pas
+    const cible = nouveaux.find((l) => !l.startsWith('AVANT VENTE ▸')) ?? nouveaux[0];
+    if (!anciens.includes(cible)) deplacements.push({ docId, label: cible });
+  }
+  // 4 à la fois : rapide sans saturer l'API.
+  for (let i = 0; i < deplacements.length; i += 4) {
+    await Promise.all(
+      deplacements.slice(i, i + 4).map((d) =>
+        moveDossierDoc(dossierId, d.docId, d.label).catch((e: unknown) =>
+          console.warn('[sign] déplacement du document échoué', d, e),
+        ),
+      ),
+    );
+  }
+}
 
 interface CreateProjectData {
   lastName: string;
@@ -180,6 +233,9 @@ export function useProjectActions() {
       // Optimistic update local — on passe la profession pour que le store
       // construise les bons sous-dossiers signés (MENUISIER en a une liste
       // dédiée, voir buildSignedSubfoldersForProfession dans useDossierStore).
+      const avantSignature = emplacementsDesDocs(
+        useDossierStore.getState().dossiers.find((d) => d.id === id)?.subfolders,
+      );
       store.signerDossier(id, profession, selectedOptions);
 
       if (user?.id === 'demo' || !user?.workspaceId) return;
@@ -198,7 +254,11 @@ export function useProjectActions() {
         });
       } catch (err) {
         console.warn('[ProjectActions] API sign failed:', err);
+        return;
       }
+      const signe = useDossierStore.getState().dossiersSignes.find((d) => d.id === id);
+      // En arrière-plan : ne retarde pas la redirection vers les dossiers signés.
+      void alignerDocsApresSignature(id, avantSignature, emplacementsDesDocs(signe?.signedSubfolders ?? signe?.subfolders));
     },
     [user, store, profession],
   );
