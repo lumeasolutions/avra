@@ -3,6 +3,7 @@
   "buildCommand": "cd ../.. && pnpm exec prisma generate --schema=./prisma/schema.prisma && DATABASE_URL=\"${DIRECT_URL:-$DATABASE_URL}\" pnpm exec prisma migrate deploy --schema=./prisma/schema.prisma && pnpm --filter @avra/api build && pnpm --filter @avra/web build",
   "outputDirectory": ".next",
   "installCommand": "cd ../.. && pnpm install --no-frozen-lockfile",
+  "regions": ["dub1"],
   "functions": {
     "api/index.ts": {
       "memory": 1024,
