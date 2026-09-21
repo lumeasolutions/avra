@@ -695,6 +695,13 @@ interface DossierState {
   addDocumentToSubfolder: (dossierId: string, label: string, doc: SubFolderDocument) => void;
   removeDocumentFromSubfolder: (dossierId: string, label: string, docName: string) => void;
   /**
+   * Deplace UN document d'un sous-dossier vers un autre, en une seule mise a
+   * jour. Cible le document par son docId quand il existe (sinon par nom) :
+   * removeDocumentFromSubfolder filtre par nom et retirerait aussi un
+   * homonyme.
+   */
+  moveDocumentBetweenSubfolders: (dossierId: string, fromLabel: string, toLabel: string, key: { docId?: string; name: string }) => void;
+  /**
    * Complète un dossier existant avec les sous-dossiers par défaut manquants
    * (backfill pour les dossiers créés avant l'ajout des defaults).
    */
@@ -1103,6 +1110,53 @@ export const useDossierStore = create<DossierState>()(
                     subfolders: d.subfolders.map(rmDoc),
                     signedSubfolders: d.signedSubfolders.map(rmDoc),
                   }
+                : d,
+            ),
+          }));
+        }
+      },
+
+      moveDocumentBetweenSubfolders: (dossierId, fromLabel, toLabel, key) => {
+        if (fromLabel === toLabel) return;
+        const today = new Date().toLocaleDateString('fr-FR');
+        const matches = (d: SubFolderDocument) =>
+          typeof d === 'string'
+            ? !key.docId && d === key.name
+            : key.docId ? d.docId === key.docId : d.name === key.name;
+
+        const apply = (subs: SubFolder[]): SubFolder[] => {
+          const src = subs.find(sf => sf.label === fromLabel);
+          const moved = src?.documents?.find(matches);
+          if (!moved) return subs;
+          return subs.map(sf => {
+            if (sf.label === fromLabel) {
+              let removed = false;
+              // on ne retire qu'UNE occurrence, la bonne
+              const docs = (sf.documents ?? []).filter(d => {
+                if (!removed && matches(d)) { removed = true; return false; }
+                return true;
+              });
+              return { ...sf, documents: docs, date: today };
+            }
+            if (sf.label === toLabel) {
+              return { ...sf, documents: [...(sf.documents ?? []), moved], date: today };
+            }
+            return sf;
+          });
+        };
+
+        const inDossiers = get().dossiers.some(d => d.id === dossierId);
+        if (inDossiers) {
+          set(s => ({
+            dossiers: s.dossiers.map(d =>
+              d.id === dossierId ? { ...d, subfolders: apply(d.subfolders) } : d
+            ),
+          }));
+        } else {
+          set(s => ({
+            dossiersSignes: s.dossiersSignes.map(d =>
+              d.id === dossierId
+                ? { ...d, subfolders: apply(d.subfolders), signedSubfolders: apply(d.signedSubfolders) }
                 : d,
             ),
           }));

@@ -140,6 +140,23 @@ export class DossierDocumentsController {
     return this.docs.renameSubfolder(user.workspaceId, dossierId, oldLabel, newLabel);
   }
 
+  /**
+   * Déplace un document vers un autre sous-dossier du même dossier (glisser-
+   * déposer dans l'écran dossier). Met à jour l'étiquette en base uniquement.
+   */
+  @Patch(':docId/move')
+  moveDocument(
+    @CurrentUser() user: JwtPayload,
+    @Param('dossierId') dossierId: string,
+    @Param('docId') docId: string,
+    @Body() body: { subfolderLabel: string },
+  ) {
+    const label = (body?.subfolderLabel ?? '').trim();
+    if (!label) throw new BadRequestException('subfolderLabel requis');
+    if (label.length > 200) throw new BadRequestException('Nom de sous-dossier trop long');
+    return this.docs.moveDocument(user.workspaceId, dossierId, docId, label);
+  }
+
   @Delete(':docId')
   remove(
     @CurrentUser() user: JwtPayload,

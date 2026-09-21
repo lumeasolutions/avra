@@ -21,7 +21,7 @@ import { useOverlayDismiss } from '@/lib/useOverlayDismiss';
 import { MENUISIER_PROJET_REGEX, ARCHITECTE_PROJET_VERSION_REGEX, CUISINISTE_OPTION_REGEX } from '@/store/useDossierStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Trash2 } from 'lucide-react';
-import { uploadDossierDoc, uploadDossierDocDirect, listDossierDocs, getDocSignedUrl, deleteDossierDoc, renameDossierSubfolder } from '@/lib/dossier-docs-api';
+import { uploadDossierDoc, uploadDossierDocDirect, listDossierDocs, getDocSignedUrl, deleteDossierDoc, renameDossierSubfolder, moveDossierDoc } from '@/lib/dossier-docs-api';
 import { DocThumbnail } from '@/components/dossiers/DocThumbnail';
 import { DateButoireValidationModal } from '@/components/dossiers/DateButoireValidationModal';
 import { OptionSelectionModal } from '@/components/dossiers/OptionSelectionModal';
@@ -165,6 +165,7 @@ export default function DossierDetailPage() {
   const renameSubfolder   = useDossierStore(s => s.renameSubfolder);
   const addDocumentToSubfolder = useDossierStore(s => s.addDocumentToSubfolder);
   const removeDocumentFromSubfolder = useDossierStore(s => s.removeDocumentFromSubfolder);
+  const moveDocumentBetweenSubfolders = useDossierStore(s => s.moveDocumentBetweenSubfolders);
   const ensureDefaultSubfolders = useDossierStore(s => s.ensureDefaultSubfolders);
   const updateDossierNotes = useDossierStore(s => s.updateDossierNotes);
   const setDossierVendeur = useDossierStore(s => s.setDossierVendeur);
@@ -307,6 +308,33 @@ export default function DossierDetailPage() {
   // États transitoires pour les opérations docs (loading + erreur visible).
   const [docOpStatus, setDocOpStatus] = useState<{ kind: 'idle' | 'uploading' | 'deleting' | 'error' | 'success'; message?: string }>({ kind: 'idle' });
 
+  // ── Glisser-déposer (retour cofondatrice sept. 2026) ─────────────────────
+  // Deux gestes : déposer des fichiers depuis l'ordinateur sur un sous-dossier,
+  // et déplacer un document d'un sous-dossier à un autre.
+  /** Document en cours de glissement (null si ce sont des fichiers de l'ordinateur). */
+  const [draggingDoc, setDraggingDoc] = useState<{ docId: string; name: string; from: string } | null>(null);
+  /** Sous-dossier actuellement survolé, pour le surligner. */
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  // Fichiers lâchés HORS d'une zone de dépôt : par défaut le navigateur ouvre le
+  // fichier dans l'onglet — un PDF lâché sur le fond de la fenêtre ferait quitter
+  // l'application. On neutralise ces dépôts perdus au niveau de la page. Les
+  // zones de dépôt appellent stopPropagation, elles ne passent donc pas ici.
+  useEffect(() => {
+    const neutraliser = (e: DragEvent) => {
+      if (!Array.from(e.dataTransfer?.types ?? []).includes('Files')) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'none'; // curseur « interdit »
+      if (e.type === 'drop') setDropTarget(null);
+    };
+    window.addEventListener('dragover', neutraliser);
+    window.addEventListener('drop', neutraliser);
+    return () => {
+      window.removeEventListener('dragover', neutraliser);
+      window.removeEventListener('drop', neutraliser);
+    };
+  }, []);
+
   // Mode d'affichage des docs dans le modal sous-dossier (liste / grille).
   // Préférence persistée localStorage pour rester cohérent entre sessions.
   const [docsViewMode, setDocsViewMode] = useState<'list' | 'grid'>('list');
@@ -445,6 +473,152 @@ export default function DossierDetailPage() {
       setPreparingSend(false);
     }
   };
+
+  /**
+   * Envoie un lot de fichiers dans un sous-dossier. Point d'entrée UNIQUE,
+   * partagé par le bouton « Ajouter » et le glisser-déposer : envoi direct vers
+   * le stockage, en parallèle, avec progression globale et repli multipart.
+   */
+  const uploadFilesTo = async (label: string, arr: File[]) => {
+    if (arr.length === 0) return;
+    let succeeded = 0;
+    let failed = 0;
+    let lastError = '';
+    const progress: number[] = arr.map(() => 0);
+    const updateGlobalProgress = () => {
+      const total = progress.reduce((sum, p) => sum + p, 0);
+      const pct = Math.round((total / arr.length) * 100);
+      setDocOpStatus({
+        kind: 'uploading',
+        message: `Téléversement ${pct}% (${arr.length} fichier${arr.length > 1 ? 's' : ''})…`,
+      });
+    };
+    updateGlobalProgress();
+
+    const uploadOne = async (f: File, idx: number) => {
+      try {
+        let uploaded;
+        try {
+          uploaded = await uploadDossierDocDirect(id, label, f, (p) => {
+            progress[idx] = p;
+            updateGlobalProgress();
+          });
+        } catch (directErr: any) {
+          console.warn(`[Dossier] direct upload failed (${f.name}), fallback multipart:`, directErr?.message);
+          uploaded = await uploadDossierDoc(id, label, f);
+          progress[idx] = 1;
+          updateGlobalProgress();
+        }
+        addDocumentToSubfolder(id, label, {
+          docId: uploaded.id,
+          name: uploaded.originalName,
+          type: uploaded.mimeType ?? f.type,
+          size: uploaded.sizeBytes ?? f.size,
+          addedAt: uploaded.createdAt,
+        });
+        succeeded++;
+      } catch (err: any) {
+        failed++;
+        lastError = err?.message ?? 'erreur réseau';
+        console.error(`[Dossier] upload failed for ${f.name}:`, err);
+      }
+    };
+
+    await Promise.all(arr.map((f, idx) => uploadOne(f, idx)));
+
+    const dest = label.includes(' ▸ ') ? label.split(' ▸ ').pop() : label;
+    if (failed === 0) {
+      setDocOpStatus({ kind: 'success', message: `${succeeded} fichier${succeeded > 1 ? 's' : ''} ajouté${succeeded > 1 ? 's' : ''} dans « ${dest} »` });
+      setTimeout(() => setDocOpStatus({ kind: 'idle' }), 2600);
+    } else {
+      setDocOpStatus({
+        kind: 'error',
+        message: succeeded > 0
+          ? `${succeeded} OK · ${failed} échec(s) — ${lastError}`
+          : `Échec téléversement : ${lastError}`,
+      });
+    }
+  };
+
+  /**
+   * Déplace le document en cours de glissement vers `target`.
+   * Optimiste : l'affichage bouge tout de suite, et revient en arrière si le
+   * serveur refuse — l'utilisateur ne voit jamais un document « perdu ».
+   */
+  const moveDraggedDocTo = async (target: string) => {
+    const d = draggingDoc;
+    if (!d || d.from === target) return;
+    moveDocumentBetweenSubfolders(id, d.from, target, { docId: d.docId, name: d.name });
+    const dest = target.includes(' ▸ ') ? target.split(' ▸ ').pop() : target;
+    setDocOpStatus({ kind: 'uploading', message: `Déplacement de ${d.name}…` });
+    try {
+      await moveDossierDoc(id, d.docId, target);
+      setDocOpStatus({ kind: 'success', message: `${d.name} déplacé dans « ${dest} »` });
+      setTimeout(() => setDocOpStatus({ kind: 'idle' }), 2600);
+    } catch (err: any) {
+      moveDocumentBetweenSubfolders(id, target, d.from, { docId: d.docId, name: d.name });
+      setDocOpStatus({ kind: 'error', message: `Déplacement impossible : ${err?.message ?? 'erreur réseau'}` });
+    }
+  };
+
+  /** Les données glissées sont-elles des fichiers venus de l'ordinateur ? */
+  const isFileDrag = (e: React.DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
+
+  /**
+   * Props d'une zone de dépôt pour le sous-dossier `label`. Accepte à la fois
+   * un document glissé depuis la fenêtre et des fichiers de l'ordinateur.
+   * Inerte en lecture seule.
+   */
+  const dropZoneProps = (label: string) => readOnly ? {} : {
+    onDragOver: (e: React.DragEvent) => {
+      if (!draggingDoc && !isFileDrag(e)) return;
+      if (draggingDoc && draggingDoc.from === label) return; // déjà là
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = draggingDoc ? 'move' : 'copy';
+      if (dropTarget !== label) setDropTarget(label);
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      // ignore les sorties vers un élément enfant de la zone
+      if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+      if (dropTarget === label) setDropTarget(null);
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDropTarget(null);
+      if (draggingDoc) {
+        void moveDraggedDocTo(label);
+        setDraggingDoc(null);
+        return;
+      }
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      if (files.length > 0) void uploadFilesTo(label, files);
+    },
+  };
+
+  /** Style de surbrillance d'une zone survolée pendant un glisser-déposer. */
+  const dropHighlight = (label: string): React.CSSProperties =>
+    dropTarget === label
+      ? { background: 'rgba(166,119,73,0.12)', boxShadow: 'inset 0 0 0 2px rgba(166,119,73,0.6)', borderRadius: 12 }
+      : {};
+
+  /** Props rendant un document glissable (seulement s'il existe côté serveur). */
+  const draggableDocProps = (doc: { docId?: string; name: string }, from: string) =>
+    readOnly || !doc.docId ? {} : {
+      draggable: true,
+      onDragStart: (e: React.DragEvent) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', doc.name);
+        // Différé d'un tick : Chrome annule le glisser si l'affichage change au
+        // moment exact où il démarre (le bandeau « Déplacer vers » apparaît).
+        const payload = { docId: doc.docId!, name: doc.name, from };
+        setTimeout(() => setDraggingDoc(payload), 0);
+      },
+      // Même délai que le démarrage : sinon un glisser annulé très vite (Échap)
+      // verrait le bandeau « Déplacer vers » apparaître APRÈS l'annulation.
+      onDragEnd: () => { setTimeout(() => { setDraggingDoc(null); setDropTarget(null); }, 0); },
+    };
 
   // Renomme un sous-dossier : backend d'abord (déplace les documents), puis
   // état local + validations. Ne renomme que la « feuille » (le dernier segment) ;
@@ -1058,8 +1232,9 @@ export default function DossierDetailPage() {
                   tabIndex={0}
                   onClick={() => setOpenedSubfolder(sf.label)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); } }}
+                  {...dropZoneProps(sf.label)}
                   className={`subfolder-row flex w-full items-center gap-4 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749] hover:bg-[#304035]/[0.02] cursor-pointer ${isChildVersion ? 'bg-[#a67749]/[0.025]' : ''}`}
-                  style={depth > 0 ? { paddingLeft: 20 + depth * 26 } : undefined}
+                  style={{ ...(depth > 0 ? { paddingLeft: 20 + depth * 26 } : {}), ...dropHighlight(sf.label) }}
                 >
                   {isChildVersion && (
                     <CornerDownRight className="h-4 w-4 text-[#a67749]/50 shrink-0 -ml-1" />
@@ -1497,6 +1672,31 @@ export default function DossierDetailPage() {
       )}
 
       {/* ══ MODAL : Documents d'un sous-dossier ══ */}
+      {/* État d'un dépôt fait sur une tuile, fenêtre fermée : sans ce bandeau
+          l'utilisateur n'aurait aucun retour (l'état ne s'affiche que dans la
+          fenêtre du sous-dossier). */}
+      {!openedSubfolder && docOpStatus.kind !== 'idle' && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
+          <div className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-xl border ${
+            docOpStatus.kind === 'error'
+              ? 'bg-red-50 text-red-700 border-red-200'
+              : docOpStatus.kind === 'success'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-white text-[#304035] border-[#304035]/10'
+          }`}>
+            {(docOpStatus.kind === 'uploading' || docOpStatus.kind === 'deleting') && (
+              <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+            )}
+            {docOpStatus.kind === 'success' && <Check className="h-4 w-4 shrink-0" />}
+            {docOpStatus.kind === 'error' && <AlertTriangle className="h-4 w-4 shrink-0" />}
+            <span>{docOpStatus.message}</span>
+            {docOpStatus.kind === 'error' && (
+              <button onClick={() => setDocOpStatus({ kind: 'idle' })} className="ml-1 opacity-60 hover:opacity-100" aria-label="Fermer">×</button>
+            )}
+          </div>
+        </div>
+      )}
+
       {openedSubfolder && (() => {
         const sf = dossier.subfolders.find(s => s.label === openedSubfolder);
         if (!sf) return null;
@@ -1512,77 +1712,14 @@ export default function DossierDetailPage() {
           setNewDocName('');
         };
 
-        // Upload direct vers Supabase Storage (rapide, pas de double-hop).
-        // Avec fallback sur l'upload classique multipart en cas d'erreur
-        // (compat backend qui n'aurait pas encore les endpoints init/finalize).
-        // Tous les fichiers uploadent EN PARALLÈLE via Promise.all → si tu
-        // déposes 5 fichiers, ils partent tous en même temps au lieu d'être
-        // sériés.
+        // Envoi via le point d'entrée partagé avec le glisser-déposer
+        // (uploadFilesTo) : direct vers le stockage, en parallèle, avec repli.
         const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
           const files = e.target.files;
           if (!files) return;
           const arr = Array.from(files);
-          let succeeded = 0;
-          let failed = 0;
-          let lastError = '';
-          // Map fichier → progression 0..1, pour afficher un % moyen global.
-          const progress: number[] = arr.map(() => 0);
-          const updateGlobalProgress = () => {
-            const total = progress.reduce((sum, p) => sum + p, 0);
-            const pct = Math.round((total / arr.length) * 100);
-            setDocOpStatus({
-              kind: 'uploading',
-              message: `Téléversement ${pct}% (${arr.length} fichier${arr.length > 1 ? 's' : ''})…`,
-            });
-          };
-          updateGlobalProgress();
-
-          const uploadOne = async (f: File, idx: number) => {
-            try {
-              let uploaded;
-              try {
-                // Essai direct upload (rapide)
-                uploaded = await uploadDossierDocDirect(id, openedSubfolder, f, (p) => {
-                  progress[idx] = p;
-                  updateGlobalProgress();
-                });
-              } catch (directErr: any) {
-                // Fallback multipart classique
-                console.warn(`[Dossier] direct upload failed (${f.name}), fallback multipart:`, directErr?.message);
-                uploaded = await uploadDossierDoc(id, openedSubfolder, f);
-                progress[idx] = 1;
-                updateGlobalProgress();
-              }
-              addDocumentToSubfolder(id, openedSubfolder, {
-                docId: uploaded.id,
-                name: uploaded.originalName,
-                type: uploaded.mimeType ?? f.type,
-                size: uploaded.sizeBytes ?? f.size,
-                addedAt: uploaded.createdAt,
-              });
-              succeeded++;
-            } catch (err: any) {
-              failed++;
-              lastError = err?.message ?? 'erreur réseau';
-              console.error(`[Dossier] upload failed for ${f.name}:`, err);
-            }
-          };
-
-          // Tous les uploads en parallèle
-          await Promise.all(arr.map((f, idx) => uploadOne(f, idx)));
-
           e.target.value = '';
-          if (failed === 0) {
-            setDocOpStatus({ kind: 'success', message: `${succeeded} fichier${succeeded > 1 ? 's' : ''} téléversé${succeeded > 1 ? 's' : ''}` });
-            setTimeout(() => setDocOpStatus({ kind: 'idle' }), 2200);
-          } else {
-            setDocOpStatus({
-              kind: 'error',
-              message: succeeded > 0
-                ? `${succeeded} OK · ${failed} échec(s) — ${lastError}`
-                : `Échec téléversement : ${lastError}`,
-            });
-          }
+          await uploadFilesTo(openedSubfolder, arr);
         };
 
         // Suppression : si le doc est sur le backend (docId présent), on purge
@@ -1606,7 +1743,43 @@ export default function DossierDetailPage() {
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={() => { setOpenedSubfolder(null); setDocOpStatus({ kind: 'idle' }); setNewDocName(''); }}>
-            <div className={`w-full ${docsViewMode === 'grid' ? 'max-w-3xl' : 'max-w-lg'} rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10 transition-all`} onClick={e => e.stopPropagation()}>
+            <div
+              className={`relative w-full ${docsViewMode === 'grid' ? 'max-w-3xl' : 'max-w-lg'} rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10 transition-all`}
+              onClick={e => e.stopPropagation()}
+              {...dropZoneProps(openedSubfolder)}
+              style={dropTarget === openedSubfolder ? { boxShadow: '0 0 0 3px rgba(166,119,73,0.75), 0 25px 50px -12px rgba(0,0,0,0.25)' } : undefined}
+            >
+              {/* Fichiers de l'ordinateur survolant la fenêtre : on dit où ils iront. */}
+              {dropTarget === openedSubfolder && !draggingDoc && (
+                <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-[#a67749]/10 backdrop-blur-[1px]">
+                  <div className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#304035] shadow-lg border border-[#a67749]/30">
+                    📥 Déposez pour ajouter dans « {openedSubfolder.includes(' ▸ ') ? openedSubfolder.split(' ▸ ').pop() : openedSubfolder} »
+                  </div>
+                </div>
+              )}
+
+              {/* Pendant le glissement d'un document : tous les autres sous-dossiers
+                  deviennent des cibles — y compris parents et voisins, qu'on ne
+                  voit pas depuis cette fenêtre. */}
+              {draggingDoc && (
+                <div className="mb-4 rounded-xl border border-dashed border-[#a67749]/45 bg-[#a67749]/5 p-3">
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-[#a67749]">
+                    Déplacer « {draggingDoc.name} » vers :
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {dossier.subfolders.filter(o => o.label !== draggingDoc.from).map(o => (
+                      <div
+                        key={o.label}
+                        {...dropZoneProps(o.label)}
+                        style={dropHighlight(o.label)}
+                        className="rounded-lg border border-[#304035]/12 bg-white px-3 py-1.5 text-xs font-semibold text-[#304035] transition-colors"
+                      >
+                        📁 {o.label.split(' ▸ ').join(' / ')}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex items-start justify-between mb-5 gap-3">
                 <div className="min-w-0">
                   {/* Bouton Retour : remonte d'un niveau (ou au dossier racine)
@@ -1717,7 +1890,7 @@ export default function DossierDetailPage() {
                           .filter((o) => o.label === cp || o.label.startsWith(cp + ' ▸ '))
                           .reduce((sum, o) => sum + (o.documents?.length ?? 0), 0);
                         return (
-                        <div key={cp} className="relative group">
+                        <div key={cp} className="relative group" {...dropZoneProps(cp)} style={dropHighlight(cp)}>
                           <button
                             onClick={() => setOpenedSubfolder(cp)}
                             className="w-full flex flex-col items-center gap-1.5 p-3 pb-9 rounded-xl border border-[#304035]/10 hover:border-[#a67749]/45 hover:bg-[#a67749]/5 transition-all text-center"
@@ -1789,7 +1962,11 @@ export default function DossierDetailPage() {
                     const canPreview = !!(doc.docId || doc.dataUrl);
                     const isImg = doc.type?.startsWith('image/');
                     return (
-                      <div key={i} className="flex items-center gap-3 px-4 py-3">
+                      <div
+                        key={i}
+                        {...draggableDocProps(doc, openedSubfolder)}
+                        className={`flex items-center gap-3 px-4 py-3 ${!readOnly && doc.docId ? 'cursor-grab active:cursor-grabbing' : ''} ${draggingDoc?.docId && draggingDoc.docId === doc.docId ? 'opacity-40' : ''}`}
+                      >
                         {isImg && doc.dataUrl ? (
                           <div className="h-9 w-9 rounded-lg overflow-hidden bg-[#304035]/5 shrink-0 border border-[#304035]/10">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1864,8 +2041,9 @@ export default function DossierDetailPage() {
                         return (
                           <div
                             key={i}
-                            className="dt-card group relative"
-                            style={{ position: 'relative' }}
+                            {...draggableDocProps(doc, openedSubfolder)}
+                            className={`dt-card group relative ${!readOnly && doc.docId ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                            style={{ position: 'relative', opacity: draggingDoc?.docId && draggingDoc.docId === doc.docId ? 0.4 : 1 }}
                           >
                             <style>{`
                               .dt-card { transition: transform 0.18s ease; }
@@ -3040,7 +3218,8 @@ export default function DossierDetailPage() {
                             <div
                               key={`p-${sf.label}`}
                               className="ddb-row ddb-row-pending"
-                              style={{ animationDelay: `${i * 60}ms` }}
+                              {...dropZoneProps(sf.label)}
+                              style={{ animationDelay: `${i * 60}ms`, ...dropHighlight(sf.label) }}
                               role="button"
                               tabIndex={0}
                               onClick={() => { setOpenedSubfolder(sf.label); setShowDashboard(false); }}
@@ -3082,7 +3261,8 @@ export default function DossierDetailPage() {
                             <div
                               key={`v-${sf.label}`}
                               className="ddb-row ddb-row-validated"
-                              style={{ animationDelay: `${(pendingSubs.length + i) * 60}ms` }}
+                              {...dropZoneProps(sf.label)}
+                              style={{ animationDelay: `${(pendingSubs.length + i) * 60}ms`, ...dropHighlight(sf.label) }}
                               role="button"
                               tabIndex={0}
                               onClick={() => { setOpenedSubfolder(sf.label); setShowDashboard(false); }}

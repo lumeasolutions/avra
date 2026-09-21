@@ -577,6 +577,46 @@ export class DossierDocumentsService {
     return { renamed: exact.count + children.length };
   }
 
+  /**
+   * Déplace un document vers un autre sous-dossier du même dossier.
+   *
+   * Même principe que `renameSubfolder` : seule l'étiquette `subfolderLabel` en
+   * base change. Le fichier stocké n'est ni copié ni renommé — le segment de
+   * sous-dossier présent dans `storagePath` n'est qu'indicatif, le document est
+   * toujours retrouvé par son id. Le déplacement est donc instantané et ne fait
+   * courir aucun risque de perte de fichier.
+   */
+  async moveDocument(
+    workspaceId: string,
+    projectId: string,
+    documentId: string,
+    targetLabel: string,
+  ) {
+    await this.assertProjectInWorkspace(workspaceId, projectId);
+    const label = (targetLabel ?? '').trim();
+    if (!label || label.length > 200) {
+      throw new BadRequestException('Sous-dossier invalide');
+    }
+    const doc = await this.prisma.dossierDocument.findFirst({
+      where: { id: documentId, projectId, workspaceId },
+      select: { id: true },
+    });
+    if (!doc) throw new NotFoundException('Document introuvable');
+
+    return this.prisma.dossierDocument.update({
+      where: { id: doc.id },
+      data: { subfolderLabel: label },
+      select: {
+        id: true,
+        subfolderLabel: true,
+        originalName: true,
+        mimeType: true,
+        sizeBytes: true,
+        createdAt: true,
+      },
+    });
+  }
+
   /** Retourne une URL signée temporaire (60 min). */
   async getSignedUrl(workspaceId: string, projectId: string, documentId: string) {
     await this.assertProjectInWorkspace(workspaceId, projectId);

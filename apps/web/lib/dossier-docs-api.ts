@@ -114,6 +114,21 @@ export async function uploadDossierDocDirect(
   );
 }
 
+/**
+ * Déplace un document vers un autre sous-dossier du même dossier.
+ * Seule l'étiquette change côté serveur : le fichier n'est pas recopié.
+ */
+export async function moveDossierDoc(
+  dossierId: string,
+  docId: string,
+  subfolderLabel: string,
+): Promise<DossierDocDto> {
+  return api<DossierDocDto>(
+    `/dossiers/${encodeURIComponent(dossierId)}/documents/${encodeURIComponent(docId)}/move`,
+    { method: 'PATCH', body: JSON.stringify({ subfolderLabel }) },
+  );
+}
+
 /** Liste tous les documents d'un dossier (tous sous-dossiers confondus). */
 export async function listDossierDocs(dossierId: string): Promise<DossierDocDto[]> {
   return api<DossierDocDto[]>(`/dossiers/${encodeURIComponent(dossierId)}/documents`);
