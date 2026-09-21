@@ -145,12 +145,39 @@ async function _updateEvent(
   } catch { /* noop */ }
 }
 
+/** Crée un type custom : clé = CUSTOM_<LABEL_EN_MAJUSCULES>_<8 car. aléatoires> (unique). */
+function _newCustomType(
+  data: Omit<CustomInterventionType, 'key' | 'createdAt'>,
+  fallback: string,
+): CustomInterventionType {
+  const slug = data.label
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 30);
+  return {
+    key: `CUSTOM_${slug || fallback}_${uid()}`,
+    label: data.label,
+    color: data.color,
+    icon: data.icon,
+    createdAt: Date.now(),
+  };
+}
+
 interface PlanningState {
   // Data
   planningEvents: PlanningEvent[];
   gestEvents: GestEvent[];
   /** Métiers custom ajoutés manuellement par l'utilisateur (planning gestion). */
   customInterventionTypes: CustomInterventionType[];
+  /**
+   * Types de RDV ajoutés manuellement dans le Planning (retour cofondatrice
+   * 21/09/2026 : « pouvoir rajouter manuellement un type de RDV »). Même forme
+   * que les métiers custom du planning gestion.
+   */
+  customRdvTypes: CustomInterventionType[];
 
   // Planning actions
   addPlanningEvent: (event: Omit<PlanningEvent, 'id'>) => void;
@@ -167,6 +194,8 @@ interface PlanningState {
   // Métier custom actions
   addCustomInterventionType: (data: Omit<CustomInterventionType, 'key' | 'createdAt'>) => CustomInterventionType;
   deleteCustomInterventionType: (key: string) => void;
+  addCustomRdvType: (data: Omit<CustomInterventionType, 'key' | 'createdAt'>) => CustomInterventionType;
+  deleteCustomRdvType: (key: string) => void;
 
   // Reset
   reset: () => void;
@@ -178,6 +207,7 @@ export const usePlanningStore = create<PlanningState>()(
       planningEvents: INITIAL_EVENTS,
       gestEvents: INITIAL_GEST_EVENTS,
       customInterventionTypes: [],
+      customRdvTypes: [],
 
       addPlanningEvent: (event) => {
         const tempId = 'ev' + uid();
@@ -251,22 +281,7 @@ export const usePlanningStore = create<PlanningState>()(
 
       // ── Métiers custom (planning gestion) ───────────────────────────────
       addCustomInterventionType: (data) => {
-        // Slug pour la clé : labelmajuscules + 6 chars random (collision-safe)
-        const slug = data.label
-          .normalize('NFD')
-          .replace(/[̀-ͯ]/g, '')
-          .toUpperCase()
-          .replace(/[^A-Z0-9]+/g, '_')
-          .replace(/^_+|_+$/g, '')
-          .slice(0, 30);
-        const key = `CUSTOM_${slug || 'METIER'}_${uid()}`;
-        const newType: CustomInterventionType = {
-          key,
-          label: data.label,
-          color: data.color,
-          icon: data.icon,
-          createdAt: Date.now(),
-        };
+        const newType = _newCustomType(data, 'METIER');
         set(s => ({ customInterventionTypes: [...s.customInterventionTypes, newType] }));
         return newType;
       },
@@ -275,10 +290,22 @@ export const usePlanningStore = create<PlanningState>()(
         set(s => ({ customInterventionTypes: s.customInterventionTypes.filter(t => t.key !== key) }));
       },
 
+      // ── Types de RDV custom (planning) ──────────────────────────────────
+      addCustomRdvType: (data) => {
+        const newType = _newCustomType(data, 'RDV');
+        set(s => ({ customRdvTypes: [...(s.customRdvTypes ?? []), newType] }));
+        return newType;
+      },
+
+      deleteCustomRdvType: (key) => {
+        set(s => ({ customRdvTypes: (s.customRdvTypes ?? []).filter(t => t.key !== key) }));
+      },
+
       reset: () => set({
         planningEvents: INITIAL_EVENTS,
         gestEvents: INITIAL_GEST_EVENTS,
         customInterventionTypes: [],
+        customRdvTypes: [],
       }),
     }),
     {

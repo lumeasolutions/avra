@@ -29,18 +29,39 @@ interface Props {
   existingLabels: string[];
   onConfirm: (data: { label: string; color: string; icon: string }) => void;
   onCancel: () => void;
+  /**
+   * Libellés — par défaut « métier » (planning gestion). Le Planning réutilise
+   * la même modale pour les types de RDV (21/09/2026).
+   */
+  wording?: {
+    titre: string;          // « Nouveau métier »
+    sousTitre: string;      // « Ajoutez un corps de métier… »
+    champ: string;          // « Nom du métier »
+    placeholder: string;
+    nom: string;            // « métier » (messages d'erreur)
+    icones?: string[];
+  };
 }
 
-export function CustomInterventionTypeModal({ existingLabels, onConfirm, onCancel }: Props) {
+const WORDING_METIER = {
+  titre: 'Nouveau métier',
+  sousTitre: "Ajoutez un corps de métier qui n'est pas dans la liste.",
+  champ: 'Nom du métier',
+  placeholder: "Ex : Verrier d'art, Cordonnier industriel…",
+  nom: 'métier',
+};
+
+export function CustomInterventionTypeModal({ existingLabels, onConfirm, onCancel, wording = WORDING_METIER }: Props) {
+  const icones = wording.icones ?? PRESET_ICONS;
   const [label, setLabel] = useState('');
   const [color, setColor] = useState(PRESET_COLORS[0]);
-  const [icon, setIcon] = useState(PRESET_ICONS[0]);
+  const [icon, setIcon] = useState((wording.icones ?? PRESET_ICONS)[0]);
   const [error, setError] = useState<string | null>(null);
 
   const handleConfirm = () => {
     const cleanLabel = label.trim();
     if (cleanLabel.length === 0) {
-      setError('Le nom du métier est obligatoire.');
+      setError(`Le nom du ${wording.nom} est obligatoire.`);
       return;
     }
     if (cleanLabel.length > 40) {
@@ -49,7 +70,7 @@ export function CustomInterventionTypeModal({ existingLabels, onConfirm, onCance
     }
     const lower = cleanLabel.toLowerCase();
     if (existingLabels.some((l) => l.toLowerCase() === lower)) {
-      setError(`Le métier "${cleanLabel}" existe déjà.`);
+      setError(`Le ${wording.nom} "${cleanLabel}" existe déjà.`);
       return;
     }
     onConfirm({ label: cleanLabel, color, icon: icon.trim().slice(0, 4) || '🔨' });
@@ -101,10 +122,10 @@ export function CustomInterventionTypeModal({ existingLabels, onConfirm, onCance
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#304035' }}>
-                Nouveau métier
+                {wording.titre}
               </h2>
               <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(48,64,53,0.55)' }}>
-                Ajoutez un corps de métier qui n&apos;est pas dans la liste.
+                {wording.sousTitre}
               </p>
             </div>
           </div>
@@ -123,13 +144,13 @@ export function CustomInterventionTypeModal({ existingLabels, onConfirm, onCance
           {/* Nom */}
           <div>
             <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'rgba(48,64,53,0.55)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
-              Nom du métier *
+              {wording.champ} *
             </label>
             <input
               type="text"
               value={label}
               onChange={(e) => { setLabel(e.target.value); setError(null); }}
-              placeholder="Ex : Verrier d'art, Cordonnier industriel…"
+              placeholder={wording.placeholder}
               maxLength={40}
               autoFocus
               style={{
@@ -151,7 +172,7 @@ export function CustomInterventionTypeModal({ existingLabels, onConfirm, onCance
               Icône
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-              {PRESET_ICONS.map((emoji) => (
+              {icones.map((emoji) => (
                 <button
                   key={emoji}
                   type="button"
@@ -237,7 +258,7 @@ export function CustomInterventionTypeModal({ existingLabels, onConfirm, onCance
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '6px 10px', background: '#fff', borderRadius: 8, border: '1px solid rgba(48,64,53,0.08)' }}>
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: color }} />
               <span style={{ fontSize: 12, fontWeight: 700, color: '#304035' }}>
-                {icon || '🔨'} {label || 'Nom du métier'}
+                {icon || '🔨'} {label || wording.champ}
               </span>
             </div>
           </div>

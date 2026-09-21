@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
+import { CustomInterventionTypeModal } from '@/components/planning/CustomInterventionTypeModal';
 
 /* ── CONSTANTES ── */
 // Journée complète 0h–23h (façon Google Agenda) : la grille est scrollable et
@@ -52,6 +53,8 @@ type RdvTypeDef = {
   icon: string;
   /** Si true, le RDV apparait aussi dans /planning-gestion (operationnel + gestion) */
   dualPlanning?: boolean;
+  /** Type ajouté manuellement par l'utilisateur (supprimable). */
+  custom?: boolean;
 };
 
 /**
@@ -220,7 +223,24 @@ export default function PlanningPage() {
 
   // Profession active → filtre les types de RDV proposes
   const profession = useAuthStore(s => s.profession);
-  const rdvTypes = useMemo(() => getRdvTypes(profession, 'planning'), [profession]);
+  // + types ajoutés à la main (« Nouveau type », retour cofondatrice 21/09/2026)
+  const customRdvTypes = usePlanningStore(s => s.customRdvTypes) ?? [];
+  const addCustomRdvType = usePlanningStore(s => s.addCustomRdvType);
+  const deleteCustomRdvType = usePlanningStore(s => s.deleteCustomRdvType);
+  const [showCustomRdvModal, setShowCustomRdvModal] = useState(false);
+  const rdvTypes = useMemo<RdvTypeDef[]>(
+    () => [
+      ...getRdvTypes(profession, 'planning'),
+      ...customRdvTypes.map(t => ({ key: t.key, label: t.label, color: t.color, icon: t.icon, custom: true })),
+    ],
+    [profession, customRdvTypes],
+  );
+  const supprimerTypeRdv = (t: RdvTypeDef) => {
+    if (!confirm(`Supprimer le type de RDV « ${t.label} » ?
+Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) return;
+    deleteCustomRdvType(t.key);
+    if (newEvent.type === t.key) setNewEvent(n => ({ ...n, type: 'CLIENT' }));
+  };
 
   // Demandes scheduledFor (interventions intervenants) — merge avec planning
   const proDemandes = useDemandesStore(s => s.proDemandes);
@@ -1022,12 +1042,30 @@ export default function PlanningPage() {
           {/* Légende types — selon profession */}
           <div className="border-t border-[#304035]/5 px-4 py-3 flex flex-wrap gap-2">
             {rdvTypes.map(t => (
-              <span key={t.key} className="flex items-center gap-1.5 text-xs text-[#304035]/50">
+              <span key={t.key} className="group flex items-center gap-1.5 text-xs text-[#304035]/50">
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.color }} />
                 {t.label}
                 {t.dualPlanning && <span className="text-[9px] text-[#a67749]/60" title="Aussi visible sur Planning gestion">↔</span>}
+                {t.custom && (
+                  <button
+                    type="button"
+                    onClick={() => supprimerTypeRdv(t)}
+                    className="opacity-40 group-hover:opacity-100 p-0.5 rounded text-[#304035]/50 hover:text-red-500 hover:bg-red-50 transition-all"
+                    title={`Supprimer le type « ${t.label} »`}
+                    aria-label={`Supprimer le type ${t.label}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
               </span>
             ))}
+            <button
+              type="button"
+              onClick={() => setShowCustomRdvModal(true)}
+              className="flex items-center gap-1 text-xs font-semibold text-[#a67749] hover:underline"
+            >
+              <Plus className="h-3 w-3" /> Nouveau type
+            </button>
           </div>
           </div>
           </div>
@@ -1409,6 +1447,14 @@ export default function PlanningPage() {
                       )}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomRdvModal(true)}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border-2 border-dashed border-[#a67749]/40 text-xs font-bold text-[#a67749] hover:bg-[#a67749]/5 transition-all"
+                    title="Ajouter un type de RDV qui n'est pas dans la liste"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Nouveau type
+                  </button>
                 </div>
                 <p className="text-[10px] text-[#304035]/40 mt-1.5 leading-snug">
                   ↔ Visible sur les deux plannings (Planning + Planning gestion)
@@ -1577,6 +1623,27 @@ export default function PlanningPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showCustomRdvModal && (
+        <CustomInterventionTypeModal
+          existingLabels={rdvTypes.map(t => t.label)}
+          wording={{
+            titre: 'Nouveau type de RDV',
+            sousTitre: "Ajoutez un type de rendez-vous qui n'est pas dans la liste.",
+            champ: 'Nom du type de RDV',
+            placeholder: 'Ex : Visite showroom, Réunion de chantier…',
+            nom: 'type de RDV',
+            icones: ['📅', '🤝', '🏠', '🔨', '📐', '📦', '🚚', '📋', '✏️', '🎨', '💬', '📞', '🧾', '🛠', '⭐'],
+          }}
+          onConfirm={({ label, color, icon }) => {
+            const t = addCustomRdvType({ label, color, icon });
+            // Sélectionne directement le nouveau type si la fenêtre RDV est ouverte.
+            if (showAdd) setNewEvent(n => ({ ...n, type: t.key }));
+            setShowCustomRdvModal(false);
+          }}
+          onCancel={() => setShowCustomRdvModal(false)}
+        />
       )}
     </div>
   );
