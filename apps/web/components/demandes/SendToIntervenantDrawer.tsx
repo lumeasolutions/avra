@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useOverlayDismiss } from '@/lib/useOverlayDismiss';
 import { X, Send, Search, AlertCircle, Calendar, FileText, ChevronDown, Folder, Check, Image as ImageIcon, Mail, UserPlus, CheckCircle2, Paperclip, Trash2, Bookmark } from 'lucide-react';
 import { api } from '@/lib/api';
-import { uploadDossierDocDirect } from '@/lib/dossier-docs-api';
+import { uploadDossierDocDirect, deleteDossierDoc } from '@/lib/dossier-docs-api';
 import { displayName as folderDisplayName, depthOf, isDescendant, splitPath, SEP } from '@/lib/folderTree';
 import { useDemandeTemplatesStore } from '@/store/useDemandeTemplatesStore';
 import {
@@ -451,6 +451,8 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
           onSent?.(firstId);
         }
         setStep('sent');
+        // Rattachés à la demande envoyée : ce ne sont plus des orphelins.
+        uploadedHereRef.current.clear();
         if (failed.length > 0) {
           setError(`${successful.length} envoyes, ${failed.length} en echec.`);
         }
@@ -480,9 +482,56 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
     }
   };
 
+  // ── Fichiers téléversés PAR CETTE FENÊTRE (correctif sept. 2026) ─────────
+  // Un fichier ajouté ici part au stockage dès sa sélection, dans la boîte
+  // système masquée « Dossier - Documents Intervenants ». S'il n'est finalement
+  // rattaché à aucune demande (retiré de la liste, ou fenêtre fermée sans
+  // envoyer), il n'est visible NULLE PART et reste stocké définitivement.
+  // On mémorise donc les seuls fichiers téléversés ici, pour les supprimer dans
+  // ces deux cas. Les documents EXISTANTS du dossier cochés pour être joints
+  // n'entrent jamais dans cet ensemble : les retirer d'un envoi ne doit jamais
+  // les effacer du dossier.
+  const uploadedHereRef = useRef<Set<string>>(new Set());
+  const projectIdRef = useRef(prefill?.projectId);
+  projectIdRef.current = prefill?.projectId;
+
+  const supprimerDoc = (docId: string) => {
+    const pid = projectIdRef.current;
+    if (!pid) return;
+    deleteDossierDoc(pid, docId).catch((err) =>
+      console.warn('[SendToIntervenant] suppression de l\'orphelin échouée', docId, err?.message),
+    );
+  };
+
+  /** Supprime les fichiers téléversés ici et jamais rattachés à une demande. */
+  const supprimerOrphelins = () => {
+    const ids = Array.from(uploadedHereRef.current);
+    uploadedHereRef.current.clear();
+    ids.forEach(supprimerDoc);
+  };
+
+  /** Retire une pièce de la liste ; la supprime du stockage si elle a été
+   *  téléversée par cette fenêtre (sinon c'est un document du dossier : intact). */
+  const retirerPiece = (idx: number) => {
+    const item = uploads[idx];
+    setUploads((u) => u.filter((_, i) => i !== idx));
+    const docId = item?.dossierDocumentId;
+    if (docId && uploadedHereRef.current.has(docId)) {
+      uploadedHereRef.current.delete(docId);
+      supprimerDoc(docId);
+    }
+  };
+
+  /** Fermeture de la fenêtre : nettoie d'abord les orphelins. */
+  const fermer = () => { supprimerOrphelins(); onClose(); };
+
+  // Filet de sécurité si la fenêtre est démontée sans passer par fermer().
+  // Ensemble vide après un envoi réussi : ne supprime alors rien.
+  useEffect(() => () => supprimerOrphelins(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // IMPORTANT : ce hook doit rester AVANT le return anticipe ci-dessous,
   // sinon l'ordre des hooks change entre deux rendus (React error #310).
-  const overlayDismiss = useOverlayDismiss(onClose);
+  const overlayDismiss = useOverlayDismiss(fermer);
 
   if (!open || !mounted || typeof document === 'undefined') return null;
 
@@ -532,7 +581,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={fermer}
             style={{
               marginLeft: 'auto',
               background: 'transparent', border: 'none', cursor: 'pointer',
@@ -934,7 +983,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                       </span>
                       {!a.uploading && (
                         <button
-                          onClick={() => setUploads(u => u.filter((_, i) => i !== idx))}
+                          onClick={() => retirerPiece(idx)}
                           style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#7c6c58', padding: 2 }}
                           aria-label="Retirer"
                         >
@@ -994,6 +1043,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                               projectId, 'Dossier - Documents Intervenants', f,
                               (p) => setUploads(u => u.map(x => x.key === key ? { ...x, progress: p } : x)),
                             );
+                            uploadedHereRef.current.add(doc.id);
                             setUploads(u => u.map(x => x.key === key
                               ? { key, displayName: f.name, mimeType: f.type, dossierDocumentId: doc.id }
                               : x));
@@ -1050,7 +1100,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                 )}
               </p>
               <div style={{ marginTop: 22, display: 'flex', gap: 8, justifyContent: 'center' }}>
-                <button onClick={onClose} style={btnStyle('secondary')}>
+                <button onClick={fermer} style={btnStyle('secondary')}>
                   Fermer
                 </button>
                 {sentDemandeId && (

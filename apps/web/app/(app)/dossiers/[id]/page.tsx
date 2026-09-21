@@ -129,6 +129,23 @@ const getIconForType = (type?: string) => {
   }
 };
 
+/**
+ * Boîtes système masquées de l'arborescence : « Reçu de l'intervenant » et
+ * « Dossier - Documents Intervenants ». Leurs fichiers sont visibles dans les
+ * demandes, pas dans le dossier. Critère UNIQUE, partagé par la liste des
+ * sous-dossiers et par son compteur d'en-tête — qui divergeaient (l'en-tête
+ * comptait aussi les boîtes système et les sous-dossiers imbriqués).
+ */
+function estBoiteSysteme(label: string): boolean {
+  const low = label.trim().toLowerCase();
+  return (low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant');
+}
+
+/** Sous-dossier affiché dans la liste principale : de premier niveau, hors boîte système. */
+function estSousDossierVisible(label: string): boolean {
+  return !label.includes(' ▸ ') && !estBoiteSysteme(label);
+}
+
 export default function DossierDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
@@ -869,7 +886,10 @@ export default function DossierDetailPage() {
                 </span>
               )}
               <span className="flex items-center gap-1.5 text-white/55 text-xs">
-                <FolderOpen className="h-3 w-3" /> {dossier.subfolders.length} éléments
+                <FolderOpen className="h-3 w-3" /> {(() => {
+                  const n = dossier.subfolders.filter((sf) => estSousDossierVisible(sf.label)).length;
+                  return `${n} élément${n > 1 ? 's' : ''}`;
+                })()}
               </span>
               {dossier.postalCode && (
                 <span className="flex items-center gap-1.5 text-white/55 text-xs">
@@ -1199,12 +1219,7 @@ export default function DossierDetailPage() {
                 // s'ouvrent en descendant dans un dossier (drill-down dans la modale).
                 // On masque aussi les boîtes de réception système « Reçu de
                 // l'intervenant » et « Dossier - Documents Intervenants ».
-                return ordered.filter((it) => {
-                  if (it.sf.label.includes(SEP)) return false;
-                  const low = it.sf.label.trim().toLowerCase();
-                  if ((low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant')) return false;
-                  return true;
-                });
+                return ordered.filter((it) => estSousDossierVisible(it.sf.label));
               })().map(({ sf, depth }, i) => {
                 // Alerte dynamique : uniquement si le sous-dossier est vide
                 // (aucun document présent ET aucun sous-dossier enfant). Dès
