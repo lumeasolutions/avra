@@ -18,7 +18,7 @@ import { useMemo } from 'react';
 import { AlertTriangle, Check, Clock } from 'lucide-react';
 import { useDossierStore } from '@/store/useDossierStore';
 import { echeanceAnchor } from '@/lib/alertClassify';
-import { echeanceStatus, ECHEANCE_PRIO, type EcheanceStatus } from '@/lib/echeanceStatus';
+import { echeanceStatus, parseLocalDate, ECHEANCE_PRIO, type EcheanceStatus } from '@/lib/echeanceStatus';
 
 const LEGACY_LABELS: Record<string, string> = {
   suiviChantier: 'Suivi chantier',
@@ -62,6 +62,12 @@ function StatusBadge({ status }: { status: EcheanceStatus }) {
   return null;
 }
 
+/** Date stockée (ISO ou jj/mm/aaaa) → affichage « 18/09/2026 ». */
+function formatDateFR(dateStr: string): string {
+  const d = parseLocalDate(dateStr);
+  return d && !isNaN(d.getTime()) ? d.toLocaleDateString('fr-FR') : dateStr;
+}
+
 /** Une ligne générique de la bande (pastille + libellé + date + badge). */
 function EcheanceRow({
   anchor, label, sub, dateStr, status,
@@ -73,7 +79,7 @@ function EcheanceRow({
         {label}
         {sub ? <span className="text-[#304035]/45 font-normal"> · {sub}</span> : null}
       </span>
-      {dateStr ? <span className="text-xs text-[#304035]/45 whitespace-nowrap">{dateStr}</span> : null}
+      {dateStr ? <span className="text-xs text-[#304035]/45 whitespace-nowrap">{formatDateFR(dateStr)}</span> : null}
       <StatusBadge status={status} />
     </div>
   );
