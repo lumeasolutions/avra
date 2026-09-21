@@ -111,6 +111,10 @@ export const DossierCard = React.memo(function DossierCard({ dossier, onSelect }
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
+        // Réagit seulement si la carte ELLE-MÊME a le focus, pas quand on tape
+        // dans un élément qu'elle contient (voir la ligne de sous-dossier du
+        // détail dossier, où ce réflexe bloquait l'espace dans le titre).
+        if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onSelect(dossier);

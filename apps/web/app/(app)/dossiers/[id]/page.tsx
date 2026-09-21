@@ -1246,7 +1246,7 @@ export default function DossierDetailPage() {
                   role="button"
                   tabIndex={0}
                   onClick={() => setOpenedSubfolder(sf.label)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); } }}
+                  onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); } }}
                   {...dropZoneProps(sf.label)}
                   className={`subfolder-row flex w-full items-center gap-4 px-5 py-4 text-left transition-all border-l-4 border-l-transparent hover:border-l-[#a67749] hover:bg-[#304035]/[0.02] cursor-pointer ${isChildVersion ? 'bg-[#a67749]/[0.025]' : ''}`}
                   style={{ ...(depth > 0 ? { paddingLeft: 20 + depth * 26 } : {}), ...dropHighlight(sf.label) }}
@@ -3238,7 +3238,7 @@ export default function DossierDetailPage() {
                               role="button"
                               tabIndex={0}
                               onClick={() => { setOpenedSubfolder(sf.label); setShowDashboard(false); }}
-                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); setShowDashboard(false); } }}
+                              onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); setShowDashboard(false); } }}
                             >
                               <div className="ddb-icon-circle ddb-icon-pending">
                                 <AlertTriangle className="h-4 w-4" />
@@ -3281,7 +3281,7 @@ export default function DossierDetailPage() {
                               role="button"
                               tabIndex={0}
                               onClick={() => { setOpenedSubfolder(sf.label); setShowDashboard(false); }}
-                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); setShowDashboard(false); } }}
+                              onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenedSubfolder(sf.label); setShowDashboard(false); } }}
                             >
                               <div className="ddb-icon-circle ddb-icon-validated">
                                 <Check className="h-4 w-4" strokeWidth={3} />
