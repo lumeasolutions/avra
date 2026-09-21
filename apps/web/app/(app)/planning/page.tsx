@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { CustomInterventionTypeModal } from '@/components/planning/CustomInterventionTypeModal';
+import { backdropClose } from '@/lib/backdropClose';
 
 /* ── CONSTANTES ── */
 // Journée complète 0h–23h (façon Google Agenda) : la grille est scrollable et
@@ -1275,7 +1276,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
         <div
           className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-6"
           style={{ background: 'rgba(30,30,30,0.45)', backdropFilter: 'blur(4px)' }}
-          onClick={() => setShowAdd(false)}
+          {...backdropClose(() => setShowAdd(false))}
         >
           <div
             className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"

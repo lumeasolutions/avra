@@ -14,6 +14,7 @@ import { uploadDossierDocDirect } from '@/lib/dossier-docs-api';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CustomInterventionTypeModal } from '@/components/planning/CustomInterventionTypeModal';
+import { backdropClose } from '@/lib/backdropClose';
 
 /**
  * Genere une couleur stable a partir d'un nom (hash deterministe).
@@ -1177,7 +1178,7 @@ export default function PlanningGestionPage() {
       {showAdd && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm overflow-y-auto py-6"
-          onClick={() => { setShowAdd(false); setEditingEventId(null); }}
+          {...backdropClose(() => { setShowAdd(false); setEditingEventId(null); })}
         >
           <div
             className="w-full max-w-md rounded-2xl bg-white p-7 shadow-2xl border border-[#304035]/10 max-h-[90vh] overflow-y-auto"

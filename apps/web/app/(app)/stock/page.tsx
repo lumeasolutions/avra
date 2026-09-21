@@ -1,4 +1,5 @@
 'use client';
+import { backdropClose } from '@/lib/backdropClose';
 
 import { useState, useRef, useEffect } from 'react';
 import {
@@ -993,7 +994,7 @@ export default function StockPage() {
       {showAdd && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
-          onClick={() => setShowAdd(false)}
+          {...backdropClose(() => setShowAdd(false))}
         >
           <div
             className="stock-modal-card w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-[#304035]/10 fade-up flex flex-col"

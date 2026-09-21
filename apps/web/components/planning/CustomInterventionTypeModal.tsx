@@ -15,6 +15,7 @@
 
 import { useState } from 'react';
 import { X, Check, Plus } from 'lucide-react';
+import { backdropClose } from '@/lib/backdropClose';
 
 const PRESET_COLORS = [
   '#5b9bd5', '#e07050', '#a78bfa', '#2ecc71', '#f59e0b',
@@ -89,7 +90,7 @@ export function CustomInterventionTypeModal({ existingLabels, onConfirm, onCance
         zIndex: 60,
         padding: 16,
       }}
-      onClick={onCancel}
+      {...backdropClose(onCancel)}
     >
       <div
         onClick={(e) => e.stopPropagation()}
