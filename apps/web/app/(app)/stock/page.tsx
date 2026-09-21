@@ -12,6 +12,7 @@ import {
 import { useStockStore, type StockItem } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { exportStockToExcel } from '@/lib/stock-excel';
 
 /* ── CONSTANTES ── */
 /** Liste de catégories par défaut (menuisier / hors cuisiniste / hors architecte). */
@@ -137,36 +138,6 @@ function calcMargin(purchase: number, sale: number | null): number | null {
   return Math.round(((sale - purchase) / sale) * 100);
 }
 
-function exportToCSV(items: StockItem[]) {
-  const headers = ['Fournisseur', 'Modèle', 'Référence', 'Catégorie', 'Matière', 'Couleur', 'Quantité', 'Seuil', 'Prix Achat', 'Prix Vente', 'Marge', 'Disponibilité', 'Image URL'];
-  const rows = items.map(item => [
-    item.supplier,
-    item.model,
-    item.reference || '',
-    item.category,
-    item.material,
-    item.couleur || '',
-    item.quantity || '',
-    item.minQuantity || '',
-    item.purchase,
-    item.sale || '',
-    calcMargin(item.purchase, item.sale) !== null ? calcMargin(item.purchase, item.sale) + '%' : '',
-    item.dot === 'green' ? 'Disponible' : item.dot === 'orange' ? 'Sur commande' : 'Rupture',
-    item.image || ''
-  ]);
-
-  const csv = [headers, ...rows].map(row =>
-    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-  ).join('\n');
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  link.setAttribute('href', url);
-  link.setAttribute('download', `stock-${new Date().toISOString().split('T')[0]}.csv`);
-  link.click();
-}
-
 /* ── COMPOSANT PRINCIPAL ── */
 export default function StockPage() {
   const stockItems      = useStockStore(s => s.stockItems);
@@ -209,6 +180,19 @@ export default function StockPage() {
   const [sortKey,     setSortKey]     = useState<SortKey>('supplier');
   const [sortDir,     setSortDir]     = useState<SortDir>('asc');
   const [showAdd,     setShowAdd]     = useState(false);
+  const [exporting,   setExporting]   = useState(false);
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportStockToExcel(filtered, (c) => CAT_LABEL[c] ?? (c.charAt(0) + c.slice(1).toLowerCase()));
+    } catch (e) {
+      console.warn('[stock] export Excel échoué :', e);
+      alert("L'export Excel a échoué. Réessayez ; si le problème persiste, prévenez-nous.");
+    } finally {
+      setExporting(false);
+    }
+  };
   const [editId,      setEditId]      = useState<string | null>(null);
   const [form, setForm] = useState({
     supplier: '', model: '', purchase: '', sale: '',
@@ -375,12 +359,13 @@ export default function StockPage() {
           <div className="flex items-center gap-2 flex-wrap">
             {/* Export button */}
             <button
-              onClick={() => exportToCSV(filtered)}
-              className="flex items-center gap-2 rounded-xl bg-[#10b981] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#10b981]/85 transition-all shadow-md hover:shadow-lg active:scale-95"
-              title="Exporter en CSV/Excel"
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center gap-2 rounded-xl bg-[#10b981] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#10b981]/85 transition-all shadow-md hover:shadow-lg active:scale-95 disabled:opacity-60"
+              title="Exporter le stock affiché en fichier Excel (.xlsx)"
             >
               <Download className="h-4 w-4" />
-              Exporter
+              {exporting ? 'Export…' : 'Exporter Excel'}
             </button>
             {/* Vue toggle */}
             <div className="flex rounded-xl border border-white/20 bg-white/15 overflow-hidden shadow-sm">
