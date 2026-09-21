@@ -585,6 +585,8 @@ export function useDataSync() {
     try {
       const res = await getSettings();
       if (res?.config) useConfigStore.getState()._hydrateFromBackend(res.config as any);
+      // Types de RDV / métiers ajoutés à la main : partagés entre appareils.
+      usePlanningStore.getState()._hydrateCustomTypes?.(res?.config?.planningTypes);
     } catch (err) {
       console.warn('[DataSync] Settings sync failed, keeping local data:', err);
     }

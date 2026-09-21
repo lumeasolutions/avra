@@ -166,6 +166,28 @@ function _newCustomType(
   };
 }
 
+/** Pousse les types custom vers le serveur (rubrique `planningTypes` des réglages). */
+let _typesTimer: ReturnType<typeof setTimeout> | null = null;
+function _pushCustomTypes(get: () => PlanningState): void {
+  if (typeof window === 'undefined') return;
+  if (_typesTimer) clearTimeout(_typesTimer);
+  _typesTimer = setTimeout(async () => {
+    const s = get();
+    try {
+      const { saveSettings } = await import('@/lib/settings-api');
+      await saveSettings({
+        planningTypes: {
+          rdv: s.customRdvTypes ?? [],
+          metiers: s.customInterventionTypes ?? [],
+          updatedAt: s.customTypesUpdatedAt || Date.now(),
+        },
+      });
+    } catch (e: any) {
+      console.warn('[planning] synchro des types custom échouée, gardés en local:', e?.message || e);
+    }
+  }, 500);
+}
+
 interface PlanningState {
   // Data
   planningEvents: PlanningEvent[];
@@ -178,6 +200,8 @@ interface PlanningState {
    * que les métiers custom du planning gestion.
    */
   customRdvTypes: CustomInterventionType[];
+  /** Horodatage (ms) de la dernière modification locale des types custom. */
+  customTypesUpdatedAt: number;
 
   // Planning actions
   addPlanningEvent: (event: Omit<PlanningEvent, 'id'>) => void;
@@ -196,6 +220,8 @@ interface PlanningState {
   deleteCustomInterventionType: (key: string) => void;
   addCustomRdvType: (data: Omit<CustomInterventionType, 'key' | 'createdAt'>) => CustomInterventionType;
   deleteCustomRdvType: (key: string) => void;
+  /** Applique les types custom du serveur (ou pousse les locaux s'ils sont plus récents). */
+  _hydrateCustomTypes: (server?: { rdv?: any[]; metiers?: any[]; updatedAt?: number }) => void;
 
   // Reset
   reset: () => void;
@@ -208,6 +234,7 @@ export const usePlanningStore = create<PlanningState>()(
       gestEvents: INITIAL_GEST_EVENTS,
       customInterventionTypes: [],
       customRdvTypes: [],
+      customTypesUpdatedAt: 0,
 
       addPlanningEvent: (event) => {
         const tempId = 'ev' + uid();
@@ -282,23 +309,46 @@ export const usePlanningStore = create<PlanningState>()(
       // ── Métiers custom (planning gestion) ───────────────────────────────
       addCustomInterventionType: (data) => {
         const newType = _newCustomType(data, 'METIER');
-        set(s => ({ customInterventionTypes: [...s.customInterventionTypes, newType] }));
+        set(s => ({ customInterventionTypes: [...s.customInterventionTypes, newType], customTypesUpdatedAt: Date.now() }));
+        _pushCustomTypes(get);
         return newType;
       },
 
       deleteCustomInterventionType: (key) => {
-        set(s => ({ customInterventionTypes: s.customInterventionTypes.filter(t => t.key !== key) }));
+        set(s => ({ customInterventionTypes: s.customInterventionTypes.filter(t => t.key !== key), customTypesUpdatedAt: Date.now() }));
+        _pushCustomTypes(get);
       },
 
       // ── Types de RDV custom (planning) ──────────────────────────────────
       addCustomRdvType: (data) => {
         const newType = _newCustomType(data, 'RDV');
-        set(s => ({ customRdvTypes: [...(s.customRdvTypes ?? []), newType] }));
+        set(s => ({ customRdvTypes: [...(s.customRdvTypes ?? []), newType], customTypesUpdatedAt: Date.now() }));
+        _pushCustomTypes(get);
         return newType;
       },
 
       deleteCustomRdvType: (key) => {
-        set(s => ({ customRdvTypes: (s.customRdvTypes ?? []).filter(t => t.key !== key) }));
+        set(s => ({ customRdvTypes: (s.customRdvTypes ?? []).filter(t => t.key !== key), customTypesUpdatedAt: Date.now() }));
+        _pushCustomTypes(get);
+      },
+
+      _hydrateCustomTypes: (server) => {
+        const local = get();
+        const localAt = local.customTypesUpdatedAt ?? 0;
+        const serverAt = server?.updatedAt ?? 0;
+        const hasLocal = (local.customRdvTypes?.length ?? 0) + (local.customInterventionTypes?.length ?? 0) > 0;
+        if (server && serverAt >= localAt) {
+          // Le serveur est à jour (ou plus récent) → il fait foi.
+          set({
+            customRdvTypes: Array.isArray(server.rdv) ? server.rdv : [],
+            customInterventionTypes: Array.isArray(server.metiers) ? server.metiers : [],
+            customTypesUpdatedAt: serverAt,
+          });
+        } else if (hasLocal || localAt > serverAt) {
+          // Modifs locales plus récentes (ou types créés avant la synchro) → on les pousse.
+          if (!localAt) set({ customTypesUpdatedAt: Date.now() });
+          _pushCustomTypes(get);
+        }
       },
 
       reset: () => set({
@@ -306,6 +356,7 @@ export const usePlanningStore = create<PlanningState>()(
         gestEvents: INITIAL_GEST_EVENTS,
         customInterventionTypes: [],
         customRdvTypes: [],
+        customTypesUpdatedAt: 0,
       }),
     }),
     {

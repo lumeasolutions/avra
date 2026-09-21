@@ -23,6 +23,12 @@ export interface SettingsConfig {
   adminDocsPin?: string | null;
   /** Ordinateur propriétaire du dossier administratif (verrou par appareil). */
   adminDocsDeviceId?: string | null;
+  /**
+   * Types ajoutés à la main dans les plannings (types de RDV du Planning,
+   * métiers du Planning gestion), partagés entre appareils. `updatedAt` (ms)
+   * départage le serveur et l'appareil : la modification la plus récente gagne.
+   */
+  planningTypes?: { rdv?: any[]; metiers?: any[]; updatedAt?: number };
 }
 
 export const getSettings = () => api<{ config: SettingsConfig | null }>('/settings');
