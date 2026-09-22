@@ -106,9 +106,9 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
   };
 
   return (
-    // z-[60] : au-dessus du bouton flottant de l'assistant (z 50), qui masquait
-    // « Enregistrer » sur mobile.
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm">
+    // z-[250] : au-dessus du bouton flottant de l'assistant (z 50), qui masquait
+    // « Enregistrer » sur mobile, et du bouton ☰ mobile (z 200).
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm">
       <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#304035]/8 bg-[#304035]/2">
           <h2 className="font-bold text-[#304035] text-lg">
