@@ -297,7 +297,7 @@ export function Sidebar() {
 
       <div style={{background: "transparent", boxShadow: "none", width: "220px", height: "220px"}}>
 
-      <Image src="/nouveaulogoA.webp"
+      <Image src="/nouveaulogoA-net.webp"
 
       width={220}
 
@@ -305,7 +305,7 @@ export function Sidebar() {
 
       priority
 
-      style={{width: "220px", height: "220px", objectFit: "cover", borderRadius: "16px"}}
+      style={{width: "220px", height: "220px", objectFit: "contain"}}
 
       alt="AVRA Logo"/>
 

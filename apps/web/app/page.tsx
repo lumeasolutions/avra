@@ -133,7 +133,7 @@ export default function HomePage() {
       >
         {/* Image de fond — logo AVRA */}
         <Image
-          src="/nouveaulogoA.webp"
+          src="/nouveaulogoA-net.webp"
           alt="AVRA background"
           fill
           priority
