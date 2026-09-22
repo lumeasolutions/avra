@@ -747,8 +747,8 @@ function OngletDevis({ autoOpen = false }: { autoOpen?: boolean }) {
                   </div>
                   <div className="flex items-center gap-3 ml-4 shrink-0">
                     <div className="text-right">
-                      <p className="font-bold text-[#304035]">{fmt(d.totalTTC)}</p>
-                      <p className="text-[10px] text-[#304035]/40">{fmt(d.totalHT)} HT</p>
+                      <p className="font-bold text-[#304035] whitespace-nowrap">{fmtPrecise(d.totalTTC)}</p>
+                      <p className="text-[10px] text-[#304035]/40 whitespace-nowrap">{fmtPrecise(d.totalHT)} HT</p>
                     </div>
                     {/* Bouton Envoyer pour signature (BROUILLON ou ENVOYÉ non signé) */}
                     {(d.statut === 'BROUILLON' || (d.statut === 'ENVOYÉ' && !d.signatureStatus)) && (

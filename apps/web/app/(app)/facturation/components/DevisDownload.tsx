@@ -101,7 +101,7 @@ export function DevisDownload({ devis, compact = false }: { devis: Devis; compac
         <Download className="h-3.5 w-3.5" />{!compact && 'Télécharger'}
       </button>
       {open && createPortal(
-        <div ref={menuRef} style={{ position: 'fixed', ...open }} className="z-[60] w-56 rounded-xl border border-[#304035]/12 bg-white shadow-xl py-1">
+        <div ref={menuRef} style={{ position: 'fixed', ...open }} className="z-[1000] w-56 rounded-xl border border-[#304035]/12 bg-white shadow-xl py-1">
           {FORMATS.map((f) => (
             <button
               key={f.key}

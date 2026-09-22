@@ -1432,15 +1432,16 @@ export default function DossierDetailPage() {
           {/* Section devis du dossier : modifier + télécharger PDF / Word / Excel. */}
           {devisDossier.length > 0 && (
             <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[#304035]/5">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-4 border-b border-[#304035]/5">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-[#a67749]/10 rounded-xl">
                     <FileCheck className="h-4 w-4 text-[#a67749]" />
                   </div>
-                  <h2 className="text-sm font-bold text-[#304035]">Devis du dossier</h2>
-                  <span className="text-xs text-[#304035]/40">{devisDossier.length}</span>
+                  <h2 className="text-sm font-bold text-[#304035] whitespace-nowrap">
+                    Devis du dossier <span className="font-normal text-[#304035]/40">({devisDossier.length})</span>
+                  </h2>
                 </div>
-                <Link href="/facturation?tab=devis" className="text-xs font-semibold text-[#304035]/50 hover:text-[#304035]">
+                <Link href="/facturation?tab=devis" className="text-xs font-semibold text-[#304035]/50 hover:text-[#304035] whitespace-nowrap">
                   Voir dans Facturation →
                 </Link>
               </div>

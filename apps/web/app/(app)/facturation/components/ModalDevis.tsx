@@ -106,7 +106,9 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    // z-[60] : au-dessus du bouton flottant de l'assistant (z 50), qui masquait
+    // « Enregistrer » sur mobile.
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm">
       <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#304035]/8 bg-[#304035]/2">
           <h2 className="font-bold text-[#304035] text-lg">
@@ -120,7 +122,7 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
           {/* Émetteur : repris automatiquement de Paramètres › Coordonnées Société. */}
           {manquants.length === 0 ? (
             <div className="flex items-start gap-2.5 rounded-xl bg-[#304035]/4 px-3 py-2.5 text-xs text-[#304035]/70">
@@ -157,7 +159,7 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
           </div>
 
           {/* Client */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">
                 Dossier lié (optionnel)

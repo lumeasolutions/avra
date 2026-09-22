@@ -105,7 +105,7 @@ export function StockPicker({ onPick }: { onPick: (ligne: LigneDocument) => void
         <div
           ref={panelRef}
           style={{ position: 'fixed', left: open.left, top: open.top, bottom: open.bottom, maxHeight: open.maxH }}
-          className="z-[60] w-[min(560px,85vw)] flex flex-col rounded-2xl border border-[#304035]/12 bg-white shadow-2xl overflow-hidden"
+          className="z-[1000] w-[min(560px,85vw)] flex flex-col rounded-2xl border border-[#304035]/12 bg-white shadow-2xl overflow-hidden"
         >
           <div className="p-3 border-b border-[#304035]/8">
             <div className="relative">
