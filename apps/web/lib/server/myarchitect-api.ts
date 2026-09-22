@@ -559,8 +559,12 @@ export async function generateColoristeTextures(
  * @param prompt   Consigne d'édition déjà propre (anglais, atomique, + « keep the
  *                 rest identical » — cf. buildRetouchInstruction côté route)
  */
-export function editByPrompt(imageUrl: string, prompt: string): Promise<EndpointResult> {
-  return callEndpoint('/edit-by-prompt', { image: imageUrl, prompt });
+export function editByPrompt(imageUrl: string, prompt: string, referenceImage?: string): Promise<EndpointResult> {
+  // referenceImage (optionnel) : échantillon de matière / produit, désigné dans
+  // la consigne comme « the attached image » (doc officielle edit-by-prompt).
+  return callEndpoint('/edit-by-prompt', referenceImage
+    ? { image: imageUrl, prompt, referenceImage }
+    : { image: imageUrl, prompt });
 }
 
 /**

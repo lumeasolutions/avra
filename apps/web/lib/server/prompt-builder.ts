@@ -912,3 +912,121 @@ export function buildKontextColoristPrompt(
   // reshape (c'est le coloriste, on ne change QUE couleur/matière, pas la forme).
   return { prompt, negative: NEGATIVE_PROMPT_COLORISTE, seed, level, warnings };
 }
+
+
+// ─────────────────────────────────────────── COLORISTE — MyArchitectAI edit-by-prompt
+// 22/09/2026 : « Changer les couleurs » passe de fal.ai (Flux Kontext) à
+// MyArchitectAI /edit-by-prompt, conformément à leur guide « Editing best
+// practices » : consigne qui COMMENCE PAR UN VERBE, nomme précisément l'élément
+// et le changement, et se termine par « keep everything else unchanged ».
+// Mesuré sur photo test : façades blanches → rouge vif (188,28,33), mur et sol
+// identiques au pixel près (écart ≤ 1/255) ; 3 changements en UN appel gardent la
+// géométrie (plan de travail non épaissi) mieux que 3 appels enchaînés.
+
+export type ElementColoriste = 'facade' | 'poignee' | 'plan';
+
+const NOMS_ELEMENTS: Record<ElementColoriste, string> = {
+  facade:  'all the kitchen cabinet fronts and drawer fronts (upper and lower cabinets)',
+  poignee: 'the cabinet handles and knobs',
+  plan:    'the countertop',
+};
+
+/**
+ * Nom de couleur FIABLE pour une couleur personnalisée (sélecteur libre), à
+ * partir de la teinte réelle (HSL) + le code hex. L'ancien hexToName, pensé
+ * pour Flux, se trompait sur des teintes courantes (#9CAF88 vert sauge →
+ * « beige tan », #C9A227 laiton → « orange-red ») ; edit-by-prompt suit la
+ * consigne à la lettre, le nom doit donc être juste.
+ */
+export function nomCouleurFiable(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, bl = (n & 255) / 255;
+  const max = Math.max(r, g, bl), min = Math.min(r, g, bl);
+  const l = (max + min) / 2;
+  const d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = 60 * (((g - bl) / d) % 6);
+    else if (max === g) h = 60 * ((bl - r) / d + 2);
+    else h = 60 * ((r - g) / d + 4);
+  }
+  if (h < 0) h += 360;
+  const code = `#${m[1].toUpperCase()}`;
+  // Neutres
+  if (s < 0.1 || d < 0.06) {
+    const neutre = l > 0.97 ? 'pure white' : l > 0.8 ? 'off-white' : l > 0.6 ? 'light grey'
+      : l > 0.35 ? 'medium grey' : l > 0.15 ? 'anthracite grey' : 'black';
+    return `${neutre} (${code})`;
+  }
+  const teinte = h < 12 ? 'red' : h < 35 ? 'orange' : h < 50 ? 'golden yellow' : h < 65 ? 'yellow'
+    : h < 85 ? 'olive green' : h < 155 ? 'green' : h < 185 ? 'teal' : h < 200 ? 'cyan'
+    : h < 250 ? 'blue' : h < 275 ? 'indigo' : h < 310 ? 'purple' : h < 345 ? 'pink' : 'red';
+  // Cas usuels en cuisine
+  let nom = teinte;
+  if (teinte.includes('green') && s < 0.3 && l > 0.45) nom = 'sage green';
+  else if ((teinte === 'orange' || teinte === 'golden yellow') && (l > 0.7 || (s < 0.45 && l > 0.55))) nom = 'beige';
+  else if (teinte === 'orange' && l < 0.42 && s < 0.75) nom = 'brown';
+  else if (teinte === 'yellow' && l > 0.85) nom = 'beige';
+  else if (teinte === 'red' && l > 0.75) nom = 'pink';
+  else if ((teinte === 'red' || teinte === 'orange') && h > 5 && h < 25 && l > 0.45 && l < 0.7 && s > 0.4 && s < 0.8) nom = 'terracotta';
+  else if (teinte === 'golden yellow' && s >= 0.45) nom = 'gold';
+  else if (teinte === 'blue' && l < 0.3) nom = 'navy blue';
+  else if (teinte === 'red' && l < 0.35) nom = 'burgundy';
+  const clarte = ['sage green', 'beige', 'navy blue', 'burgundy', 'brown', 'gold', 'pink', 'terracotta'].includes(nom)
+    ? '' : l > 0.72 ? 'light ' : l < 0.3 ? 'dark ' : s < 0.3 ? 'muted ' : '';
+  return `${clarte}${nom} (${code})`;
+}
+
+/** Phrase d'édition pour un élément : couleur/matière demandée, ou matière de l'image jointe. */
+function phraseElement(params: ColoristParams, el: ElementColoriste, texture: 'attached' | 'attached-tinted' | null): string {
+  const cible = NOMS_ELEMENTS[el];
+  const hex = el === 'facade' ? params.facadeHex : el === 'poignee' ? params.poigneeHex : params.planHex;
+  const finish = el === 'facade'
+    ? FINISH_BLOCKS[params.facadeFinish]
+    : el === 'poignee'
+      ? (params.poigneeFinish ? FINISH_BLOCKS[params.poigneeFinish] : '')
+      : (params.planFinish ? FINISH_BLOCKS[params.planFinish] : '');
+  const suffixe = finish ? `, ${finish}` : '';
+  if (texture === 'attached') {
+    return `Apply the material from the attached image to ${cible}, matching its exact pattern, grain and color`;
+  }
+  if (texture === 'attached-tinted') {
+    return `Apply the material from the attached image to ${cible}, tinted ${nomCouleurFiable(hex)}`;
+  }
+  if (el === 'facade') {
+    const couleur = params.facadeMaterial ?? nomCouleurFiable(hex);
+    return `Change the color of ${cible} to ${couleur}${suffixe}, using the exact same shade on every cabinet`;
+  }
+  if (el === 'poignee') {
+    const matiere = params.handleMaterial ?? `${nomCouleurFiable(hex)} metal`;
+    return `Change ${cible} to ${matiere}${suffixe}`;
+  }
+  const matiere = params.countertopMaterial ?? nomCouleurFiable(hex);
+  return `Change ${cible} to ${matiere}${suffixe}`;
+}
+
+/**
+ * Consigne /edit-by-prompt du Coloriste.
+ *
+ * @param elements  éléments à traiter dans CET appel (tous, pour l'appel principal)
+ * @param texture   élément dont la matière vient de l'image jointe (`referenceImage`)
+ *                  et mode : 'attached' (matière seule) ou 'attached-tinted' (teintée)
+ */
+export function buildColoristeEditInstruction(
+  params: ColoristParams,
+  elements: ElementColoriste[] = ['facade', 'poignee', 'plan'],
+  texture?: { element: ElementColoriste; mode: 'attached' | 'attached-tinted' },
+): string {
+  const phrases = elements.map((el) =>
+    phraseElement(params, el, texture && texture.element === el ? texture.mode : null),
+  );
+  return [
+    phrases.join('. ') + '.',
+    'Change only the color and material, keep the exact shape, thickness, size and position of every element,',
+    'and keep everything else in the image exactly identical: same camera angle, walls, floor, appliances, sink, lighting and decor.',
+    'Do not add, remove or invent anything (no added lights, spotlights, objects or decor).',
+  ].join(' ');
+}

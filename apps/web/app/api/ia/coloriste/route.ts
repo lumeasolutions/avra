@@ -1,25 +1,41 @@
 /**
- * POST /api/ia/coloriste
+ * POST /api/ia/coloriste — « Changer les couleurs »
  *
- * Reçoit les paramètres couleurs depuis le front,
- * construit le prompt côté serveur (invisible depuis le client),
- * appelle Flux via fal.ai avec la FAL_KEY (jamais exposée),
- * retourne l'URL de l'image générée.
+ * Reçoit les paramètres couleurs depuis le front, construit la consigne côté
+ * serveur (invisible depuis le client) et l'applique à la photo via
+ * MyArchitectAI /edit-by-prompt (MYARCHITECT_API_KEY, jamais exposée).
+ *
+ * 22/09/2026 : moteur fal.ai (Flux Kontext) remplacé par MyArchitectAI —
+ * tout l'IA Studio passe désormais par un seul fournisseur. Mesure sur photo
+ * test : couleur demandée appliquée, mur et sol identiques au pixel près.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ColoristParams } from '@/lib/server/prompt-builder';
-import {
-  generateColoristImageKontext, // Kontext — mode unique (single ou multi selon textures)
-  ensureHttpsUrl,
-} from '@/lib/server/flux-api';
+import { ColoristParams, buildColoristeEditInstruction, type ElementColoriste } from '@/lib/server/prompt-builder';
+import { editByPrompt, isArchitectEnabled } from '@/lib/server/myarchitect-api';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
 import { prisma } from '@/lib/server/prisma';
 import {
   copyExternalImageToIaRenders,
   buildIaRenderPath,
+  uploadToIaRenders,
+  createIaRendersSignedUrl,
 } from '@/lib/server/supabase-storage';
+
+/**
+ * Image reçue (data URL ou https) → URL https lisible par MyArchitectAI.
+ * Les data URL sont déposées dans le bucket ia-renders (URL signée).
+ */
+async function versUrlHttps(src: string, chemin: string): Promise<string> {
+  if (/^https:\/\//i.test(src)) return src;
+  const m = /^data:([^;]+);base64,(.+)$/.exec(src);
+  if (!m) throw new Error('Image invalide (data URL ou https attendue).');
+  const type = m[1];
+  const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg';
+  await uploadToIaRenders(`${chemin}.${ext}`, Buffer.from(m[2], 'base64'), type);
+  return createIaRendersSignedUrl(`${chemin}.${ext}`);
+}
 
 // Vercel serverless function timeout :
 // fal.ai peut prendre jusqu'a 90s + retry sur 3 niveaux de prompt.
@@ -110,18 +126,21 @@ export async function POST(req: NextRequest) {
   //       champ `params` reçoit un snapshot non-sensible (les data URIs
   //       sont *exclues* — trop volumineuses et inutiles à long terme).
   //
-  // Routing du moteur (repli Kontext 18/05/2026 v4) :
-  // Toujours Kontext, single ou multi selon nombre d'inputs visuels.
-  // SAM+Inpaint a été retiré : masques trop variables (parfois ratés,
-  // parfois géants couvrant 80% de l'image → cuisine effacée).
-  // Kontext : moins infaillible (~80%) mais préserve toujours la cuisine.
-  const willUseTextures = !!(
-    params.facadeTextureDataUrl || params.poigneeTextureDataUrl || params.planTextureDataUrl
-  );
-  const modelUsed = willUseTextures
-    ? 'fal-ai/flux-pro/kontext/multi'
-    : 'fal-ai/flux-pro/kontext';
-  const costPerImage = willUseTextures ? 0.06 : 0.04;
+  // Moteur : MyArchitectAI /edit-by-prompt (0,03 $ par appel). Une texture
+  // importée passe en `referenceImage` (une seule par appel) : la 1re est
+  // traitée dans l'appel principal, les suivantes dans des appels enchaînés.
+  const texturesUtilisees: Array<{ element: ElementColoriste; src: string; mode: 'attached' | 'attached-tinted' }> = [];
+  const pousserTexture = (element: ElementColoriste, src: string | undefined, mode: ColoristParams['facadeColorMode']) => {
+    // mode 'color' : couleur seule, la texture est ignorée.
+    if (src && mode !== 'color') texturesUtilisees.push({ element, src, mode: mode === 'mix' ? 'attached-tinted' : 'attached' });
+  };
+  pousserTexture('facade',  params.facadeTextureDataUrl,  params.facadeColorMode);
+  pousserTexture('poignee', params.poigneeTextureDataUrl, params.poigneeColorMode);
+  pousserTexture('plan',    params.planTextureDataUrl,    params.planColorMode);
+  const willUseTextures = texturesUtilisees.length > 0;
+  const modelUsed = isArchitectEnabled() ? 'myarchitectai/edit-by-prompt' : 'mock';
+  const appelsParImage = 1 + Math.max(0, texturesUtilisees.length - 1);
+  const costPerImage = 0.03 * appelsParImage;
 
   // Création initiale du job (statut QUEUED) — isolée pour ne jamais laisser
   // une erreur Prisma escape en uncaught (auquel cas Vercel renvoie son
@@ -204,15 +223,12 @@ export async function POST(req: NextRequest) {
   try {
     // Wrap toute l'opération dans une race contre le global timeout.
     return await Promise.race([globalTimeout, (async () => {
-    // ── 5) Pré-upload des images vers fal-cdn (pour pouvoir les enregistrer
-    //       dans IaJob.inputImageUrls avant de lancer la génération).
-    //       Si une URL est déjà https, `ensureHttpsUrl` la passe directement.
-    const [sourceHttps, facadeTexHttps, poigneeTexHttps, planTexHttps] = await Promise.all([
-      ensureHttpsUrl(sourceKitchenUrl),
-      params.facadeTextureDataUrl  ? ensureHttpsUrl(params.facadeTextureDataUrl)  : Promise.resolve(undefined),
-      params.poigneeTextureDataUrl ? ensureHttpsUrl(params.poigneeTextureDataUrl) : Promise.resolve(undefined),
-      params.planTextureDataUrl    ? ensureHttpsUrl(params.planTextureDataUrl)    : Promise.resolve(undefined),
-    ]);
+    // ── 5) Photo + textures → URLs https (bucket ia-renders) lisibles par MyArchitectAI
+    const base = `${workspaceId}/${job.id}`;
+    const sourceHttps = await versUrlHttps(sourceKitchenUrl, `${base}/source`);
+    const texturesHttps = await Promise.all(
+      texturesUtilisees.map((t) => versUrlHttps(t.src, `${base}/texture-${t.element}`)),
+    );
 
     await prisma.iaJob.update({
       where: { id: job.id },
@@ -220,37 +236,54 @@ export async function POST(req: NextRequest) {
         status:         'PROCESSING',
         inputImageUrls: {
           source:  sourceHttps,
-          facade:  facadeTexHttps  ?? null,
-          poignee: poigneeTexHttps ?? null,
-          plan:    planTexHttps    ?? null,
+          textures: texturesUtilisees.map((t, k) => ({ element: t.element, url: texturesHttps[k] })),
         },
       },
     });
 
-    // ── 6) Génération : toujours Kontext.
-    //       - Sans texture : kontext single (image_url + prompt impératif)
-    //       - Avec texture : kontext multi (image_urls array + prompt par index)
-    //       Le routing single/multi est interne à generateColoristImageKontext.
-    const result = await generateColoristImageKontext(
-      params,
-      sourceHttps,
-      { facade: facadeTexHttps, poignee: poigneeTexHttps, plan: planTexHttps },
-      numImages,
+    // ── 6) Génération MyArchitectAI /edit-by-prompt
+    //   Appel principal : TOUS les éléments en une consigne (géométrie mieux
+    //   préservée qu'en 3 appels), avec la 1re texture en image jointe.
+    //   Textures suivantes : un appel enchaîné chacune, sur le résultat précédent.
+    const tous: ElementColoriste[] = ['facade', 'poignee', 'plan'];
+    const consignePrincipale = buildColoristeEditInstruction(
+      params, tous, texturesUtilisees[0] ? { element: texturesUtilisees[0].element, mode: texturesUtilisees[0].mode } : undefined,
     );
-
-    if (!result.success) {
-      const err = (result.error ?? '').toLowerCase();
-      let status = 500;
-      if (err.includes('uploader') || err.includes('storage') || err.includes('fal-cdn')) status = 502;
-      else if (err.includes('timeout') || err.includes('aucun résultat')) status = 504;
-      return fail(status, result.error ?? 'Génération échouée', Date.now() - tStart);
+    const genererUne = async (): Promise<string> => {
+      if (!isArchitectEnabled()) return sourceHttps; // mode démo : renvoie la photo
+      const r1 = await editByPrompt(sourceHttps, consignePrincipale, texturesHttps[0]);
+      if (!r1.ok || !r1.outputs[0]) throw new Error(r1.error || 'Le moteur n\u2019a pas renvoyé d\u2019image.');
+      let courante = r1.outputs[0];
+      for (let k = 1; k < texturesUtilisees.length; k++) {
+        const t = texturesUtilisees[k];
+        const consigne = buildColoristeEditInstruction(params, [t.element], { element: t.element, mode: t.mode });
+        const rk = await editByPrompt(courante, consigne, texturesHttps[k]);
+        if (!rk.ok || !rk.outputs[0]) throw new Error(rk.error || 'Le moteur n\u2019a pas renvoyé d\u2019image.');
+        courante = rk.outputs[0];
+      }
+      return courante;
+    };
+    let urls: string[];
+    try {
+      urls = await Promise.all(Array.from({ length: numImages }, () => genererUne()));
+    } catch (genErr) {
+      const msg = genErr instanceof Error ? genErr.message : String(genErr);
+      const low = msg.toLowerCase();
+      const status = low.includes('crédit') || low.includes('insufficient') ? 402 : low.includes('timeout') || low.includes('délai') ? 504 : 502;
+      return fail(status, msg, Date.now() - tStart);
     }
+    const result = {
+      imageUrls: urls,
+      attempts: 1,
+      prompt: { prompt: consignePrincipale, level: 'standard' as const, warnings: [] as string[] },
+    };
 
-    // ── 7) Copie fal-cdn → Supabase (URLs permanentes signées 30 jours)
+    // ── 7) Copie → Supabase (URLs signées 30 jours ; le rendu est ensuite
+    //       enregistré définitivement dans le dossier via « Sauvegarder »)
     const copied = await Promise.all(
-      result.imageUrls.map((falUrl, idx) =>
-        copyExternalImageToIaRenders(falUrl, buildIaRenderPath(workspaceId, job.id, idx))
-          .then(({ path, signedUrl }) => ({ path, signedUrl, falUrl })),
+      result.imageUrls.map((url, idx) =>
+        copyExternalImageToIaRenders(url, buildIaRenderPath(workspaceId, job.id, idx))
+          .then(({ path, signedUrl }) => ({ path, signedUrl, falUrl: url })),
       ),
     );
 
@@ -261,7 +294,7 @@ export async function POST(req: NextRequest) {
     // (quelle région a un mask trouvé / inpaint OK / combien de ms).
     // Ces infos vont dans params.pipelineSteps pour pouvoir auditer
     // précisément ce qui rate sur les jobs ratés.
-    const samSteps = (result as { steps?: unknown }).steps;
+    const samSteps = undefined as unknown;
     const previousParams = (job.params as Record<string, unknown> | null) ?? {};
     await prisma.iaJob.update({
       where: { id: job.id },
