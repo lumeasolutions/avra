@@ -62,6 +62,9 @@ export function EnvoyerInvitationModal({ event, kind, defaults, onClose, onSent,
       });
       setInvite(id, invite);
       setState('done');
+      // Suite immédiate (ex. suppression après annulation), même si la
+      // confirmation est fermée par la croix plutôt que par « OK ».
+      onSent?.();
     } catch (e: any) {
       setErr(e?.message || 'Envoi impossible.');
       setState('idle');
@@ -98,7 +101,7 @@ export function EnvoyerInvitationModal({ event, kind, defaults, onClose, onSent,
             </p>
             <button
               type="button"
-              onClick={() => { onSent?.(); onClose(); }}
+              onClick={onClose}
               className="mt-4 w-full py-2.5 rounded-2xl text-sm font-bold text-white"
               style={{ background: 'linear-gradient(135deg, #3d5244, #304035)' }}
             >
