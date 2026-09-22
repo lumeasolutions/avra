@@ -137,7 +137,6 @@ export async function POST(req: NextRequest) {
   pousserTexture('facade',  params.facadeTextureDataUrl,  params.facadeColorMode);
   pousserTexture('poignee', params.poigneeTextureDataUrl, params.poigneeColorMode);
   pousserTexture('plan',    params.planTextureDataUrl,    params.planColorMode);
-  const willUseTextures = texturesUtilisees.length > 0;
   const modelUsed = isArchitectEnabled() ? 'myarchitectai/edit-by-prompt' : 'mock';
   const appelsParImage = 1 + Math.max(0, texturesUtilisees.length - 1);
   const costPerImage = 0.03 * appelsParImage;
@@ -245,9 +244,13 @@ export async function POST(req: NextRequest) {
     //   Appel principal : TOUS les éléments en une consigne (géométrie mieux
     //   préservée qu'en 3 appels), avec la 1re texture en image jointe.
     //   Textures suivantes : un appel enchaîné chacune, sur le résultat précédent.
-    const tous: ElementColoriste[] = ['facade', 'poignee', 'plan'];
+    // Les éléments dont la texture est appliquée dans un appel suivant ne sont
+    // PAS recolorés dans l'appel principal (sinon double traitement, et la
+    // couleur demandée entrerait en conflit avec la texture appliquée ensuite).
+    const plusTard = new Set(texturesUtilisees.slice(1).map((t) => t.element));
+    const elementsPrincipal = (['facade', 'poignee', 'plan'] as ElementColoriste[]).filter((el) => !plusTard.has(el));
     const consignePrincipale = buildColoristeEditInstruction(
-      params, tous, texturesUtilisees[0] ? { element: texturesUtilisees[0].element, mode: texturesUtilisees[0].mode } : undefined,
+      params, elementsPrincipal, texturesUtilisees[0] ? { element: texturesUtilisees[0].element, mode: texturesUtilisees[0].mode } : undefined,
     );
     const genererUne = async (): Promise<string> => {
       if (!isArchitectEnabled()) return sourceHttps; // mode démo : renvoie la photo
@@ -283,7 +286,7 @@ export async function POST(req: NextRequest) {
     const copied = await Promise.all(
       result.imageUrls.map((url, idx) =>
         copyExternalImageToIaRenders(url, buildIaRenderPath(workspaceId, job.id, idx))
-          .then(({ path, signedUrl }) => ({ path, signedUrl, falUrl: url })),
+          .then(({ path, signedUrl }) => ({ path, signedUrl, moteurUrl: url })),
       ),
     );
 
@@ -304,7 +307,7 @@ export async function POST(req: NextRequest) {
         resultImageUrls: {
           paths:      copied.map(c => c.path),
           signedUrls: copied.map(c => c.signedUrl),
-          falRaw:     copied.map(c => c.falUrl),
+          moteurRaw:  copied.map(c => c.moteurUrl),
         },
         // Merge des steps SAM dans params (sans écraser l'existant)
         params: samSteps
