@@ -5,6 +5,7 @@
  * par le dossier lié (téléphone, code postal) — voir lib/devis-export.ts.
  */
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Download, FileText, FileType2, Sheet, Loader2 } from 'lucide-react';
 import { useConfigStore, useDossierStore, type Devis } from '@/store';
 import { telechargerDevis, type ClientDevis, type FormatDevis } from '@/lib/devis-export';
@@ -39,16 +40,22 @@ const FORMATS: { key: FormatDevis; label: string; hint: string; icon: React.Reac
 
 export function DevisDownload({ devis, compact = false }: { devis: Devis; compact?: boolean }) {
   const societe = useConfigStore((s) => s.societe);
-  // Menu en position fixe : les listes parentes sont en overflow-hidden et
-  // couperaient un menu absolu (dernière ligne de la liste).
+  // Menu en position fixe, rendu dans <body> (portail) : les listes parentes
+  // sont en overflow-hidden, et un parent avec `transform` (page dossier)
+  // décalerait un menu fixe resté dans l'arbre DOM.
   const [open, setOpen] = useState<null | { top?: number; bottom?: number; right: number }>(null);
   const [busy, setBusy] = useState<FormatDevis | null>(null);
   const [err, setErr] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(null); };
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (ref.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(null);
+    };
     const fermer = () => setOpen(null);
     document.addEventListener('mousedown', onDown);
     window.addEventListener('scroll', fermer, true);
@@ -93,8 +100,8 @@ export function DevisDownload({ devis, compact = false }: { devis: Devis; compac
       >
         <Download className="h-3.5 w-3.5" />{!compact && 'Télécharger'}
       </button>
-      {open && (
-        <div style={{ position: 'fixed', ...open }} className="z-[60] w-56 rounded-xl border border-[#304035]/12 bg-white shadow-xl py-1">
+      {open && createPortal(
+        <div ref={menuRef} style={{ position: 'fixed', ...open }} className="z-[60] w-56 rounded-xl border border-[#304035]/12 bg-white shadow-xl py-1">
           {FORMATS.map((f) => (
             <button
               key={f.key}
@@ -111,7 +118,8 @@ export function DevisDownload({ devis, compact = false }: { devis: Devis; compac
             </button>
           ))}
           {err && <p className="px-3 py-1.5 text-[10px] text-red-600">{err}</p>}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

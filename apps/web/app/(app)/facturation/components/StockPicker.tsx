@@ -8,6 +8,7 @@
  * le PRIX DE VENTE HT ; quantité et prix restent modifiables ensuite.
  */
 import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Package, Search, Plus } from 'lucide-react';
 import { useStockStore, type StockItem, type LigneDocument } from '@/store';
 
@@ -40,17 +41,19 @@ const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').t
 
 export function StockPicker({ onPick }: { onPick: (ligne: LigneDocument) => void }) {
   const stockItems = useStockStore((s) => s.stockItems);
-  // Position fixe : le corps de la modale défile (overflow-y-auto) et couperait
-  // un panneau positionné en absolu.
+  // Position fixe + portail dans <body> : le corps de la modale défile
+  // (overflow-y-auto) et un parent avec `transform` décalerait un panneau fixe.
   const [open, setOpen] = useState<null | { left: number; top?: number; bottom?: number; maxH: number }>(null);
   const [q, setQ] = useState('');
   const [ajoutes, setAjoutes] = useState<Record<string, number>>({});
   const boxRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Fermeture au clic extérieur / Échap.
   useEffect(() => {
     if (!open) return;
-    const dedans = (t: EventTarget | null) => !!(boxRef.current && t instanceof Node && boxRef.current.contains(t));
+    const dedans = (t: EventTarget | null) => t instanceof Node
+      && !!(boxRef.current?.contains(t) || panelRef.current?.contains(t));
     const onDown = (e: MouseEvent) => { if (!dedans(e.target)) setOpen(null); };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(null); } };
     const onScroll = (e: Event) => { if (!dedans(e.target)) setOpen(null); };
@@ -98,8 +101,9 @@ export function StockPicker({ onPick }: { onPick: (ligne: LigneDocument) => void
       >
         <Package className="h-3.5 w-3.5" /> Depuis le stock
       </button>
-      {open && (
+      {open && createPortal(
         <div
+          ref={panelRef}
           style={{ position: 'fixed', left: open.left, top: open.top, bottom: open.bottom, maxHeight: open.maxH }}
           className="z-[60] w-[min(560px,85vw)] flex flex-col rounded-2xl border border-[#304035]/12 bg-white shadow-2xl overflow-hidden"
         >
@@ -159,7 +163,8 @@ export function StockPicker({ onPick }: { onPick: (ligne: LigneDocument) => void
           <p className="px-3 py-2 text-[10px] text-[#304035]/45 border-t border-[#304035]/8">
             Prix de vente HT du stock, TVA 20 % par défaut — quantité, prix et TVA restent modifiables dans le devis.
           </p>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
