@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { useFacturationStore, useUIStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
@@ -297,17 +296,18 @@ export function Sidebar() {
 
       <div style={{background: "transparent", boxShadow: "none", width: "220px", height: "220px"}}>
 
-      <Image src="/nouveaulogoA-net.webp"
-
-      width={220}
-
-      height={220}
-
-      priority
-
-      style={{width: "220px", height: "220px", objectFit: "contain"}}
-
-      alt="AVRA Logo"/>
+      {/* Logo servi tel quel (sans recompression Next) : déclinaisons nettes
+          pré-calculées par densité d'écran (1x / 2x / 3x) — net en 4K. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo/logoA-240.webp"
+        srcSet="/logo/logoA-240.webp 1x, /logo/logoA-480.webp 2x, /logo/logoA-720.webp 3x"
+        width={220}
+        height={220}
+        fetchPriority="high"
+        decoding="async"
+        style={{width: "220px", height: "220px", objectFit: "contain", display: "block"}}
+        alt="AVRA Logo"/>
 
       </div>
 

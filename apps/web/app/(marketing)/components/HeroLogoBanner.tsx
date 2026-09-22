@@ -62,12 +62,12 @@ export default function HeroLogoBanner() {
     >
       <Image
         className="hero-logo-a"
-        src="/nouveaulogoA-net.webp"
+        src="/logo/logoA-720.webp"
         alt="AVRA — logo principal"
-        width={900}
-        height={900}
+        width={720}
+        height={720}
         priority
-        sizes="170px"
+        unoptimized
       />
       <Image
         className="hero-logo-avra"

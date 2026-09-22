@@ -58,11 +58,11 @@ export default function Nav() {
             boîte arbitraire (120×40 réduisait les lettres à 23 px de haut). */}
         <Link href="/" aria-label="AVRA — accueil" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0 }}>
           <Image
-            src="/nouveaulogoA-net.webp"
+            src="/logo/logoA-240.webp"
             alt=""
-            width={900}
-            height={900}
-            sizes="40px"
+            width={240}
+            height={240}
+            unoptimized
             style={{ height: 38, width: 'auto', display: 'block' }}
             priority
           />
