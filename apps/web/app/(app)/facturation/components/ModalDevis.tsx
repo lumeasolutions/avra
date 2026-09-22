@@ -1,10 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
-import { useFacturationStore, useVisibleDossiers, useVisibleDossiersSignes, type Devis, type LigneDocument } from '@/store';
+import Link from 'next/link';
+import { X, Building2, AlertTriangle } from 'lucide-react';
+import { useConfigStore, useFacturationStore, useVisibleDossiers, useVisibleDossiersSignes, type Devis, type LigneDocument } from '@/store';
 import { calcLignes } from '../lib/utils';
 import { LignesEditor } from './LignesEditor';
+import { adresseDossier } from './DevisDownload';
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 interface ModalDevisProps {
   onClose: () => void;
@@ -19,6 +23,12 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
   const dossiers = useVisibleDossiers();
   const dossiersSignes = useVisibleDossiersSignes();
   const allDossiers = [...dossiers, ...dossiersSignes];
+  const societe = useConfigStore(s => s.societe);
+  const manquants = [
+    !societe.nom?.trim() && 'nom',
+    !(societe.adresse?.trim() && societe.ville?.trim()) && 'adresse',
+    !societe.siret?.trim() && 'SIRET',
+  ].filter(Boolean) as string[];
 
   const [form, setForm] = useState({
     objet: devisToEdit?.objet ?? '',
@@ -36,6 +46,7 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
   ]);
 
   const [submitError, setSubmitError] = useState('');
+  const dossierLie = allDossiers.find(d => d.id === form.dossierId);
 
   const handleDossierChange = (id: string) => {
     const d = allDossiers.find(d => d.id === id);
@@ -45,6 +56,7 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
         dossierId: id,
         client: d.name + (d.firstName ? ' ' + d.firstName : ''),
         clientEmail: d.email ?? '',
+        clientAddress: adresseDossier(d),
       }));
     } else {
       setForm(f => ({ ...f, dossierId: id }));
@@ -61,14 +73,14 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
       setSubmitError('Ajoutez au moins une ligne.');
       return;
     }
-    const emptyLine = lignes.find(l => !l.description.trim());
-    if (emptyLine) {
-      setSubmitError('Chaque ligne doit avoir une description.');
+    const emptyIdx = lignes.findIndex(l => !l.description.trim());
+    if (emptyIdx >= 0) {
+      setSubmitError(`Ligne ${emptyIdx + 1} : la description est vide.`);
       return;
     }
-    const zeroLine = lignes.find(l => l.prixUnitaireHT <= 0 || l.quantite <= 0);
-    if (zeroLine) {
-      setSubmitError('Les lignes doivent avoir un prix et une quantité > 0.');
+    const zeroIdx = lignes.findIndex(l => l.prixUnitaireHT <= 0 || l.quantite <= 0);
+    if (zeroIdx >= 0) {
+      setSubmitError(`Ligne ${zeroIdx + 1} (« ${lignes[zeroIdx].description.slice(0, 40)} ») : le prix et la quantité doivent être supérieurs à 0.`);
       return;
     }
 
@@ -77,8 +89,8 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
       updateDevis(devisToEdit.id, {
         ...form,
         lignes,
-        totalHT: Math.round(totalHT),
-        totalTTC: Math.round(totalTTC),
+        totalHT: round2(totalHT),
+        totalTTC: round2(totalTTC),
       });
     } else {
       addDevis({
@@ -86,8 +98,8 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
         lignes,
         statut: 'BROUILLON',
         dateCreation: new Date().toLocaleDateString('fr-FR'),
-        totalHT: Math.round(totalHT),
-        totalTTC: Math.round(totalTTC),
+        totalHT: round2(totalHT),
+        totalTTC: round2(totalTTC),
       });
     }
     onClose();
@@ -109,6 +121,27 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Émetteur : repris automatiquement de Paramètres › Coordonnées Société. */}
+          {manquants.length === 0 ? (
+            <div className="flex items-start gap-2.5 rounded-xl bg-[#304035]/4 px-3 py-2.5 text-xs text-[#304035]/70">
+              <Building2 className="h-4 w-4 mt-0.5 shrink-0 text-[#304035]/50" />
+              <p>
+                <span className="font-semibold text-[#304035]">{societe.nom}</span>
+                {' · '}{[societe.adresse, [societe.codePostal, societe.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                {' · '}SIRET {societe.siret}
+                <span className="block text-[10px] text-[#304035]/45 mt-0.5">Vos coordonnées {societe.logo ? 'et votre logo ' : ''}sont ajoutées automatiquement au devis (PDF, Word, Excel).</span>
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-800">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <p>
+                Coordonnées société incomplètes ({manquants.join(', ')}) : elles apparaîtront vides sur le devis.{' '}
+                <Link href="/parametres?section=societe" className="font-semibold underline">Compléter dans Paramètres</Link>
+              </p>
+            </div>
+          )}
+
           {/* Objet — sert de titre / repère de version (ex "Cuisine v1", "Cuisine révisée"). */}
           <div>
             <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">
@@ -175,6 +208,9 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
                 value={form.clientAddress}
                 onChange={e => setForm(f => ({ ...f, clientAddress: e.target.value }))}
               />
+              {dossierLie?.phone && (
+                <p className="mt-1 text-[10px] text-[#304035]/45">Tél. repris du dossier sur le devis : {dossierLie.phone}</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">
@@ -237,6 +273,7 @@ export const ModalDevis = React.memo(function ModalDevis({ onClose, devisToEdit,
           )}
           <div className="flex justify-end gap-3">
             <button
+              type="button"
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-sm text-[#304035]/60 hover:bg-[#304035]/8 transition-colors"
             >

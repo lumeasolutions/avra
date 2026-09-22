@@ -51,6 +51,9 @@ import { CompareHubModal } from '@/components/facturation/CompareHubModal';
  */
 const SHOW_COMPARE_TOOL = false;
 import { ModalDevis } from '@/app/(app)/facturation/components/ModalDevis';
+import { DevisDownload, adresseDossier } from '@/app/(app)/facturation/components/DevisDownload';
+import { DEVIS_STATUS_CFG } from '@/app/(app)/facturation/lib/utils';
+import type { Devis } from '@/store';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
 
 /** Normalise un document (string legacy ou objet) pour affichage. */
@@ -170,12 +173,15 @@ export default function DossierDetailPage() {
   const dossiers          = useDossierStore(s => s.dossiers);
   const dossiersSignes    = useDossierStore(s => s.dossiersSignes);
   const allInvoices       = useFacturationStore(s => s.invoices);
+  const allDevis          = useFacturationStore(s => s.devis);
   const dossier           = [...dossiers, ...dossiersSignes].find(d => d.id === id);
   // Droits : admin = tout ; vendeur = uniquement ses propres dossiers.
   const { canEditDossier } = useDossierPermissions();
   const canEditThis = canEditDossier(dossier);
   const readOnly = !canEditThis;
   const invoices          = allInvoices.filter(i => i.dossierId === id);
+  // Devis du dossier (le store les range déjà du plus récent au plus ancien).
+  const devisDossier      = allDevis.filter(d => d.dossierId === id);
   // Actions persistées en DB via l'API (double-write : optimistic local + API)
   const { signProject, updateProjectStatus, loseProject, renameProject } = useProjectActions();
   // Actions uniquement locales (pas encore d'endpoint API dédié).
@@ -301,6 +307,7 @@ export default function DossierDetailPage() {
   }, [id]);
 
   const [showDevis,     setShowDevis]     = useState(false);
+  const [editDevis,     setEditDevis]     = useState<Devis | undefined>();
   // Envoi d'un sous-dossier : pièces jointes calculées (après upload des fichiers
   // locaux) + état "préparation". Ouvre le drawer d'envoi quand non-null.
   const [sendFolderAtts, setSendFolderAtts] = useState<Array<{ dossierDocumentId: string; displayName: string; mimeType?: string }> | null>(null);
@@ -1422,6 +1429,61 @@ export default function DossierDetailPage() {
             </div>
           </div>
 
+          {/* Section devis du dossier : modifier + télécharger PDF / Word / Excel. */}
+          {devisDossier.length > 0 && (
+            <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[#304035]/5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#a67749]/10 rounded-xl">
+                    <FileCheck className="h-4 w-4 text-[#a67749]" />
+                  </div>
+                  <h2 className="text-sm font-bold text-[#304035]">Devis du dossier</h2>
+                  <span className="text-xs text-[#304035]/40">{devisDossier.length}</span>
+                </div>
+                <Link href="/facturation?tab=devis" className="text-xs font-semibold text-[#304035]/50 hover:text-[#304035]">
+                  Voir dans Facturation →
+                </Link>
+              </div>
+              <div className="divide-y divide-[#304035]/5">
+                {devisDossier.map(dv => {
+                  const cfg = DEVIS_STATUS_CFG[dv.statut];
+                  const modifiable = canEditThis && (dv.statut === 'BROUILLON' || dv.statut === 'ENVOYÉ') && dv.signatureStatus !== 'SIGNÉ';
+                  return (
+                    <div key={dv.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
+                      <div className="flex-1 min-w-[160px]">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-[#304035]">{dv.ref}</p>
+                          {cfg && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>}
+                        </div>
+                        <p className="text-xs text-[#304035]/45 break-words">
+                          {dv.objet ? `${dv.objet} · ` : ''}{dv.lignes.length} ligne{dv.lignes.length > 1 ? 's' : ''} · créé le {dv.dateCreation}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-[#304035]">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(dv.totalTTC)} TTC
+                        </p>
+                        <p className="text-[10px] text-[#304035]/40">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(dv.totalHT)} HT
+                        </p>
+                      </div>
+                      {modifiable && (
+                        <button
+                          type="button"
+                          onClick={() => setEditDevis(dv)}
+                          className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 border border-[#304035]/15 bg-white hover:bg-[#304035]/5 text-[#304035] text-xs font-semibold transition-colors"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Modifier
+                        </button>
+                      )}
+                      <DevisDownload devis={dv} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Section factures liées */}
           {invoices.length > 0 && (
             <div className="bg-white rounded-2xl border border-[#304035]/8 shadow-sm overflow-hidden">
@@ -2443,15 +2505,16 @@ export default function DossierDetailPage() {
 
       {/* ══ MODAL : Créer un devis (éditeur COMPLET, identique à Facturation) ══
           Pré-rempli avec le client + le dossier courant. */}
-      {showDevis && (
+      {(showDevis || editDevis) && (
         <ModalDevis
+          devisToEdit={editDevis}
           prefill={{
             dossierId: id,
             client: clientDisplayName(dossier),
             clientEmail: dossier.email ?? '',
-            clientAddress: dossier.address ?? '',
+            clientAddress: adresseDossier(dossier),
           }}
-          onClose={() => setShowDevis(false)}
+          onClose={() => { setShowDevis(false); setEditDevis(undefined); }}
         />
       )}
 

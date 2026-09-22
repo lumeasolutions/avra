@@ -14,6 +14,9 @@ import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { construireFec } from '@/lib/fec-export';
 import { api } from '@/lib/api';
+import { LignesEditor } from './components/LignesEditor';
+import { ModalDevis } from './components/ModalDevis';
+import { DevisDownload } from './components/DevisDownload';
 
 // ─── Formatters ──────────────────────────────────────────────────────────────
 
@@ -51,264 +54,8 @@ function calcLignes(lignes: LigneDocument[]) {
   return { totalHT, totalTVA, totalTTC: totalHT + totalTVA };
 }
 
-// ─── LignesEditor ────────────────────────────────────────────────────────────
-
-function LignesEditor({ lignes, onChange }: { lignes: LigneDocument[]; onChange: (l: LigneDocument[]) => void }) {
-  const addLigne = () => onChange([...lignes, {
-    id: 'l' + crypto.randomUUID().replace(/-/g, '').slice(0, 8),
-    description: '', quantite: 1, unite: 'u', prixUnitaireHT: 0, tva: 20, remise: 0,
-  }]);
-  const updateLigne = (id: string, key: keyof LigneDocument, val: string | number) =>
-    onChange(lignes.map(l => l.id === id ? { ...l, [key]: val } : l));
-  const removeLigne = (id: string) => onChange(lignes.filter(l => l.id !== id));
-
-  return (
-    <div className="space-y-2">
-      {/* Lignes : défilement horizontal sur mobile (la grille fait ~560px de large)
-          plutôt que d'écraser les 7 colonnes. */}
-      <div className="overflow-x-auto -mx-1 px-1">
-      <div className="min-w-[560px] space-y-2">
-      {/* Header */}
-      <div className="grid grid-cols-[2fr_60px_80px_90px_60px_60px_32px] gap-1 px-2 text-[10px] font-semibold text-[#304035]/50 uppercase tracking-wider">
-        <span>Description</span><span>Qté</span><span>Unité</span><span>PU HT</span><span>TVA</span><span>Remise</span><span></span>
-      </div>
-      {lignes.map(l => {
-        const totalLigneHT = l.quantite * l.prixUnitaireHT * (1 - l.remise / 100);
-        return (
-          <div key={l.id} className="grid grid-cols-[2fr_60px_80px_90px_60px_60px_32px] gap-1 items-center">
-            <input
-              className="rounded-lg border border-[#304035]/10 px-2 py-1.5 text-xs text-[#304035] bg-[#304035]/2 focus:outline-none focus:border-[#304035]/30 w-full"
-              placeholder="Description de la prestation..."
-              value={l.description}
-              onChange={e => updateLigne(l.id, 'description', e.target.value)}
-            />
-            <input
-              type="number" min="0.01" step="0.01"
-              className="rounded-lg border border-[#304035]/10 px-2 py-1.5 text-xs text-[#304035] text-right bg-[#304035]/2 focus:outline-none focus:border-[#304035]/30 w-full"
-              value={l.quantite}
-              onFocus={e => e.currentTarget.select()}
-              onChange={e => updateLigne(l.id, 'quantite', parseFloat(e.target.value) || 0)}
-            />
-            <select
-              className="rounded-lg border border-[#304035]/10 px-1 py-1.5 text-xs text-[#304035] bg-white focus:outline-none w-full"
-              value={l.unite}
-              onChange={e => updateLigne(l.id, 'unite', e.target.value)}
-            >
-              {['u', 'forfait', 'm²', 'ml', 'h', 'jour', 'lot'].map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
-            <input
-              type="number" min="0" step="0.01"
-              className="rounded-lg border border-[#304035]/10 px-2 py-1.5 text-xs text-[#304035] text-right bg-[#304035]/2 focus:outline-none focus:border-[#304035]/30 w-full"
-              value={l.prixUnitaireHT}
-              onFocus={e => e.currentTarget.select()}
-              onChange={e => updateLigne(l.id, 'prixUnitaireHT', parseFloat(e.target.value) || 0)}
-            />
-            <select
-              className="rounded-lg border border-[#304035]/10 px-1 py-1.5 text-xs text-[#304035] bg-white focus:outline-none w-full"
-              value={l.tva}
-              onChange={e => updateLigne(l.id, 'tva', parseFloat(e.target.value))}
-            >
-              {[0, 5.5, 10, 20].map(t => <option key={t} value={t}>{t}%</option>)}
-            </select>
-            <div className="relative">
-              <input
-                type="number" min="0" max="100"
-                className="rounded-lg border border-[#304035]/10 px-2 py-1.5 text-xs text-[#304035] text-right bg-[#304035]/2 focus:outline-none focus:border-[#304035]/30 w-full pr-4"
-                value={l.remise}
-                onFocus={e => e.currentTarget.select()}
-                onChange={e => updateLigne(l.id, 'remise', parseFloat(e.target.value) || 0)}
-              />
-              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-[#304035]/40">%</span>
-            </div>
-            <button onClick={() => removeLigne(l.id)} className="rounded-lg p-1 hover:bg-red-50 text-[#304035]/30 hover:text-red-500 transition-colors">
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        );
-      })}
-      </div>
-      </div>
-      <button
-        onClick={addLigne}
-        className="flex items-center gap-1.5 text-xs text-[#304035]/60 hover:text-[#304035] px-2 py-1.5 rounded-lg hover:bg-[#304035]/5 transition-colors"
-      >
-        <PlusCircle className="h-3.5 w-3.5" /> Ajouter une ligne
-      </button>
-      {/* Totaux */}
-      {lignes.length > 0 && (() => {
-        const { totalHT, totalTVA, totalTTC } = calcLignes(lignes);
-        return (
-          <div className="mt-3 rounded-xl bg-[#304035]/4 p-3 space-y-1 text-xs">
-            <div className="flex justify-between text-[#304035]/60">
-              <span>Total HT</span><span className="font-medium">{fmtPrecise(totalHT)}</span>
-            </div>
-            <div className="flex justify-between text-[#304035]/60">
-              <span>TVA</span><span className="font-medium">{fmtPrecise(totalTVA)}</span>
-            </div>
-            <div className="flex justify-between text-sm font-bold text-[#304035] border-t border-[#304035]/10 pt-1 mt-1">
-              <span>Total TTC</span><span>{fmtPrecise(totalTTC)}</span>
-            </div>
-          </div>
-        );
-      })()}
-    </div>
-  );
-}
-
-// ─── Modal Devis ─────────────────────────────────────────────────────────────
-
-function ModalDevis({ onClose, devisToEdit }: { onClose: () => void; devisToEdit?: Devis }) {
-  const addDevis = useFacturationStore(s => s.addDevis);
-  const updateDevis = useFacturationStore(s => s.updateDevis);
-  const dossiers = useVisibleDossiers();
-  const dossiersSignes = useVisibleDossiersSignes();
-  const allDossiers = [...dossiers, ...dossiersSignes];
-
-  const [form, setForm] = useState({
-    client: devisToEdit?.client ?? '',
-    clientEmail: devisToEdit?.clientEmail ?? '',
-    clientAddress: devisToEdit?.clientAddress ?? '',
-    dossierId: devisToEdit?.dossierId ?? '',
-    dateValidite: devisToEdit?.dateValidite ?? new Date(Date.now() + 30 * 86400000).toLocaleDateString('fr-FR'),
-    conditionsPaiement: devisToEdit?.conditionsPaiement ?? '30% acompte, 40% intermédiaire, 30% solde',
-    notes: devisToEdit?.notes ?? '',
-  });
-  const [lignes, setLignes] = useState<LigneDocument[]>(devisToEdit?.lignes ?? [
-    { id: 'l1', description: '', quantite: 1, unite: 'forfait', prixUnitaireHT: 0, tva: 20, remise: 0 },
-  ]);
-
-  const handleDossierChange = (id: string) => {
-    const d = allDossiers.find(d => d.id === id);
-    if (d) setForm(f => ({ ...f, dossierId: id, client: d.name + (d.firstName ? ' ' + d.firstName : ''), clientEmail: d.email ?? '' }));
-    else setForm(f => ({ ...f, dossierId: id }));
-  };
-
-  const [submitError, setSubmitError] = React.useState('');
-
-  const handleSubmit = () => {
-    setSubmitError('');
-    if (!form.client.trim()) { setSubmitError('Le nom du client est requis.'); return; }
-    if (lignes.length === 0) { setSubmitError('Ajoutez au moins une ligne.'); return; }
-    const emptyLine = lignes.find(l => !l.description.trim());
-    if (emptyLine) { setSubmitError('Chaque ligne doit avoir une description.'); return; }
-    const zeroLine = lignes.find(l => l.prixUnitaireHT <= 0 || l.quantite <= 0);
-    if (zeroLine) { setSubmitError('Les lignes doivent avoir un prix et une quantité > 0.'); return; }
-    const { totalHT, totalTTC } = calcLignes(lignes);
-    if (devisToEdit) {
-      updateDevis(devisToEdit.id, { ...form, lignes, totalHT: Math.round(totalHT), totalTTC: Math.round(totalTTC) });
-    } else {
-      addDevis({ ...form, lignes, statut: 'BROUILLON', dateCreation: new Date().toLocaleDateString('fr-FR'), totalHT: Math.round(totalHT), totalTTC: Math.round(totalTTC) });
-    }
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#304035]/8 bg-[#304035]/2">
-          <h2 className="font-bold text-[#304035] text-lg">{devisToEdit ? 'Modifier le devis' : 'Nouveau devis'}</h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-[#304035]/10 transition-colors"><X className="h-4 w-4 text-[#304035]/60" /></button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Client */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Dossier lié (optionnel)</label>
-              <select
-                className="w-full rounded-xl border border-[#304035]/12 px-3 py-2 text-sm text-[#304035] bg-white focus:outline-none focus:border-[#304035]/30"
-                value={form.dossierId}
-                onChange={e => handleDossierChange(e.target.value)}
-              >
-                <option value="">— Aucun dossier —</option>
-                {allDossiers.map(d => <option key={d.id} value={d.id}>{d.name} {d.firstName}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Client *</label>
-              <input
-                className="w-full rounded-xl border border-[#304035]/12 px-3 py-2 text-sm text-[#304035] focus:outline-none focus:border-[#304035]/30"
-                placeholder="Nom du client"
-                value={form.client}
-                onChange={e => setForm(f => ({ ...f, client: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Email client</label>
-              <input
-                type="email"
-                className="w-full rounded-xl border border-[#304035]/12 px-3 py-2 text-sm text-[#304035] focus:outline-none focus:border-[#304035]/30"
-                placeholder="email@client.fr"
-                value={form.clientEmail}
-                onChange={e => setForm(f => ({ ...f, clientEmail: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Adresse client</label>
-              <input
-                className="w-full rounded-xl border border-[#304035]/12 px-3 py-2 text-sm text-[#304035] focus:outline-none focus:border-[#304035]/30"
-                placeholder="12 rue de la Paix, 75001 Paris"
-                value={form.clientAddress}
-                onChange={e => setForm(f => ({ ...f, clientAddress: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Validité jusqu'au</label>
-              <input
-                className="w-full rounded-xl border border-[#304035]/12 px-3 py-2 text-sm text-[#304035] focus:outline-none focus:border-[#304035]/30"
-                placeholder="JJ/MM/AAAA"
-                value={form.dateValidite}
-                onChange={e => setForm(f => ({ ...f, dateValidite: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Conditions de paiement</label>
-              <select
-                className="w-full rounded-xl border border-[#304035]/12 px-3 py-2 text-sm text-[#304035] bg-white focus:outline-none focus:border-[#304035]/30"
-                value={form.conditionsPaiement}
-                onChange={e => setForm(f => ({ ...f, conditionsPaiement: e.target.value }))}
-              >
-                <option>30% acompte, 70% solde</option>
-                <option>30% acompte, 40% intermédiaire, 30% solde</option>
-                <option>50% acompte, 50% solde</option>
-                <option>40% acompte, 60% solde</option>
-                <option>100% à la commande</option>
-                <option>Paiement à 30 jours</option>
-              </select>
-            </div>
-          </div>
-          {/* Lignes */}
-          <div>
-            <label className="block text-xs font-semibold text-[#304035]/60 mb-3">Prestations / Articles</label>
-            <LignesEditor lignes={lignes} onChange={setLignes} />
-          </div>
-          {/* Notes */}
-          <div>
-            <label className="block text-xs font-semibold text-[#304035]/60 mb-1.5">Notes / Mentions</label>
-            <textarea
-              rows={2}
-              className="w-full rounded-xl border border-[#304035]/12 px-3 py-2 text-sm text-[#304035] focus:outline-none focus:border-[#304035]/30 resize-none"
-              placeholder="Conditions particulières, mentions légales..."
-              value={form.notes}
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-            />
-          </div>
-        </div>
-        <div className="flex flex-col gap-2 px-6 py-4 border-t border-[#304035]/8 bg-[#304035]/2">
-          {submitError && <p className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{submitError}</p>}
-          <div className="flex justify-end gap-3">
-            <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-[#304035]/60 hover:bg-[#304035]/8 transition-colors">Annuler</button>
-            <button
-              onClick={handleSubmit}
-              className="px-5 py-2 rounded-xl text-sm font-bold bg-[#304035] text-white hover:bg-[#304035]/90 transition-colors"
-            >
-              {devisToEdit ? 'Enregistrer' : 'Créer le devis'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Éditeur de lignes (avec « Depuis le stock ») et modale devis : composants
+// partagés avec la page dossier — voir ./components.
 
 // ─── Modal Facture ────────────────────────────────────────────────────────────
 
@@ -681,69 +428,6 @@ function generateInvoiceHTML(inv: InvoiceDetail, societe: ReturnType<typeof useC
 </html>`;
 }
 
-function generateDevisHTML(devis: Devis, societe: ReturnType<typeof useConfigStore.getState>['societe']): string {
-  const { totalHT, totalTVA, totalTTC } = calcLignes(devis.lignes);
-  const lignesHTML = devis.lignes.map(l => {
-    const ht = l.quantite * l.prixUnitaireHT * (1 - l.remise / 100);
-    return `<tr>
-      <td style="padding:8px 12px;font-size:12px;color:#304035;border-bottom:1px solid #f0ebe6">${l.description}</td>
-      <td style="padding:8px 12px;font-size:12px;text-align:center;color:#304035;border-bottom:1px solid #f0ebe6">${l.quantite} ${l.unite}</td>
-      <td style="padding:8px 12px;font-size:12px;text-align:right;color:#304035;border-bottom:1px solid #f0ebe6">${fmtPrecise(l.prixUnitaireHT)}</td>
-      <td style="padding:8px 12px;font-size:12px;text-align:center;color:#304035;border-bottom:1px solid #f0ebe6">${l.tva}%</td>
-      <td style="padding:8px 12px;font-size:12px;text-align:right;font-weight:600;color:#304035;border-bottom:1px solid #f0ebe6">${fmtPrecise(ht)}</td>
-    </tr>`;
-  }).join('');
-
-  return `<!DOCTYPE html>
-<html lang="fr"><head><meta charset="UTF-8"/><title>${devis.ref}</title>
-</head><body>
-<div style="max-width:800px;margin:0 auto">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;padding-bottom:24px;border-bottom:3px solid #a67749">
-    <div><div style="font-size:28px;font-weight:900;color:#304035;letter-spacing:-1px">AVRA</div><div style="font-size:11px;color:#304035;opacity:0.5">Design & Agencement</div></div>
-    <div style="text-align:right">
-      <div style="font-size:22px;font-weight:800;color:#a67749">DEVIS</div>
-      <div style="font-size:16px;font-weight:700;color:#304035;margin-top:4px">${devis.ref}</div>
-      <div style="font-size:11px;color:#304035;opacity:0.5">Créé le ${devis.dateCreation} · Valable jusqu'au ${devis.dateValidite}</div>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:36px">
-    <div style="background:#f8f5f0;border-radius:12px;padding:16px">
-      <div style="font-size:10px;font-weight:700;color:#304035;opacity:0.4;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Émetteur</div>
-      <div style="font-size:13px;font-weight:700">${societe.nom}</div>
-      <div style="font-size:11px;color:#304035;opacity:0.7;margin-top:4px;line-height:1.6">${societe.adresse}<br/>${societe.codePostal} ${societe.ville}<br/>SIRET : ${societe.siret}</div>
-    </div>
-    <div style="background:#f8f5f0;border-radius:12px;padding:16px">
-      <div style="font-size:10px;font-weight:700;color:#304035;opacity:0.4;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Client</div>
-      <div style="font-size:13px;font-weight:700">${devis.client}</div>
-      <div style="font-size:11px;color:#304035;opacity:0.7;margin-top:4px;line-height:1.6">${devis.clientAddress ?? ''}<br/>${devis.clientEmail ?? ''}</div>
-    </div>
-  </div>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
-    <thead><tr style="background:#a67749">
-      <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:white;text-transform:uppercase">Description</th>
-      <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;color:white;text-transform:uppercase">Qté</th>
-      <th style="padding:10px 12px;text-align:right;font-size:10px;font-weight:700;color:white;text-transform:uppercase">PU HT</th>
-      <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;color:white;text-transform:uppercase">TVA</th>
-      <th style="padding:10px 12px;text-align:right;font-size:10px;font-weight:700;color:white;text-transform:uppercase">Total HT</th>
-    </tr></thead>
-    <tbody>${lignesHTML}</tbody>
-  </table>
-  <div style="display:flex;justify-content:flex-end;margin-bottom:32px">
-    <div style="width:280px">
-      <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;opacity:0.7"><span>Total HT</span><span>${fmtPrecise(totalHT)}</span></div>
-      <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;opacity:0.7"><span>TVA</span><span>${fmtPrecise(totalTVA)}</span></div>
-      <div style="display:flex;justify-content:space-between;padding:10px 12px;font-size:15px;font-weight:800;color:white;background:#a67749;border-radius:8px;margin-top:8px"><span>TOTAL TTC</span><span>${fmtPrecise(totalTTC)}</span></div>
-    </div>
-  </div>
-  <div style="border-top:1px solid #e8e0d6;padding-top:16px">
-    ${devis.conditionsPaiement ? `<p style="font-size:11px;margin-bottom:8px;font-weight:600">Conditions : ${devis.conditionsPaiement}</p>` : ''}
-    <p style="font-size:9px;opacity:0.5;line-height:1.5">Ce devis est valable jusqu'au ${devis.dateValidite}. Pour l'accepter, veuillez le signer et nous le retourner. ${devis.notes ?? ''}</p>
-  </div>
-</div>
-<script class="no-print">window.onload=()=>window.print();</script>
-</body></html>`;
-}
-
 function openPDF(html: string, filename: string) {
   const win = window.open('', '_blank');
   if (!win) return;
@@ -1105,12 +789,10 @@ function OngletDevis({ autoOpen = false }: { autoOpen?: boolean }) {
                         Créer facture
                       </button>
                     )}
+                    {/* Télécharger PDF / Word / Excel — toujours visible (menu déroulant). */}
+                    <DevisDownload devis={d} compact />
                     {/* Actions secondaires au hover */}
                     <div className={cn('flex items-center gap-1 transition-all duration-150', hoveredId === d.id ? 'opacity-100' : 'opacity-0')}>
-                      <button onClick={() => openPDF(generateDevisHTML(d, societe), d.ref)} title="Télécharger PDF"
-                        className="rounded-lg p-1.5 bg-[#304035]/5 hover:bg-[#304035]/10 text-[#304035]/60 hover:text-[#304035] transition-colors">
-                        <Download className="h-3.5 w-3.5" />
-                      </button>
                       {(d.statut === 'BROUILLON' || d.statut === 'ENVOYÉ') && (
                         <button onClick={() => { setEditDevis(d); setModalOpen(true); }} title="Modifier"
                           className="rounded-lg p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 transition-colors">
@@ -1500,7 +1182,9 @@ export default function FacturationPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const n = new URLSearchParams(window.location.search).get('nouveau');
+    const params = new URLSearchParams(window.location.search);
+    const n = params.get('nouveau');
+    if (params.get('tab') === 'devis') setActiveTab('devis');
     if (n === 'devis') { setActiveTab('devis'); setAutoCreate('devis'); }
     else if (n === 'facture') { setActiveTab('factures'); setAutoCreate('facture'); }
   }, []);

@@ -4,6 +4,7 @@ import React from 'react';
 import { X, PlusCircle } from 'lucide-react';
 import type { LigneDocument } from '@/store';
 import { calcLignes, fmtPrecise } from '../lib/utils';
+import { StockPicker } from './StockPicker';
 
 interface LignesEditorProps {
   lignes: LigneDocument[];
@@ -21,8 +22,19 @@ export const LignesEditor = React.memo(function LignesEditor({ lignes, onChange 
 
   const removeLigne = (id: string) => onChange(lignes.filter(l => l.id !== id));
 
+  // Article du stock : remplace la dernière ligne si elle est encore vierge
+  // (la ligne vide créée d'office à l'ouverture), sinon s'ajoute à la fin.
+  const addFromStock = (ligne: LigneDocument) => {
+    const last = lignes[lignes.length - 1];
+    const vierge = last && !last.description.trim() && !last.prixUnitaireHT;
+    onChange(vierge ? [...lignes.slice(0, -1), ligne] : [...lignes, ligne]);
+  };
+
   return (
     <div className="space-y-2">
+      {/* Défilement horizontal sur mobile plutôt que d'écraser les 7 colonnes. */}
+      <div className="overflow-x-auto -mx-1 px-1">
+      <div className="min-w-[560px] space-y-2">
       {/* Header */}
       <div className="grid grid-cols-[2fr_60px_80px_90px_60px_60px_32px] gap-1 px-2 text-[10px] font-semibold text-[#304035]/50 uppercase tracking-wider">
         <span>Description</span><span>Qté</span><span>Unité</span><span>PU HT</span><span>TVA</span><span>Remise</span><span></span>
@@ -30,9 +42,11 @@ export const LignesEditor = React.memo(function LignesEditor({ lignes, onChange 
       {lignes.map(l => {
         const totalLigneHT = l.quantite * l.prixUnitaireHT * (1 - l.remise / 100);
         return (
-          <div key={l.id} className="grid grid-cols-[2fr_60px_80px_90px_60px_60px_32px] gap-1 items-center">
-            <input
-              className="rounded-lg border border-[#304035]/10 px-2 py-1.5 text-xs text-[#304035] bg-[#304035]/2 focus:outline-none focus:border-[#304035]/30 w-full"
+          <div key={l.id} className="grid grid-cols-[2fr_60px_80px_90px_60px_60px_32px] gap-1 items-start">
+            {/* Zone multi-lignes : les désignations du stock sont longues. */}
+            <textarea
+              rows={Math.min(4, Math.max(1, Math.ceil(l.description.length / 38)))}
+              className="rounded-lg border border-[#304035]/10 px-2 py-1.5 text-xs leading-snug text-[#304035] bg-[#304035]/2 focus:outline-none focus:border-[#304035]/30 w-full resize-y"
               placeholder="Description de la prestation..."
               value={l.description}
               onChange={e => updateLigne(l.id, 'description', e.target.value)}
@@ -75,18 +89,24 @@ export const LignesEditor = React.memo(function LignesEditor({ lignes, onChange 
               />
               <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-[#304035]/40">%</span>
             </div>
-            <button onClick={() => removeLigne(l.id)} className="rounded-lg p-1 hover:bg-red-50 text-[#304035]/30 hover:text-red-500 transition-colors">
+            <button type="button" onClick={() => removeLigne(l.id)} title="Supprimer la ligne" className="rounded-lg p-1 hover:bg-red-50 text-[#304035]/30 hover:text-red-500 transition-colors">
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
         );
       })}
-      <button
-        onClick={addLigne}
-        className="flex items-center gap-1.5 text-xs text-[#304035]/60 hover:text-[#304035] px-2 py-1.5 rounded-lg hover:bg-[#304035]/5 transition-colors"
-      >
-        <PlusCircle className="h-3.5 w-3.5" /> Ajouter une ligne
-      </button>
+      </div>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={addLigne}
+          className="flex items-center gap-1.5 text-xs text-[#304035]/60 hover:text-[#304035] px-2 py-1.5 rounded-lg hover:bg-[#304035]/5 transition-colors"
+        >
+          <PlusCircle className="h-3.5 w-3.5" /> Ajouter une ligne
+        </button>
+        <StockPicker onPick={addFromStock} />
+      </div>
       {/* Totaux */}
       {lignes.length > 0 && (() => {
         const { totalHT, totalTVA, totalTTC } = calcLignes(lignes);
