@@ -723,13 +723,6 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
         actions={
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
             <button
-              onClick={() => setShowAbonnement(true)}
-              title="Voir le planning dans Google Agenda, Outlook ou l'iPhone"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white' }}
-            >
-              <CalendarPlus className="h-3.5 w-3.5" /> Mon agenda
-            </button>
-            <button
               onClick={() => setWeekOffset(w => w - 1)}
               style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             >
@@ -1334,6 +1327,20 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
           >
             <Plus className="add-btn-icon h-4 w-4" />
             Planifier un RDV
+          </button>
+
+          {/* Abonnement agenda : le planning AVRA dans Google Agenda / Outlook / iPhone */}
+          <button
+            onClick={() => setShowAbonnement(true)}
+            className="w-full flex items-center gap-3 rounded-2xl border border-[#304035]/12 bg-white px-4 py-3 text-left hover:bg-[#f5eee8]/60 transition-colors"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 border border-emerald-200 shrink-0">
+              <CalendarPlus className="h-4 w-4 text-emerald-600" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-[#304035]">Voir dans mon agenda</span>
+              <span className="block text-[11px] text-[#304035]/50">Google Agenda, iPhone, Outlook</span>
+            </span>
           </button>
         </div>
       </div>

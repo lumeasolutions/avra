@@ -110,7 +110,7 @@ export function EnvoyerInvitationModal({ event, kind, defaults, onClose, onSent,
             {/* Récapitulatif */}
             <div className="rounded-2xl bg-[#f5eee8]/60 px-3.5 py-3 text-xs text-[#304035] space-y-1">
               <p className="flex items-center gap-1.5 font-bold"><CalendarDays className="h-3.5 w-3.5" />{quandRdv(event)} · {dureeLisible(dureeRdvMin(event))}</p>
-              {visio && <p className="flex items-center gap-1.5"><Video className="h-3.5 w-3.5 text-emerald-600" />Visio {visio.provider} — bouton « Rejoindre » dans l'e-mail</p>}
+              {visio && <p className="flex items-center gap-1.5"><Video className="h-3.5 w-3.5 text-emerald-600" />Visio {visio.provider}{kind !== 'cancel' ? ' — bouton « Rejoindre » dans l\'e-mail' : ''}</p>}
               {!visio && event.location && <p className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{event.location}</p>}
               {!visio && !event.location && kind !== 'cancel' && (
                 <p className="flex items-center gap-1.5 text-amber-700"><AlertTriangle className="h-3.5 w-3.5" />Ni adresse ni lien visio : ajoutez-en un via « Modifier » si besoin.</p>
