@@ -89,7 +89,7 @@ export function StockPicker({ onPick }: { onPick: (ligne: LigneDocument) => void
         onClick={(e) => {
           if (open) { setOpen(null); return; }
           const r = e.currentTarget.getBoundingClientRect();
-          const w = Math.min(560, window.innerWidth * 0.85);
+          const w = Math.min(560, window.innerWidth - 16);
           const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
           const dessus = r.top - 16, dessous = window.innerHeight - r.bottom - 16;
           setQ('');
@@ -105,7 +105,7 @@ export function StockPicker({ onPick }: { onPick: (ligne: LigneDocument) => void
         <div
           ref={panelRef}
           style={{ position: 'fixed', left: open.left, top: open.top, bottom: open.bottom, maxHeight: open.maxH }}
-          className="z-[1000] w-[min(560px,85vw)] flex flex-col rounded-2xl border border-[#304035]/12 bg-white shadow-2xl overflow-hidden"
+          className="z-[1000] w-[min(560px,calc(100vw-16px))] flex flex-col rounded-2xl border border-[#304035]/12 bg-white shadow-2xl overflow-hidden"
         >
           <div className="p-3 border-b border-[#304035]/8">
             <div className="relative">
@@ -136,9 +136,9 @@ export function StockPicker({ onPick }: { onPick: (ligne: LigneDocument) => void
                   title="Ajouter au devis"
                 >
                   {it.image ? (
-                    <img src={it.image} alt="" className="h-9 w-9 rounded-md object-cover border border-[#304035]/8 shrink-0" />
+                    <img src={it.image} alt="" className="hidden sm:block h-9 w-9 rounded-md object-cover border border-[#304035]/8 shrink-0" />
                   ) : (
-                    <span className="h-9 w-9 rounded-md bg-[#304035]/5 flex items-center justify-center shrink-0"><Package className="h-4 w-4 text-[#304035]/25" /></span>
+                    <span className="hidden sm:flex h-9 w-9 rounded-md bg-[#304035]/5 items-center justify-center shrink-0"><Package className="h-4 w-4 text-[#304035]/25" /></span>
                   )}
                   <span className="flex-1 min-w-0">
                     <span className="block text-xs font-semibold text-[#304035] break-words">{it.supplier} {it.model}</span>
@@ -153,8 +153,11 @@ export function StockPicker({ onPick }: { onPick: (ligne: LigneDocument) => void
                       {dispo.label}{typeof it.quantity === 'number' ? ` · ${it.quantity} en stock` : ''}
                     </span>
                   </span>
-                  <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-[#a67749]/10 px-2 py-1 text-[10px] font-bold text-[#a67749]">
-                    <Plus className="h-3 w-3" />{n > 0 ? `Ajouté ×${n}` : 'Ajouter'}
+                  <span className={`shrink-0 inline-flex items-center gap-1 rounded-md bg-[#a67749]/10 px-1.5 sm:px-2 py-1 text-[10px] font-bold text-[#a67749]`}>
+                    <Plus className="h-3 w-3" />
+                    {n > 0
+                      ? <span><span className="hidden sm:inline">Ajouté </span>×{n}</span>
+                      : <span className="hidden sm:inline">Ajouter</span>}
                   </span>
                 </button>
               );
