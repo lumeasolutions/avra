@@ -34,7 +34,7 @@
  */
 
 import { useRef, useEffect, useState, useCallback, type PointerEvent as ReactPointerEvent, type CSSProperties } from 'react';
-import { Wand2, Undo2, Trash2, Loader2, Paintbrush, Eraser, Square } from 'lucide-react';
+import { Wand2, Undo2, Trash2, Loader2, Paintbrush, Eraser, Square, Lasso, Check, X } from 'lucide-react';
 
 const MAX_DIM = 1280;
 /** Nombre d'états conservés pour l'annulation. ~1 Mo par état en 1280×720. */
@@ -44,7 +44,7 @@ export type ClickSelectResult =
   | { mode: 'auto'; maskUrl: string; sourceUrl: string }
   | { mode: 'manual'; maskDataUrl: string };
 
-type Tool = 'wand' | 'draw' | 'erase' | 'rect';
+type Tool = 'wand' | 'draw' | 'erase' | 'rect' | 'lasso';
 
 /**
  * Construit un calque de surbrillance à fort contraste (cyan plein + bordure
@@ -111,6 +111,13 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
   /** Rectangle en cours de tracé (aperçu), en pixels image. */
   const rectRef = useRef<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const rafRef = useRef<number | null>(null);
+  /**
+   * Lasso POLYGONAL (22/09/2026) : un clic par angle, autant de points que
+   * nécessaire. Points en pixels image ; `lassoHoverRef` = position de la
+   * souris pour l'élastique d'aperçu.
+   */
+  const lassoRef = useRef<Array<{ x: number; y: number }>>([]);
+  const lassoHoverRef = useRef<{ x: number; y: number } | null>(null);
 
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -119,6 +126,10 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
   const [brushSize, setBrushSize] = useState(45);
   const [hasSelection, setHasSelection] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
+  /** Nombre de points posés du lasso en cours (0 = aucun tracé en cours). */
+  const [lassoPts, setLassoPts] = useState(0);
+  /** Le lasso ajoute à la sélection, ou en retire (découper une fenêtre…). */
+  const [lassoRetire, setLassoRetire] = useState(false);
 
   const brushSizeRef = useRef(brushSize);
   brushSizeRef.current = brushSize;
@@ -143,6 +154,16 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
     if (historyRef.current.length > HISTORY_MAX) historyRef.current.shift();
     setCanUndo(true);
   }, []);
+
+  const lassoRetireRef = useRef(false);
+  lassoRetireRef.current = lassoRetire;
+  /** Distance (px image) sous laquelle un clic sur le 1er point ferme la forme : ~14 px à l'écran. */
+  const rayonFermeture = () => {
+    const disp = dispRef.current;
+    const { w } = dimsRef.current;
+    const affiche = disp?.getBoundingClientRect().width || w || 1;
+    return 14 * (w / affiche);
+  };
 
   /* ── Rendu : photo + surbrillance du masque + aperçu du rectangle ────── */
 
@@ -176,6 +197,39 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
       ctx.lineWidth = Math.max(2, Math.round(w / 400));
       ctx.setLineDash([Math.max(6, w / 120), Math.max(4, w / 180)]);
       ctx.strokeRect(x, y, rw, rh);
+      ctx.restore();
+    }
+
+    // Lasso en cours : contour, élastique jusqu'à la souris, points, et 1er
+    // point agrandi quand la souris est dessus (= la forme va se fermer).
+    const pts = lassoRef.current;
+    if (pts.length > 0) {
+      const hover = lassoHoverRef.current;
+      const lw = Math.max(2, Math.round(w / 450));
+      const rayon = Math.max(4, Math.round(w / 220));
+      const fermeture = !!hover && pts.length >= 3 && Math.hypot(hover.x - pts[0].x, hover.y - pts[0].y) <= rayonFermeture();
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      if (hover) ctx.lineTo(fermeture ? pts[0].x : hover.x, fermeture ? pts[0].y : hover.y);
+      if (pts.length >= 2) {
+        ctx.fillStyle = lassoRetireRef.current ? 'rgba(255,60,60,0.18)' : 'rgba(0,225,255,0.18)';
+        ctx.fill();
+      }
+      ctx.strokeStyle = lassoRetireRef.current ? '#ff3b3b' : '#ff00aa';
+      ctx.lineWidth = lw;
+      ctx.setLineDash([]);
+      ctx.stroke();
+      pts.forEach((pt, i) => {
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, i === 0 ? rayon * (fermeture ? 2 : 1.4) : rayon, 0, Math.PI * 2);
+        ctx.fillStyle = i === 0 ? (fermeture ? '#10b981' : '#ffffff') : '#ff00aa';
+        ctx.fill();
+        ctx.lineWidth = Math.max(1.5, lw * 0.7);
+        ctx.strokeStyle = '#1a2a1e';
+        ctx.stroke();
+      });
       ctx.restore();
     }
   }, []);
@@ -342,6 +396,76 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
     }
   }, [ensureMask]);
 
+  /* ── Lasso polygonal ─────────────────────────────────────────────────── */
+
+  /** Remplit le polygone dans le masque (ajout ou retrait). */
+  const fillPolygon = useCallback((pts: Array<{ x: number; y: number }>, retirer: boolean) => {
+    const { w, h } = dimsRef.current;
+    if (pts.length < 3 || !w || !h) return;
+    const oc = document.createElement('canvas'); oc.width = w; oc.height = h;
+    const octx = oc.getContext('2d');
+    if (!octx) return;
+    octx.fillStyle = '#fff';
+    octx.beginPath();
+    octx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) octx.lineTo(pts[i].x, pts[i].y);
+    octx.closePath();
+    octx.fill();
+    const d = octx.getImageData(0, 0, w, h).data;
+    const mask = ensureMask();
+    const val = retirer ? 0 : 1;
+    for (let p = 0, i = 3; p < mask.length; p++, i += 4) {
+      if (d[i] > 127) mask[p] = val;
+    }
+  }, [ensureMask]);
+
+  const lassoAnnulerTrace = useCallback(() => {
+    lassoRef.current = [];
+    lassoHoverRef.current = null;
+    setLassoPts(0);
+    redraw();
+  }, [redraw]);
+
+  /** Ferme la forme : remplit le polygone, l'ajoute à l'historique. */
+  const lassoFermer = useCallback(() => {
+    const pts = lassoRef.current;
+    if (pts.length < 3) return;
+    pushHistory();
+    fillPolygon(pts, lassoRetireRef.current);
+    lassoRef.current = [];
+    lassoHoverRef.current = null;
+    setLassoPts(0);
+    refreshOverlay();
+    commitMask();
+  }, [pushHistory, fillPolygon, refreshOverlay, commitMask]);
+
+  const lassoRetirerPoint = useCallback(() => {
+    if (lassoRef.current.length === 0) return;
+    lassoRef.current = lassoRef.current.slice(0, -1);
+    setLassoPts(lassoRef.current.length);
+    redraw();
+  }, [redraw]);
+
+  // Clavier pendant un tracé : Entrée = fermer, Échap = abandonner,
+  // Retour arrière = retirer le dernier point.
+  useEffect(() => {
+    if (tool !== 'lasso' || lassoPts === 0) return;
+    const onKey = (e: KeyboardEvent) => {
+      const cible = e.target as HTMLElement | null;
+      if (cible && /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName)) return;
+      if (e.key === 'Enter') { e.preventDefault(); lassoFermer(); }
+      else if (e.key === 'Escape') { e.preventDefault(); lassoAnnulerTrace(); }
+      else if (e.key === 'Backspace') { e.preventDefault(); lassoRetirerPoint(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tool, lassoPts, lassoFermer, lassoAnnulerTrace, lassoRetirerPoint]);
+
+  // Changer d'outil abandonne un tracé de lasso inachevé.
+  useEffect(() => {
+    if (tool !== 'lasso' && lassoRef.current.length > 0) lassoAnnulerTrace();
+  }, [tool, lassoAnnulerTrace]);
+
   /* ── Géométrie clic → pixel image ────────────────────────────────────── */
 
   const getPos = (e: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -365,6 +489,22 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
       void runWand(p.x, p.y);
       return;
     }
+    if (tool === 'lasso') {
+      const pts = lassoRef.current;
+      // Clic sur le 1er point (≥ 3 points) : ferme la forme.
+      if (pts.length >= 3 && Math.hypot(p.x - pts[0].x, p.y - pts[0].y) <= rayonFermeture()) {
+        lassoFermer();
+        return;
+      }
+      // Ignore un clic quasi identique au dernier (double-clic, tremblement).
+      const der = pts[pts.length - 1];
+      if (der && Math.hypot(p.x - der.x, p.y - der.y) < 2) return;
+      lassoRef.current = [...pts, { x: p.x, y: p.y }];
+      lassoHoverRef.current = { x: p.x, y: p.y };
+      setLassoPts(lassoRef.current.length);
+      redraw();
+      return;
+    }
     if (tool === 'rect') {
       pushHistory();
       drawingRef.current = true;
@@ -380,6 +520,10 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (tool === 'lasso') {
+      if (lassoRef.current.length > 0) { lassoHoverRef.current = getPos(e); redraw(); }
+      return;
+    }
     if (!drawingRef.current) return;
     e.preventDefault();
     const p = getPos(e);
@@ -441,6 +585,7 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
     draw: 'Peignez la zone à changer. Débordez légèrement sur les bords : le moteur rend un meilleur résultat ainsi.',
     erase: 'Effacez ce qui a été sélectionné en trop.',
     rect: 'Glissez pour couvrir d\'un coup une rangée entière de meubles, puis affinez à la gomme.',
+    lasso: 'Cliquez sur chaque angle de la zone, autant de points que nécessaire. Fermez en cliquant sur le 1er point (ou double-clic / Entrée). Retour arrière retire le dernier point, Échap abandonne.',
   };
 
   return (
@@ -452,6 +597,9 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
         </button>
         <button type="button" onClick={() => setTool('rect')} style={{ ...toolBtn(tool === 'rect'), flex: '1 1 0', justifyContent: 'center' }}>
           <Square size={14} /> Rectangle
+        </button>
+        <button type="button" onClick={() => setTool('lasso')} style={{ ...toolBtn(tool === 'lasso'), flex: '1 1 0', justifyContent: 'center' }}>
+          <Lasso size={14} /> Lasso
         </button>
         <button type="button" onClick={() => setTool('draw')} style={{ ...toolBtn(tool === 'draw'), flex: '1 1 0', justifyContent: 'center' }}>
           <Paintbrush size={14} /> Pinceau
@@ -484,7 +632,8 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
+          onPointerLeave={(e) => { if (tool === 'lasso') { lassoHoverRef.current = null; redraw(); } else onPointerUp(e); }}
+          onDoubleClick={() => { if (tool === 'lasso') lassoFermer(); }}
           style={{
             width: 'auto', height: 'auto',
             maxWidth: '100%', maxHeight: 'min(68vh, 620px)',
@@ -492,10 +641,11 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
             cursor: loading ? 'wait' : 'crosshair',
           }}
         />
-        {!hasSelection && !loading && (
+        {(!hasSelection || (tool === 'lasso' && lassoPts > 0)) && !loading && (
           <div style={{ position: 'absolute', left: 10, bottom: 10, background: 'rgba(26,42,30,0.72)', color: '#fff', fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 999, pointerEvents: 'none' }}>
             {tool === 'wand' ? '✨ Cliquez sur la surface à changer'
               : tool === 'rect' ? '▭ Glissez sur la zone à changer'
+              : tool === 'lasso' ? (lassoPts === 0 ? '📍 Cliquez sur le 1er angle' : `📍 ${lassoPts} point${lassoPts > 1 ? 's' : ''} — cliquez sur le 1er point pour fermer`)
                 : tool === 'erase' ? '🧽 Effacez le trop-plein'
                   : '🖌️ Peignez la zone à changer'}
           </div>
@@ -514,6 +664,34 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
       )}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10 }}>
+        {tool === 'lasso' && (
+          <>
+            <span style={{ display: 'inline-flex', borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(48,64,53,0.15)' }}>
+              <button type="button" onClick={() => setLassoRetire(false)}
+                style={{ padding: '6px 10px', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', background: !lassoRetire ? accent : '#fff', color: !lassoRetire ? '#fff' : 'rgba(48,64,53,0.7)' }}>
+                + Ajouter
+              </button>
+              <button type="button" onClick={() => setLassoRetire(true)}
+                style={{ padding: '6px 10px', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', background: lassoRetire ? '#c0392b' : '#fff', color: lassoRetire ? '#fff' : 'rgba(48,64,53,0.7)' }}>
+                − Retirer
+              </button>
+            </span>
+            {lassoPts > 0 && (
+              <>
+                <button type="button" onClick={lassoFermer} disabled={lassoPts < 3}
+                  style={{ ...toolBtn(false), opacity: lassoPts < 3 ? 0.5 : 1 }}>
+                  <Check size={14} /> Fermer la forme
+                </button>
+                <button type="button" onClick={lassoRetirerPoint} style={toolBtn(false)}>
+                  <Undo2 size={14} /> Point précédent
+                </button>
+                <button type="button" onClick={lassoAnnulerTrace} style={toolBtn(false)}>
+                  <X size={14} /> Abandonner
+                </button>
+              </>
+            )}
+          </>
+        )}
         {(tool === 'draw' || tool === 'erase') && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: 'rgba(48,64,53,0.7)' }}>
             Taille
