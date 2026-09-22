@@ -22,6 +22,23 @@ export interface PlanningEvent {
   color: string;
   type?: string;
   weekOffset?: number;
+  /** Dossier client du RDV (rattachement réel, plus seulement dans le titre). */
+  dossierId?: string;
+  /** Adresse du RDV (sur place). */
+  location?: string;
+  /** Lien de visio (Google Meet, Zoom, Teams, WhatsApp…). */
+  visioUrl?: string;
+  /** Invitation envoyée au client (écrite par le serveur, lecture seule ici). */
+  invite?: PlanningInvite;
+}
+
+export interface PlanningInvite {
+  to: string;
+  name?: string;
+  titre: string;
+  sentAt: string;
+  sequence: number;
+  status: 'ENVOYEE' | 'ANNULEE';
 }
 
 export interface GestEvent {
@@ -101,20 +118,66 @@ function _planningTypeToEventType(t?: string): string {
   return 'AUTRE';
 }
 const _isLocalId = (id: string) => id.startsWith('gev') || id.startsWith('ev');
+/** Id de dossier connu du serveur (cuid) — les dossiers locaux (« d… ») n'y sont pas. */
+const _serverDossierId = (id?: string) => (id && /^c[a-z0-9]{20,}$/.test(id) ? id : undefined);
+/** Champs « lieu » envoyés en colonnes (flux agenda, rattachement au dossier). */
+function _placeFields(e: any, withProject = true): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (typeof e.location === 'string') out.location = e.location.trim().slice(0, 300);
+  const pid = withProject ? _serverDossierId(e.dossierId) : undefined;
+  if (pid) out.projectId = pid;
+  return out;
+}
+
+// Sauvegardes en cours par RDV : permet d'attendre que le serveur ait la
+// dernière version (id réel, horaire à jour) avant d'envoyer l'invitation.
+const _pending = new Map<string, Promise<unknown>>();
+const _realIds = new Map<string, string>();
+function _track(id: string, p: Promise<unknown>) {
+  const prev = _pending.get(id) ?? Promise.resolve();
+  const next = prev.then(() => p, () => p);
+  _pending.set(id, next);
+  void next.finally(() => { if (_pending.get(id) === next) _pending.delete(id); });
+}
+/**
+ * Attend la fin des sauvegardes d'un RDV et renvoie son id serveur
+ * (null si le RDV n'a pas pu être enregistré).
+ */
+export async function attendreRdvEnregistre(id: string): Promise<string | null> {
+  for (let i = 0; i < 4; i++) {
+    const p = _pending.get(id);
+    if (p) { try { await p; } catch { /* erreur gérée par l'appelant */ } }
+    const real = _realIds.get(id);
+    if (real && real !== id) { id = real; continue; }
+    if (!_pending.get(id)) break;
+  }
+  return _isLocalId(id) ? null : id;
+}
+
 async function _persistEvent(calendarType: 'GESTION' | 'PERSONAL', e: any, payload: Record<string, unknown>): Promise<string | null> {
   try {
     const { api } = await import('@/lib/api');
     const { startAt, endAt } = _eventDates(e);
-    const created: any = await api('/events', {
+    const post = (withProject: boolean) => api('/events', {
       method: 'POST',
       body: JSON.stringify({
         calendarType,
         type: _planningTypeToEventType(e.type),
         title: (e.client || e.title || e.type || 'Intervention').toString().slice(0, 200),
         startAt, endAt,
+        ...(calendarType === 'PERSONAL' ? _placeFields(e, withProject) : {}),
         description: JSON.stringify({ k: calendarType === 'GESTION' ? 'gest' : 'perso', ...payload }),
       }),
     });
+    let created: any;
+    try {
+      created = await post(true);
+    } catch (err) {
+      // Dossier refusé par le serveur (ex. supprimé entre-temps) : on enregistre
+      // le RDV sans rattachement plutôt que de le perdre.
+      if (calendarType !== 'PERSONAL' || !_placeFields(e).projectId) throw err;
+      created = await post(false);
+    }
     return created?.id ?? null;
   } catch { return null; }
 }
@@ -133,16 +196,34 @@ async function _updateEvent(
   try {
     const { api } = await import('@/lib/api');
     const { startAt, endAt } = _eventDates(e);
-    await api(`/events/${id}`, {
+    const put = (withProject: boolean) => api(`/events/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
         type: _planningTypeToEventType(e.type),
         title: (e.client || e.title || e.type || 'Intervention').toString().slice(0, 200),
         startAt, endAt,
+        ...(calendarType === 'PERSONAL' ? _placeFields(e, withProject) : {}),
         description: JSON.stringify({ k: calendarType === 'GESTION' ? 'gest' : 'perso', ...payload }),
       }),
     });
+    try {
+      await put(true);
+    } catch (err) {
+      if (calendarType !== 'PERSONAL' || !_placeFields(e).projectId) throw err;
+      await put(false);
+    }
   } catch { /* noop */ }
+}
+
+/** Champs d'un RDV du planning classique stockés dans la description JSON. */
+function _persoPayload(e: PlanningEvent): Record<string, unknown> {
+  return {
+    title: e.title, color: e.color, type: e.type,
+    duration: e.duration, durationMinutes: e.durationMinutes, startMinute: e.startMinute,
+    dossierId: e.dossierId || undefined,
+    location: e.location?.trim() || undefined,
+    visioUrl: e.visioUrl?.trim() || undefined,
+  };
 }
 
 /** Crée un type custom : clé = CUSTOM_<LABEL_EN_MAJUSCULES>_<8 car. aléatoires> (unique). */
@@ -204,10 +285,13 @@ interface PlanningState {
   customTypesUpdatedAt: number;
 
   // Planning actions
-  addPlanningEvent: (event: Omit<PlanningEvent, 'id'>) => void;
+  /** Ajoute un RDV ; renvoie son id provisoire (cf. attendreRdvEnregistre). */
+  addPlanningEvent: (event: Omit<PlanningEvent, 'id'>) => string;
   /** Met à jour un événement existant (drag&drop, édition). */
   updatePlanningEvent: (id: string, patch: Partial<Omit<PlanningEvent, 'id'>>) => void;
   deletePlanningEvent: (id: string) => void;
+  /** Met à jour localement l'état d'envoi (après l'appel serveur d'invitation). */
+  _setInvite: (id: string, invite: PlanningInvite) => void;
 
   // Gestion actions
   addGestEvent: (event: Omit<GestEvent, 'id'>) => void;
@@ -240,12 +324,28 @@ export const usePlanningStore = create<PlanningState>()(
         const tempId = 'ev' + uid();
         const newEvent = { ...event, id: tempId };
         set(s => ({ planningEvents: [...s.planningEvents, newEvent] }));
-        void _persistEvent('PERSONAL', newEvent, {
-          title: event.title, color: event.color, type: event.type,
-          duration: event.duration, durationMinutes: event.durationMinutes, startMinute: event.startMinute,
-        }).then((realId) => {
-          if (realId) set(s => ({ planningEvents: s.planningEvents.map(e => e.id === tempId ? { ...e, id: realId } : e) }));
+        const p = _persistEvent('PERSONAL', newEvent, _persoPayload(newEvent)).then((realId) => {
+          if (realId) {
+            _realIds.set(tempId, realId);
+            let current: PlanningEvent | undefined;
+            set(s => ({
+              planningEvents: s.planningEvents.map(e => {
+                if (e.id !== tempId) return e;
+                current = { ...e, id: realId };
+                return current;
+              }),
+            }));
+            // Modifié pendant l'enregistrement initial (ex. déplacé tout de suite) :
+            // la mise à jour avait été ignorée faute d'id serveur → on la rejoue.
+            if (current && JSON.stringify(_persoPayload(current)) + _eventDates(current).startAt
+                !== JSON.stringify(_persoPayload(newEvent)) + _eventDates(newEvent).startAt) {
+              const snapshot = current;
+              _track(realId, _updateEvent(realId, 'PERSONAL', snapshot, _persoPayload(snapshot)));
+            }
+          }
         });
+        _track(tempId, p);
+        return tempId;
       },
 
       updatePlanningEvent: (id, patch) => {
@@ -258,16 +358,17 @@ export const usePlanningStore = create<PlanningState>()(
           }),
         }));
         if (merged) {
-          void _updateEvent(id, 'PERSONAL', merged, {
-            title: merged.title, color: merged.color, type: merged.type,
-            duration: merged.duration, durationMinutes: merged.durationMinutes, startMinute: merged.startMinute,
-          });
+          _track(id, _updateEvent(id, 'PERSONAL', merged, _persoPayload(merged)));
         }
       },
 
       deletePlanningEvent: (id) => {
         set(s => ({ planningEvents: s.planningEvents.filter(e => e.id !== id) }));
         void _deleteEvent(id);
+      },
+
+      _setInvite: (id, invite) => {
+        set(s => ({ planningEvents: s.planningEvents.map(e => e.id === id ? { ...e, invite } : e) }));
       },
 
       addGestEvent: (event) => {

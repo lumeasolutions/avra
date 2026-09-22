@@ -6,7 +6,7 @@ import {
   Calendar, ChevronLeft, ChevronRight, Plus, X, Clock,
   AlertTriangle, Circle, CheckCircle, Zap, CalendarDays,
   MapPin, User, ArrowRight, TrendingUp, Target, Wrench,
-  Pencil, Trash2,
+  Pencil, Trash2, Video, Send, CalendarPlus, Copy, Check,
 } from 'lucide-react';
 import { usePlanningStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { useDemandesStore } from '@/store/useDemandesStore';
@@ -16,6 +16,13 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
 import { CustomInterventionTypeModal } from '@/components/planning/CustomInterventionTypeModal';
 import { backdropClose } from '@/lib/backdropClose';
+import { RdvLieuFields, type ModeLieu } from '@/components/planning/RdvLieuFields';
+import { EnvoyerInvitationModal } from '@/components/planning/EnvoyerInvitationModal';
+import { AbonnementAgendaModal } from '@/components/planning/AbonnementAgendaModal';
+import { infoVisio, lienVisioValide, normaliserLienVisio, visioImminente } from '@/lib/visio';
+import { changementPourClient, debutRdv, finRdv, objetClientParDefaut } from '@/lib/rdv';
+import type { PlanningEvent } from '@/store/usePlanningStore';
+import type { TypeEnvoi } from '@/lib/events-api';
 
 /* ── CONSTANTES ── */
 // Journée complète 0h–23h (façon Google Agenda) : la grille est scrollable et
@@ -260,7 +267,18 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
   const [weekOffset, setWeekOffset]   = useState(0);
   const [showAdd,    setShowAdd]      = useState(false);
   const [addCell,    setAddCell]      = useState<{ day: number; hour: number } | null>(null);
-  const [newEvent,   setNewEvent]     = useState({ type: 'CLIENT', dossierId: '', title: '', duration: 2, color: '' });
+  const [newEvent,   setNewEvent]     = useState({
+    type: 'CLIENT', dossierId: '', title: '', duration: 2, color: '',
+    lieuMode: 'aucun' as ModeLieu, location: '', visioUrl: '',
+  });
+  // Après « Planifier » : ouvrir directement l'envoi au client (e-mail + agenda).
+  const [sendAfterSave, setSendAfterSave] = useState(false);
+  // Envoi au client : invitation, mise à jour ou annulation (retour cofondatrice 22/09/2026).
+  const [inviteModal, setInviteModal] = useState<{
+    event: PlanningEvent; kind: TypeEnvoi; deleteAfter?: boolean;
+  } | null>(null);
+  const [showAbonnement, setShowAbonnement] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   // Doublon : ajouter aussi ce RDV au planning gestion (copie indépendante).
   const [alsoGestion, setAlsoGestion] = useState(false);
   const [modalDate,  setModalDate]    = useState('');  // 'YYYY-MM-DD'
@@ -415,8 +433,12 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
    * exact du clic plutôt que pile à l'heure). */
   const openAdd = (day: number, hour: number, minute: number = 0) => {
     setAddCell({ day, hour });
-    setNewEvent({ type: 'CLIENT', dossierId: dossiers[0]?.id ?? '', title: '', duration: 2, color: '' });
+    setNewEvent({
+      type: 'CLIENT', dossierId: dossiers[0]?.id ?? '', title: '', duration: 2, color: '',
+      lieuMode: 'aucun', location: '', visioUrl: '',
+    });
     setAlsoGestion(false);
+    setSendAfterSave(false);
     const cellDate = getWeekDates(weekOffset)[day - 1];
     const yyyy = cellDate.getFullYear();
     const mm = String(cellDate.getMonth() + 1).padStart(2, '0');
@@ -446,7 +468,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
     const diffWeeks = Math.round((chosenMon.getTime() - baseMon.getTime()) / (7 * 86400000));
     const dayOfWeek = ((chosen.getDay() + 6) % 7) + 1; // 1=lun...7=dim
 
-    addPlanningEvent({
+    const tempId = addPlanningEvent({
       day: dayOfWeek,
       startHour: modalHour,
       startMinute: modalMinute,
@@ -457,6 +479,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
       color: newEvent.color || rdvType?.color || '#5b9bd5',
       type: newEvent.type,
       weekOffset: diffWeeks,
+      ...lieuDuFormulaire(),
     });
 
     // Doublon planning gestion : copie indépendante du même créneau. Le
@@ -481,7 +504,81 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
     setShowAdd(false);
     setEditingEventId(null);
     setAlsoGestion(false);
+    if (sendAfterSave) {
+      const created = usePlanningStore.getState().planningEvents.find(e => e.id === tempId);
+      if (created) setInviteModal({ event: created, kind: 'invite' });
+    }
+    setSendAfterSave(false);
   };
+
+  /** Lieu saisi dans la fenêtre (adresse OU lien visio, jamais les deux). */
+  const lieuDuFormulaire = (): Pick<PlanningEvent, 'dossierId' | 'location' | 'visioUrl'> => ({
+    dossierId: newEvent.dossierId || undefined,
+    location: newEvent.lieuMode === 'place' ? (newEvent.location.trim() || undefined) : undefined,
+    visioUrl: newEvent.lieuMode === 'visio' && lienVisioValide(newEvent.visioUrl)
+      ? normaliserLienVisio(newEvent.visioUrl) : undefined,
+  });
+  const lienVisioInvalide = newEvent.lieuMode === 'visio' && !lienVisioValide(newEvent.visioUrl);
+
+  /** Valeurs proposées pour l'e-mail au client, reprises du dossier du RDV. */
+  const defautsInvitation = (ev: PlanningEvent) => {
+    const d = allDossiers.find(x => x.id === ev.dossierId);
+    const t = rdvTypes.find(r => r.key === ev.type) ?? RDV_TYPES.find(r => r.key === ev.type);
+    return {
+      to: d?.email ?? '',
+      name: d ? [('firstName' in d ? d.firstName : '') || '', d.name].filter(Boolean).join(' ') : '',
+      titre: objetClientParDefaut(t?.label),
+    };
+  };
+
+  /** Suppression d'un RDV : si le client a été invité, proposer de le prévenir. */
+  const demanderSuppression = (ev: PlanningEvent) => {
+    setPopoverEventId(null);
+    if (ev.invite?.status === 'ENVOYEE') {
+      setInviteModal({ event: ev, kind: 'cancel', deleteAfter: true });
+      return;
+    }
+    deletePlanningEvent(ev.id);
+  };
+
+  // Ouverture depuis un dossier : /planning?nouveau=1&dossier=<id>, ou ?voir=<idRdv>.
+  const queryHandledRef = useRef(false);
+  useEffect(() => {
+    if (queryHandledRef.current || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const voir = params.get('voir');
+    if (params.get('nouveau') === '1') {
+      queryHandledRef.current = true;
+      const now = new Date();
+      const hour = Math.min(22, now.getHours() + 1);
+      const day = ((now.getDay() + 6) % 7) + 1;
+      setWeekOffset(0);
+      openAdd(day, hour, 0);
+      const dos = params.get('dossier');
+      if (dos) setNewEvent(n => ({ ...n, dossierId: dos }));
+      window.history.replaceState(null, '', '/planning');
+    } else if (voir) {
+      const ev = planningEvents.find(e => e.id === voir);
+      if (!ev) return; // pas encore synchronisé : on réessaie au prochain rendu
+      queryHandledRef.current = true;
+      setWeekOffset(ev.weekOffset ?? 0);
+      setPopoverPosition({ x: Math.max(16, window.innerWidth / 2 - 140), y: 140 });
+      setPopoverEventId(ev.id);
+      window.history.replaceState(null, '', '/planning');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planningEvents]);
+
+  /** Visio qui commence dans moins de 15 min ou en cours (bannière « Rejoindre »). */
+  const visioAVenir = useMemo(() => {
+    void nowMins; // recalcul chaque minute
+    const now = new Date();
+    return planningEvents
+      .filter(e => infoVisio(e.visioUrl))
+      .map(e => ({ ev: e, etat: visioImminente(debutRdv(e), finRdv(e), now), start: debutRdv(e) }))
+      .filter(x => x.etat)
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+  }, [planningEvents, nowMins]);
 
   /* Édition d'un événement existant (réutilise la modale showAdd) */
   const openEdit = (eventId: string) => {
@@ -490,11 +587,15 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
     setEditingEventId(eventId);
     setNewEvent({
       type: ev.type ?? 'CLIENT',
-      dossierId: '',
+      dossierId: ev.dossierId ?? '',
       title: ev.title ?? '',
       duration: ev.duration ?? 2,
       color: ev.color ?? '',
+      lieuMode: ev.visioUrl ? 'visio' : ev.location ? 'place' : 'aucun',
+      location: ev.location ?? '',
+      visioUrl: ev.visioUrl ?? '',
     });
+    setSendAfterSave(false);
     // Calcule la date réelle de l'event (jour + weekOffset)
     const eventDates = getWeekDates(ev.weekOffset ?? 0);
     const cellDate = eventDates[(ev.day ?? 1) - 1];
@@ -525,6 +626,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
     baseMon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
     const diffWeeks = Math.round((chosenMon.getTime() - baseMon.getTime()) / (7 * 86400000));
     const dayOfWeek = ((chosen.getDay() + 6) % 7) + 1;
+    const avant = planningEvents.find(e => e.id === editingEventId);
     updatePlanningEvent(editingEventId, {
       day: dayOfWeek,
       startHour: modalHour,
@@ -536,10 +638,17 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
       color: newEvent.color || rdvType?.color || '#5b9bd5',
       type: newEvent.type,
       weekOffset: diffWeeks,
+      ...lieuDuFormulaire(),
     });
     setWeekOffset(diffWeeks);
     setShowAdd(false);
     setEditingEventId(null);
+    // Le client avait reçu l'invitation et l'horaire / le lieu / la visio ont
+    // changé → proposer de lui envoyer la mise à jour (remplace le RDV dans son agenda).
+    const apres = usePlanningStore.getState().planningEvents.find(e => e.id === editingEventId);
+    if (avant?.invite?.status === 'ENVOYEE' && apres && changementPourClient(avant, apres)) {
+      setInviteModal({ event: apres, kind: 'update' });
+    }
   };
 
   /* Glissement pointer-based : calcule le créneau cible (jour + minute depuis
@@ -613,6 +722,13 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
         title="Planning"
         actions={
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            <button
+              onClick={() => setShowAbonnement(true)}
+              title="Voir le planning dans Google Agenda, Outlook ou l'iPhone"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white' }}
+            >
+              <CalendarPlus className="h-3.5 w-3.5" /> Mon agenda
+            </button>
             <button
               onClick={() => setWeekOffset(w => w - 1)}
               style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
@@ -774,6 +890,31 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
           </div>
         }
       />
+
+      {/* ── BANNIÈRE : visio qui commence bientôt / en cours → Rejoindre ── */}
+      {visioAVenir.map(({ ev, etat, start }) => {
+        const vis = infoVisio(ev.visioUrl)!;
+        const mins = Math.max(0, Math.round((start.getTime() - Date.now()) / 60000));
+        return (
+          <div key={ev.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shrink-0"><Video className="h-4 w-4" /></span>
+            <div className="flex-1 min-w-[180px]">
+              <p className="text-sm font-bold text-[#304035]">{ev.title || 'RDV en visio'}</p>
+              <p className="text-xs text-emerald-800">
+                {etat === 'en-cours' ? 'En cours' : mins <= 1 ? 'Commence maintenant' : `Commence dans ${mins} min`} · {vis.provider}
+              </p>
+            </div>
+            <a
+              href={vis.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-bold text-white"
+            >
+              <Video className="h-4 w-4" /> Rejoindre
+            </a>
+          </div>
+        );
+      })}
 
       {/* ── BANNER : Prochaines interventions intervenants (cette semaine) ── */}
       {upcomingInterventions.length > 0 && (
@@ -1022,7 +1163,10 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
                           >
                             <div className="flex items-start justify-between">
                               <div className="min-w-0">
-                                <p className="text-white text-xs font-bold truncate leading-tight">{ev.title}</p>
+                                <p className="text-white text-xs font-bold truncate leading-tight">
+                                  {ev.visioUrl && <Video className="inline h-3 w-3 mr-1 -mt-0.5" aria-label="Visio" />}
+                                  {ev.title}
+                                </p>
                                 <p className="text-white/70 text-[10px] mt-0.5">
                                   {(() => {
                                     const startMin = getStartMinute(ev);
@@ -1199,13 +1343,13 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
         const ev = planningEvents.find(e => e.id === popoverEventId);
         if (!ev) return null;
         // Calcule la position en évitant de sortir de l'écran
-        const popoverWidth = 240;
+        const popoverWidth = 290;
         const screenW = typeof window !== 'undefined' ? window.innerWidth : 1920;
         const screenH = typeof window !== 'undefined' ? window.innerHeight : 1080;
         let left = popoverPosition.x;
         let top = popoverPosition.y;
         if (left + popoverWidth > screenW - 16) left = popoverPosition.x - popoverWidth - 32;
-        if (top + 220 > screenH - 16) top = Math.max(16, screenH - 240);
+        if (top + 340 > screenH - 16) top = Math.max(16, screenH - 360);
         return (
           <div
             className="plan-popover fixed z-[60]"
@@ -1246,6 +1390,70 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
                     <X className="h-4 w-4" />
                   </button>
                 </div>
+                {/* Lieu / visio / dossier / invitation */}
+                {(() => {
+                  const vis = infoVisio(ev.visioUrl);
+                  const dos = allDossiers.find(d => d.id === ev.dossierId);
+                  return (
+                    <div className="space-y-2 mb-3">
+                      {vis && (
+                        <div className="flex gap-1.5">
+                          <a
+                            href={vis.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 transition-colors"
+                          >
+                            <Video className="h-3.5 w-3.5" /> Rejoindre ({vis.provider})
+                          </a>
+                          <button
+                            type="button"
+                            title="Copier le lien de la visio"
+                            onClick={async () => {
+                              try { await navigator.clipboard.writeText(vis.url); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 1500); } catch { /* ignore */ }
+                            }}
+                            className="rounded-xl border border-[#304035]/15 px-2.5 text-[#304035]/60 hover:bg-[#f5eee8]"
+                          >
+                            {linkCopied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
+                      )}
+                      {!vis && ev.location && (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.location)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-start gap-1.5 text-xs text-[#304035]/70 hover:text-[#304035]"
+                        >
+                          <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" /> <span className="break-words">{ev.location}</span>
+                        </a>
+                      )}
+                      {dos && (
+                        <Link href={`/dossiers/${dos.id}`} className="flex items-center gap-1.5 text-xs text-[#304035]/60 hover:text-[#304035]">
+                          <User className="h-3.5 w-3.5" /> Dossier {dos.name}{'firstName' in dos && dos.firstName ? ` ${dos.firstName}` : ''}
+                        </Link>
+                      )}
+                      {ev.invite ? (
+                        <p className={`text-[11px] leading-snug ${ev.invite.status === 'ANNULEE' ? 'text-red-600' : 'text-emerald-700'}`}>
+                          {ev.invite.status === 'ANNULEE' ? '✕ Annulation envoyée à ' : '✓ Invitation envoyée à '}
+                          <b>{ev.invite.to}</b> le {new Date(ev.invite.sentAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                          {ev.invite.status === 'ENVOYEE' && ev.invite.sequence > 0 ? ' (mise à jour)' : ''}
+                        </p>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPopoverEventId(null);
+                          setInviteModal({ event: ev, kind: ev.invite?.status === 'ENVOYEE' ? 'update' : 'invite' });
+                        }}
+                        className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-[#304035]/15 py-2 text-xs font-bold text-[#304035] hover:bg-[#f5eee8] transition-colors"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        {ev.invite?.status === 'ENVOYEE' ? 'Renvoyer au client' : 'Envoyer au client (e-mail + agenda)'}
+                      </button>
+                    </div>
+                  );
+                })()}
                 <div className="flex gap-2">
                   <button
                     onClick={() => openEdit(ev.id)}
@@ -1255,10 +1463,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
                     Modifier
                   </button>
                   <button
-                    onClick={() => {
-                      deletePlanningEvent(ev.id);
-                      setPopoverEventId(null);
-                    }}
+                    onClick={() => demanderSuppression(ev)}
                     className="flex-1 px-3 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 border border-red-200 transition-colors flex items-center justify-center gap-1.5"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -1553,6 +1758,30 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
                 />
               </div>
 
+              {/* Lieu : sur place ou visio (Google Meet, Zoom, Teams…) */}
+              {(() => {
+                const d = allDossiers.find(x => x.id === newEvent.dossierId);
+                const adrClient = d ? [d.address, d.postalCode].filter(Boolean).join(', ') : '';
+                const adrChantier = d?.siteAddress ?? '';
+                return (
+                  <RdvLieuFields
+                    mode={newEvent.lieuMode}
+                    location={newEvent.location}
+                    visioUrl={newEvent.visioUrl}
+                    onChange={(patch) => setNewEvent(n => ({
+                      ...n,
+                      ...(patch.mode !== undefined ? { lieuMode: patch.mode } : {}),
+                      ...(patch.location !== undefined ? { location: patch.location } : {}),
+                      ...(patch.visioUrl !== undefined ? { visioUrl: patch.visioUrl } : {}),
+                    }))}
+                    adressesDossier={[
+                      { label: 'Adresse client', value: adrClient },
+                      ...(adrChantier && adrChantier !== adrClient ? [{ label: 'Adresse chantier', value: adrChantier }] : []),
+                    ]}
+                  />
+                );
+              })()}
+
               {/* Durée */}
               <div>
                 <label className="text-xs font-bold text-[#304035]/50 uppercase tracking-wider block mb-2">Durée</label>
@@ -1606,6 +1835,46 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
                 </button>
               )}
 
+              {/* Envoi au client après l'enregistrement (création) */}
+              {!editingEventId && (
+                <button
+                  type="button"
+                  onClick={() => setSendAfterSave(v => !v)}
+                  className="w-full flex items-center gap-3 rounded-2xl border-2 px-3 py-3 text-left transition-all"
+                  style={{
+                    borderColor: sendAfterSave ? '#059669' : 'rgba(48,64,53,0.15)',
+                    background: sendAfterSave ? 'rgba(16,185,129,0.06)' : 'transparent',
+                  }}
+                  aria-pressed={sendAfterSave}
+                >
+                  <span
+                    className="flex items-center justify-center rounded-md shrink-0"
+                    style={{
+                      width: 20, height: 20,
+                      border: `2px solid ${sendAfterSave ? '#059669' : 'rgba(48,64,53,0.3)'}`,
+                      background: sendAfterSave ? '#059669' : 'transparent',
+                      color: '#fff', fontSize: 13, fontWeight: 700,
+                    }}
+                  >
+                    {sendAfterSave ? '✓' : ''}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-[#304035]">Envoyer le RDV au client</span>
+                    <span className="block text-[11px] text-[#304035]/50 leading-snug">
+                      E-mail à votre nom avec l'invitation agenda{newEvent.lieuMode === 'visio' ? ' et le bouton « Rejoindre la visio »' : ''}. Vous relisez avant l'envoi.
+                    </span>
+                  </span>
+                </button>
+              )}
+              {editingEventId && (() => {
+                const ev = planningEvents.find(e => e.id === editingEventId);
+                return ev?.invite?.status === 'ENVOYEE' ? (
+                  <p className="text-[11px] text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">
+                    Invitation envoyée à <b>{ev.invite.to}</b> : si vous changez l'horaire, la durée ou le lieu, on vous proposera de lui envoyer la mise à jour.
+                  </p>
+                ) : null;
+              })()}
+
               {/* Boutons */}
               <div className="flex gap-3 pt-1">
                 <button
@@ -1616,7 +1885,8 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
                 </button>
                 <button
                   onClick={editingEventId ? handleSaveEdit : handleAdd}
-                  disabled={(!editingEventId && !newEvent.dossierId) || !modalDate}
+                  disabled={(!editingEventId && !newEvent.dossierId) || !modalDate || lienVisioInvalide}
+                  title={lienVisioInvalide ? 'Collez un lien de visio valide (ou choisissez « Non précisé »)' : undefined}
                   className="flex-2 flex-grow py-3 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-40"
                   style={{
                     background: 'linear-gradient(135deg, #3d5244, #304035)',
@@ -1630,6 +1900,19 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
           </div>
         </div>
       )}
+
+      {inviteModal && (
+        <EnvoyerInvitationModal
+          event={inviteModal.event}
+          kind={inviteModal.kind}
+          defaults={defautsInvitation(inviteModal.event)}
+          onClose={() => setInviteModal(null)}
+          onSent={inviteModal.deleteAfter ? () => deletePlanningEvent(inviteModal.event.id) : undefined}
+          onSkip={inviteModal.deleteAfter ? () => { deletePlanningEvent(inviteModal.event.id); setInviteModal(null); } : undefined}
+        />
+      )}
+
+      {showAbonnement && <AbonnementAgendaModal onClose={() => setShowAbonnement(false)} />}
 
       {showCustomRdvModal && (
         <CustomInterventionTypeModal

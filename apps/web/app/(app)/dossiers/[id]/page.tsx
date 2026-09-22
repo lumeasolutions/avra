@@ -53,6 +53,7 @@ const SHOW_COMPARE_TOOL = false;
 import { ModalDevis } from '@/app/(app)/facturation/components/ModalDevis';
 import { DevisDownload, adresseDossier } from '@/app/(app)/facturation/components/DevisDownload';
 import { DEVIS_STATUS_CFG } from '@/app/(app)/facturation/lib/utils';
+import { DossierRendezVous } from '@/components/dossiers/DossierRendezVous';
 import type { Devis } from '@/store';
 import { DemandesPanel } from '@/components/demandes/DemandesPanel';
 
@@ -1428,6 +1429,9 @@ export default function DossierDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Rendez-vous du dossier (planning) : visio « Rejoindre », invitation client. */}
+          <DossierRendezVous dossierId={id} canEdit={canEditThis} />
 
           {/* Section devis du dossier : modifier + télécharger PDF / Word / Excel. */}
           {devisDossier.length > 0 && (

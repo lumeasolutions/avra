@@ -594,8 +594,17 @@ export function useDataSync() {
 
   async function syncEvents() {
     try {
-      const response = await api<any>('/events');
-      const data: any[] = Array.isArray(response) ? response : (response?.data ?? []);
+      // Toutes les pages : l'API pagine (100 par défaut) et trie du plus ancien
+      // au plus récent — sans ça, au-delà de 100 RDV les plus récents
+      // disparaissaient du planning au rechargement.
+      const data: any[] = [];
+      for (let page = 1; page <= 40; page++) {
+        const response = await api<any>(`/events?page=${page}&pageSize=500`);
+        const rows: any[] = Array.isArray(response) ? response : (response?.data ?? []);
+        data.push(...rows);
+        const total = Array.isArray(response) ? rows.length : Number(response?.total ?? rows.length);
+        if (Array.isArray(response) || rows.length < 500 || data.length >= total) break;
+      }
 
       const store = usePlanningStore.getState();
       const currentEventIds = new Set(store.planningEvents.map((e) => e.id));
@@ -622,6 +631,10 @@ export function useDataSync() {
           color: r.extra.color || (event.calendarType === 'GESTION' ? '#e8b86d' : '#5b9bd5'),
           type: r.extra.type || event.type || 'AUTRE',
           weekOffset: r.weekOffset,
+          dossierId: r.extra.dossierId || event.project?.id || undefined,
+          location: r.extra.location || event.location || undefined,
+          visioUrl: r.extra.visioUrl || undefined,
+          invite: r.extra.invite && typeof r.extra.invite === 'object' ? r.extra.invite : undefined,
         };
       });
       const mappedGest = gestEvents.map((event) => {

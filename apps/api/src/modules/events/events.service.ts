@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EventCalendarType } from '../../prisma-enums';
+import { parseEventJson } from './event-invite.service';
 
 @Injectable()
 export class EventsService {
@@ -45,6 +46,8 @@ export class EventsService {
   }
 
   async findAll(workspaceId: string, calendarType?: EventCalendarType, from?: Date, to?: Date, page = 1, pageSize = 100) {
+    page = Math.max(1, Math.floor(page) || 1);
+    pageSize = Math.min(500, Math.max(1, Math.floor(pageSize) || 100));
     // OPTIMISATION: Ajouter pagination et filtres de date appropriés
     const where: { workspaceId: string; calendarType?: EventCalendarType; startAt?: object } = {
       workspaceId,
@@ -121,11 +124,44 @@ export class EventsService {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.event.findFirst({ where: { id, workspaceId } });
       if (!existing) return null;
+      // L'état d'envoi au client (`invite`) est écrit par le serveur seul
+      // (EventInviteService) : le front renvoie la description sans lui lors
+      // d'un déplacement / d'une édition → on le conserve.
+      const data = { ...dto };
+      if (typeof dto.description === 'string') {
+        const prev = parseEventJson(existing.description);
+        const next = parseEventJson(dto.description);
+        if (prev.invite && !next.invite && Object.keys(next).length > 0) {
+          data.description = JSON.stringify({ ...next, invite: prev.invite });
+        }
+      }
       return tx.event.update({
         where: { id },
-        data: dto,
+        data,
         select: { id: true, title: true, startAt: true, updatedAt: true },
       });
+    });
+  }
+
+  /**
+   * RDV servis dans le flux d'abonnement agenda (Google / Outlook / iPhone) :
+   * planning classique (+ planning gestion si demandé), de J-90 à J+400.
+   */
+  async forCalendarFeed(workspaceIds: string[], withGestion: boolean) {
+    const now = Date.now();
+    return this.prisma.event.findMany({
+      where: {
+        workspaceId: { in: workspaceIds },
+        calendarType: withGestion ? undefined : EventCalendarType.PERSONAL,
+        startAt: { gte: new Date(now - 90 * 86400000), lte: new Date(now + 400 * 86400000) },
+      },
+      select: {
+        id: true, title: true, calendarType: true, description: true,
+        startAt: true, endAt: true, location: true,
+        project: { select: { id: true, name: true } },
+      },
+      orderBy: { startAt: 'asc' },
+      take: 3000,
     });
   }
 
