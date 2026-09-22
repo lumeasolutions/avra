@@ -1359,7 +1359,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
         if (top + 340 > screenH - 16) top = Math.max(16, screenH - 360);
         return (
           <div
-            className="plan-popover fixed z-[60]"
+            className="plan-popover fixed z-[240]"
             style={{ left, top, width: popoverWidth }}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
@@ -1486,7 +1486,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
       {/* ── MODAL AJOUT ── */}
       {showAdd && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto py-6"
+          className="fixed inset-0 z-[250] flex items-center justify-center overflow-y-auto py-6"
           style={{ background: 'rgba(30,30,30,0.45)', backdropFilter: 'blur(4px)' }}
           {...backdropClose(() => setShowAdd(false))}
         >
