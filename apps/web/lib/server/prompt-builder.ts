@@ -790,7 +790,31 @@ export function buildCountertopRegionPrompt(params: ColoristParams): string {
  * « Editing best practices ». /change-textures préserve déjà la géométrie : on
  * n'empile donc pas les lourdes contraintes anti-déformation du coloriste render.
  */
-export function buildTextureEditPrompt(params: ColoristParams): string {
+/**
+ * Phrase de PRÉSERVATION d'un élément que l'utilisateur n'a PAS demandé à changer.
+ *
+ * 23/09/2026 — retour cofondatrice : « le module changer les couleurs modifie
+ * toutes les poignées ». Cause réelle trouvée en relisant les prompts envoyés :
+ * l'application demandait au moteur de changer les TROIS éléments à chaque fois,
+ * avec les valeurs par défaut de l'interface. Sur un meuble sans poignée, la
+ * consigne « change the handles to golden brass » a donc fait INVENTER des
+ * poignées dorées ; sur une cuisine à plan noir, « change the countertop to
+ * cream quartz » l'a repeint en crème. Le moteur obéissait : c'est la consigne
+ * qui était fausse. On nomme désormais explicitement ce qui doit rester intact.
+ */
+const GARDE_ELEMENT: Record<ElementColoriste, string> = {
+  facade: 'Keep the cabinet fronts and drawer fronts exactly as they are: same color, same material, same finish.',
+  poignee: 'Keep the handles and knobs exactly as they are: same model, same material, same finish, same position'
+    + ' — and if the furniture has no visible handle, do not add any.',
+  plan: 'Keep the countertop and worktop exactly as they are: same color, same material, same finish.',
+};
+
+const TOUS_ELEMENTS: ElementColoriste[] = ['facade', 'poignee', 'plan'];
+
+export function buildTextureEditPrompt(
+  params: ColoristParams,
+  elements: ElementColoriste[] = ['facade', 'poignee', 'plan'],
+): string {
   const facadeName   = params.facadeMaterial ?? hexToName(params.facadeHex);
   const facadeFinish = FINISH_BLOCKS[params.facadeFinish];
   const handle       = params.handleMaterial ?? `${hexToName(params.poigneeHex)} metal`;
@@ -798,11 +822,22 @@ export function buildTextureEditPrompt(params: ColoristParams): string {
   const counter      = params.countertopMaterial ?? `${hexToName(params.planHex)}`;
   const counterFinish = params.planFinish ? `, ${FINISH_BLOCKS[params.planFinish]}` : '';
 
+  // 23/09/2026 — même correctif que buildColoristeEditInstruction : on ne
+  // demande QUE les éléments choisis, et on protège explicitement les autres.
+  // Avant, les trois partaient toujours : des poignées étaient inventées sur un
+  // meuble qui n'en a pas, et le plan de travail repeint sans qu'on l'ait voulu.
+  const actifs = elements.length ? elements : (['facade'] as ElementColoriste[]);
+  const demandes: Record<ElementColoriste, string> = {
+    facade: `Replace the kitchen cabinet fronts material with a solid uniform ${facadeName}, ${facadeFinish}.`,
+    poignee: `Replace the cabinet door handles and knobs with ${handle}${handleFinish}.`,
+    plan: `Replace the countertop and worktop material with ${counter}${counterFinish}.`,
+  };
+
   return [
-    `Replace the kitchen cabinet fronts material with a solid uniform ${facadeName}, ${facadeFinish}.`,
-    `Replace the cabinet door handles and knobs with ${handle}${handleFinish}.`,
-    `Replace the countertop and worktop material with ${counter}${counterFinish}.`,
+    ...actifs.map((el) => demandes[el]),
+    ...TOUS_ELEMENTS.filter((el) => !actifs.includes(el)).map((el) => GARDE_ELEMENT[el]),
     `Keep the exact same layout, geometry, shapes, positions and camera angle.`,
+    `Keep the exact number and layout of doors, drawers, panel lines, handles and knobs: do not add, remove, move, resize or redraw any of them.`,
     `Keep the existing lighting of the room unchanged; do not add spotlights, LED strips, lamps or new light fixtures.`,
     `Do not add or remove any object, appliance or accessory. Keep everything else unchanged.`,
   ].join(' ');
@@ -1007,27 +1042,6 @@ function phraseElement(params: ColoristParams, el: ElementColoriste, texture: 'a
   const matiere = params.countertopMaterial ?? nomCouleurFiable(hex);
   return `Change ${cible} to ${matiere}${suffixe}`;
 }
-
-/**
- * Phrase de PRÉSERVATION d'un élément que l'utilisateur n'a PAS demandé à changer.
- *
- * 23/09/2026 — retour cofondatrice : « le module changer les couleurs modifie
- * toutes les poignées ». Cause réelle trouvée en relisant les prompts envoyés :
- * l'application demandait au moteur de changer les TROIS éléments à chaque fois,
- * avec les valeurs par défaut de l'interface. Sur un meuble sans poignée, la
- * consigne « change the handles to golden brass » a donc fait INVENTER des
- * poignées dorées ; sur une cuisine à plan noir, « change the countertop to
- * cream quartz » l'a repeint en crème. Le moteur obéissait : c'est la consigne
- * qui était fausse. On nomme désormais explicitement ce qui doit rester intact.
- */
-const GARDE_ELEMENT: Record<ElementColoriste, string> = {
-  facade: 'Keep the cabinet fronts and drawer fronts exactly as they are: same color, same material, same finish.',
-  poignee: 'Keep the handles and knobs exactly as they are: same model, same material, same finish, same position'
-    + ' — and if the furniture has no visible handle, do not add any.',
-  plan: 'Keep the countertop and worktop exactly as they are: same color, same material, same finish.',
-};
-
-const TOUS_ELEMENTS: ElementColoriste[] = ['facade', 'poignee', 'plan'];
 
 /**
  * Consigne /edit-by-prompt du Coloriste.

@@ -367,6 +367,8 @@ async function callColoristeTestAPI(params: {
   poigneeFinish?: FinishType; planFinish?: FinishType;
   facadeMaterial?: string; handleMaterial?: string; countertopMaterial?: string;
   sourceImageDataUrl?: string; referenceImageDataUrl?: string; maskUrl?: string; sourceUrl?: string; maskDataUrl?: string; projectId?: string | null;
+  /** Éléments RÉELLEMENT à modifier (23/09/2026) — les autres sont préservés. */
+  elements?: Array<'facade' | 'poignee' | 'plan'>;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste-test', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params),
@@ -1480,6 +1482,14 @@ export default function IaStudioPage() {
   const [modifElems, setModifElems] = useState<{ facade: boolean; poignee: boolean; plan: boolean }>(
     { facade: true, poignee: false, plan: false },
   );
+  /**
+   * Zone à recoloriser (23/09/2026). Facultative mais RECOMMANDÉE : avec une
+   * zone, le résultat passe par le chemin masqué — tout ce qui est en dehors
+   * est recollé pixel pour pixel, donc la géométrie ne peut plus bouger.
+   * Sans zone, le moteur édite l'image entière et peut redessiner des portes
+   * ou des tiroirs (constaté sur un meuble 3D le 23/09).
+   */
+  const [colorArchClick, setColorArchClick] = useState<ColoristeTestSelectResult|null>(null);
   // Finitions optionnelles par élément (poignées + plan travail). Null = pas
   // de finition spécifique (on garde le matériau standard du preset).
   const [poigneeFinish, setPoigneeFinish] = useState<FinishType | null>(null);
@@ -1937,6 +1947,46 @@ export default function IaStudioPage() {
       let sourceImageDataUrl: string;
       try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 1280); }
       catch { setColorArchError('Impossible de lire la photo. Réessayez avec un autre fichier.'); setColorArchLoading(false); return; }
+
+      // ── Zone sélectionnée → chemin MASQUÉ (géométrie garantie) ─────────────
+      // Tout ce qui est en dehors du masque est recollé pixel pour pixel côté
+      // serveur : le moteur ne peut plus redessiner portes, tiroirs ni poignées.
+      if (colorArchClick) {
+        const masque = await callColoristeTestAPI({
+          facadeHex:          preset?.facade  ?? facadeCol,
+          poigneeHex:         preset?.poignee ?? poigneeCol,
+          planHex:            preset?.plan    ?? planCol,
+          facadeFinish:       preset?.finish  ?? facadeFinish,
+          poigneeFinish:      poigneeFinish ?? undefined,
+          planFinish:         planFinish ?? undefined,
+          facadeMaterial:     facadeMat,
+          handleMaterial:     poigneeMat,
+          countertopMaterial: planMat,
+          lightingStyle:      colorLight,
+          // Mode couleurs : aucune image de référence (sinon le moteur copie une matière).
+          sourceImageDataUrl: colorArchClick.mode === 'manual' ? sourceImageDataUrl : undefined,
+          maskUrl:            colorArchClick.mode === 'auto' ? colorArchClick.maskUrl : undefined,
+          sourceUrl:          colorArchClick.mode === 'auto' ? colorArchClick.sourceUrl : undefined,
+          maskDataUrl:        colorArchClick.mode === 'manual' ? colorArchClick.maskDataUrl : undefined,
+          elements:           elemsAModifier,
+          projectId:          dossierId || null,
+        });
+        if (masque.error) { setColorArchError(masque.error); setColorArchLoading(false); return; }
+        setIaHistoryRefresh(n => n + 1);
+        setColorArchResult({
+          id: uid(), module: 'coloriste-archi',
+          prompt: elemsAModifier.map(e => e === 'facade' ? `Façades ${facadeCol} ${facadeFinish}`
+            : e === 'poignee' ? `Poignées ${poigneeCol}` : `Plan ${planCol}`).join(' · ') + ' · zone sélectionnée',
+          dossier: dossierName,
+          ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
+          color: preset?.facade ?? facadeCol,
+          imageUrl: masque.imageUrl ?? undefined,
+          imageUrls: masque.imageUrls ?? (masque.imageUrl ? [masque.imageUrl] : []),
+        });
+        setColorArchLoading(false);
+        return;
+      }
+
       const result = await callColoristAPI({
         facadeHex:          preset?.facade   ?? facadeCol,
         poigneeHex:         preset?.poignee  ?? poigneeCol,
@@ -3894,6 +3944,23 @@ export default function IaStudioPage() {
                 )}
               </div>
             </div>
+
+            {/* Zone à recoloriser (23/09/2026) — facultative mais recommandée :
+                elle garantit que la géométrie ne bouge pas (recollage pixel). */}
+            {photoFile && (
+              <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Paintbrush className="h-4 w-4 text-[#2f9e8f]" />
+                  <p className="font-bold text-[#304035]">Zone à recoloriser <span className="ml-1 rounded-full bg-[#304035]/6 text-[#304035]/55 text-[9px] font-bold px-2 py-0.5 align-middle">RECOMMANDÉ</span></p>
+                </div>
+                <p className="text-[11px] text-[#304035]/55 leading-snug">
+                  Sélectionnez les façades à repeindre : tout ce qui est en dehors est <b>recollé à l'identique</b>,
+                  l'IA ne peut plus redessiner une porte ou un tiroir. Sans sélection, elle retravaille toute la photo
+                  et peut modifier la forme des meubles.
+                </p>
+                <ColoristeTestClickSelect file={photoFile} accent="#2f9e8f" onChange={setColorArchClick} />
+              </div>
+            )}
 
             {/* Palettes + couleurs */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">

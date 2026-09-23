@@ -49,7 +49,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { buildTextureEditPrompt, type ColoristParams } from '@/lib/server/prompt-builder';
+import { buildTextureEditPrompt, type ColoristParams, type ElementColoriste } from '@/lib/server/prompt-builder';
 import { changeTextures, editByPrompt, isArchitectEnabled } from '@/lib/server/myarchitect-api';
 import {
   fetchImageBuffer,
@@ -174,6 +174,13 @@ export async function POST(req: NextRequest) {
     countertopMaterial: str(body.countertopMaterial),
   };
 
+  // Éléments réellement demandés (23/09/2026) — absent : les 3, comme avant.
+  const elementsDemandes: ElementColoriste[] = Array.isArray(body.elements)
+    ? (body.elements as unknown[]).filter(
+        (e): e is ElementColoriste => e === 'facade' || e === 'poignee' || e === 'plan',
+      )
+    : ['facade', 'poignee', 'plan'];
+
   const prompt = referenceImageDataUrl
     // 23/09/2026 — retour cofondatrice : les veines du marbre sortaient bien plus
     // grosses que sur l'échantillon, et un échantillon uni (béton ciré) ressortait
@@ -186,12 +193,12 @@ export async function POST(req: NextRequest) {
       + 'veins or marbling that are not in the sample. '
       + 'Keep everything outside the mask unchanged. Photorealistic, sharp, high detail.'
     : hasMask
-      ? `${buildTextureEditPrompt(params)} Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.`
+      ? `${buildTextureEditPrompt(params, elementsDemandes)} Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.`
       // Mode couleurs sans sélection : edit par prompt sur toute l'image — pas de
       // masque. buildTextureEditPrompt() nomme déjà précisément chaque surface à
       // changer (façade/poignée/plan) et demande explicitement de garder le reste
       // identique (layout, éclairage, accessoires).
-      : buildTextureEditPrompt(params);
+      : buildTextureEditPrompt(params, elementsDemandes);
 
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
