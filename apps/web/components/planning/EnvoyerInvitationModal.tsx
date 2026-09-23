@@ -31,7 +31,20 @@ export function EnvoyerInvitationModal({ event, kind, defaults, onClose, onSent,
   const societe = useConfigStore((s) => s.societe);
   const setInvite = usePlanningStore((s) => s._setInvite);
   const prev = event.invite;
-  const [to, setTo] = useState(prev?.to ?? defaults?.to ?? '');
+  /**
+    * Destinataires (23/09/2026). Retour cofondatrice : « peut-on rajouter
+    * plusieurs adresses mails dans l'invitation ? quand c'est surtout des
+    * réunions groupées ». On garde une saisie libre (Entrée, virgule,
+    * point-virgule ou espace valident) et on affiche les adresses en pastilles.
+    */
+  const [destinataires, setDestinataires] = useState<string[]>(() => {
+    const repris = prev?.destinataires?.length
+      ? prev.destinataires
+      : [prev?.to ?? defaults?.to ?? ''];
+    return repris.map((m) => m.trim().toLowerCase()).filter(Boolean);
+  });
+  const [saisie, setSaisie] = useState('');
+  const [saisieErr, setSaisieErr] = useState('');
   const [name, setName] = useState(prev?.name ?? defaults?.name ?? '');
   const [titre, setTitre] = useState(prev?.titre ?? defaults?.titre ?? 'Rendez-vous');
   const visio = infoVisio(event.visioUrl);
@@ -47,18 +60,70 @@ export function EnvoyerInvitationModal({ event, kind, defaults, onClose, onSent,
 
   const titreModal = kind === 'cancel' ? 'Prévenir le client de l\'annulation'
     : kind === 'update' ? 'Envoyer la mise à jour au client' : 'Envoyer le RDV au client';
-  const toValide = EMAIL_RE.test(to.trim());
+
+  /** Les destinataires d'une annulation ne se modifient pas : mêmes personnes. */
+  const listeModifiable = kind !== 'cancel';
+  const MAX_DEST = 20;
+
+  /**
+   * Ajoute les adresses saisies. Accepte le collage d'une liste entière
+   * (virgules, points-virgules, espaces, retours à la ligne) — c'est ainsi
+   * qu'on récupère une liste de participants depuis un mail ou un tableur.
+   * Renvoie ce qui n'a pas pu être ajouté, pour ne pas l'effacer sous les
+   * doigts de l'utilisateur.
+   */
+  const ajouterAdresses = (texte: string): string => {
+    const morceaux = texte.split(/[\s,;]+/).map((m) => m.trim()).filter(Boolean);
+    if (morceaux.length === 0) return '';
+    const invalides: string[] = [];
+    let trop = false;
+    setDestinataires((actuels) => {
+      const out = [...actuels];
+      for (const brut of morceaux) {
+        const mail = brut.toLowerCase();
+        if (!EMAIL_RE.test(mail)) { invalides.push(brut); continue; }
+        if (out.includes(mail)) continue;
+        if (out.length >= MAX_DEST) { trop = true; continue; }
+        out.push(mail);
+      }
+      return out;
+    });
+    setSaisieErr(
+      trop ? `Vingt destinataires au maximum.`
+        : invalides.length ? `Adresse invalide : ${invalides.join(', ')}` : '',
+    );
+    return invalides.join(' ');
+  };
+
+  const retirerAdresse = (mail: string) =>
+    setDestinataires((actuels) => actuels.filter((m) => m !== mail));
+
+  const listeFinale = () => {
+    const restes = saisie.trim();
+    if (!restes) return destinataires;
+    const morceaux = restes.split(/[\s,;]+/).map((m) => m.trim().toLowerCase()).filter(Boolean);
+    const valides = morceaux.filter((m) => EMAIL_RE.test(m) && !destinataires.includes(m));
+    return [...destinataires, ...valides].slice(0, MAX_DEST);
+  };
 
   const envoyer = async () => {
     setErr('');
-    if (!toValide) { setErr('Adresse e-mail du client invalide.'); return; }
+    // Une adresse encore en cours de frappe compte : on ne perd pas un envoi
+    // parce que l'utilisateur n'a pas appuyé sur Entrée.
+    const liste = listeFinale();
+    if (liste.length === 0) { setErr('Indiquez au moins une adresse e-mail.'); return; }
+    if (saisie.trim() && liste.length === destinataires.length) {
+      setErr(`Adresse e-mail invalide : ${saisie.trim()}`); return;
+    }
+    setDestinataires(liste); setSaisie(''); setSaisieErr('');
     if (!titre.trim()) { setErr('Indiquez l\'objet du rendez-vous.'); return; }
     setState('sending');
     try {
       const id = await attendreRdvEnregistre(event.id);
       if (!id) throw new Error('Le RDV n\'est pas encore enregistré sur le serveur. Réessayez dans quelques secondes.');
       const invite = await envoyerInvitationRdv(id, {
-        kind, to: to.trim(), name: name.trim() || undefined, titre: titre.trim(), message: message.trim() || undefined,
+        kind, to: liste[0], destinataires: liste,
+        name: name.trim() || undefined, titre: titre.trim(), message: message.trim() || undefined,
       });
       setInvite(id, invite);
       setState('done');
@@ -92,7 +157,10 @@ export function EnvoyerInvitationModal({ event, kind, defaults, onClose, onSent,
           <div className="px-5 pb-6 text-center">
             <CheckCircle2 className="h-10 w-10 text-emerald-600 mx-auto mb-2" />
             <p className="text-sm font-bold text-[#304035]">
-              {kind === 'cancel' ? 'Annulation envoyée' : kind === 'update' ? 'Mise à jour envoyée' : 'Invitation envoyée'} à {to.trim()}
+              {kind === 'cancel' ? 'Annulation envoyée' : kind === 'update' ? 'Mise à jour envoyée' : 'Invitation envoyée'}
+              {destinataires.length > 1
+                ? ` à ${destinataires.length} destinataires`
+                : ` à ${destinataires[0] ?? ''}`}
             </p>
             <p className="text-xs text-[#304035]/55 mt-1.5 leading-relaxed">
               {kind === 'cancel'
@@ -121,9 +189,52 @@ export function EnvoyerInvitationModal({ event, kind, defaults, onClose, onSent,
             </div>
 
             <div>
-              <label className={LABEL}>E-mail du client</label>
-              <input value={to} onChange={(e) => setTo(e.target.value)} type="email" placeholder="client@exemple.fr" className={INPUT} disabled={kind !== 'invite' && !!prev} />
-              {kind !== 'invite' && prev && <p className="text-[10px] text-[#304035]/45 mt-1">Même destinataire que l'invitation initiale.</p>}
+              <label className={LABEL}>
+                {destinataires.length > 1 ? `Destinataires (${destinataires.length})` : 'E-mail du client'}
+              </label>
+              <div className={`${INPUT} flex flex-wrap items-center gap-1.5 py-1.5`}>
+                {destinataires.map((mail) => (
+                  <span key={mail} className="inline-flex items-center gap-1 rounded-lg bg-[#304035]/8 px-2 py-1 text-[11px] font-semibold text-[#304035]">
+                    {mail}
+                    {listeModifiable && (
+                      <button type="button" onClick={() => retirerAdresse(mail)} aria-label={`Retirer ${mail}`}
+                        className="text-[#304035]/45 hover:text-red-600">
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </span>
+                ))}
+                {listeModifiable && destinataires.length < MAX_DEST && (
+                  <input
+                    value={saisie}
+                    onChange={(e) => { setSaisie(e.target.value); setSaisieErr(''); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ',' || e.key === ';' || e.key === 'Tab') {
+                        if (!saisie.trim()) return;
+                        e.preventDefault();
+                        setSaisie(ajouterAdresses(saisie));
+                      } else if (e.key === 'Backspace' && !saisie && destinataires.length) {
+                        setDestinataires((a) => a.slice(0, -1));
+                      }
+                    }}
+                    onBlur={() => { if (saisie.trim()) setSaisie(ajouterAdresses(saisie)); }}
+                    type="email"
+                    placeholder={destinataires.length ? 'Ajouter une adresse…' : 'client@exemple.fr'}
+                    className="flex-1 min-w-[140px] bg-transparent text-sm text-[#304035] placeholder:text-[#304035]/25 focus:outline-none"
+                  />
+                )}
+              </div>
+              {saisieErr && <p className="text-[10px] font-semibold text-red-600 mt-1">{saisieErr}</p>}
+              {listeModifiable ? (
+                <p className="text-[10px] text-[#304035]/45 mt-1">
+                  Réunion groupée : ajoutez autant d'adresses que nécessaire (Entrée ou virgule pour valider).
+                  Chaque participant reçoit l'invitation et voit les autres, comme dans un agenda partagé.
+                </p>
+              ) : (
+                <p className="text-[10px] text-[#304035]/45 mt-1">
+                  {destinataires.length > 1 ? 'Mêmes destinataires que' : 'Même destinataire que'} l'invitation initiale.
+                </p>
+              )}
             </div>
             {kind !== 'cancel' && (
               <>
@@ -162,7 +273,7 @@ export function EnvoyerInvitationModal({ event, kind, defaults, onClose, onSent,
               <button
                 type="button"
                 onClick={envoyer}
-                disabled={state === 'sending' || !toValide}
+                disabled={state === 'sending' || (destinataires.length === 0 && !saisie.trim())}
                 className="flex-[1.4] flex items-center justify-center gap-1.5 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-40"
                 style={{ background: kind === 'cancel' ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'linear-gradient(135deg, #3d5244, #304035)' }}
               >

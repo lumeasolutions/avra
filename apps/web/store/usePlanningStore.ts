@@ -33,7 +33,10 @@ export interface PlanningEvent {
 }
 
 export interface PlanningInvite {
+  /** Destinataire principal — conservé pour les RDV d'avant le 23/09/2026. */
   to: string;
+  /** Tous les destinataires (réunions groupées). Le premier est `to`. */
+  destinataires?: string[];
   name?: string;
   titre: string;
   sentAt: string;

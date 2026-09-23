@@ -21,7 +21,10 @@ const RESEND_API_URL = 'https://api.resend.com/emails';
 export type InviteKind = 'invite' | 'update' | 'cancel';
 
 export interface InviteState {
+  /** Destinataire principal — conservé pour les invitations d'avant le 23/09/2026. */
   to: string;
+  /** Tous les destinataires (réunions groupées). Le premier est `to`. */
+  destinataires?: string[];
   name?: string;
   titre: string;
   sentAt: string;
@@ -122,7 +125,10 @@ export class EventInviteService {
     workspaceId: string,
     userId: string,
     eventId: string,
-    input: { kind: InviteKind; to?: string; name?: string; titre?: string; message?: string },
+    input: {
+      kind: InviteKind; to?: string; destinataires?: string[];
+      name?: string; titre?: string; message?: string;
+    },
   ) {
     if (!this.apiKey) {
       throw new ServiceUnavailableException("L'envoi d'e-mails n'est pas configuré sur ce serveur.");
@@ -136,7 +142,26 @@ export class EventInviteService {
     const data = parseEventJson(ev.description);
     const prev: InviteState | undefined = data.invite && typeof data.invite === 'object' ? data.invite : undefined;
 
-    const to = (input.to ?? prev?.to ?? '').trim().toLowerCase();
+    // Destinataires (23/09/2026) : `destinataires` fait foi, `to` reste accepté
+    // pour un envoi à une seule personne et pour les RDV d'avant ce changement.
+    // Sans rien de fourni, on reprend ceux du dernier envoi (mise à jour,
+    // annulation) — l'annulation doit partir exactement aux mêmes personnes.
+    const normaliser = (liste: (string | undefined)[]): string[] => {
+      const vus = new Set<string>();
+      const out: string[] = [];
+      for (const brut of liste) {
+        const mail = (brut ?? '').trim().toLowerCase();
+        if (!mail || vus.has(mail)) continue;
+        vus.add(mail);
+        out.push(mail);
+      }
+      return out.slice(0, 20);
+    };
+    const demandes = normaliser([...(input.destinataires ?? []), input.to]);
+    const destinataires = demandes.length
+      ? demandes
+      : normaliser([...(prev?.destinataires ?? []), prev?.to]);
+    const to = destinataires[0] ?? '';
     if (!to) throw new BadRequestException("Adresse e-mail du client manquante.");
     if (input.kind === 'cancel' && !prev) throw new BadRequestException("Aucune invitation n'a été envoyée pour ce RDV.");
 
@@ -170,7 +195,8 @@ export class EventInviteService {
       sequence,
       status: input.kind === 'cancel' ? 'CANCELLED' : 'CONFIRMED',
       organizer: societe.replyTo ? { name: societe.nom, email: societe.replyTo } : undefined,
-      attendee: { name, email: to },
+      // Un participant par adresse : la liste apparaît dans l'agenda de chacun.
+      attendees: destinataires.map((email, i) => ({ name: i === 0 ? name : undefined, email })),
     };
     const method = input.kind === 'cancel' ? 'CANCEL' : 'REQUEST';
     const ics = buildCalendar([icsEvent], { method });
@@ -199,7 +225,9 @@ export class EventInviteService {
       headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: this.buildFrom(societe.nom),
-        to,
+        // Tous en destinataires visibles : c'est une réunion, chacun doit voir
+        // qui est convié (même principe qu'une invitation Google Agenda).
+        to: destinataires,
         subject: sujet,
         html,
         ...(societe.replyTo ? { reply_to: societe.replyTo } : {}),
@@ -220,7 +248,7 @@ export class EventInviteService {
     }
 
     const invite: InviteState = {
-      to, name, titre,
+      to, destinataires, name, titre,
       sentAt: new Date().toISOString(),
       sequence,
       status: input.kind === 'cancel' ? 'ANNULEE' : 'ENVOYEE',

@@ -21,7 +21,14 @@ export interface IcsEvent {
   sequence?: number;
   status?: 'CONFIRMED' | 'CANCELLED' | 'TENTATIVE';
   organizer?: { name?: string; email: string };
-  attendee?: { name?: string; email: string };
+  /**
+   * Participants (23/09/2026). Une invitation peut viser plusieurs personnes
+   * — retour cofondatrice : « peut-on rajouter plusieurs adresses mails dans
+   * l'invitation ? quand c'est surtout des réunions groupées ». Chaque adresse
+   * donne sa ligne ATTENDEE, ce que Google Agenda, Outlook et Apple lisent
+   * pour afficher la liste des participants.
+   */
+  attendees?: Array<{ name?: string; email: string }>;
 }
 
 export function icsDate(d: Date): string {
@@ -84,9 +91,9 @@ function vevent(e: IcsEvent): string[] {
   if (e.organizer) {
     lines.push(`ORGANIZER${e.organizer.name ? `;CN=${icsParam(e.organizer.name)}` : ''}:mailto:${e.organizer.email}`);
   }
-  if (e.attendee) {
+  for (const a of e.attendees ?? []) {
     lines.push(
-      `ATTENDEE${e.attendee.name ? `;CN=${icsParam(e.attendee.name)}` : ''};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${e.attendee.email}`,
+      `ATTENDEE${a.name ? `;CN=${icsParam(a.name)}` : ''};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${a.email}`,
     );
   }
   if (e.status !== 'CANCELLED') {

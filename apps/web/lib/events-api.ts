@@ -9,7 +9,12 @@ export type TypeEnvoi = 'invite' | 'update' | 'cancel';
 
 export async function envoyerInvitationRdv(
   eventId: string,
-  body: { kind: TypeEnvoi; to?: string; name?: string; titre?: string; message?: string },
+  body: {
+    kind: TypeEnvoi; to?: string;
+    /** Réunion groupée : toutes les adresses conviées (23/09/2026). */
+    destinataires?: string[];
+    name?: string; titre?: string; message?: string;
+  },
 ): Promise<PlanningInvite> {
   const res = await api<{ ok: boolean; invite: PlanningInvite }>(`/events/${eventId}/invitation`, {
     method: 'POST',

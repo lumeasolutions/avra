@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsEmail, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class SendInviteDto {
   /** invite = 1er envoi, update = modification, cancel = annulation. */
@@ -10,6 +10,18 @@ export class SendInviteDto {
   @IsEmail({}, { message: 'Adresse e-mail invalide.' })
   @MaxLength(200)
   to?: string;
+
+  /**
+   * Liste complète des destinataires (23/09/2026, réunions groupées).
+   * Prioritaire sur `to`, qui reste accepté pour un envoi à une seule
+   * personne. 20 adresses maximum : au-delà c'est une liste de diffusion,
+   * pas un rendez-vous.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20, { message: 'Vingt destinataires au maximum par rendez-vous.' })
+  @IsEmail({}, { each: true, message: "L'une des adresses e-mail est invalide." })
+  destinataires?: string[];
 
   /** Nom du client (formule « Bonjour … »). */
   @IsOptional()
