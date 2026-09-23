@@ -844,22 +844,24 @@ export function buildSolidColourMaskPrompt(
         ? params.countertopMaterial
         : params.facadeMaterial;
 
-  // 23/09/2026 — formulation testee en prod. « Repaint » faisait TEINTER la
-  // matiere existante : on demandait du noir mat et il sortait du noyer fonce
-  // (le veinage du bois d'origine restait). « Replace the material » remplace
-  // bien la matiere par l'aplat de l'echantillon. Les deux garde-fous qui
-  // suivent corrigent les deux autres defauts constates : aplat marbre, et
-  // bandeau / corniche invente a l'interieur meme de la zone.
+  // 23/09/2026 — formulation retenue APRES deux essais en prod, dans cet ordre :
+  //   1. « Repaint <surface> with the flat uniform colour ... » → le moteur a
+  //      TEINTE la matiere existante : noir mat demande, noyer fonce obtenu,
+  //      veinage du bois d'origine toujours visible.
+  //   2. Longue liste de negations (« no wood grain, no veins, ... ») → meme
+  //      resultat : citer le veinage semble l'attirer plutot que l'exclure.
+  // On repart donc de la formulation DEJA eprouvee pour les matieres importees
+  // (courte, affirmative, « reproduce it faithfully »), qui elle a bien rendu
+  // un aplat noir uniforme, + la clause de geometrie.
   return [
-    `Replace the material of ${surface} inside the masked area with the material shown in the attached reference sample`,
-    material ? ` (${material})` : '',
-    `: a perfectly flat, plain, solid colour, ${FINISH_BLOCKS[finish]}.`,
-    ' The result must be a single even colour over the whole surface, with only the natural lighting and shadows of the scene:',
-    ' no wood grain, no veins, no marbling, no patches, no camouflage, no gradient, no texture pattern of any kind.',
+    'Replace the material of the masked region with the exact material, colour and finish',
+    ' shown in the attached reference image; reproduce it faithfully.',
+    ` The surface is ${surface}${material ? ` in ${material}` : ''}, ${FINISH_BLOCKS[finish]}.`,
+    ' The reference sample is plain and uniform, so the result must stay plain and uniform:',
+    ' do not invent any pattern, vein or marbling that is not in the sample.',
     ' Keep the exact same geometry: same doors, drawers, panel lines, joints, handles, edges and shadows —',
     ' do not add, remove, move, resize or redraw any panel, frame, moulding, cornice or top band.',
-    ' Keep everything outside the mask exactly unchanged.',
-    ' Photorealistic, sharp, high detail.',
+    ' Keep everything outside the mask unchanged. Photorealistic, sharp, high detail.',
   ].join('');
 }
 
