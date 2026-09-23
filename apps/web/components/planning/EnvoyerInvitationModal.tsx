@@ -75,23 +75,29 @@ export function EnvoyerInvitationModal({ event, kind, defaults, onClose, onSent,
   const ajouterAdresses = (texte: string): string => {
     const morceaux = texte.split(/[\s,;]+/).map((m) => m.trim()).filter(Boolean);
     if (morceaux.length === 0) return '';
+    // Calcul SYNCHRONE à partir de l'état courant : un updater passé à
+    // setDestinataires ne s'exécute pas tout de suite (et deux fois en mode
+    // strict), on ne peut donc ni en tirer un message d'erreur, ni savoir ce
+    // qui a été refusé. Première version : une adresse mal tapée disparaissait
+    // du champ sans un mot.
+    const out = [...destinataires];
     const invalides: string[] = [];
     let trop = false;
-    setDestinataires((actuels) => {
-      const out = [...actuels];
-      for (const brut of morceaux) {
-        const mail = brut.toLowerCase();
-        if (!EMAIL_RE.test(mail)) { invalides.push(brut); continue; }
-        if (out.includes(mail)) continue;
-        if (out.length >= MAX_DEST) { trop = true; continue; }
-        out.push(mail);
-      }
-      return out;
-    });
+    for (const brut of morceaux) {
+      const mail = brut.toLowerCase();
+      if (!EMAIL_RE.test(mail)) { invalides.push(brut); continue; }
+      if (out.includes(mail)) continue;
+      if (out.length >= MAX_DEST) { trop = true; continue; }
+      out.push(mail);
+    }
+    setDestinataires(out);
     setSaisieErr(
-      trop ? `Vingt destinataires au maximum.`
-        : invalides.length ? `Adresse invalide : ${invalides.join(', ')}` : '',
+      trop ? 'Vingt destinataires au maximum.'
+        : invalides.length
+          ? `Adresse invalide : ${invalides.join(', ')}`
+          : '',
     );
+    // Ce qui n'a pas pu être ajouté reste dans le champ, corrigeable.
     return invalides.join(' ');
   };
 
