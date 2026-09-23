@@ -1009,9 +1009,31 @@ function phraseElement(params: ColoristParams, el: ElementColoriste, texture: 'a
 }
 
 /**
+ * Phrase de PRÉSERVATION d'un élément que l'utilisateur n'a PAS demandé à changer.
+ *
+ * 23/09/2026 — retour cofondatrice : « le module changer les couleurs modifie
+ * toutes les poignées ». Cause réelle trouvée en relisant les prompts envoyés :
+ * l'application demandait au moteur de changer les TROIS éléments à chaque fois,
+ * avec les valeurs par défaut de l'interface. Sur un meuble sans poignée, la
+ * consigne « change the handles to golden brass » a donc fait INVENTER des
+ * poignées dorées ; sur une cuisine à plan noir, « change the countertop to
+ * cream quartz » l'a repeint en crème. Le moteur obéissait : c'est la consigne
+ * qui était fausse. On nomme désormais explicitement ce qui doit rester intact.
+ */
+const GARDE_ELEMENT: Record<ElementColoriste, string> = {
+  facade: 'Keep the cabinet fronts and drawer fronts exactly as they are: same color, same material, same finish.',
+  poignee: 'Keep the handles and knobs exactly as they are: same model, same material, same finish, same position'
+    + ' — and if the furniture has no visible handle, do not add any.',
+  plan: 'Keep the countertop and worktop exactly as they are: same color, same material, same finish.',
+};
+
+const TOUS_ELEMENTS: ElementColoriste[] = ['facade', 'poignee', 'plan'];
+
+/**
  * Consigne /edit-by-prompt du Coloriste.
  *
- * @param elements  éléments à traiter dans CET appel (tous, pour l'appel principal)
+ * @param elements  éléments RÉELLEMENT demandés par l'utilisateur. Les autres
+ *                  sont explicitement protégés (cf. GARDE_ELEMENT).
  * @param texture   élément dont la matière vient de l'image jointe (`referenceImage`)
  *                  et mode : 'attached' (matière seule) ou 'attached-tinted' (teintée)
  */
@@ -1020,13 +1042,17 @@ export function buildColoristeEditInstruction(
   elements: ElementColoriste[] = ['facade', 'poignee', 'plan'],
   texture?: { element: ElementColoriste; mode: 'attached' | 'attached-tinted' },
 ): string {
-  const phrases = elements.map((el) =>
+  const actifs = elements.length ? elements : (['facade'] as ElementColoriste[]);
+  const phrases = actifs.map((el) =>
     phraseElement(params, el, texture && texture.element === el ? texture.mode : null),
   );
+  const gardes = TOUS_ELEMENTS.filter((el) => !actifs.includes(el)).map((el) => GARDE_ELEMENT[el]);
   return [
     phrases.join('. ') + '.',
-    'Change only the color and material, keep the exact shape, thickness, size and position of every element,',
-    'and keep everything else in the image exactly identical: same camera angle, walls, floor, appliances, sink, lighting and decor.',
-    'Do not add, remove or invent anything (no added lights, spotlights, objects or decor).',
+    ...gardes,
+    'Change only the color and material of the elements listed above: keep the exact shape, thickness, size and position of every element.',
+    'Keep the exact number and layout of doors, drawers, panel lines, handles and knobs: do not add, remove, move, resize or redraw any of them.',
+    'Keep everything else in the image exactly identical: same camera angle, walls, floor, ceiling, appliances, sink, tap, lighting and decor.',
+    'Do not add, remove or invent anything (no added handles, lights, spotlights, objects or decor).',
   ].join(' ');
 }

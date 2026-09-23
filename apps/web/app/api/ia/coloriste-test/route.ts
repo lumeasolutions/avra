@@ -175,9 +175,16 @@ export async function POST(req: NextRequest) {
   };
 
   const prompt = referenceImageDataUrl
+    // 23/09/2026 — retour cofondatrice : les veines du marbre sortaient bien plus
+    // grosses que sur l'échantillon, et un échantillon uni (béton ciré) ressortait
+    // veiné. On impose donc l'échelle ET l'absence de motif inventé.
     ? 'Replace the material of the masked region with the exact material, colour, pattern and finish '
-      + 'shown in the attached reference image; reproduce it faithfully. Keep everything outside the '
-      + 'mask unchanged. Photorealistic, sharp, high detail.'
+      + 'shown in the attached reference image; reproduce it faithfully. '
+      + 'Keep the pattern at the same relative scale as in the reference sample: veins, grain, joints and '
+      + 'speckles must keep the same size and density — do not enlarge, stretch, exaggerate or stylise them. '
+      + 'If the reference sample is plain and uniform, the result must stay plain and uniform: do not invent '
+      + 'veins or marbling that are not in the sample. '
+      + 'Keep everything outside the mask unchanged. Photorealistic, sharp, high detail.'
     : hasMask
       ? `${buildTextureEditPrompt(params)} Only change the area inside the provided mask; keep everything outside the mask exactly unchanged.`
       // Mode couleurs sans sélection : edit par prompt sur toute l'image — pas de

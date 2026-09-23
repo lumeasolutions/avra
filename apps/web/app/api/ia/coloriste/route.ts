@@ -118,6 +118,22 @@ export async function POST(req: NextRequest) {
     poigneeColorMode:      (body.poigneeColorMode as ColoristParams['poigneeColorMode']) ?? undefined,
     planColorMode:         (body.planColorMode    as ColoristParams['planColorMode'])    ?? undefined,
   };
+  // Éléments réellement demandés (23/09/2026). Sans ce champ, l'application
+  // demandait les 3 à chaque fois — d'où les poignées inventées et le plan de
+  // travail repeint alors que l'utilisateur ne voulait que les façades.
+  // Absent (anciens clients) → les 3, comme avant.
+  const elementsDemandes: ElementColoriste[] = Array.isArray(body.elements)
+    ? (body.elements as unknown[]).filter(
+        (e): e is ElementColoriste => e === 'facade' || e === 'poignee' || e === 'plan',
+      )
+    : ['facade', 'poignee', 'plan'];
+  if (elementsDemandes.length === 0) {
+    return NextResponse.json(
+      { error: 'Choisissez au moins un élément à modifier (façades, poignées ou plan de travail).' },
+      { status: 400 },
+    );
+  }
+
   const numImages = Math.min(Math.max(parseInt(String(body.numImages), 10) || 1, 1), 4);
   const projectId = typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 
@@ -169,6 +185,7 @@ export async function POST(req: NextRequest) {
           hasFacadeTexture:   !!params.facadeTextureDataUrl,
           hasPoigneeTexture:  !!params.poigneeTextureDataUrl,
           hasPlanTexture:     !!params.planTextureDataUrl,
+          elements:           elementsDemandes,
         },
       },
     });
@@ -248,7 +265,7 @@ export async function POST(req: NextRequest) {
     // PAS recolorés dans l'appel principal (sinon double traitement, et la
     // couleur demandée entrerait en conflit avec la texture appliquée ensuite).
     const plusTard = new Set(texturesUtilisees.slice(1).map((t) => t.element));
-    const elementsPrincipal = (['facade', 'poignee', 'plan'] as ElementColoriste[]).filter((el) => !plusTard.has(el));
+    const elementsPrincipal = elementsDemandes.filter((el) => !plusTard.has(el));
     const consignePrincipale = buildColoristeEditInstruction(
       params, elementsPrincipal, texturesUtilisees[0] ? { element: texturesUtilisees[0].element, mode: texturesUtilisees[0].mode } : undefined,
     );

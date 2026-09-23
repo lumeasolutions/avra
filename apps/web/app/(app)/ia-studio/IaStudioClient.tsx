@@ -51,6 +51,8 @@ async function callColoristAPI(params: {
   poigneeColorMode?: 'color' | 'texture' | 'mix';
   planColorMode?:    'color' | 'texture' | 'mix';
   numImages?: number;
+  /** Éléments RÉELLEMENT à modifier (23/09/2026). Les autres sont préservés. */
+  elements?: Array<'facade' | 'poignee' | 'plan'>;
   /** Rattache le rendu au dossier client (la route l'accepte, cf. route.ts). */
   projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string; steps?: PipelineStep[] | null }> {
@@ -1468,6 +1470,16 @@ export default function IaStudioPage() {
   const [poigneeMat,   setPoigneeMat]   = useState<string|undefined>('antique copper handles');
   const [planMat,      setPlanMat]      = useState<string|undefined>('cream quartz countertop');
   const [facadeFinish, setFacadeFinish] = useState<FinishType>('mat');
+  /**
+   * Éléments que l'utilisateur veut RÉELLEMENT modifier (23/09/2026).
+   * Avant, les trois partaient toujours au moteur avec les valeurs par défaut :
+   * un meuble sans poignée se retrouvait avec des poignées dorées inventées, et
+   * un plan de travail noir repeint en crème sans que personne ne l'ait demandé.
+   * Par défaut : les façades seules — c'est le cas d'usage courant.
+   */
+  const [modifElems, setModifElems] = useState<{ facade: boolean; poignee: boolean; plan: boolean }>(
+    { facade: true, poignee: false, plan: false },
+  );
   // Finitions optionnelles par élément (poignées + plan travail). Null = pas
   // de finition spécifique (on garde le matériau standard du preset).
   const [poigneeFinish, setPoigneeFinish] = useState<FinishType | null>(null);
@@ -1915,6 +1927,11 @@ export default function IaStudioPage() {
    */
   const runColoristeArchi = async () => {
     if (!photoFile) { setColorArchError('Photo de la cuisine requise.'); return; }
+    const elemsAModifier = (['facade', 'poignee', 'plan'] as const).filter(e => modifElems[e]);
+    if (elemsAModifier.length === 0) {
+      setColorArchError('Choisissez au moins un élément à modifier : façades, poignées ou plan de travail.');
+      return;
+    }
     setColorArchLoading(true); setColorArchResult(null); setColorArchError(null);
     try {
       let sourceImageDataUrl: string;
@@ -1933,11 +1950,15 @@ export default function IaStudioPage() {
         lightingStyle:      colorLight,
         sourceImageDataUrl,
         numImages:          1,
+        elements:           elemsAModifier,
         projectId:          dossierId || null,
       });
       if (result.error) { setColorArchError(result.error); setColorArchLoading(false); return; }
       setIaHistoryRefresh(n => n + 1);
-      const desc = preset ? `${preset.name} — ${preset.desc}` : `Façades ${facadeCol} ${facadeFinish}`;
+      const desc = preset
+        ? `${preset.name} — ${preset.desc}`
+        : elemsAModifier.map(e => e === 'facade' ? `Façades ${facadeCol} ${facadeFinish}`
+            : e === 'poignee' ? `Poignées ${poigneeCol}` : `Plan ${planCol}`).join(' · ');
       setColorArchResult({
         id: uid(), module: 'coloriste-archi', prompt: desc, dossier: dossierName,
         ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
@@ -3877,13 +3898,49 @@ export default function IaStudioPage() {
             {/* Palettes + couleurs */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <div className="flex items-center gap-2"><Palette className="h-4 w-4 text-[#2f9e8f]" /><p className="font-bold text-[#304035]">Couleurs</p></div>
+              {/* 23/09/2026 — on ne touche QUE ce qui est coché. Décoché = l'IA
+                  garde l'élément tel quel (plus de poignées inventées, ni de plan
+                  de travail repeint sans qu'on l'ait demandé). */}
+              <p className="text-[11px] text-[#304035]/55 leading-snug">
+                Cochez ce que l'IA doit modifier. Ce qui est décoché est <b>gardé tel quel</b>.
+              </p>
               <div className="space-y-3">
-                <Nuancier label="Façades" nuance={NUANCIER_FACADE} hex={facadeCol} accent="#2f9e8f"
-                  onPick={(h, m) => { setFacadeCol(h); setFacadeMat(m); setColorsModified(true); }} />
-                <Nuancier label="Poignées" nuance={NUANCIER_POIGNEE} hex={poigneeCol} accent="#2f9e8f"
-                  onPick={(h, m) => { setPoigneeCol(h); setPoigneeMat(m); setColorsModified(true); }} />
-                <Nuancier label="Plan de travail" nuance={NUANCIER_PLAN} hex={planCol} accent="#2f9e8f"
-                  onPick={(h, m) => { setPlanCol(h); setPlanMat(m); setColorsModified(true); }} />
+                {([
+                  { key: 'facade'  as const, label: 'Façades',         nuance: NUANCIER_FACADE,  hex: facadeCol,
+                    onPick: (h: string, m?: string) => { setFacadeCol(h); setFacadeMat(m); setColorsModified(true); } },
+                  { key: 'poignee' as const, label: 'Poignées',        nuance: NUANCIER_POIGNEE, hex: poigneeCol,
+                    onPick: (h: string, m?: string) => { setPoigneeCol(h); setPoigneeMat(m); setColorsModified(true); } },
+                  { key: 'plan'    as const, label: 'Plan de travail', nuance: NUANCIER_PLAN,    hex: planCol,
+                    onPick: (h: string, m?: string) => { setPlanCol(h); setPlanMat(m); setColorsModified(true); } },
+                ]).map(({ key, label, nuance, hex, onPick }) => {
+                  const actif = modifElems[key];
+                  return (
+                    <div key={key} className="rounded-xl border px-3 py-2.5 transition-colors"
+                      style={{ borderColor: actif ? 'rgba(47,158,143,0.35)' : 'rgba(48,64,53,0.10)',
+                               background: actif ? 'rgba(47,158,143,0.04)' : 'transparent' }}>
+                      <button
+                        type="button"
+                        onClick={() => setModifElems(s => ({ ...s, [key]: !s[key] }))}
+                        aria-pressed={actif}
+                        className="w-full flex items-center gap-2.5 text-left"
+                      >
+                        <span className="flex items-center justify-center rounded-md shrink-0"
+                          style={{ width: 18, height: 18, fontSize: 12, fontWeight: 800, color: '#fff',
+                                   border: `2px solid ${actif ? '#2f9e8f' : 'rgba(48,64,53,0.3)'}`,
+                                   background: actif ? '#2f9e8f' : 'transparent' }}>
+                          {actif ? '✓' : ''}
+                        </span>
+                        <span className="text-sm font-bold text-[#304035]">{label}</span>
+                        {!actif && <span className="text-[11px] text-[#304035]/45">— gardé tel quel</span>}
+                      </button>
+                      {actif && (
+                        <div className="mt-2">
+                          <Nuancier label={label} nuance={nuance} hex={hex} accent="#2f9e8f" onPick={onPick} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <ChipSelector<FinishType>
                 label="Finition des façades" accent="#2f9e8f"
