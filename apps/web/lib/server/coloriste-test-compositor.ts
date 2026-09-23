@@ -84,6 +84,29 @@ const DEFAULT_FEATHER_SIGMA = 2.5;
  *   - de masque envoyé à /change-textures (mêmes conventions que le masque brut)
  *   - de canal alpha pour le compositing final (`compositeMaskedResult`)
  */
+/**
+ * Echantillon de COULEUR UNIE (23/09/2026).
+ *
+ * Test live sur la photo de la cofondatrice : en mode « couleurs + zone
+ * selectionnee », /change-textures recoit un masque mais AUCUNE matiere de
+ * reference — il doit alors inventer la matiere a partir du seul texte, et il
+ * rend un aplat marbre facon camouflage au lieu d'un noir uni. En lui
+ * fournissant un echantillon uni de la teinte choisie, il fait ce pour quoi il
+ * est concu (reporter une matiere) et la couleur sort propre et uniforme.
+ */
+export async function buildSolidColourSwatch(hex: string, size = 512): Promise<Buffer> {
+  const match = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  const value = parseInt(match ? match[1] : '1c1c1c', 16);
+  return sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 3,
+      background: { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 },
+    },
+  }).png().toBuffer();
+}
+
 export async function refineSelectionMask(
   rawMaskBuffer: Buffer,
   opts: RefineMaskOptions = {},

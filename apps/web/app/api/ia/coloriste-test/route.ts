@@ -49,12 +49,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { buildTextureEditPrompt, type ColoristParams, type ElementColoriste } from '@/lib/server/prompt-builder';
+import {
+  buildTextureEditPrompt,
+  buildSolidColourMaskPrompt,
+  type ColoristParams,
+  type ElementColoriste,
+} from '@/lib/server/prompt-builder';
 import { changeTextures, editByPrompt, isArchitectEnabled } from '@/lib/server/myarchitect-api';
 import {
   fetchImageBuffer,
   refineSelectionMask,
   compositeMaskedResult,
+  buildSolidColourSwatch,
 } from '@/lib/server/coloriste-test-compositor';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
@@ -349,6 +355,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── 5d) Mode COULEURS avec zone sélectionnée : /change-textures attend une
+    //       matière de référence. Sans elle, testé le 23/09/2026 sur la photo de
+    //       la cofondatrice, le moteur rend un aplat marbré façon camouflage au
+    //       lieu d'un noir uni. On lui fournit donc un échantillon de la teinte
+    //       choisie, généré à la volée — il retrouve son cas d'usage normal
+    //       (reporter une matière) et la couleur sort propre.
+    let swatchPrompt: string | undefined;
+    if (hasMask && !referenceSignedUrl && isArchitectEnabled()) {
+      const elementZone = elementsDemandes[0] ?? 'facade';
+      const hexZone =
+        elementZone === 'poignee' ? params.poigneeHex
+          : elementZone === 'plan' ? params.planHex
+            : params.facadeHex;
+      try {
+        const swatchPath = `${workspaceId}/${job.id}/swatch.png`;
+        await uploadToIaRenders(swatchPath, await buildSolidColourSwatch(hexZone), 'image/png');
+        referenceSignedUrl = await createIaRendersSignedUrl(swatchPath);
+        swatchPrompt = buildSolidColourMaskPrompt(params, elementZone);
+      } catch (swErr) {
+        console.error('[API /ia/coloriste-test] échantillon de couleur échec:',
+          swErr instanceof Error ? swErr.message : swErr);
+        return fail(502, 'Impossible de préparer la couleur demandée. Réessayez dans un instant.');
+      }
+    }
+
     // ── 6) Mode démo (pas de clé) → renvoie la source telle quelle, sans appel externe.
     if (!isArchitectEnabled()) {
       const demoPath = `${workspaceId}/${job.id}/0.jpg`;
@@ -384,9 +415,11 @@ export async function POST(req: NextRequest) {
       //       en mode couleurs) : MyArchitectAI /change-textures — appel DIRECT (pas
       //       generateColoristeTextures) : on veut un échec EXPLICITE, jamais de
       //       repli silencieux vers /edit-by-prompt sans masque dans CE cas.
-      const texPrompt = referenceSignedUrl
-        ? 'Apply the material and texture from the reference image to the masked area; keep everything outside the mask unchanged.'
-        : prompt;
+      const texPrompt = swatchPrompt
+        // Échantillon de couleur unie généré par nous (cf. 5d) : consigne dédiée.
+        ?? (referenceSignedUrl
+          ? 'Apply the material and texture from the reference image to the masked area; keep everything outside the mask unchanged.'
+          : prompt);
       const genResult = await changeTextures(sourceSignedUrl, texPrompt, referenceSignedUrl, maskSignedUrl);
       if (!genResult.ok || genResult.outputs.length === 0) {
         const status = (genResult.error ?? '').toLowerCase().includes('délai') ? 504 : 502;

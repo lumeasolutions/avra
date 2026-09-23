@@ -811,6 +811,52 @@ const GARDE_ELEMENT: Record<ElementColoriste, string> = {
 
 const TOUS_ELEMENTS: ElementColoriste[] = ['facade', 'poignee', 'plan'];
 
+/**
+ * Consigne /change-textures quand la reference est un echantillon de COULEUR
+ * UNIE genere par nous (mode « couleurs + zone selectionnee »).
+ *
+ * 23/09/2026 — deux defauts constates en test live et corriges ici :
+ *   - aplat marbre quand aucune reference n'est jointe (cf. buildSolidColourSwatch) ;
+ *   - corniche / bandeau creme invente en haut et en bas du meuble, a
+ *     l'interieur meme de la zone selectionnee. D'ou la consigne explicite de
+ *     ne redessiner aucun cadre, moulure ni bandeau.
+ */
+export function buildSolidColourMaskPrompt(
+  params: ColoristParams,
+  element: ElementColoriste = 'facade',
+): string {
+  const finish =
+    element === 'poignee'
+      ? params.poigneeFinish ?? params.facadeFinish
+      : element === 'plan'
+        ? params.planFinish ?? params.facadeFinish
+        : params.facadeFinish;
+  const surface =
+    element === 'poignee'
+      ? 'the handles and knobs'
+      : element === 'plan'
+        ? 'the countertop and worktop'
+        : 'the cabinet fronts and drawer fronts';
+  const material =
+    element === 'poignee'
+      ? params.handleMaterial
+      : element === 'plan'
+        ? params.countertopMaterial
+        : params.facadeMaterial;
+
+  return [
+    `Repaint ${surface} inside the masked area with the exact flat uniform colour shown in the attached reference sample`,
+    material ? `, as ${material}` : '',
+    `, ${FINISH_BLOCKS[finish]}.`,
+    ' The colour must be perfectly even and uniform across the whole surface:',
+    ' no marbling, no patches, no camouflage, no veins, no gradient, no texture pattern.',
+    ' Keep the exact same geometry: same doors, drawers, panel lines, joints, handles, edges and shadows —',
+    ' do not add, remove, move, resize or redraw any panel, frame, moulding, cornice or top band.',
+    ' Keep everything outside the mask exactly unchanged.',
+    ' Photorealistic, sharp, high detail.',
+  ].join('');
+}
+
 export function buildTextureEditPrompt(
   params: ColoristParams,
   elements: ElementColoriste[] = ['facade', 'poignee', 'plan'],
