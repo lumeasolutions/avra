@@ -122,7 +122,20 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tool, setTool] = useState<Tool>('wand');
+  /**
+   * Outil par defaut : Rectangle (23/09/2026).
+   *
+   * La Baguette passe par /api/ia/segment-point -> SAM2 chez fal.ai. Verifie ce
+   * jour : le service repond systematiquement en erreur (422 "rien detecte"),
+   * sur une image de synthese comme sur une vraie photo de cuisine. En base,
+   * AUCUN masque `auto-click` n'existe depuis la mise en service : tous les
+   * masques reellement utilises sont `manual-brush`. On accueillait donc
+   * l'utilisateur sur un outil qui ne peut pas marcher, avec un message qui
+   * laissait croire qu'il avait mal clique. Le bouton reste en place (il
+   * refonctionnera si la cle fal.ai est retablie), mais il n'est plus le
+   * point de depart.
+   */
+  const [tool, setTool] = useState<Tool>('rect');
   const [brushSize, setBrushSize] = useState(45);
   const [hasSelection, setHasSelection] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
@@ -325,7 +338,11 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
       const data = await res.json().catch(() => null) as { maskUrl?: string; sourceUrl?: string; error?: string } | null;
       if (data?.sourceUrl) sourceUrlRef.current = data.sourceUrl;
       if (!res.ok || !data?.maskUrl) {
-        setError(data?.error || 'La baguette n\'a rien détecté ici. Utilisez le pinceau.');
+        // Ne pas renvoyer la faute a l'utilisateur : la detection automatique
+        // est indisponible (cf. commentaire sur l'outil par defaut). On bascule
+        // sur le rectangle, entierement local, qui fonctionne toujours.
+        setError('Détection automatique indisponible. Sélectionnez la zone au rectangle, au lasso ou au pinceau.');
+        setTool('rect');
         setLoading(false);
         return;
       }
@@ -581,7 +598,7 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
   });
 
   const aide: Record<Tool, string> = {
-    wand: 'Cliquez sur une surface : la baguette la détecte et l\'ajoute à votre sélection. Si elle déborde, corrigez à la gomme — inutile de tout refaire.',
+    wand: 'Détection automatique de la surface cliquée. Actuellement indisponible — utilisez Rectangle, Lasso ou Pinceau.',
     draw: 'Peignez la zone à changer. Débordez légèrement sur les bords : le moteur rend un meilleur résultat ainsi.',
     erase: 'Effacez ce qui a été sélectionné en trop.',
     rect: 'Glissez pour couvrir d\'un coup une rangée entière de meubles, puis affinez à la gomme.',
