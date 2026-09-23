@@ -844,12 +844,18 @@ export function buildSolidColourMaskPrompt(
         ? params.countertopMaterial
         : params.facadeMaterial;
 
+  // 23/09/2026 — formulation testee en prod. « Repaint » faisait TEINTER la
+  // matiere existante : on demandait du noir mat et il sortait du noyer fonce
+  // (le veinage du bois d'origine restait). « Replace the material » remplace
+  // bien la matiere par l'aplat de l'echantillon. Les deux garde-fous qui
+  // suivent corrigent les deux autres defauts constates : aplat marbre, et
+  // bandeau / corniche invente a l'interieur meme de la zone.
   return [
-    `Repaint ${surface} inside the masked area with the exact flat uniform colour shown in the attached reference sample`,
-    material ? `, as ${material}` : '',
-    `, ${FINISH_BLOCKS[finish]}.`,
-    ' The colour must be perfectly even and uniform across the whole surface:',
-    ' no marbling, no patches, no camouflage, no veins, no gradient, no texture pattern.',
+    `Replace the material of ${surface} inside the masked area with the material shown in the attached reference sample`,
+    material ? ` (${material})` : '',
+    `: a perfectly flat, plain, solid colour, ${FINISH_BLOCKS[finish]}.`,
+    ' The result must be a single even colour over the whole surface, with only the natural lighting and shadows of the scene:',
+    ' no wood grain, no veins, no marbling, no patches, no camouflage, no gradient, no texture pattern of any kind.',
     ' Keep the exact same geometry: same doors, drawers, panel lines, joints, handles, edges and shadows —',
     ' do not add, remove, move, resize or redraw any panel, frame, moulding, cornice or top band.',
     ' Keep everything outside the mask exactly unchanged.',
