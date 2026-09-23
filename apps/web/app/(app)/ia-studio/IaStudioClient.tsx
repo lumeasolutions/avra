@@ -20,7 +20,7 @@ import { useDossierStore, useHistoryStore, useAuthStore, useVisibleDossiers, use
 import { PageHeader } from '@/components/layout/PageHeader';
 import HistoryPanel, { type IaJobRow } from './HistoryPanel';
 import { RenderAdjustModal } from './RenderAdjustModal';
-import { uploadDossierDocDirect } from '@/lib/dossier-docs-api';
+import { uploadDossierDocDirect, listDossierDocs } from '@/lib/dossier-docs-api';
 import {
   phasesDuDossier, phaseParDefaut, dossierRendus, prochaineVersion, nomRendu, extensionImage,
 } from '@/lib/ia-render-filing';
@@ -1843,10 +1843,52 @@ export default function IaStudioPage() {
     setColorLoading(false);
   };
 
-  /** Sous-dossiers (labels) d'un dossier. */
-  const labelsDe = (dId: string) => (allDossiers.find(d => d.id === dId)?.subfolders ?? []).map(sf => sf.label);
+  /**
+   * Sous-dossiers (labels) d'un dossier — état local ET serveur.
+   *
+   * 23/09/2026 : l'état local ne connaît les vrais sous-dossiers qu'après une
+   * visite de la page du dossier. Ouvert directement, l'IA Studio ne proposait
+   * donc que les sous-dossiers par défaut du métier — jamais les options et
+   * versions réellement utilisées. On interroge le serveur, qui fait foi.
+   */
+  const [labelsServeur, setLabelsServeur] = useState<Record<string, string[]>>({});
+  const labelsDe = (dId: string) => {
+    const locaux = (allDossiers.find(d => d.id === dId)?.subfolders ?? []).map(sf => sf.label);
+    return Array.from(new Set([...locaux, ...(labelsServeur[dId] ?? [])]));
+  };
   const phasePour = (dId: string) =>
     phaseParDefaut(labelsDe(dId), lienPhase && lienPhase.dossierId === dId ? lienPhase.phase : undefined);
+
+  /**
+   * Va chercher les sous-dossiers réels du dossier (une fois par dossier et par
+   * session). Quand ils arrivent, on recale la phase proposée : sans ça, on
+   * resterait sur le choix calculé à partir des seuls sous-dossiers par défaut.
+   */
+  const chargerLabelsServeur = useCallback(async (dId: string) => {
+    if (!dId || labelsServeur[dId]) return;
+    try {
+      const docs = await listDossierDocs(dId);
+      const labels = Array.from(new Set(
+        docs.map(d => (d.subfolderLabel ?? '').trim()).filter(Boolean),
+      ));
+      setLabelsServeur(prev => (prev[dId] ? prev : { ...prev, [dId]: labels }));
+    } catch {
+      // Hors ligne ou dossier inaccessible : on garde les sous-dossiers locaux.
+      setLabelsServeur(prev => (prev[dId] ? prev : { ...prev, [dId]: [] }));
+    }
+  }, [labelsServeur]);
+
+  // Les sous-dossiers réels arrivent après l'ouverture de la fenêtre : on
+  // repropose alors la bonne phase (sinon on resterait sur celle déduite des
+  // seuls sous-dossiers par défaut, que l'utilisateur n'utilise pas forcément).
+  useEffect(() => {
+    if (!saveTarget || !saveDossierId || !labelsServeur[saveDossierId]) return;
+    setSavePhase(phaseParDefaut(
+      labelsDe(saveDossierId),
+      lienPhase && lienPhase.dossierId === saveDossierId ? lienPhase.phase : undefined,
+    ));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labelsServeur, saveDossierId, saveTarget]);
 
   /** Ouvre la fenêtre d'enregistrement : dossier + phase pré-choisis. */
   const openSaveModal = (item: Item, action: string, icon: string, onDone: () => void, selectedUrl?: string, source?: File | null) => {
@@ -1858,6 +1900,7 @@ export default function IaStudioPage() {
     setSavePhase(phasePour(dId));
     setSaveWithSource(true);
     setSaveState('idle');
+    void chargerLabelsServeur(dId);
     setSaveError(null);
   };
 
@@ -4415,7 +4458,7 @@ export default function IaStudioPage() {
       {/* ── Modale : enregistrer le visuel dans le dossier (phase ▸ RENDUS 3D) ── */}
       {saveTarget && (() => {
         const sd = allDossiers.find(d => d.id === saveDossierId);
-        const phases = phasesDuDossier((sd?.subfolders ?? []).map(sf => sf.label));
+        const phases = phasesDuDossier(labelsDe(saveDossierId));
         const cible = dossierRendus(savePhase);
         const fermer = () => { if (saveState !== 'saving') { setSaveTarget(null); setSaveState('idle'); } };
         const lbl: React.CSSProperties = { display: 'block', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(48,64,53,0.5)', marginBottom: 6 };
@@ -4451,7 +4494,7 @@ export default function IaStudioPage() {
 
                   <label style={lbl}>Dossier</label>
                   <select value={saveDossierId} disabled={saveState === 'saving'}
-                    onChange={(e) => { setSaveDossierId(e.target.value); setSavePhase(phasePour(e.target.value)); }}
+                    onChange={(e) => { setSaveDossierId(e.target.value); setSavePhase(phasePour(e.target.value)); void chargerLabelsServeur(e.target.value); }}
                     style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(48,64,53,0.18)', padding: '9px 12px', fontSize: 13.5, color: '#1a2a1e', background: '#fff', marginBottom: 16 }}>
                     {allDossiers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>

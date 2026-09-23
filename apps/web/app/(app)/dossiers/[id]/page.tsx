@@ -1946,8 +1946,16 @@ export default function DossierDetailPage() {
                     // Rendu réaliste (22/09/2026) : depuis une OPTION / un PROJET
                     // (ou son sous-dossier « RENDUS 3D »), ouvre l'IA Studio déjà
                     // réglé sur ce dossier et cette option — le rendu y sera rangé.
-                    const racine = openedSubfolder.split(' ▸ ')[0];
-                    const phase = estPhase(racine) ? racine : null;
+                    // 23/09/2026 — on cible le sous-dossier OUVERT quand c'est
+                    // lui la phase (« PROJET – APD ▸ APD 2 »), et plus seulement
+                    // sa racine : le rendu doit atterrir là où on travaille.
+                    // Depuis un « RENDUS 3D » on remonte à la phase qui le porte.
+                    const suffixeRendus = ' ▸ RENDUS 3D';
+                    const base = openedSubfolder.endsWith(suffixeRendus)
+                      ? openedSubfolder.slice(0, -suffixeRendus.length)
+                      : openedSubfolder === 'RENDUS 3D' ? '' : openedSubfolder;
+                    const racine = base.split(' ▸ ')[0];
+                    const phase = estPhase(base) ? base : estPhase(racine) ? racine : null;
                     const peutEnvoyer = folderHasSendable(openedSubfolder);
                     if (!phase && !peutEnvoyer) return null;
                     return (

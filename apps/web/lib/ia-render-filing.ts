@@ -26,24 +26,63 @@ export interface PhaseRendu {
   titre: string;
 }
 
-/** Sous-dossier de 1er niveau qui correspond à une option / un projet / une version. */
+/**
+ * Sous-dossier qui correspond à une option / un projet / une version.
+ *
+ * 23/09/2026 — retour cofondatrice : « ça ne marche pas de mon côté ». Cause
+ * trouvée en base : on n'acceptait que le PREMIER niveau (« OPTION »,
+ * « PROJET – APD »), alors qu'elle travaille systématiquement au DEUXIÈME
+ * (« OPTION ▸ OPTION 1 », « PROJET – APD ▸ APD 2 », « PROJET VERSION 1 – APS
+ * ▸ APS 3 VALIDEE »…). Les seuls emplacements proposés étaient donc ceux
+ * qu'elle n'utilise jamais — elle a fini par télécharger ses rendus et les
+ * reposer à la main (« Avra-architect-1407 (1).jpg » rangé dans « PROJET – APD
+ * ▸ APD 1 »), et elle s'était même créé un « PROJET 1 ▸ PROJET 1 ▸ 3D ».
+ *
+ * On accepte donc aussi le 2e niveau, dès lors que la racine est bien une
+ * option / un projet / une version.
+ */
 export function estPhase(label: string): boolean {
-  if (!label || label.includes(SEP)) return false;
-  return /^(OPTION|PROJET|APD|APS)\b/i.test(label.trim());
+  if (!label) return false;
+  const niveaux = label.split(SEP);
+  if (niveaux.length > 2) return false;
+  return /^(OPTION|PROJET|APD|APS)\b/i.test(niveaux[0].trim());
 }
 
-/** « OPTION 2 VALIDÉE » → « Option 2 validée » (pour le nom du fichier). */
+/**
+ * « OPTION 2 VALIDÉE » → « Option 2 validée » (pour le nom du fichier).
+ * Sur un chemin à deux niveaux on ne garde que le dernier : « PROJET – APD
+ * ▸ APD 2 » → « APD 2 » — c'est lui qui identifie le rendu.
+ * Les sigles restés en capitales (APS, APD, DCE, 3D…) sont conservés tels
+ * quels : « Apd 2 » ne voudrait rien dire pour un architecte.
+ */
 export function titrePhase(label: string): string {
   if (!label) return 'Dossier';
-  const t = label.trim().toLowerCase();
+  const dernier = label.split(SEP).pop()!.trim();
+  const mots = dernier.split(/\s+/).map((mot) => {
+    if (mot.length <= 4 && mot === mot.toUpperCase() && /[A-Z0-9]/.test(mot)) return mot;
+    const bas = mot.toLowerCase();
+    return bas.charAt(0).toUpperCase() + bas.slice(1);
+  });
+  const t = mots.join(' ');
   return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/** Chemin lisible pour la liste de choix : « Projet – APD ▸ APD 2 ». */
+export function cheminPhase(label: string): string {
+  if (!label) return 'Dossier (général, hors option)';
+  return label.split(SEP).map((n) => titrePhase(n)).join(SEP);
 }
 
 /** Phases proposées pour un dossier, dans l'ordre d'affichage, + « Dossier (général) ». */
 export function phasesDuDossier(subfolderLabels: string[]): PhaseRendu[] {
+  // Racine avant ses enfants, et chaque emplacement une seule fois — la liste
+  // vient de sources qui peuvent se recouper (état local + documents serveur).
+  const vues = new Set<string>();
   const phases = subfolderLabels
     .filter(estPhase)
-    .map((label) => ({ label, titre: titrePhase(label) }));
+    .filter((l) => (vues.has(l) ? false : (vues.add(l), true)))
+    .sort((a, b) => a.localeCompare(b, 'fr'))
+    .map((label) => ({ label, titre: cheminPhase(label) }));
   return [...phases, { label: '', titre: 'Dossier (général, hors option)' }];
 }
 
@@ -62,8 +101,11 @@ export function phaseParDefaut(subfolderLabels: string[], demandee?: string | nu
   let best = '';
   let bestN = -1;
   phases.forEach((l, i) => {
-    const m = /(\d+)/.exec(l);
-    const n = m ? parseInt(m[1], 10) * 1000 + i : i; // numéro d'abord, puis ordre
+    // Un sous-niveau (« APD 2 ») l'emporte sur sa racine (« PROJET – APD ») :
+    // c'est là que le travail se range réellement.
+    const profond = l.includes(SEP) ? 1_000_000 : 0;
+    const m = /(\d+)/.exec(l.split(SEP).pop()!);
+    const n = profond + (m ? parseInt(m[1], 10) * 1000 : 0) + i;
     if (n >= bestN) { bestN = n; best = l; }
   });
   return best;
