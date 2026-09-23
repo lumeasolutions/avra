@@ -198,3 +198,125 @@ export async function compositeMaskedResult(params: CompositeParams): Promise<Bu
     .jpeg({ quality: jpegQuality })
     .toBuffer();
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * FILET DE SÉCURITÉ COULEUR (23/09/2026)
+ *
+ * Constat après 5 rendus en prod sur la même photo, même consigne, même
+ * échantillon : /change-textures rend la bonne couleur environ une fois sur
+ * deux. Sur l'autre moitié il conserve la matière d'origine et se contente de
+ * la foncer — un meuble en chêne à repeindre en noir mat ressort en noyer.
+ * C'est inhérent au moteur (transfert de matière, pas mise en peinture), et
+ * aucune reformulation de consigne testée n'y change quoi que ce soit.
+ *
+ * On mesure donc la couleur réellement obtenue dans la zone, et si elle s'est
+ * éloignée de ce qui a été demandé, on remet la bonne teinte nous-mêmes, en
+ * conservant l'éclairage et les ombres de la photo. L'utilisateur obtient
+ * toujours la couleur qu'il a choisie.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/** #RRGGBB → [r, g, b]. Teinte de repli si la chaîne est invalide. */
+export function hexToRgb(hex: string): [number, number, number] {
+  const match = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  const value = parseInt(match ? match[1] : '1c1c1c', 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+/** Pixels bruts RGB d'une image, redimensionnés si besoin. */
+async function rawRgb(buffer: Buffer, width?: number, height?: number) {
+  let pipe = sharp(buffer).removeAlpha();
+  if (width && height) pipe = pipe.resize(width, height, { fit: 'fill' });
+  const { data, info } = await pipe.raw().toBuffer({ resolveWithObject: true });
+  return { data, width: info.width, height: info.height, channels: info.channels };
+}
+
+/** Couleur moyenne de la zone masquée (masque >= 128). */
+export async function meanColourInMask(
+  imageBuffer: Buffer,
+  maskBuffer: Buffer,
+): Promise<[number, number, number] | null> {
+  const img = await rawRgb(imageBuffer);
+  const mask = await sharp(maskBuffer)
+    .greyscale()
+    .resize(img.width, img.height, { fit: 'fill' })
+    .raw()
+    .toBuffer();
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i] < 128) continue;
+    const p = i * img.channels;
+    r += img.data[p]; g += img.data[p + 1]; b += img.data[p + 2];
+    n++;
+  }
+  return n === 0 ? null : [r / n, g / n, b / n];
+}
+
+/**
+ * Écart entre deux couleurs, en pondérant la luminance — c'est elle qui fait
+ * qu'un « noir mat » ressorti en noyer se voit immédiatement.
+ */
+export function colourDistance(a: [number, number, number], b: [number, number, number]): number {
+  const lum = (c: [number, number, number]) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  const chroma = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) / Math.sqrt(3);
+  return Math.max(Math.abs(lum(a) - lum(b)), chroma);
+}
+
+/**
+ * Remet la teinte demandée dans la zone masquée, en conservant l'éclairage.
+ *
+ * Principe : chaque pixel garde sa luminosité RELATIVE (une porte plus dans
+ * l'ombre reste plus sombre, une arête éclairée reste claire, les joints et
+ * les poignées restent visibles), et c'est cette luminosité relative qui
+ * module la teinte demandée. Hors du masque, les pixels d'origine sont
+ * conservés — la transition suit le dégradé du masque adouci.
+ */
+export async function recolourMaskedRegion(params: {
+  originalBuffer: Buffer;
+  /** Masque affiné (dégradé) — sert aussi de canal alpha pour la transition. */
+  maskBuffer: Buffer;
+  hex: string;
+  jpegQuality?: number;
+}): Promise<Buffer> {
+  const { originalBuffer, maskBuffer, hex, jpegQuality = 92 } = params;
+  const img = await rawRgb(originalBuffer);
+  const mask = await sharp(maskBuffer)
+    .greyscale()
+    .resize(img.width, img.height, { fit: 'fill' })
+    .raw()
+    .toBuffer();
+  const [tr, tg, tb] = hexToRgb(hex);
+
+  // Luminance moyenne de la zone : sert de référence « surface à plat ».
+  let sum = 0, count = 0;
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i] < 128) continue;
+    const p = i * img.channels;
+    sum += 0.2126 * img.data[p] + 0.7152 * img.data[p + 1] + 0.0722 * img.data[p + 2];
+    count++;
+  }
+  const reference = count > 0 ? Math.max(sum / count, 8) : 128;
+
+  const out = Buffer.alloc(img.width * img.height * 3);
+  for (let i = 0; i < mask.length; i++) {
+    const p = i * img.channels;
+    const o = i * 3;
+    const alpha = mask[i] / 255;
+    if (alpha <= 0) {
+      out[o] = img.data[p]; out[o + 1] = img.data[p + 1]; out[o + 2] = img.data[p + 2];
+      continue;
+    }
+    const luminance = 0.2126 * img.data[p] + 0.7152 * img.data[p + 1] + 0.0722 * img.data[p + 2];
+    // Ombres et reflets conservés, mais bornés : sans borne, un reflet vif
+    // ferait un aplat blanc et une ombre marquée un trou noir.
+    const shading = Math.min(Math.max(luminance / reference, 0.45), 1.75);
+    const painted = [tr * shading, tg * shading, tb * shading];
+    for (let c = 0; c < 3; c++) {
+      const value = img.data[p + c] * (1 - alpha) + Math.min(255, painted[c]) * alpha;
+      out[o + c] = value < 0 ? 0 : value > 255 ? 255 : value;
+    }
+  }
+
+  return sharp(out, { raw: { width: img.width, height: img.height, channels: 3 } })
+    .jpeg({ quality: jpegQuality })
+    .toBuffer();
+}

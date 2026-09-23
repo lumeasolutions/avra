@@ -61,6 +61,10 @@ import {
   refineSelectionMask,
   compositeMaskedResult,
   buildSolidColourSwatch,
+  meanColourInMask,
+  colourDistance,
+  recolourMaskedRegion,
+  hexToRgb,
 } from '@/lib/server/coloriste-test-compositor';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
@@ -362,9 +366,10 @@ export async function POST(req: NextRequest) {
     //       choisie, généré à la volée — il retrouve son cas d'usage normal
     //       (reporter une matière) et la couleur sort propre.
     let swatchPrompt: string | undefined;
+    let hexZone: string | undefined;
     if (hasMask && !referenceSignedUrl && isArchitectEnabled()) {
       const elementZone = elementsDemandes[0] ?? 'facade';
-      const hexZone =
+      hexZone =
         elementZone === 'poignee' ? params.poigneeHex
           : elementZone === 'plan' ? params.planHex
             : params.facadeHex;
@@ -442,6 +447,38 @@ export async function POST(req: NextRequest) {
       }
       endpointTag = 'change-textures+composite';
       finalPrompt = texPrompt;
+
+      // ── 8b) Filet de securite couleur (23/09/2026). Sur 5 rendus identiques
+      //       en prod, /change-textures a rendu la teinte demandee 3 fois et
+      //       conserve la matiere d'origine simplement assombrie 2 fois (chene
+      //       a repeindre en noir mat ressorti en noyer). On verifie donc la
+      //       couleur obtenue, et si elle a derive on repose la bonne teinte
+      //       nous-memes en gardant l'eclairage et les ombres de la photo.
+      if (hexZone) {
+        try {
+          const obtenue = await meanColourInMask(finalBuffer, refinedMaskBuffer);
+          const voulue = hexToRgb(hexZone);
+          // Seuil cale sur les 5 rendus de reference du 23/09 : teintes
+          // correctes mesurees a 22,6 / 24,1 / 27,2 (l'ecart vient des ombres
+          // de la piece), derives "bois" a 45,1 et 66,1. 36 separe les deux
+          // familles avec de la marge de chaque cote.
+          if (obtenue && colourDistance(obtenue, voulue) > 36) {
+            finalBuffer = await recolourMaskedRegion({
+              originalBuffer: sourceBuffer,
+              maskBuffer: refinedMaskBuffer,
+              hex: hexZone,
+            });
+            endpointTag = 'change-textures+recoloration-fidele';
+            console.warn('[API /ia/coloriste-test] teinte derivee, recoloration locale appliquee', {
+              jobId: job.id, obtenue, voulue,
+            });
+          }
+        } catch (verifErr) {
+          // Verification best-effort : jamais bloquante.
+          console.warn('[API /ia/coloriste-test] verification couleur ignoree:',
+            verifErr instanceof Error ? verifErr.message : verifErr);
+        }
+      }
     } else {
       // ── 7b) Mode couleurs pur, SANS sélection (retour utilisateur juillet
       //       2026 : le clic ne doit pas être requis quand on choisit juste des
