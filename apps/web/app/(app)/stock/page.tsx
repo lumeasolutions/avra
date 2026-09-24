@@ -16,6 +16,17 @@ import { exportStockToExcel } from '@/lib/stock-excel';
 import { fileToResizedDataUrl } from '@/lib/image-resize';
 import { StockImportModal } from '@/components/stock/StockImportModal';
 
+/**
+ * Import Excel / CSV du stock — RETIRÉ de l'interface le 24/09/2026.
+ *
+ * Retour cofondatrice : « ENLEVER IMPORT ÇA VA FAIRE BUGER LA LISTE ». Le code
+ * reste en place (StockImportModal + lib/stock-excel) : repasser ce drapeau à
+ * true suffit à le réafficher, par exemple une fois la cause du problème
+ * comprise, ou pour une reprise d'inventaire depuis un tableur.
+ * L'export Excel, lui, n'est pas concerné et reste disponible.
+ */
+const SHOW_STOCK_IMPORT = false;
+
 /* ── CONSTANTES ── */
 /** Liste de catégories par défaut (menuisier / hors cuisiniste / hors architecte). */
 const CATEGORIES_DEFAULT = ['TOUTES', 'MEUBLES', 'ELECTRO', 'DECO', 'SANITAIRE', 'AUTRE'];
@@ -370,15 +381,17 @@ export default function StockPage() {
               <Download className="h-4 w-4" />
               {exporting ? 'Export…' : 'Exporter Excel'}
             </button>
-            {/* Import Excel / CSV (22/09/2026) */}
-            <button
-              onClick={() => setShowImport(true)}
-              className="flex items-center gap-2 rounded-xl border border-white/30 bg-white/15 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/25 transition-all active:scale-95"
-              title="Importer des articles depuis un fichier Excel (.xlsx) ou CSV"
-            >
-              <Upload className="h-4 w-4" />
-              Importer Excel
-            </button>
+            {/* Import Excel / CSV — masqué depuis le 24/09/2026, cf. SHOW_STOCK_IMPORT */}
+            {SHOW_STOCK_IMPORT && (
+              <button
+                onClick={() => setShowImport(true)}
+                className="flex items-center gap-2 rounded-xl border border-white/30 bg-white/15 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/25 transition-all active:scale-95"
+                title="Importer des articles depuis un fichier Excel (.xlsx) ou CSV"
+              >
+                <Upload className="h-4 w-4" />
+                Importer Excel
+              </button>
+            )}
             {/* Vue toggle */}
             <div className="flex rounded-xl border border-white/20 bg-white/15 overflow-hidden shadow-sm">
               <button
@@ -988,7 +1001,7 @@ export default function StockPage() {
           19/05/2026 : restructure en flex-col avec body scrollable + footer
           sticky pour que le bouton "Enregistrer l'article" reste accessible
           meme quand le formulaire deborde du viewport (demande asso). */}
-      {showImport && (
+      {SHOW_STOCK_IMPORT && showImport && (
         <StockImportModal
           categories={CAT_LABEL}
           categorieParDefaut={DEFAULT_CAT}
