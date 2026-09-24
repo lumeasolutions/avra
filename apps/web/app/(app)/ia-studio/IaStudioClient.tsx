@@ -738,6 +738,22 @@ function Pastille({ t, actif, accent, onClick }:{ t:Teinte; actif:boolean; accen
 }
 
 /** Nuancier d'un element : teintes courantes, puis familles completes au "+". */
+/**
+ * Les elements recolorisables de l'onglet Studio.
+ *
+ * Les nuanciers sont reutilises : facades pour les meubles et l'ilot, poignees
+ * pour la quincaillerie, plan de travail pour le plan et la credence — une
+ * credence se choisit dans les memes teintes minerales qu'un plan.
+ */
+const ELEMENTS_STUDIO: Array<{ id: string; label: string; nuance: Nuance }> = [
+  { id: 'facadesHaut', label: 'Meubles hauts',  nuance: NUANCIER_FACADE },
+  { id: 'facadesBas',  label: 'Meubles bas',    nuance: NUANCIER_FACADE },
+  { id: 'ilot',        label: 'Îlot',           nuance: NUANCIER_FACADE },
+  { id: 'planTravail', label: 'Plan de travail', nuance: NUANCIER_PLAN },
+  { id: 'credence',    label: 'Crédence',       nuance: NUANCIER_PLAN },
+  { id: 'poignees',    label: 'Poignées',       nuance: NUANCIER_POIGNEE },
+];
+
 function Nuancier({ label, nuance, hex, onPick, accent }:{
   label: string; nuance: Nuance; hex: string;
   onPick: (hex: string, matiere?: string) => void; accent: string;
@@ -1495,6 +1511,17 @@ export default function IaStudioPage() {
    * n'autorise donc qu'un élément à la fois : une zone = une surface = une
    * couleur. Pour deux surfaces, deux passages.
    */
+  /**
+   * Onglet « Changer les couleurs Studio » — elements cochables librement,
+   * chacun avec sa couleur.
+   *
+   * L'onglet historique impose UN element a la fois et exige de tracer la zone
+   * a la main. Ici on coche ce qu'on veut, on choisit une couleur par element,
+   * et tout part dans une seule generation : c'est la consigne qui designe les
+   * surfaces, pas un detourage.
+   */
+  const [studioElems, setStudioElems] = useState<Record<string, boolean>>({});
+  const [studioCols, setStudioCols] = useState<Record<string, { hex: string; nom?: string }>>({});
   const [modifElems, setModifElems] = useState<{ facade: boolean; poignee: boolean; plan: boolean }>(
     { facade: true, poignee: false, plan: false },
   );
@@ -2018,9 +2045,55 @@ export default function IaStudioPage() {
    * instruction, c'est l'outil adapte a une recolorisation de photo, et il
    * etait deja present dans l'application mais masque de l'interface.
    */
+  /** Studio : une seule generation pour tous les elements coches. */
+  const runColoristeStudio = async () => {
+    if (!photoFile) { setColorArchError('Photo de la cuisine requise.'); return; }
+    const coches = ELEMENTS_STUDIO.filter(e => studioElems[e.id] && studioCols[e.id]?.hex);
+    if (coches.length === 0) {
+      setColorArchError('Cochez au moins un élément et choisissez sa couleur.');
+      return;
+    }
+    setColorArchLoading(true); setColorArchResult(null); setColorArchError(null);
+    try {
+      let sourceImageDataUrl: string;
+      try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 2048); }
+      catch {
+        setColorArchError('Impossible de lire la photo. Réessayez avec un autre fichier.');
+        setColorArchLoading(false); return;
+      }
+      const res = await fetch('/api/ia/coloriste-studio', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceImageDataUrl,
+          elements: coches.map(e => ({ id: e.id, hex: studioCols[e.id].hex, nom: studioCols[e.id].nom })),
+          projectId: dossierId || null,
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j.error) {
+        setColorArchError(typeof j.error === 'string' ? j.error : 'La recolorisation n\'a pas abouti.');
+        setColorArchLoading(false); return;
+      }
+      setIaHistoryRefresh(n => n + 1);
+      setColorArchResult({
+        id: uid(), module: 'coloriste-studio',
+        prompt: coches.map(e => `${e.label} ${studioCols[e.id].hex}`).join(' · '),
+        dossier: dossierName,
+        ts: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        color: studioCols[coches[0].id].hex,
+        imageUrl: j.imageUrl ?? undefined,
+        imageUrls: j.imageUrls ?? (j.imageUrl ? [j.imageUrl] : []),
+      });
+    } catch {
+      setColorArchError('La génération a pris trop de temps ou la connexion s\'est interrompue. Réessayez.');
+    }
+    setColorArchLoading(false);
+  };
+
   const runColoristeArchi = async () => {
-    // L'onglet actif decide de l'etiquette du resultat dans l'historique.
-    const moduleActif: Module = tab === 'coloriste-studio' ? 'coloriste-studio' : 'coloriste-archi';
+    // Le Studio a sa propre chaine : une generation pour tous les elements.
+    if (tab === 'coloriste-studio') return runColoristeStudio();
+    const moduleActif: Module = 'coloriste-archi';
     if (!photoFile) { setColorArchError('Photo de la cuisine requise.'); return; }
     const elemsAModifier = (['facade', 'poignee', 'plan'] as const).filter(e => modifElems[e]);
     if (elemsAModifier.length === 0) {
@@ -4192,9 +4265,12 @@ export default function IaStudioPage() {
               </div>
             </div>
 
-            {/* Zone à recoloriser (23/09/2026) — facultative mais recommandée :
-                elle garantit que la géométrie ne bouge pas (recollage pixel). */}
-            {photoFile && (
+            {/* Zone à recoloriser — conservee pour l'onglet historique, MASQUEE
+                dans le Studio : on n'y demande plus de detourer quoi que ce
+                soit, les elements sont designes par des cases a cocher et la
+                consigne s'en charge. Le code reste en place, l'onglet
+                d'origine s'en sert toujours. */}
+            {photoFile && tab !== 'coloriste-studio' && (
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-3">
                 <div className="flex items-center gap-2">
                   <Paintbrush className="h-4 w-4 text-[#2f9e8f]" />
@@ -4220,8 +4296,56 @@ export default function IaStudioPage() {
                 recevra la couleur. Le reste est gardé tel quel. Pour changer deux surfaces,
                 faites deux passages.
               </p>
+              {/* Studio : on coche ce qu'on veut changer, une couleur par
+                  element, et tout part en UNE generation. */}
+              {tab === 'coloriste-studio' && (
+                <div className="space-y-3">
+                  <p className="text-[11px] leading-snug text-[#304035]/60">
+                    Cochez les éléments à repeindre et choisissez une couleur pour chacun.
+                    Tout est appliqué en <b className="text-[#304035]">une seule génération</b>,
+                    et ce qui n'est pas coché garde sa couleur actuelle.
+                  </p>
+                  {ELEMENTS_STUDIO.map(({ id, label, nuance }) => {
+                    const actif = !!studioElems[id];
+                    const col = studioCols[id];
+                    return (
+                      <div key={id} className="rounded-xl border px-3 py-2.5 transition-colors"
+                        style={{ borderColor: actif ? 'rgba(66,133,244,0.35)' : 'rgba(48,64,53,0.10)',
+                                 background: actif ? 'rgba(66,133,244,0.04)' : 'transparent' }}>
+                        <button
+                          type="button"
+                          onClick={() => setStudioElems(p => ({ ...p, [id]: !p[id] }))}
+                          aria-pressed={actif}
+                          className="w-full flex items-center gap-2.5 text-left"
+                        >
+                          <span className="flex items-center justify-center rounded-md shrink-0"
+                            style={{ width: 18, height: 18, fontSize: 12, fontWeight: 800, color: '#fff',
+                                     border: `2px solid ${actif ? '#4285f4' : 'rgba(48,64,53,0.3)'}`,
+                                     background: actif ? '#4285f4' : 'transparent' }}>
+                            {actif ? '✓' : ''}
+                          </span>
+                          <span className="text-sm font-bold text-[#304035]">{label}</span>
+                          {actif && col && (
+                            <span className="ml-auto flex items-center gap-1.5">
+                              <span className="rounded-md border border-black/10" style={{ width: 16, height: 16, background: col.hex }} />
+                              <span className="text-[11px] font-semibold text-[#304035]/60">{col.hex.toUpperCase()}</span>
+                            </span>
+                          )}
+                          {!actif && <span className="ml-auto text-[11px] text-[#304035]/45">inchangé</span>}
+                        </button>
+                        {actif && (
+                          <div className="mt-2">
+                            <Nuancier label={label} nuance={nuance} hex={col?.hex ?? '#FFFFFF'} accent="#4285f4"
+                              onPick={(h, m) => setStudioCols(p => ({ ...p, [id]: { hex: h, nom: m } }))} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <div className="space-y-3">
-                {([
+                {(tab === 'coloriste-studio' ? [] : [
                   { key: 'facade'  as const, label: 'Façades',         nuance: NUANCIER_FACADE,  hex: facadeCol,
                     onPick: (h: string, m?: string) => { setFacadeCol(h); setFacadeMat(m); setColorsModified(true); } },
                   { key: 'poignee' as const, label: 'Poignées',        nuance: NUANCIER_POIGNEE, hex: poigneeCol,
