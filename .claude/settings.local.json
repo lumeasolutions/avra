@@ -25,7 +25,8 @@
       "Bash(git commit -m 'feat\\(portails\\): sort urgent first + status filter chips on dossier sections:*)",
       "Bash(git commit -m 'feat\\(dossiers\\): full European TVA list grouped by country with optgroup:*)",
       "Bash(git commit -m 'feat\\(dossiers/nouveau\\): increase section titles from text-sm to text-xl:*)",
-      "Bash(npx vercel:*)"
+      "Bash(npx vercel:*)",
+      "mcp__Claude_Code_Remote__read_documentation"
     ]
   }
 }
