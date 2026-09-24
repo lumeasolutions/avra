@@ -1632,7 +1632,16 @@ export default function IaStudioPage() {
   // de resolution reelle (un aller-retour 3840 -> 1920 -> 3840 ne change l'image
   // que de 1,35 niveau sur 255) mais il ajoute du CONTRASTE LOCAL, et c'est cela
   // que l'oeil appelle « net ». Cout : un appel /upscale-4k (~0,03 $) par rendu.
-  const [archHighRes,  setArchHighRes]  = useState(true);
+  /**
+   * Haute définition (upscale 4K) — décochée par défaut depuis le 24/09/2026.
+   *
+   * Elle était activée d'office : 166 des 187 rendus du compte l'ont utilisée.
+   * Or elle double le temps d'attente (56 s contre 29 s mesurés) et ajoute
+   * 0,02 $ par rendu, pour un gain de netteté de 12 % qui ne se voit qu'à
+   * l'impression ou en projection. On la laisse à portée de clic, mais on ne
+   * la facture plus sans l'avoir demandée.
+   */
+  const [archHighRes,  setArchHighRes]  = useState(false);
   const [archLoading,  setArchLoading]  = useState(false);
   const [archResult,   setArchResult]   = useState<Item | null>(null);
   const [archError,    setArchError]    = useState<string | null>(null);

@@ -98,6 +98,60 @@ export function isArchitectEnabled(): boolean {
  *     ecrire « no blur » injecte le concept de flou. Tout est donc formule en
  *     positif — « tack-sharp » plutot que « no blur ».
  */
+/**
+ * Termes de la description /auto-prompt à retirer quand l'utilisateur redéfinit
+ * l'élément correspondant.
+ *
+ * 24/09/2026 — cause trouvée en relisant les consignes réellement envoyées.
+ * /auto-prompt renvoie la scène sous forme de liste de descripteurs séparés par
+ * des virgules : « white matte flat-panel cabinetry, black stone countertops,
+ * chrome faucet, … ». Cette description est placée EN TÊTE de la consigne, et
+ * nos changements à la fin. Le moteur suit ce qu'il a lu en premier : un plan
+ * de travail demandé en marbre blanc ressortait noir, parce que la description
+ * disait « black stone countertops ».
+ *
+ * On ne peut pas supprimer la description — elle vaut 0,11 de fidélité
+ * structurelle (0,701 avec, 0,592 sans, mesuré le 12/09). On en retire donc
+ * seulement les descripteurs que la demande contredit, et elle continue
+ * d'ancrer tout le reste : micro-ondes noir, fond de niche en bois, plantes.
+ */
+const TERMES_DECRITS: Array<{ champ: keyof ArchitectParams; motif: RegExp }> = [
+  { champ: 'facades',     motif: /\b(cabinetry|cabinet fronts?|cabinets?|joinery|millwork|cupboards?)\b/i },
+  { champ: 'facadesBas',  motif: /\b(cabinetry|cabinet fronts?|cabinets?|joinery|millwork|cupboards?)\b/i },
+  { champ: 'facadesHaut', motif: /\b(cabinetry|cabinet fronts?|cabinets?|joinery|millwork|cupboards?)\b/i },
+  { champ: 'planTravail', motif: /\b(countertops?|worktops?|benchtops?|island tops?)\b/i },
+  { champ: 'credence',    motif: /\b(backsplash|splashback)\b/i },
+  { champ: 'evier',       motif: /\b(sink|basin)\b/i },
+  { champ: 'poignees',    motif: /\b(handles?|knobs?|pulls?|hardware)\b/i },
+  { champ: 'sol',         motif: /\b(floors?|flooring|floorboards?|parquet)\b/i },
+  { champ: 'murs',        motif: /\b(walls?|wall panell?ing)\b/i },
+  { champ: 'cooktop',     motif: /\b(cooktops?|hobs?|stoves?|ranges?|burners?)\b/i },
+];
+
+/**
+ * Retire de la description les descripteurs que l'utilisateur vient de
+ * redéfinir. Découpage sur les virgules : c'est le format que renvoie
+ * /auto-prompt, et un descripteur tient toujours sur un segment.
+ */
+export function filtrerDescription(scene: string, params: ArchitectParams): string {
+  const motifs = TERMES_DECRITS
+    .filter(({ champ }) => {
+      const v = params[champ];
+      return typeof v === 'string' && v.trim().length > 0;
+    })
+    .map(({ motif }) => motif);
+  if (motifs.length === 0) return scene;
+
+  const gardes = scene
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && !motifs.some((m) => m.test(s)));
+
+  // Garde-fou : si le filtre a tout emporté (description très courte, ou
+  // formulée autrement), on préfère la description d'origine à rien du tout.
+  return gardes.length >= 2 ? gardes.join(', ') : scene;
+}
+
 export function buildArchitectPrompt(params: ArchitectParams): string {
   /* 1 ─ Qualite photographique, en tete (poids maximal). */
   const qualite =
@@ -170,7 +224,16 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
   // C'est la forme qu'ils recommandent (pre-remplir le champ prompt), et c'est
   // elle qui porte les ANCRES DE COULEUR des petits elements — micro-ondes
   // noir, fond de niche en bois, interieur de colonne noir, socles.
-  const scene = params.sourceDescription?.trim();
+  // La description ne doit plus contredire ce que l'utilisateur redéfinit.
+  const sceneBrute = params.sourceDescription?.trim();
+  const scene = sceneBrute ? filtrerDescription(sceneBrute, params) : undefined;
+
+  // Lumière : « Natural daylight » est notre valeur par défaut, mais elle
+  // annulait toute ambiance demandée — les deux se suivaient dans la même
+  // phrase et le moteur gardait la première (constaté le 24/09 : « late
+  // afternoon golden hour » sans aucun effet). Quand une ambiance est saisie,
+  // c'est elle qui décrit la lumière.
+  const lumiere = ambiance ? ambiance : 'Natural daylight';
 
   if (!materiaux && !ambiance) {
     const consigne = params.mode === 'exterior'
@@ -197,12 +260,14 @@ export function buildArchitectPrompt(params: ArchitectParams): string {
   if (scene) {
     const avecChangements = finitions.length > 0;
     const consigne = params.mode === 'exterior'
-      ? `Photorealistic architectural exterior photograph of this exact building. Every volume, opening, material, colour and position stays identical to the source${avecChangements ? ', except for the finish changes listed below' : ''}. Natural daylight, tack-sharp, fine material detail, high resolution`
-      : `Photorealistic architectural interior photograph of this exact room. Every wall, opening, cabinet, appliance, accessory, material, colour and position stays identical to the source${avecChangements ? ', except for the finish changes listed below' : ''}. Natural daylight, tack-sharp, fine material detail, high resolution`;
+      ? `Photorealistic architectural exterior photograph of this exact building. Every volume, opening, material, colour and position stays identical to the source${avecChangements ? ', except for the finish changes listed below' : ''}. ${lumiere}, tack-sharp, fine material detail, high resolution`
+      : `Photorealistic architectural interior photograph of this exact room. Every wall, opening, cabinet, appliance, accessory, material, colour and position stays identical to the source${avecChangements ? ', except for the finish changes listed below' : ''}. ${lumiere}, tack-sharp, fine material detail, high resolution`;
+    // Les changements ferment la consigne : c'est la dernière chose lue, et
+    // plus rien dans la description ne les contredit (cf. filtrerDescription).
     const changements = avecChangements
-      ? `Apply these finish changes, each one only to the element it names: ${finitions.join('; ')}. Every other element keeps exactly the colour and material described at the start`
+      ? `Apply these finish changes, each one only to the element it names: ${finitions.join('; ')}. These finishes override anything else; every other element keeps exactly the colour and material described at the start`
       : '';
-    return [scene, consigne, changements, ambiance].filter(Boolean).join('. ') + '.';
+    return [scene, consigne, changements].filter(Boolean).join('. ') + '.';
   }
 
   // Repli : /auto-prompt indisponible (appel echoue). Structure longue, dont la

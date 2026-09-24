@@ -212,10 +212,20 @@ export async function POST(req: NextRequest) {
       ),
     );
 
-    // ── 9) DONE — coût indicatif : 0,03 $/rendu (+0,02 $ si upscale 4K)
-    const costUSD =
-      (result.endpoint === 'mock' ? 0 : 0.03 * result.imageUrls.length) +
-      (result.upscaled ? 0.02 : 0);
+    // ── 9) DONE — coût réel, relevé sur la grille tarifaire de l'éditeur :
+    //      /render/interior et /render/exterior 0,03 $, /upscale-4k 0,02 $,
+    //      /auto-prompt 0,01 $. Ce dernier était oublié alors qu'il est appelé
+    //      à CHAQUE rendu : le suivi de coût sous-estimait d'un tiers, et
+    //      l'écart s'est vu le 24/09 quand le solde réel (0,02 $) est tombé
+    //      bien avant notre estimation (0,30 $).
+    const COUT_RENDU = 0.03;
+    const COUT_UPSCALE = 0.02;
+    const COUT_AUTO_PROMPT = 0.01;
+    const costUSD = result.endpoint === 'mock'
+      ? 0
+      : COUT_RENDU * result.imageUrls.length
+        + COUT_AUTO_PROMPT
+        + (result.upscaled ? COUT_UPSCALE : 0);
     await prisma.iaJob.update({
       where: { id: job.id },
       data: {
