@@ -191,6 +191,50 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     + 'Remove nothing either: every object already visible stays, in the same place.',
   );
 
+  /**
+   * L'inventaire des equipements, nomme piece par piece.
+   *
+   * Leçon mesuree le 24/09 : sur le bureau, enumerer ce qu'il ne devait pas
+   * toucher a fait passer la fidelite de 0,307 a 0,557 — la baie vitree
+   * inventee, le panier et les poignees barres ont disparu. Sur la cuisine,
+   * ou la consigne restait generale, il a repeint le refrigerateur gris
+   * fonce en blanc. Une interdiction NOMMEE est respectee, une interdiction
+   * generale ne l'est pas. On nomme donc tout.
+   *
+   * Et on retire de la liste ce que l'utilisateur demande justement de
+   * changer : lui dire « garde les poignees identiques » alors qu'il vient
+   * de demander du laiton brosse, ce serait se contredire dans la meme
+   * consigne.
+   */
+  const EQUIPEMENTS: Array<{ libelle: string; sauf?: Array<keyof ArchitectParams> }> = [
+    { libelle: 'the handles, knobs and pulls', sauf: ['poignees'] },
+    { libelle: 'the sink and the drainer', sauf: ['evier'] },
+    { libelle: 'the taps and mixers', sauf: ['evier'] },
+    { libelle: 'the hob', sauf: ['cooktop'] },
+    { libelle: 'the extractor hood' },
+    { libelle: 'the ovens, the microwave and the built-in appliances, with their exact colour and finish' },
+    { libelle: 'the fridge and the wine cooler, with their exact colour and finish' },
+    { libelle: 'the windows and their frames, glazing bars and colour' },
+    { libelle: 'the doors, the door frames and the door handles' },
+    { libelle: 'the light fittings, the pendants and their rails' },
+    { libelle: 'the sockets, switches and radiators' },
+    { libelle: 'the plinths and the skirting boards' },
+  ];
+  const inchanges = EQUIPEMENTS
+    .filter(e => !(e.sauf ?? []).some(k => {
+      const v = params[k];
+      return typeof v === 'string' ? v.trim().length > 0 : !!v;
+    }))
+    .map(e => e.libelle);
+
+  if (inchanges.length > 0) {
+    phrases.push(
+      `These stay exactly as they are in the first image — same model, same shape, same size, same position, `
+      + `same colour and same finish: ${enumerer(inchanges)}. `
+      + `You render them as real photographed objects, but you do not redesign them and you do not repaint them.`,
+    );
+  }
+
   if (changements.length > 0) {
     phrases.push(`What you do change is the finishes, and only those: ${enumerer(changements)}.`);
     phrases.push('Every surface not named in that sentence keeps the exact colour, material and finish it already has in the photograph.');
