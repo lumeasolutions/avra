@@ -107,6 +107,8 @@ prisma/schema.prisma              — Schéma DB (Waitlist, DemoRequest, User...
 | `AI_PROVIDER` | `auto` (default) — `openai` / `anthropic` / `mock` pour forcer |
 | `FAL_KEY` | — (génération images Coloriste + Rendu, inchangé) |
 | `MYARCHITECT_API_KEY` | — (module IA Architect / MyArchitectAI ; sans clé → mode démo) |
+| `GOOGLE_AI_API_KEY` | AQ.*** (onglet « Rendu Réaliste · Google » ; sans clé → mode démo) |
+| `GOOGLE_IMAGE_MODEL` | `gemini-3.1-flash-image` (default) — surcharge si l'id bouge |
 | `BREVO_API_KEY` | — (SMS intervenants via Brevo ; sans clé → SMS désactivés, no-op) |
 | `BREVO_SMS_SENDER` | `AVRA` (nom d'expéditeur SMS alphanumérique, max 11 car.) |
 
@@ -206,6 +208,15 @@ pré-remplit les champs en un clic. L'utilisateur garde la main.
   + bouton UI dans la modale Validation projet
 - **(juin 2026)** Module IA Architect (MyArchitectAI) : 3e onglet IA Studio,
   route `/api/ia/architect` + wrapper `myarchitect-api.ts` (active via MYARCHITECT_API_KEY)
+- **(sept. 2026)** Onglet jumeau « Rendu Réaliste · Google » (Gemini 3.1 Flash
+  Image) : route `/api/ia/architect-google` + wrapper `google-image-api.ts`.
+  MÊME panneau JSX que le Rendu Réaliste (pas de duplication : deux copies
+  divergeraient et fausseraient la comparaison), un bandeau indique le moteur
+  actif. Sortie 4K systématique, jusqu'à 9 échantillons de matière en
+  référence. Raison d'être : sur 7 essais mesurés, MyArchitectAI réinvente le
+  motif d'un échantillon réel (veines en grille, veines dorées au lieu de
+  blanches, craquelures sur un béton uni) et ses sorties 1K font perdre 68 à
+  84 % de netteté une fois recollées dans une source 4K.
 - **(juil. 2026)** Module « Coloriste ✨ » (TEST, isolé) : 4e onglet IA Studio,
   route `/api/ia/coloriste-textures` via MyArchitectAI **`/change-textures`**
   (recolorise en PRÉSERVANT la géométrie/layout, ≠ render/interior). Wrapper :
