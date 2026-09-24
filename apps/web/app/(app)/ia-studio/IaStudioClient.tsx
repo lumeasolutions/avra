@@ -2817,7 +2817,7 @@ export default function IaStudioPage() {
                   <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#4285f4]/12 text-[#4285f4]">Essai comparatif</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Le même module, moteur <span className="font-semibold text-[#304035]/80">Gemini 3.1</span> — sortie <span className="font-semibold text-[#304035]/80">4K</span> et vrais échantillons de matière.
+                  Le même module, moteur <span className="font-semibold text-[#304035]/80">Gemini 3.1</span> — sortie <span className="font-semibold text-[#304035]/80">2K / 4K</span> et vrais échantillons de matière.
                 </p>
                 {tab==='architect-google' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#4285f4]">
@@ -3546,7 +3546,7 @@ export default function IaStudioPage() {
               <p className="text-xs leading-snug text-[#304035]/75">
                 Moteur&nbsp;: <b className="text-[#304035]">{tab === 'architect-google' ? 'Google Gemini 3.1 Flash Image' : 'MyArchitectAI'}</b>
                 {tab === 'architect-google'
-                  ? <> — sortie <b className="text-[#304035]">4K systématique</b>, et de vrais échantillons de matière en référence. 0,15&nbsp;$ le rendu.</>
+                  ? <> — sortie <b className="text-[#304035]">2K</b> (0,10&nbsp;$), ou <b className="text-[#304035]">4K</b> (0,15&nbsp;$) en cochant «&nbsp;Haute résolution&nbsp;». Accepte de vrais échantillons de matière.</>
                   : <> — sortie 1K. Tous les autres réglages sont identiques d'un onglet à l'autre.</>}
               </p>
             </div>

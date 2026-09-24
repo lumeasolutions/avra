@@ -151,19 +151,22 @@ export async function POST(req: NextRequest) {
     highRes: body.highRes === true,
   };
   /**
-   * Toujours 4K (décision du 24/09/2026).
+   * 2K par défaut, 4K sur demande (décision du 24/09/2026, au soir).
    *
-   * La netteté est l'un des deux défauts mesurés du moteur actuel : ses
-   * sorties 1K, recollées dans une source 4K, font perdre 68 à 84 % de
-   * netteté sur la zone modifiée. On ne va pas refaire l'essai en se
-   * handicapant. L'écart de prix est de 5 centimes par rendu (0,151 $ en 4K
-   * contre 0,101 $ en 2K) : sans commune mesure avec le temps perdu à
-   * comparer des images trop molles pour trancher.
+   * On a commencé en 4K systématique le temps des essais : comparer deux
+   * moteurs sur des images trop molles pour trancher n'avait pas de sens.
+   * Les essais sont faits, on repasse au réglage économique.
    *
-   * La case « Haute définition » continue donc de ne piloter que le jumeau
-   * MyArchitectAI, où elle déclenche un upscale facturé.
+   * Le 2K sort à ~2750 x 1540, soit quatre fois plus de pixels que le
+   * MyArchitectAI qu'il remplace, et personne ne voit la différence avec le
+   * 4K sur un écran, en visio ou sur un A4. Le 4K ne sert vraiment que pour
+   * une impression grand format ou pour zoomer sur un détail de matière.
+   * Écart : 0,101 $ contre 0,151 $, soit un tiers du coût.
+   *
+   * La case « Haute résolution » de l'interface, qui ne pilotait jusqu'ici
+   * que le jumeau MyArchitectAI, commande donc aussi ce moteur.
    */
-  const taille: TailleImage = '4K';
+  const taille: TailleImage = params.highRes ? '4K' : '2K';
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 
