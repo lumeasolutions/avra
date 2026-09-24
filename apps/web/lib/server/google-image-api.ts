@@ -404,12 +404,30 @@ export async function generateGoogleRender(
   }
   echecs.push(`interactions: ${b.ok ? 'réponse sans image' : messageErreur(b.json, b.statut)}`);
 
+  /**
+   * Message utilisateur : ni nom de fournisseur, ni erreur brute.
+   *
+   * Jusqu'ici on renvoyait tel quel « Le moteur Google n'a renvoyé aucune
+   * image. interactions: 429 — Rate limit exceeded for model
+   * gemini-3.1-flash-image… ». Ce texte est stocké en base et réaffiché dans
+   * l'historique — donc potentiellement devant un client. Le détail reste
+   * utile, mais pour nous : il part dans les logs serveur.
+   */
+  console.error('[google-image-api] échec:', echecs.join(' | '));
+
+  const brut = echecs.join(' ').toLowerCase();
+  const message = brut.includes('429') || brut.includes('quota') || brut.includes('rate limit')
+    ? 'Quota de rendus atteint pour le moment. Réessayez dans quelques minutes.'
+    : brut.includes('safety') || brut.includes('blocked')
+      ? 'L\'image source a été refusée par le moteur de rendu. Essayez une autre vue.'
+      : 'Le rendu n\'a pas abouti. Réessayez dans un instant.';
+
   return {
     success: false,
     imageUrls: [],
     prompt,
     endpoint: `google/${MODELE}`,
     upscaled: false,
-    error: `Le moteur Google n'a renvoyé aucune image. ${echecs.join(' | ')}`,
+    error: message,
   };
 }
