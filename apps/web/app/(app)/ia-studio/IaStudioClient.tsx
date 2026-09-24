@@ -1473,11 +1473,19 @@ export default function IaStudioPage() {
   const [planMat,      setPlanMat]      = useState<string|undefined>('cream quartz countertop');
   const [facadeFinish, setFacadeFinish] = useState<FinishType>('mat');
   /**
-   * Éléments que l'utilisateur veut RÉELLEMENT modifier (23/09/2026).
-   * Avant, les trois partaient toujours au moteur avec les valeurs par défaut :
-   * un meuble sans poignée se retrouvait avec des poignées dorées inventées, et
-   * un plan de travail noir repeint en crème sans que personne ne l'ait demandé.
-   * Par défaut : les façades seules — c'est le cas d'usage courant.
+   * Élément que représente la zone sélectionnée (24/09/2026 : CHOIX UNIQUE).
+   *
+   * Étape 1 (23/09) : on a cessé d'envoyer les trois éléments à chaque rendu
+   * avec les valeurs par défaut — un meuble sans poignée se retrouvait avec des
+   * poignées dorées inventées, un plan de travail noir repeint en crème.
+   *
+   * Étape 2 (24/09) : la zone étant devenue obligatoire, cocher plusieurs
+   * éléments n'avait plus de sens et devenait un piège. Testé : zone tracée sur
+   * les façades + case « Poignées » cochée → le moteur a peint TOUTE la zone,
+   * donc les façades, avec la couleur des poignées. C'est logique (la zone dit
+   * OÙ, la couleur dit QUOI) mais incompréhensible pour l'utilisateur. On
+   * n'autorise donc qu'un élément à la fois : une zone = une surface = une
+   * couleur. Pour deux surfaces, deux passages.
    */
   const [modifElems, setModifElems] = useState<{ facade: boolean; poignee: boolean; plan: boolean }>(
     { facade: true, poignee: false, plan: false },
@@ -4022,7 +4030,9 @@ export default function IaStudioPage() {
                   garde l'élément tel quel (plus de poignées inventées, ni de plan
                   de travail repeint sans qu'on l'ait demandé). */}
               <p className="text-[11px] text-[#304035]/55 leading-snug">
-                Cochez ce que l'IA doit modifier. Ce qui est décoché est <b>gardé tel quel</b>.
+                Indiquez <b>ce que représente la zone</b> que vous avez tracée : c'est elle qui
+                recevra la couleur. Le reste est gardé tel quel. Pour changer deux surfaces,
+                faites deux passages.
               </p>
               <div className="space-y-3">
                 {([
@@ -4040,8 +4050,10 @@ export default function IaStudioPage() {
                                background: actif ? 'rgba(47,158,143,0.04)' : 'transparent' }}>
                       <button
                         type="button"
-                        onClick={() => setModifElems(s => ({ ...s, [key]: !s[key] }))}
+                        onClick={() => setModifElems({ facade: false, poignee: false, plan: false, [key]: true })}
                         aria-pressed={actif}
+                        role="radio"
+                        aria-checked={actif}
                         className="w-full flex items-center gap-2.5 text-left"
                       >
                         <span className="flex items-center justify-center rounded-md shrink-0"
@@ -4051,7 +4063,7 @@ export default function IaStudioPage() {
                           {actif ? '✓' : ''}
                         </span>
                         <span className="text-sm font-bold text-[#304035]">{label}</span>
-                        {!actif && <span className="text-[11px] text-[#304035]/45">— gardé tel quel</span>}
+                        {!actif && <span className="text-[11px] text-[#304035]/45">— non concerné</span>}
                       </button>
                       {actif && (
                         <div className="mt-2">
