@@ -70,7 +70,7 @@ export default function Nav() {
             src="/nouveaulogoavra.webp"
             alt="AVRA"
             width={1800}
-            height={353}
+            height={387}
             sizes="120px"
             style={{ height: 21, width: 'auto', display: 'block' }}
             priority

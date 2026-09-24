@@ -74,7 +74,7 @@ export default function HeroLogoBanner() {
         src="/nouveaulogoavra.webp"
         alt="AVRA"
         width={1800}
-        height={353}
+        height={387}
         priority
         sizes="(max-width: 768px) 60vw, 770px"
       />
