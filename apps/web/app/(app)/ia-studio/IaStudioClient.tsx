@@ -233,8 +233,15 @@ async function callRenduAPI(params: {
   return { imageUrl: null, error: message };
 }
 
-/* ─── IA Architect (MyArchitectAI) : appel de la route /api/ia/architect ─── */
+/* ─── Rendu Réaliste : appel de /api/ia/architect (MyArchitectAI) ou de son
+   jumeau /api/ia/architect-google (Gemini 3.1 Flash Image).
+
+   Les deux routes ont le MÊME contrat d'entrée et de sortie : seul `endpoint`
+   change. C'est volontaire — une comparaison de moteurs n'a de valeur que si
+   rien d'autre ne diffère. ─── */
 async function callArchitectAPI(params: {
+  endpoint?: string;
+  materialSamples?: string[];
   mode: 'interior' | 'exterior';
   facades?: string; facadesBas?: string; facadesHaut?: string;
   planTravail?: string; sol?: string; murs?: string;
@@ -243,10 +250,11 @@ async function callArchitectAPI(params: {
   referenceImageDataUrl: string;
   projectId?: string | null;
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string; engine?: string }> {
-  const res = await fetch('/api/ia/architect', {
+  const { endpoint = '/api/ia/architect', ...corps } = params;
+  const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
+    body: JSON.stringify(corps),
   });
   // Même protection défensive que callRenduAPI/callColoristAPI : on parse
   // prudemment et on coerce tout `error` non-string (enveloppe Vercel) → évite
@@ -593,7 +601,7 @@ const CSS = `
 `;
 
 /* ─────────────────────────────────────────── TYPES */
-type Module = 'coloriste' | 'rendu' | 'architect' | 'coloriste-archi' | 'coloriste-tex' | 'coloriste-test';
+type Module = 'coloriste' | 'rendu' | 'architect' | 'architect-google' | 'coloriste-archi' | 'coloriste-tex' | 'coloriste-test';
 
 // Masque les deux anciens onglets Coloriste (« Coloriste IA » = moteur Flux,
 // « Coloriste ✨ » = change-textures) sans supprimer leur code : on garde
@@ -1360,13 +1368,13 @@ function GalleryCard({ gallery }: { gallery: Item[] }) {
                   style={{background:`linear-gradient(135deg,${item.color},${item.color}bb)`}}>
                   {(item.module==='coloriste'||item.module==='coloriste-archi'||item.module==='coloriste-tex'||item.module==='coloriste-test')
                     ? <Paintbrush className="h-5 w-5 text-white" />
-                    : item.module==='architect'
+                    : (item.module==='architect'||item.module==='architect-google')
                       ? <Building2 className="h-5 w-5 text-white" />
                       : <Wand2 className="h-5 w-5 text-white" />}
                 </div>
                 <div className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm"
                   style={{background:`${item.color}22`,color:item.color}}>
-                  {item.module==='coloriste'?'Coloriste':item.module==='coloriste-archi'?'Coloriste+':item.module==='coloriste-tex'?'Coloriste ✨':item.module==='coloriste-test'?'Coloriste test':item.module==='architect'?'Architect':'Rendu'}
+                  {item.module==='coloriste'?'Coloriste':item.module==='coloriste-archi'?'Coloriste+':item.module==='coloriste-tex'?'Coloriste ✨':item.module==='coloriste-test'?'Coloriste test':item.module==='architect'?'Architect':item.module==='architect-google'?'Google':'Rendu'}
                 </div>
               </div>
             )}
@@ -1451,7 +1459,7 @@ export default function IaStudioPage() {
     const q = new URLSearchParams(window.location.search);
     const d = q.get('dossier');
     const onglet = q.get('onglet') as Module | null;
-    if (onglet && ['coloriste', 'rendu', 'architect', 'coloriste-archi', 'coloriste-tex', 'coloriste-test'].includes(onglet)) setTab(onglet);
+    if (onglet && ['coloriste', 'rendu', 'architect', 'architect-google', 'coloriste-archi', 'coloriste-tex', 'coloriste-test'].includes(onglet)) setTab(onglet);
     if (d && allDossiers.some((x) => x.id === d)) {
       setDossierId(d);
       if (q.has('ranger')) setLienPhase({ dossierId: d, phase: q.get('ranger') ?? '' });
@@ -1623,6 +1631,17 @@ export default function IaStudioPage() {
   const [archEvier,    setArchEvier]    = useState('');
   const [archCooktop,  setArchCooktop]  = useState<'' | 'induction' | 'gas' | 'downdraft'>('');
   const [archAmbiance, setArchAmbiance] = useState('');
+  /**
+   * Échantillons de matière — onglet Google seulement.
+   *
+   * C'est LA capacité que MyArchitectAI n'a pas : Gemini accepte jusqu'à 14
+   * images de référence et copie la matière au lieu de la décrire. Nos essais
+   * du 24/09 ont montré que MyArchitectAI, à qui on donne pourtant le même
+   * échantillon, réinvente le motif (veines en grille, veines dorées au lieu
+   * de blanches, craquelures sur un béton uni). C'est ce point précis qu'on
+   * vient mesurer.
+   */
+  const [archSamples, setArchSamples] = useState<File[]>([]);
   // Upscale 4K ACTIF par defaut. Test A/B du 12/09/2026, meme source et meme
   // prompt, seule la case changeait :
   //           px     nettete   fidelite   niche(ecart-type)
@@ -2371,8 +2390,9 @@ export default function IaStudioPage() {
     openSaveModal(rendResult, 'Rendu Réaliste', '✨', () => setRendResult(null), selectedUrl, rendRefFile);
   };
 
-  /* ── IA Architect (MyArchitectAI) : lancer */
+  /* ── Rendu Réaliste : lancer (moteur selon l'onglet actif) */
   const runArchitect = async () => {
+    const versGoogle = tab === 'architect-google';
     if (!archRefFile) {
       setArchError('Importez un plan, un rendu 3D, un sketch ou une photo pour générer le rendu.');
       return;
@@ -2387,7 +2407,22 @@ export default function IaStudioPage() {
         setArchLoading(false);
         return;
       }
+      // Échantillons de matière : uniquement l'onglet Google sait les exploiter.
+      let materialSamples: string[] | undefined;
+      if (versGoogle && archSamples.length > 0) {
+        try {
+          materialSamples = await Promise.all(
+            archSamples.slice(0, 13).map(f => compressImageToDataUrl(f, 1024)),
+          );
+        } catch {
+          setArchError('Un échantillon est illisible. Retirez-le ou choisissez un PNG / JPG.');
+          setArchLoading(false);
+          return;
+        }
+      }
       const result = await callArchitectAPI({
+        endpoint:    versGoogle ? '/api/ia/architect-google' : '/api/ia/architect',
+        materialSamples,
         mode:        archMode,
         facades:     archFacades.trim() || undefined,
         facadesBas:  archMode === 'interior' ? (archFacadesBas.trim()  || undefined) : undefined,
@@ -2411,11 +2446,11 @@ export default function IaStudioPage() {
       setIaHistoryRefresh(n => n + 1);
 
       setArchResult({
-        id: uid(), module: 'architect',
+        id: uid(), module: versGoogle ? 'architect-google' : 'architect',
         prompt: archAmbiance.trim() || archFacades.trim() || (archMode === 'exterior' ? 'Rendu extérieur' : 'Rendu intérieur'),
         dossier: dossierName,
         ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
-        color: '#8a6cc2',
+        color: versGoogle ? '#4285f4' : '#8a6cc2',
         imageUrl: result.imageUrl ?? undefined,
         imageUrls: result.imageUrls ?? (result.imageUrl ? [result.imageUrl] : []),
       });
@@ -2742,6 +2777,45 @@ export default function IaStudioPage() {
                 {tab==='architect' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#8a6cc2]">
                     <div className="h-2 w-2 rounded-full bg-[#8a6cc2] dp" />
+                    Module actif — prêt à l'emploi
+                  </div>
+                )}
+              </div>
+            </div>
+          </button>
+
+          {/* Rendu Réaliste · Google — jumeau du précédent, moteur Gemini 3.1
+              Flash Image. Même panneau, même photo, mêmes champs : seul le
+              moteur change, pour que la comparaison ne porte que sur lui. */}
+          <button onClick={() => setTab('architect-google')}
+            className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
+              tab==='architect-google'
+                ? 'border-[#4285f4] bg-white shadow-xl'
+                : 'border-[#304035]/8 bg-white/70 hover:border-[#4285f4]/30 hover:bg-white hover:shadow-md hover:-translate-y-0.5'
+            }`}
+          >
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              style={{background:'radial-gradient(ellipse at 20% 50%, rgba(66,133,244,.06), transparent 65%)'}} />
+            {tab==='architect-google' && (
+              <div className="absolute inset-0"
+                style={{background:'radial-gradient(ellipse at 20% 50%, rgba(66,133,244,.07), transparent 65%)'}} />
+            )}
+            <div className="relative flex items-start gap-4">
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-md transition-transform duration-300 group-hover:scale-110 ${tab==='architect-google'?'scale-110':''}`}
+                style={{background:tab==='architect-google'?'linear-gradient(135deg,#4285f4,#2a64c8)':'linear-gradient(135deg,#4285f455,#4285f430)'}}>
+                <Building2 className={`h-6 w-6 ${tab==='architect-google'?'text-white':'text-[#4285f4]'}`} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-black text-[#304035] text-lg">Rendu Réaliste · Google</p>
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#4285f4]/12 text-[#4285f4]">Essai comparatif</span>
+                </div>
+                <p className="text-sm text-[#304035]/60 leading-relaxed">
+                  Le même module, moteur <span className="font-semibold text-[#304035]/80">Gemini 3.1</span> — sortie <span className="font-semibold text-[#304035]/80">2K / 4K</span> et vrais échantillons de matière.
+                </p>
+                {tab==='architect-google' && (
+                  <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#4285f4]">
+                    <div className="h-2 w-2 rounded-full bg-[#4285f4] dp" />
                     Module actif — prêt à l'emploi
                   </div>
                 )}
@@ -3443,8 +3517,33 @@ export default function IaStudioPage() {
         )}
 
         {/* ══════════════════════════ MODULE RENDU RÉALISTE */}
-        {tab === 'architect' && (
+        {/* Panneau PARTAGÉ par les deux onglets Rendu Réaliste.
+
+            On ne duplique volontairement pas ce JSX : deux copies finiraient
+            par diverger, et une comparaison de moteurs sur deux interfaces
+            différentes ne vaudrait rien. Un seul panneau, un bandeau qui dit
+            quel moteur est branché, et le bloc « échantillons » en plus côté
+            Google — la seule différence, et c'est justement ce qu'on teste. */}
+        {(tab === 'architect' || tab === 'architect-google') && (
           <div className="fu space-y-6">
+
+            {/* Quel moteur est actif */}
+            <div className="rounded-2xl border px-4 py-3 flex items-center gap-3"
+              style={tab === 'architect-google'
+                ? { borderColor:'rgba(66,133,244,.25)', background:'rgba(66,133,244,.06)' }
+                : { borderColor:'rgba(138,108,194,.25)', background:'rgba(138,108,194,.06)' }}>
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+                style={{background: tab === 'architect-google'
+                  ? 'linear-gradient(135deg,#4285f4,#2a64c8)' : 'linear-gradient(135deg,#8a6cc2,#6f54a8)'}}>
+                <Building2 className="h-4 w-4 text-white" />
+              </div>
+              <p className="text-xs leading-snug text-[#304035]/75">
+                Moteur&nbsp;: <b className="text-[#304035]">{tab === 'architect-google' ? 'Google Gemini 3.1 Flash Image' : 'MyArchitectAI'}</b>
+                {tab === 'architect-google'
+                  ? <> — sortie 2K, ou 4K si vous cochez «&nbsp;Haute définition&nbsp;». Accepte de vrais échantillons de matière.</>
+                  : <> — sortie 1K. Tous les autres réglages sont identiques d'un onglet à l'autre.</>}
+              </p>
+            </div>
 
             {/* Ligne 1 : Image source (⅓) + Grand aperçu (⅔) */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
@@ -3462,6 +3561,25 @@ export default function IaStudioPage() {
                 <Drop label="" sub="Déposez un plan, perspective 3D, sketch ou photo"
                   onFile={setArchRefFile} file={archRefFile} accent="#8a6cc2"
                   tips={['Export image WinnerFlex', 'Rendu 3D ou perspective', 'Sketch / croquis main', 'Photo de la pièce']} />
+                {/* Échantillons de matière — onglet Google uniquement */}
+                {tab === 'architect-google' && (
+                  <div className="mt-4 rounded-xl border border-[#4285f4]/20 bg-[#4285f4]/5 p-3">
+                    <p className="text-xs font-bold text-[#304035] mb-1">Échantillons de matière <span className="font-normal text-[#304035]/45">— facultatif, 13 max</span></p>
+                    <p className="text-[10px] leading-relaxed text-[#304035]/55 mb-2">
+                      Photos de matières réelles (marbre, chêne, laque, carrelage…). Le moteur les recopie au lieu de les deviner.
+                    </p>
+                    <input type="file" accept="image/*" multiple
+                      onChange={e => setArchSamples(Array.from(e.target.files ?? []).slice(0, 13))}
+                      className="block w-full text-[11px] text-[#304035]/70 file:mr-3 file:rounded-lg file:border-0 file:bg-[#4285f4] file:px-3 file:py-1.5 file:text-[11px] file:font-bold file:text-white hover:file:bg-[#2a64c8]" />
+                    {archSamples.length > 0 && (
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="text-[11px] font-semibold text-[#4285f4]">{archSamples.length} échantillon{archSamples.length > 1 ? 's' : ''} joint{archSamples.length > 1 ? 's' : ''}</p>
+                        <button onClick={() => setArchSamples([])}
+                          className="text-[11px] font-semibold text-[#304035]/50 hover:text-[#304035] transition-colors">Retirer</button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {archRefFile && archRefURL && (
                   <div className="mt-3 relative rounded-xl overflow-hidden">
                     <Image src={archRefURL} alt="Source" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
