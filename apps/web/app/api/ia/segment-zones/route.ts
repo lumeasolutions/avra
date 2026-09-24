@@ -26,6 +26,42 @@ export const maxDuration = 120;
 
 const LIMITE = { limit: 120, windowMs: 60 * 60 * 1000 };
 
+/**
+ * GET /api/ia/segment-zones — diagnostic : quels modeles cette cle voit-elle ?
+ *
+ * Les identifiants de modeles Google bougent (suffixes de version, modeles
+ * retires, previews). Plutot que de deviner lequel accepte la segmentation,
+ * on demande la liste et on filtre. Aucun cout, aucune generation.
+ */
+export async function GET(req: NextRequest) {
+  if (!getUserContextFromRequest(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if (!isSegmentEnabled()) {
+    return NextResponse.json({ error: 'Clé non configurée.' }, { status: 503 });
+  }
+  try {
+    const res = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',
+      { headers: { 'x-goog-api-key': process.env.GOOGLE_AI_API_KEY as string } },
+    );
+    const j = await res.json();
+    const noms: string[] = Array.isArray(j?.models)
+      ? j.models.map((m: { name?: string }) => String(m.name ?? '').replace('models/', ''))
+      : [];
+    return NextResponse.json({
+      http: res.status,
+      total: noms.length,
+      flash25: noms.filter(n => n.includes('2.5')),
+      image: noms.filter(n => n.includes('image')),
+      robotics: noms.filter(n => n.includes('robotics')),
+      tous: noms,
+    });
+  } catch {
+    return NextResponse.json({ error: 'Liste des modèles indisponible.' }, { status: 502 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const userCtx = getUserContextFromRequest(req);
   if (!userCtx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
