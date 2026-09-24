@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useMemo, useState } from 'react';
 import { usePortailGuard } from '@/hooks/usePortailGuard';
+import { statutSigne, couleurStatutSigne, parStatutSigne } from '@/lib/statut-dossier-signe';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
@@ -51,12 +52,27 @@ export default function PortailMenuisierPage() {
   }, [dossiers, filterEnCours]);
 
   const dossiersSignesFiltered = useMemo(() => {
-    const sorted = [...dossiersSignes].sort((a,b) => byUrgency(a as any, b as any));
-    return filterSignes ? sorted.filter(d => (d as any).status === filterSignes) : sorted;
+    // Tri par etat reel : ce qui demande une action (SAV) d'abord. L'ancien
+    // tri par urgence s'appuyait sur `status`, fige a la signature, donc sur
+    // un ordre qui ne voulait plus rien dire.
+    const sorted = [...dossiersSignes].sort((a, b) => parStatutSigne(a as any, b as any));
+    return filterSignes ? sorted.filter(d => statutSigne(d as any) === filterSignes) : sorted;
   }, [dossiersSignes, filterSignes]);
 
   const enCoursStatuses = useMemo(() => [...new Set(dossiers.map(d => d.status))], [dossiers]);
-  const signesStatuses = useMemo(() => [...new Set(dossiersSignes.map(d => (d as any).status))], [dossiersSignes]);
+  /**
+   * Statuts des dossiers SIGNES : calcules, pas lus.
+   *
+   * `status` decrit une etape de l'avant-vente (« EN COURS », « A VALIDER »…)
+   * et n'est pas remis a jour a la signature. L'afficher tel quel faisait
+   * apparaitre des dossiers signes comme « EN COURS » — retour Cassandra du
+   * 24/09/2026. On affiche donc l'etat reel du dossier signe : TERMINE, SAV,
+   * ou SIGNE.
+   */
+  const signesStatuses = useMemo(
+    () => [...new Set(dossiersSignes.map(d => statutSigne(d as any)))],
+    [dossiersSignes],
+  );
 
   const stats = useMemo(() => {
     const ca = invoices.filter(i => i.statut === 'PAYÉE').reduce((s, i) => s + i.montantHT, 0);
@@ -66,8 +82,9 @@ export default function PortailMenuisierPage() {
     return { ca, fabricationsEnCours, livraisonsPrevues, chantiersBloques };
   }, [dossiers, invoices]);
 
-  const renderDossierItem = (d: typeof dossiers[0]) => {
-    const colors = getStatusColor(d.status);
+  const renderDossierItem = (d: typeof dossiers[0], signe = false) => {
+    const libelle = signe ? statutSigne(d as any) : d.status;
+    const colors = signe ? couleurStatutSigne(libelle) : getStatusColor(d.status);
     return (
       <Link key={d.id} href={`/dossiers/${d.id}`} style={{
         display: 'flex', alignItems: 'center', gap: 8,
@@ -84,12 +101,12 @@ export default function PortailMenuisierPage() {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#0F2540', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</div>
-          <div style={{ fontSize: 9, color: '#7A8E9F' }}>{d.firstName ? `${d.firstName} • ` : ''}{d.status}</div>
+          <div style={{ fontSize: 9, color: '#7A8E9F' }}>{d.firstName ? `${d.firstName} • ` : ''}{libelle}</div>
         </div>
         <div style={{
           fontSize: 8, fontWeight: 700, padding: '3px 8px', borderRadius: 10,
           background: colors.bg, color: colors.text, flexShrink: 0,
-        }}>{d.status}</div>
+        }}>{libelle}</div>
       </Link>
     );
   };
@@ -173,7 +190,7 @@ export default function PortailMenuisierPage() {
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
             {['Tous', ...signesStatuses].map(s => {
               const active = s === 'Tous' ? filterSignes === null : filterSignes === s;
-              const col = getStatusColor(s);
+              const col = couleurStatutSigne(s);
               return (
                 <button key={s} onClick={() => setFilterSignes(s === 'Tous' ? null : (filterSignes === s ? null : s))}
                   style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 10, border: 'none', cursor: 'pointer',
@@ -185,7 +202,7 @@ export default function PortailMenuisierPage() {
             })}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
-            {dossiersSignesFiltered.slice(0, 8).map(d => renderDossierItem(d as any))}
+            {dossiersSignesFiltered.slice(0, 8).map(d => renderDossierItem(d as any, true))}
             {dossiersSignesFiltered.length === 0 && (
               <p style={{ color: '#4A6A8A', fontSize: 12, textAlign: 'center', padding: '12px 0', margin: 0 }}>Aucun dossier</p>
             )}
