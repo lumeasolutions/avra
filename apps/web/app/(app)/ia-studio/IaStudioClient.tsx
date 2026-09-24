@@ -4406,23 +4406,46 @@ export default function IaStudioPage() {
             {/* Dossier + CTA */}
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <DossierPicker />
-              <button onClick={runColoristeArchi}
-                disabled={colorArchLoading || !photoFile || !colorArchClick}
-                title={!photoFile ? 'Importez la photo de la cuisine'
-                  : !colorArchClick ? 'Délimitez la zone à recoloriser sur la photo' : undefined}
-                className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{background:'linear-gradient(135deg,#2f9e8f 0%,#247a6f 100%)'}}>
-                <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
-                  {colorArchLoading
-                    ? <><Loader2 className="h-4 w-4 animate-spin" />Colorisation…</>
-                    : !photoFile
-                      ? <><FileImage className="h-4 w-4" />Importez d'abord la photo</>
-                      : !colorArchClick
-                        ? <><MousePointerClick className="h-4 w-4" />Délimitez la zone à recoloriser</>
-                        : <><Paintbrush className="h-4 w-4" />Coloriser<ArrowRight className="h-4 w-4 ml-1" /></>
-                  }
-                </span>
-              </button>
+              {/* Le Studio n'a pas de zone a tracer : sa condition de depart
+                  est « au moins un element coche avec sa couleur », pas un
+                  detourage. Sans ca, le bouton restait bloque sur
+                  « Delimitez la zone » alors que le bloc zone est masque. */}
+              {(() => {
+                const studio = tab === 'coloriste-studio';
+                const prets = ELEMENTS_STUDIO.filter(e => studioElems[e.id] && studioCols[e.id]?.hex).length;
+                const manque = studio ? prets === 0 : !colorArchClick;
+                const accent = studio
+                  ? 'linear-gradient(135deg,#4285f4 0%,#2a64c8 100%)'
+                  : 'linear-gradient(135deg,#2f9e8f 0%,#247a6f 100%)';
+                return (
+                  <button onClick={runColoristeArchi}
+                    disabled={colorArchLoading || !photoFile || manque}
+                    title={!photoFile ? 'Importez la photo de la cuisine'
+                      : manque
+                        ? (studio ? 'Cochez au moins un élément et choisissez sa couleur'
+                                  : 'Délimitez la zone à recoloriser sur la photo')
+                        : undefined}
+                    className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: accent }}>
+                    <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
+                      {colorArchLoading
+                        ? <><Loader2 className="h-4 w-4 animate-spin" />Colorisation…</>
+                        : !photoFile
+                          ? <><FileImage className="h-4 w-4" />Importez d'abord la photo</>
+                          : manque
+                            ? (studio
+                                ? <><Palette className="h-4 w-4" />Cochez un élément et sa couleur</>
+                                : <><MousePointerClick className="h-4 w-4" />Délimitez la zone à recoloriser</>)
+                            : <><Paintbrush className="h-4 w-4" />
+                                {studio
+                                  ? `Coloriser ${prets} élément${prets > 1 ? 's' : ''}`
+                                  : 'Coloriser'}
+                                <ArrowRight className="h-4 w-4 ml-1" /></>
+                      }
+                    </span>
+                  </button>
+                );
+              })()}
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
