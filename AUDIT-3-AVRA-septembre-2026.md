@@ -18,6 +18,7 @@ Suite de l'audit #2 (13 juillet 2026). Deux volets :
 | `next build` (production, 100 pages) | ✅ succès |
 | `next lint` sur `apps/web` | ✅ aucune erreur |
 | Logs GitHub Actions (5 derniers runs, dont le rouge du 23/09) | ❌ voir #1 et #3 |
+| Base de production (`IaJob`, projet `axfftmauppdejgtmwlln`) | ❌ voir #2 — 107 rendus concernés |
 | Lecture ciblée du code des 30 derniers commits | voir volet 2 |
 
 ---
@@ -82,20 +83,37 @@ runtime) passe.
 `continue-on-error`, remplacer `pnpm test` par un vrai script (jest côté API, Playwright côté
 web) ou retirer l'étape et l'upload codecov tant qu'il n'y a pas de tests.
 
-#### 2. L'historique IA se vide au bout de 30 jours
+#### 2. L'historique IA se vide au bout de 30 jours — **107 rendus déjà perdus, dont 93 de Cassandra**
 `apps/web/app/api/ia/jobs/route.ts:17-19` :
 
 > « Les URLs signées Supabase stockées sont valables 30 jours. Si elles expirent, le client peut
 > demander une régénération via un futur endpoint `POST /api/ia/jobs/:id/refresh-urls`
 > (pas implémenté dans ce sprint). »
 
-L'historique renvoie `resultImageUrls.signedUrls` tel quel. Les rendus de juillet et d'août
-sont **déjà hors délai aujourd'hui** : les vignettes de l'historique IA Studio répondent 403.
+L'historique renvoie `resultImageUrls.signedUrls` tel quel. **Mesuré en base de production**
+(projet `axfftmauppdejgtmwlln`, table `IaJob`, le 24/09) :
 
-Bonne nouvelle : les chemins de stockage sont bien persistés à côté des URLs
-(`coloriste-test/route.ts:516-521` → `{ paths, signedUrls, meta }`), donc la correction est un
-endpoint d'une trentaine de lignes qui régénère à la volée (ou, plus simple, une régénération
-systématique dans le `GET /jobs` pour la page demandée).
+| Mesure | Valeur |
+|---|---|
+| Rendus terminés avec résultat | 279 |
+| Dont créés il y a plus de 30 jours (URL périmée) | **107** |
+| — appartenant à `cgdesignplan@gmail.com` (Cassandra) | **93** (29/06 → 09/08) |
+| — appartenant à `lumeasolutions@outlook.fr` | 14 (22/07 → 30/07) |
+| Rendus dont le `path` de stockage est conservé | 279 / 279 (**100 %**) |
+
+Le plus ancien jeton lu en base le confirme : `iat` 29/06/2026 13:23 UTC, `exp` 29/07/2026
+13:23 UTC — soit exactement 30 jours de validité, et **57 jours de dépassement** à ce jour.
+
+> Réserve honnête : je n'ai **pas** pu faire l'appel HTTP sur cette URL depuis cette session
+> (la politique réseau de l'environnement refuse `axfftmauppdejgtmwlln.supabase.co`). La date
+> d'expiration vient du jeton lui-même, pas d'une réponse du serveur. À confirmer d'un clic en
+> ouvrant l'historique IA Studio sur un rendu de juillet.
+
+Bonne nouvelle : les 279 chemins de stockage sont persistés à côté des URLs
+(`coloriste-test/route.ts:516-521` → `{ paths, signedUrls, meta }`), donc **aucune image n'est
+perdue** — seuls les liens le sont. La correction est un endpoint d'une trentaine de lignes qui
+régénère à la volée (ou, plus simple, une régénération systématique dans le `GET /jobs` pour la
+page demandée).
 
 #### 3. Le build de production dépend d'un appel réseau à Google Fonts
 `apps/web/app/layout.tsx:2` : `import { DM_Sans, Playfair_Display } from 'next/font/google'`.
