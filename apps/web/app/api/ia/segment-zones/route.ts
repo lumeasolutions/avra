@@ -53,6 +53,14 @@ export async function GET(req: NextRequest) {
       http: res.status,
       total: noms.length,
       flash25: noms.filter(n => n.includes('2.5')),
+      methodes: Array.isArray(j?.models)
+        ? j.models
+            .filter((mm: { name?: string }) => /2\.5-flash$|robotics-er-2-preview$|3\.1-flash$/.test(String(mm.name ?? '')))
+            .map((mm: { name?: string; supportedGenerationMethods?: string[] }) => ({
+              nom: String(mm.name ?? '').replace('models/', ''),
+              methodes: mm.supportedGenerationMethods,
+            }))
+        : [],
       image: noms.filter(n => n.includes('image')),
       robotics: noms.filter(n => n.includes('robotics')),
       tous: noms,
@@ -104,7 +112,8 @@ export async function POST(req: NextRequest) {
     : ZONES_CUISINE;
 
   const t0 = Date.now();
-  const res = await segmenterZones(m[2], m[1], zones);
+  const modele = typeof body.modele === 'string' && body.modele ? body.modele : undefined;
+  const res = await segmenterZones(m[2], m[1], zones, modele);
 
   return NextResponse.json({
     ok: res.ok,

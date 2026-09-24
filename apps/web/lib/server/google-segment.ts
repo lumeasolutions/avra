@@ -111,6 +111,9 @@ export async function segmenterZones(
   imageBase64: string,
   mime: string,
   zones: Array<{ id: string; libelle: string }> = ZONES_CUISINE,
+  /** Surchargeable : les identifiants Google bougent, et on doit pouvoir
+   *  essayer plusieurs candidats sans redeployer a chaque fois. */
+  modele: string = MODELE,
 ): Promise<ResultatSegmentation> {
   if (!isSegmentEnabled()) {
     return { ok: false, zones: [], formatMasque: 'absent', error: 'GOOGLE_AI_API_KEY non configurée.' };
@@ -127,7 +130,7 @@ export async function segmenterZones(
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(`${BASE}/models/${MODELE}:generateContent`, {
+    const res = await fetch(`${BASE}/models/${modele}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GOOGLE_AI_API_KEY as string },
       body: JSON.stringify({
@@ -152,7 +155,13 @@ export async function segmenterZones(
     const texte = await res.text();
     if (!res.ok) {
       console.error('[google-segment] HTTP', res.status, texte.slice(0, 400));
-      return { ok: false, zones: [], formatMasque: 'absent', error: `Segmentation refusée (${res.status}).` };
+      return {
+        ok: false, zones: [], formatMasque: 'absent',
+        // On remonte le message de Google : un 404 sur un modele present dans
+        // la liste veut souvent dire « ce modele n'expose pas generateContent ».
+        brut: texte.slice(0, 400),
+        error: `Segmentation refusée (${res.status}).`,
+      };
     }
 
     let sortie = '';
