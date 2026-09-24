@@ -107,12 +107,29 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Échantillons de matière (0 à 13) — c'est l'apport de ce moteur.
+  // Échantillons de matière (0 à 9) — c'est l'apport de ce moteur.
+  // Plafond à 9 : Google garantit la haute fidélité jusqu'à 10 images d'objets
+  // au total, photo source comprise. Au-delà on perdrait précisément ce qu'on
+  // vient chercher.
   const echantillonsDataUrls = Array.isArray(body.materialSamples)
     ? (body.materialSamples as unknown[])
         .filter((s): s is string => typeof s === 'string' && s.startsWith('data:'))
-        .slice(0, 13)
+        .slice(0, 9)
     : [];
+
+  // Garde-fou taille : la fonction serverless plafonne le corps de requête à
+  // 4,5 Mo. Mieux vaut un message clair ici qu'un 413 opaque côté plateforme.
+  const poidsBase64 = referenceImageDataUrl.length
+    + echantillonsDataUrls.reduce((n, s) => n + s.length, 0);
+  if (poidsBase64 > 4_200_000) {
+    return NextResponse.json(
+      {
+        error: 'Images trop lourdes au total (limite ~4 Mo). Retirez un échantillon, '
+          + 'ou réimportez une photo source moins lourde.',
+      },
+      { status: 413 },
+    );
+  }
 
   const mode: ArchitectMode = body.mode === 'exterior' ? 'exterior' : 'interior';
   const params: ArchitectParams = {
@@ -133,8 +150,20 @@ export async function POST(req: NextRequest) {
     ambiance: typeof body.ambiance === 'string' ? body.ambiance : undefined,
     highRes: body.highRes === true,
   };
-  // « Haute définition » = 4K ; sinon 2K, déjà le double de MyArchitectAI.
-  const taille: TailleImage = params.highRes ? '4K' : '2K';
+  /**
+   * Toujours 4K (décision du 24/09/2026).
+   *
+   * La netteté est l'un des deux défauts mesurés du moteur actuel : ses
+   * sorties 1K, recollées dans une source 4K, font perdre 68 à 84 % de
+   * netteté sur la zone modifiée. On ne va pas refaire l'essai en se
+   * handicapant. L'écart de prix est de 5 centimes par rendu (0,151 $ en 4K
+   * contre 0,101 $ en 2K) : sans commune mesure avec le temps perdu à
+   * comparer des images trop molles pour trancher.
+   *
+   * La case « Haute définition » continue donc de ne piloter que le jumeau
+   * MyArchitectAI, où elle déclenche un upscale facturé.
+   */
+  const taille: TailleImage = '4K';
   const projectId =
     typeof body.projectId === 'string' && body.projectId.length > 0 ? body.projectId : null;
 

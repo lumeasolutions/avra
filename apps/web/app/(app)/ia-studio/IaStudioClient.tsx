@@ -2401,7 +2401,11 @@ export default function IaStudioPage() {
     try {
       let referenceImageDataUrl: string;
       try {
-        referenceImageDataUrl = await compressImageToDataUrl(archRefFile, 2048);
+        // Google rend en 4K : on lui donne une source plus détaillée qu'à
+        // MyArchitectAI (qui sort en 1K de toute façon). 3072 px est le
+        // compromis — au-delà, la requête dépasse la limite de 4,5 Mo du
+        // serverless une fois les échantillons ajoutés.
+        referenceImageDataUrl = await compressImageToDataUrl(archRefFile, versGoogle ? 3072 : 2048);
       } catch {
         setArchError('Image illisible. Choisissez une autre image (PNG ou JPG).');
         setArchLoading(false);
@@ -2411,8 +2415,10 @@ export default function IaStudioPage() {
       let materialSamples: string[] | undefined;
       if (versGoogle && archSamples.length > 0) {
         try {
+          // 768 px suffit pour lire une matière, et laisse de la place à la
+          // source dans les 4,5 Mo de la requête.
           materialSamples = await Promise.all(
-            archSamples.slice(0, 13).map(f => compressImageToDataUrl(f, 1024)),
+            archSamples.slice(0, 9).map(f => compressImageToDataUrl(f, 768)),
           );
         } catch {
           setArchError('Un échantillon est illisible. Retirez-le ou choisissez un PNG / JPG.');
@@ -3540,7 +3546,7 @@ export default function IaStudioPage() {
               <p className="text-xs leading-snug text-[#304035]/75">
                 Moteur&nbsp;: <b className="text-[#304035]">{tab === 'architect-google' ? 'Google Gemini 3.1 Flash Image' : 'MyArchitectAI'}</b>
                 {tab === 'architect-google'
-                  ? <> — sortie 2K, ou 4K si vous cochez «&nbsp;Haute définition&nbsp;». Accepte de vrais échantillons de matière.</>
+                  ? <> — sortie <b className="text-[#304035]">4K systématique</b>, et de vrais échantillons de matière en référence. 0,15&nbsp;$ le rendu.</>
                   : <> — sortie 1K. Tous les autres réglages sont identiques d'un onglet à l'autre.</>}
               </p>
             </div>
@@ -3564,12 +3570,13 @@ export default function IaStudioPage() {
                 {/* Échantillons de matière — onglet Google uniquement */}
                 {tab === 'architect-google' && (
                   <div className="mt-4 rounded-xl border border-[#4285f4]/20 bg-[#4285f4]/5 p-3">
-                    <p className="text-xs font-bold text-[#304035] mb-1">Échantillons de matière <span className="font-normal text-[#304035]/45">— facultatif, 13 max</span></p>
+                    <p className="text-xs font-bold text-[#304035] mb-1">Échantillons de matière <span className="font-normal text-[#304035]/45">— facultatif, 9 max</span></p>
                     <p className="text-[10px] leading-relaxed text-[#304035]/55 mb-2">
                       Photos de matières réelles (marbre, chêne, laque, carrelage…). Le moteur les recopie au lieu de les deviner.
+                      <b className="text-[#304035]/75"> Importez-les dans le même ordre que les champs remplis ci-dessous</b> — c'est comme ça qu'il les associe.
                     </p>
                     <input type="file" accept="image/*" multiple
-                      onChange={e => setArchSamples(Array.from(e.target.files ?? []).slice(0, 13))}
+                      onChange={e => setArchSamples(Array.from(e.target.files ?? []).slice(0, 9))}
                       className="block w-full text-[11px] text-[#304035]/70 file:mr-3 file:rounded-lg file:border-0 file:bg-[#4285f4] file:px-3 file:py-1.5 file:text-[11px] file:font-bold file:text-white hover:file:bg-[#2a64c8]" />
                     {archSamples.length > 0 && (
                       <div className="mt-2 flex items-center justify-between gap-2">

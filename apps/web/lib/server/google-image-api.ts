@@ -63,10 +63,10 @@ export function isGoogleImageEnabled(): boolean {
  * l'avantage structurel qu'on veut mesurer.
  */
 const CHAMPS: Array<{ cle: keyof ArchitectParams; libelle: string }> = [
-  { cle: 'facades', libelle: 'the cabinet fronts (all of them)' },
-  { cle: 'facadesBas', libelle: 'the base cabinet fronts only' },
-  { cle: 'facadesHaut', libelle: 'the wall/upper cabinet fronts only' },
-  { cle: 'planTravail', libelle: 'every countertop surface, including the island and the back counter' },
+  { cle: 'facades', libelle: 'the cabinet fronts' },
+  { cle: 'facadesBas', libelle: 'the base cabinet fronts' },
+  { cle: 'facadesHaut', libelle: 'the wall cabinet fronts' },
+  { cle: 'planTravail', libelle: 'every countertop surface, the island as well as the back counter' },
   { cle: 'credence', libelle: 'the backsplash' },
   { cle: 'evier', libelle: 'the sink' },
   { cle: 'poignees', libelle: 'the handles and pulls' },
@@ -80,46 +80,75 @@ const COOKTOP: Record<string, string> = {
   downdraft: 'a hob with an integrated downdraft extractor',
 };
 
-export function buildGooglePrompt(params: ArchitectParams, avecEchantillon: boolean): string {
+/** « a, b and c » — la liste se lit comme une phrase, pas comme un tableau. */
+function enumerer(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
+/**
+ * Consigne en PROSE NARRATIVE — c'est la recommandation explicite de Google
+ * pour ses modèles image : « a simple list of keywords won't cut it; you need
+ * to describe the scene narratively ». Ma première version énumérait
+ * « élément → matière » séparés par des points-virgules : exactement la liste
+ * de mots-clés qu'ils déconseillent. Réécrite en phrases.
+ *
+ * Pour les échantillons, Google donne une formule :
+ *   [images de référence] + [instruction de relation] + [nouvelle scène]
+ * avec obligation de dire ce qu'on extrait de chaque référence (« use this as
+ * texture », « use this as structure »). C'est ce que fait le paragraphe
+ * « material samples » ci-dessous.
+ */
+export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: number): string {
   const changements: string[] = [];
   for (const { cle, libelle } of CHAMPS) {
     const v = params[cle];
-    if (typeof v === 'string' && v.trim()) changements.push(`${libelle} → ${v.trim()}`);
+    if (typeof v === 'string' && v.trim()) changements.push(`${libelle} in ${v.trim()}`);
   }
   if (params.cooktop && COOKTOP[params.cooktop]) {
-    changements.push(`the cooktop → ${COOKTOP[params.cooktop]}`);
+    changements.push(`the cooktop replaced by ${COOKTOP[params.cooktop]}`);
   }
 
   const lieu = params.mode === 'exterior' ? 'building' : 'room';
+  const elements = params.mode === 'exterior'
+    ? 'every volume, opening, window, door, roofline and planting'
+    : 'every wall, window, opening, cabinet, appliance, tap, plant and object';
+
   const phrases: string[] = [
-    `This is a photograph of a real ${lieu}. Return the same photograph, from the same camera position, with the same framing.`,
-    'Every wall, opening, window, cabinet, appliance, accessory, plant and object stays exactly where it is, at exactly the same size and shape.',
-    'Do not add anything that is not already visible. Do not remove anything. Do not invent niches, shelves, glass fronts, decorations or openings.',
+    `The first image is a photograph of a real ${lieu}. Recreate that same photograph: the same camera position, the same framing, the same perspective, the same proportions.`,
+    `In your result, ${elements} stays exactly where it is, at exactly the same size and the same shape.`,
+    'Nothing new may appear — no niche, no shelf, no glass front, no decoration, no opening that is not already in the photograph — and nothing that is there may disappear.',
   ];
 
   if (changements.length > 0) {
-    phrases.push(`Change only these finishes, each one applied only to the element it names: ${changements.join('; ')}.`);
-    phrases.push('Everything not listed above keeps its current colour, material and finish, untouched.');
+    phrases.push(`What you do change is the finishes, and only those: ${enumerer(changements)}.`);
+    phrases.push('Every surface not named in that sentence keeps the exact colour, material and finish it already has in the photograph.');
   }
 
-  if (avecEchantillon) {
-    // Le point qui fait échouer MyArchitectAI : le motif est réinventé au lieu
-    // d'être recopié. On l'attaque de front, et sur les deux axes (échelle ET
-    // absence de motif inventé sur un échantillon uni).
+  if (nbEchantillons > 0) {
+    // Le défaut qui fait échouer MyArchitectAI : le motif est réinventé au lieu
+    // d'être recopié. On l'attaque de front, sur les deux axes — échelle du
+    // motif, et absence de motif inventé sur un échantillon uni.
+    const pluriel = nbEchantillons > 1;
     phrases.push(
-      'The second image is a physical material sample supplied by the manufacturer. '
-      + 'Reproduce it exactly: same colour, same pattern, same finish. '
-      + 'Keep the pattern at its real-world scale — veins, grain, joints and speckles must not be enlarged, '
-      + 'stretched, stylised or turned into a regular grid. '
-      + 'If the sample is plain and uniform, the result must stay plain and uniform: invent no veins, no cracks, no stains.',
+      `The ${pluriel ? `${nbEchantillons} images that follow the photograph are` : 'second image is a'} `
+      + `photograph${pluriel ? 's' : ''} of ${pluriel ? 'physical material samples' : 'a physical material sample'} `
+      + `supplied by the manufacturer. Use ${pluriel ? 'them' : 'it'} as the texture for the finishes listed above, `
+      + `${pluriel ? 'each sample matching the finishes in the order they are named' : 'applied to the finish it corresponds to'}.`,
+    );
+    phrases.push(
+      'Reproduce each sample exactly: the same colour, the same pattern, the same finish, at its real-world scale. '
+      + 'Veins, grain, joints and speckles must keep the size and the density they have in the sample — '
+      + 'do not enlarge them, do not stretch them, do not stylise them, and never turn them into a regular grid of straight lines. '
+      + 'If a sample is plain and uniform, the result must stay plain and uniform: invent no veins, no cracks and no stains.',
     );
   }
 
   if (params.ambiance && params.ambiance.trim()) {
-    phrases.push(`Lighting atmosphere: ${params.ambiance.trim()}. Change the light only — never the geometry or the materials.`);
+    phrases.push(`Light the ${lieu} with ${params.ambiance.trim()}. Change the light alone — never the geometry, never the materials.`);
   }
 
-  phrases.push('Photorealistic, sharp, fine material detail.');
+  phrases.push(`The result is a photorealistic photograph of that ${lieu}, sharp, with fine material detail.`);
   return phrases.join(' ');
 }
 
@@ -198,7 +227,13 @@ export async function generateGoogleRender(
   taille: TailleImage,
   ratio: string,
 ): Promise<ArchitectResult & { base64?: string }> {
-  const prompt = buildGooglePrompt(params, echantillons.length > 0);
+  // Google annonce « up to 10 images of objects with high-fidelity ». Au-delà,
+  // la fidélité de chaque référence n'est plus garantie — or c'est exactement
+  // ce qu'on vient chercher. On plafonne donc à 10 images AU TOTAL, photo
+  // comprise : 9 échantillons. (Le chiffre de 14 cité ailleurs concerne le
+  // nombre de références mélangeables, pas le régime haute fidélité.)
+  const retenus = echantillons.slice(0, 9);
+  const prompt = buildGooglePrompt(params, retenus.length);
 
   if (!isGoogleImageEnabled()) {
     return {
@@ -211,7 +246,7 @@ export async function generateGoogleRender(
     };
   }
   const cle = process.env.GOOGLE_AI_API_KEY as string;
-  const images = [source, ...echantillons.slice(0, 13)];
+  const images = [source, ...retenus];
   const echecs: string[] = [];
 
   // ── Forme A : /v1beta/interactions (format « input[] / response_format »)
