@@ -1483,11 +1483,15 @@ export default function IaStudioPage() {
     { facade: true, poignee: false, plan: false },
   );
   /**
-   * Zone à recoloriser (23/09/2026). Facultative mais RECOMMANDÉE : avec une
-   * zone, le résultat passe par le chemin masqué — tout ce qui est en dehors
-   * est recollé pixel pour pixel, donc la géométrie ne peut plus bouger.
-   * Sans zone, le moteur édite l'image entière et peut redessiner des portes
-   * ou des tiroirs (constaté sur un meuble 3D le 23/09).
+   * Zone à recoloriser — OBLIGATOIRE depuis le 24/09/2026.
+   *
+   * Avec une zone, tout ce qui est en dehors est recollé pixel pour pixel
+   * côté serveur : la géométrie ne peut mathématiquement plus bouger.
+   * Sans zone, le moteur retravaille l'image entière, et il redessinait
+   * encore une colonne de meuble en tiroirs (constaté le 23/09 sur la photo
+   * de la cofondatrice, après le premier correctif). Deux secondes de
+   * rectangle coûtent moins cher qu'un rendu à refaire devant un client :
+   * on exige donc la sélection.
    */
   const [colorArchClick, setColorArchClick] = useState<ColoristeTestSelectResult|null>(null);
   // Finitions optionnelles par élément (poignées + plan travail). Null = pas
@@ -1983,6 +1987,12 @@ export default function IaStudioPage() {
     const elemsAModifier = (['facade', 'poignee', 'plan'] as const).filter(e => modifElems[e]);
     if (elemsAModifier.length === 0) {
       setColorArchError('Choisissez au moins un élément à modifier : façades, poignées ou plan de travail.');
+      return;
+    }
+    // Zone obligatoire (24/09/2026) : on refuse AVANT tout appel au moteur,
+    // donc sans rien consommer.
+    if (!colorArchClick) {
+      setColorArchError('Délimitez d\'abord la zone à recoloriser sur la photo (rectangle, lasso ou pinceau).');
       return;
     }
     setColorArchLoading(true); setColorArchResult(null); setColorArchError(null);
@@ -3994,12 +4004,12 @@ export default function IaStudioPage() {
               <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-3">
                 <div className="flex items-center gap-2">
                   <Paintbrush className="h-4 w-4 text-[#2f9e8f]" />
-                  <p className="font-bold text-[#304035]">Zone à recoloriser <span className="ml-1 rounded-full bg-[#304035]/6 text-[#304035]/55 text-[9px] font-bold px-2 py-0.5 align-middle">RECOMMANDÉ</span></p>
+                  <p className="font-bold text-[#304035]">Zone à recoloriser <span className="ml-1 rounded-full text-[9px] font-bold px-2 py-0.5 align-middle" style={{ background: 'rgba(47,158,143,0.12)', color: '#247a6f' }}>REQUIS</span></p>
                 </div>
                 <p className="text-[11px] text-[#304035]/55 leading-snug">
                   Sélectionnez les façades à repeindre : tout ce qui est en dehors est <b>recollé à l'identique</b>,
-                  l'IA ne peut plus redessiner une porte ou un tiroir. Sans sélection, elle retravaille toute la photo
-                  et peut modifier la forme des meubles.
+                  l'IA ne peut plus redessiner une porte, un tiroir ni une poignée. C'est ce qui garantit
+                  que seul le coloris change.
                 </p>
                 <ColoristeTestClickSelect file={photoFile} accent="#2f9e8f" onChange={setColorArchClick} />
               </div>
@@ -4075,8 +4085,9 @@ export default function IaStudioPage() {
             <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-md p-5 space-y-4">
               <DossierPicker />
               <button onClick={runColoristeArchi}
-                disabled={colorArchLoading || !photoFile}
-                title={!photoFile ? 'Importez la photo de la cuisine' : undefined}
+                disabled={colorArchLoading || !photoFile || !colorArchClick}
+                title={!photoFile ? 'Importez la photo de la cuisine'
+                  : !colorArchClick ? 'Délimitez la zone à recoloriser sur la photo' : undefined}
                 className="relative w-full overflow-hidden rounded-2xl py-4 font-black text-white shadow-lg hover:shadow-xl active:scale-[.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{background:'linear-gradient(135deg,#2f9e8f 0%,#247a6f 100%)'}}>
                 <span className="relative flex items-center justify-center gap-2.5 text-sm tracking-wide">
@@ -4084,7 +4095,9 @@ export default function IaStudioPage() {
                     ? <><Loader2 className="h-4 w-4 animate-spin" />Colorisation…</>
                     : !photoFile
                       ? <><FileImage className="h-4 w-4" />Importez d'abord la photo</>
-                      : <><Paintbrush className="h-4 w-4" />Coloriser<ArrowRight className="h-4 w-4 ml-1" /></>
+                      : !colorArchClick
+                        ? <><MousePointerClick className="h-4 w-4" />Délimitez la zone à recoloriser</>
+                        : <><Paintbrush className="h-4 w-4" />Coloriser<ArrowRight className="h-4 w-4 ml-1" /></>
                   }
                 </span>
               </button>
