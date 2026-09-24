@@ -2817,7 +2817,7 @@ export default function IaStudioPage() {
                   <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#4285f4]/12 text-[#4285f4]">Essai comparatif</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Le même module, moteur <span className="font-semibold text-[#304035]/80">Gemini 3.1</span> — sortie <span className="font-semibold text-[#304035]/80">2K / 4K</span> et vrais échantillons de matière.
+                  Le même module, moteur <span className="font-semibold text-[#304035]/80">Gemini 3.1</span> — sortie <span className="font-semibold text-[#304035]/80">4K</span> et vrais échantillons de matière.
                 </p>
                 {tab==='architect-google' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#4285f4]">
