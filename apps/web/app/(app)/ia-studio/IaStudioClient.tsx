@@ -601,7 +601,7 @@ const CSS = `
 `;
 
 /* ─────────────────────────────────────────── TYPES */
-type Module = 'coloriste' | 'rendu' | 'architect' | 'architect-google' | 'coloriste-archi' | 'coloriste-tex' | 'coloriste-test';
+type Module = 'coloriste' | 'rendu' | 'architect' | 'architect-google' | 'coloriste-archi' | 'coloriste-studio' | 'coloriste-tex' | 'coloriste-test';
 
 // Masque les deux anciens onglets Coloriste (« Coloriste IA » = moteur Flux,
 // « Coloriste ✨ » = change-textures) sans supprimer leur code : on garde
@@ -1366,7 +1366,7 @@ function GalleryCard({ gallery }: { gallery: Item[] }) {
                 style={{background:`linear-gradient(145deg,${item.color}18,${item.color}35)`}}>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl shadow-md"
                   style={{background:`linear-gradient(135deg,${item.color},${item.color}bb)`}}>
-                  {(item.module==='coloriste'||item.module==='coloriste-archi'||item.module==='coloriste-tex'||item.module==='coloriste-test')
+                  {(item.module==='coloriste'||item.module==='coloriste-archi'||item.module==='coloriste-studio'||item.module==='coloriste-tex'||item.module==='coloriste-test')
                     ? <Paintbrush className="h-5 w-5 text-white" />
                     : (item.module==='architect'||item.module==='architect-google')
                       ? <Building2 className="h-5 w-5 text-white" />
@@ -1374,7 +1374,7 @@ function GalleryCard({ gallery }: { gallery: Item[] }) {
                 </div>
                 <div className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm"
                   style={{background:`${item.color}22`,color:item.color}}>
-                  {item.module==='coloriste'?'Coloriste':item.module==='coloriste-archi'?'Coloriste+':item.module==='coloriste-tex'?'Coloriste ✨':item.module==='coloriste-test'?'Coloriste test':item.module==='architect'?'Architect':item.module==='architect-google'?'Studio':'Rendu'}
+                  {item.module==='coloriste'?'Coloriste':item.module==='coloriste-archi'?'Coloriste+':item.module==='coloriste-studio'?'Couleurs Studio':item.module==='coloriste-tex'?'Coloriste ✨':item.module==='coloriste-test'?'Coloriste test':item.module==='architect'?'Architect':item.module==='architect-google'?'Studio':'Rendu'}
                 </div>
               </div>
             )}
@@ -1459,7 +1459,7 @@ export default function IaStudioPage() {
     const q = new URLSearchParams(window.location.search);
     const d = q.get('dossier');
     const onglet = q.get('onglet') as Module | null;
-    if (onglet && ['coloriste', 'rendu', 'architect', 'architect-google', 'coloriste-archi', 'coloriste-tex', 'coloriste-test'].includes(onglet)) setTab(onglet);
+    if (onglet && ['coloriste', 'rendu', 'architect', 'architect-google', 'coloriste-archi', 'coloriste-studio', 'coloriste-tex', 'coloriste-test'].includes(onglet)) setTab(onglet);
     if (d && allDossiers.some((x) => x.id === d)) {
       setDossierId(d);
       if (q.has('ranger')) setLienPhase({ dossierId: d, phase: q.get('ranger') ?? '' });
@@ -2019,6 +2019,8 @@ export default function IaStudioPage() {
    * etait deja present dans l'application mais masque de l'interface.
    */
   const runColoristeArchi = async () => {
+    // L'onglet actif decide de l'etiquette du resultat dans l'historique.
+    const moduleActif: Module = tab === 'coloriste-studio' ? 'coloriste-studio' : 'coloriste-archi';
     if (!photoFile) { setColorArchError('Photo de la cuisine requise.'); return; }
     const elemsAModifier = (['facade', 'poignee', 'plan'] as const).filter(e => modifElems[e]);
     if (elemsAModifier.length === 0) {
@@ -2063,7 +2065,7 @@ export default function IaStudioPage() {
         if (masque.error) { setColorArchError(masque.error); setColorArchLoading(false); return; }
         setIaHistoryRefresh(n => n + 1);
         setColorArchResult({
-          id: uid(), module: 'coloriste-archi',
+          id: uid(), module: moduleActif,
           prompt: elemsAModifier.map(e => e === 'facade' ? `Façades ${facadeCol} ${facadeFinish}`
             : e === 'poignee' ? `Poignées ${poigneeCol}` : `Plan ${planCol}`).join(' · ') + ' · zone sélectionnée',
           dossier: dossierName,
@@ -2099,7 +2101,7 @@ export default function IaStudioPage() {
         : elemsAModifier.map(e => e === 'facade' ? `Façades ${facadeCol} ${facadeFinish}`
             : e === 'poignee' ? `Poignées ${poigneeCol}` : `Plan ${planCol}`).join(' · ');
       setColorArchResult({
-        id: uid(), module: 'coloriste-archi', prompt: desc, dossier: dossierName,
+        id: uid(), module: moduleActif, prompt: desc, dossier: dossierName,
         ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
         color: preset?.facade ?? facadeCol,
         imageUrl: result.imageUrl ?? undefined,
@@ -2865,6 +2867,50 @@ export default function IaStudioPage() {
                 {tab==='coloriste-archi' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#2f9e8f]">
                     <div className="h-2 w-2 rounded-full bg-[#2f9e8f] dp" />
+                    Module actif — prêt à l'emploi
+                  </div>
+                )}
+              </div>
+            </div>
+          </button>
+
+          {/* « Changer les couleurs Studio » — jumeau du precedent.
+
+              Meme panneau JSX, comme pour le Rendu Realiste : deux copies
+              finiraient par diverger. Ce qui change est derriere — c'est ici
+              qu'on construit la recolorisation MULTI-ELEMENTS en une seule
+              passe (facades hautes, facades basses, poignees, plan de travail,
+              credence ensemble), la ou l'onglet historique impose un element
+              a la fois. */}
+          <button onClick={() => setTab('coloriste-studio')}
+            className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
+              tab==='coloriste-studio'
+                ? 'border-[#4285f4] bg-white shadow-xl'
+                : 'border-[#304035]/8 bg-white/70 hover:border-[#4285f4]/30 hover:bg-white hover:shadow-md hover:-translate-y-0.5'
+            }`}
+          >
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+              style={{background:'radial-gradient(ellipse at 20% 50%, rgba(66,133,244,.06), transparent 65%)'}} />
+            {tab==='coloriste-studio' && (
+              <div className="absolute inset-0"
+                style={{background:'radial-gradient(ellipse at 20% 50%, rgba(66,133,244,.07), transparent 65%)'}} />
+            )}
+            <div className="relative flex items-start gap-4">
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-md transition-transform duration-300 group-hover:scale-110 ${tab==='coloriste-studio'?'scale-110':''}`}
+                style={{background:tab==='coloriste-studio'?'linear-gradient(135deg,#4285f4,#2a64c8)':'linear-gradient(135deg,#4285f455,#4285f430)'}}>
+                <Paintbrush className={`h-6 w-6 ${tab==='coloriste-studio'?'text-white':'text-[#4285f4]'}`} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="font-black text-[#304035] text-lg">Changer les couleurs Studio</p>
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#4285f4]/12 text-[#4285f4]">Plusieurs éléments</span>
+                </div>
+                <p className="text-sm text-[#304035]/60 leading-relaxed">
+                  Meubles hauts, meubles bas, poignées, plan de travail, crédence — <span className="font-semibold text-[#304035]/80">tout en une seule fois</span>, et <span className="font-semibold text-[#304035]/80">rien d'autre ne bouge</span>.
+                </p>
+                {tab==='coloriste-studio' && (
+                  <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#4285f4]">
+                    <div className="h-2 w-2 rounded-full bg-[#4285f4] dp" />
                     Module actif — prêt à l'emploi
                   </div>
                 )}
@@ -4074,7 +4120,10 @@ export default function IaStudioPage() {
         )}
 
         {/* ══════════════════════════ MODULE COLORISTE IA+ */}
-        {tab === 'coloriste-archi' && (
+        {/* Panneau PARTAGE par les deux onglets couleurs — meme raison que pour
+            le Rendu Realiste : une comparaison n'a de valeur que si l'interface
+            est identique, et deux copies du JSX divergent toujours. */}
+        {(tab === 'coloriste-archi' || tab === 'coloriste-studio') && (
           <div className="fu space-y-6">
 
             <div className="grid gap-6 lg:grid-cols-3 lg:items-stretch">
