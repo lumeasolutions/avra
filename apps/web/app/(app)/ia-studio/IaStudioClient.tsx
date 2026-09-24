@@ -1374,7 +1374,7 @@ function GalleryCard({ gallery }: { gallery: Item[] }) {
                 </div>
                 <div className="absolute top-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-sm"
                   style={{background:`${item.color}22`,color:item.color}}>
-                  {item.module==='coloriste'?'Coloriste':item.module==='coloriste-archi'?'Coloriste+':item.module==='coloriste-tex'?'Coloriste ✨':item.module==='coloriste-test'?'Coloriste test':item.module==='architect'?'Architect':item.module==='architect-google'?'Google':'Rendu'}
+                  {item.module==='coloriste'?'Coloriste':item.module==='coloriste-archi'?'Coloriste+':item.module==='coloriste-tex'?'Coloriste ✨':item.module==='coloriste-test'?'Coloriste test':item.module==='architect'?'Architect':item.module==='architect-google'?'Studio':'Rendu'}
                 </div>
               </div>
             )}
@@ -2790,9 +2790,13 @@ export default function IaStudioPage() {
             </div>
           </button>
 
-          {/* Rendu Réaliste · Google — jumeau du précédent, moteur Gemini 3.1
-              Flash Image. Même panneau, même photo, mêmes champs : seul le
-              moteur change, pour que la comparaison ne porte que sur lui. */}
+          {/* « Rendu Réaliste Studio » — jumeau du précédent, autre moteur de
+              rendu (cf. lib/server/google-image-api.ts). Même panneau, même
+              photo, mêmes champs : seul le moteur change, pour que la
+              comparaison ne porte que sur lui.
+
+              Aucun nom de fournisseur n'apparaît à l'écran : ça n'apprend rien
+              à l'utilisateur, et ces écrans sont montrés à des clients. */}
           <button onClick={() => setTab('architect-google')}
             className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
               tab==='architect-google'
@@ -2813,11 +2817,11 @@ export default function IaStudioPage() {
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-black text-[#304035] text-lg">Rendu Réaliste · Google</p>
-                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#4285f4]/12 text-[#4285f4]">Essai comparatif</span>
+                  <p className="font-black text-[#304035] text-lg">Rendu Réaliste Studio</p>
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#4285f4]/12 text-[#4285f4]">Haute définition</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Le même module, moteur <span className="font-semibold text-[#304035]/80">Gemini 3.1</span> — sortie <span className="font-semibold text-[#304035]/80">2K / 4K</span> et vrais échantillons de matière.
+                  Le même module, en <span className="font-semibold text-[#304035]/80">2K ou 4K</span> — et vous pouvez joindre de <span className="font-semibold text-[#304035]/80">vrais échantillons</span> de matière.
                 </p>
                 {tab==='architect-google' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#4285f4]">
@@ -3544,10 +3548,9 @@ export default function IaStudioPage() {
                 <Building2 className="h-4 w-4 text-white" />
               </div>
               <p className="text-xs leading-snug text-[#304035]/75">
-                Moteur&nbsp;: <b className="text-[#304035]">{tab === 'architect-google' ? 'Google Gemini 3.1 Flash Image' : 'MyArchitectAI'}</b>
                 {tab === 'architect-google'
-                  ? <> — sortie <b className="text-[#304035]">2K</b> (0,10&nbsp;$), ou <b className="text-[#304035]">4K</b> (0,15&nbsp;$) en cochant «&nbsp;Haute résolution&nbsp;». Accepte de vrais échantillons de matière.</>
-                  : <> — sortie 1K. Tous les autres réglages sont identiques d'un onglet à l'autre.</>}
+                  ? <><b className="text-[#304035]">Rendu Réaliste Studio</b> — sortie <b className="text-[#304035]">2K</b>, ou <b className="text-[#304035]">4K</b> en cochant «&nbsp;Haute résolution&nbsp;». Vous pouvez joindre de vrais échantillons de matière, ils seront reproduits tels quels.</>
+                  : <><b className="text-[#304035]">Rendu Réaliste</b> — la version rapide. Tous les réglages sont identiques d'un onglet à l'autre.</>}
               </p>
             </div>
 
