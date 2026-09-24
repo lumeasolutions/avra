@@ -228,11 +228,50 @@ export async function POST(req: NextRequest) {
     const dim = dimensions(src.buffer);
     const ratio = dim ? ratioProche(dim.largeur, dim.hauteur) : '16:9';
 
-    // On archive la source comme le jumeau, pour que l'historique soit comparable.
+    /**
+     * On recadre la source au ratio de sortie AVANT de l'envoyer.
+     *
+     * Les ratios acceptés sont une liste fermée (16:9, 3:2, 4:3…). Une photo
+     * en 1512x807 vaut 1,874 : le plus proche est 16:9, soit 1,792. On
+     * demandait donc au modèle de reproduire un cadre qu'on ne lui montrait
+     * pas, et il comblait la différence à sa façon. En rognant nous-mêmes les
+     * quelques pour cent de trop, il voit exactement le cadre qu'il doit
+     * rendre — une cause de recadrage en moins, et celle-là est de notre fait.
+     */
+    let envoi = { base64: src.base64, mime: src.contentType, buffer: src.buffer };
+    if (dim) {
+      const [rw, rh] = ratio.split(':').map(Number);
+      const cible = rw / rh;
+      const actuel = dim.largeur / dim.hauteur;
+      if (Math.abs(actuel - cible) > 0.005) {
+        try {
+          const largeur = actuel > cible ? Math.round(dim.hauteur * cible) : dim.largeur;
+          const hauteur = actuel > cible ? dim.hauteur : Math.round(dim.largeur / cible);
+          const { default: sharp } = await import('sharp');
+          const buf = await sharp(src.buffer)
+            .extract({
+              left: Math.round((dim.largeur - largeur) / 2),
+              top: Math.round((dim.hauteur - hauteur) / 2),
+              width: largeur,
+              height: hauteur,
+            })
+            .jpeg({ quality: 92 })
+            .toBuffer();
+          envoi = { base64: buf.toString('base64'), mime: 'image/jpeg', buffer: buf };
+        } catch (cropErr) {
+          // Non bloquant : sans recadrage on perd un peu de fidélité, pas le rendu.
+          console.warn('[API /ia/architect-google] recadrage source ignoré:',
+            cropErr instanceof Error ? cropErr.message : cropErr);
+        }
+      }
+    }
+
+    // On archive la source RECADRÉE : c'est elle que le moteur a vue, donc
+    // c'est à elle qu'il faut comparer le résultat.
     try {
-      const ext = src.contentType.includes('png') ? 'png' : src.contentType.includes('webp') ? 'webp' : 'jpg';
+      const ext = envoi.mime.includes('png') ? 'png' : envoi.mime.includes('webp') ? 'webp' : 'jpg';
       const sourcePath = `${workspaceId}/${job.id}/source.${ext}`;
-      await uploadToIaRenders(sourcePath, src.buffer, src.contentType);
+      await uploadToIaRenders(sourcePath, envoi.buffer, envoi.mime);
       const signee = await createIaRendersSignedUrl(sourcePath);
       await prisma.iaJob.update({
         where: { id: job.id },

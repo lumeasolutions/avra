@@ -114,11 +114,82 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     ? 'every volume, opening, window, door, roofline and planting'
     : 'every wall, window, opening, cabinet, appliance, tap, plant and object';
 
-  const phrases: string[] = [
-    `The first image is a photograph of a real ${lieu}. Recreate that same photograph: the same camera position, the same framing, the same perspective, the same proportions.`,
-    `In your result, ${elements} stays exactly where it is, at exactly the same size and the same shape.`,
-    'Nothing new may appear — no niche, no shelf, no glass front, no decoration, no opening that is not already in the photograph — and nothing that is there may disappear.',
-  ];
+  /**
+   * Le cadrage, attaqué de front.
+   *
+   * 24/09/2026 — sur les cinq essais faits en direct dans l'interface, Google
+   * a recadré CINQ fois sur cinq : vue plus large, angle légèrement différent,
+   * éléments qui entrent dans le champ. Le paramètre d'aspect, lui, est bien
+   * respecté (1232x830 → 3:2, 1280x655 → 16:9, vérifié) : le recadrage est
+   * donc un choix du modèle, pas un réglage manquant.
+   *
+   * Et c'est un biais assumé de l'outil : le guide de Google formule ses
+   * références comme « [images] + [relation] + [NOUVELLE SCÈNE] ». Il pousse
+   * à transformer, pas à préserver le point de vue. On le contre avec du
+   * vocabulaire de photographe — position, focale, hauteur, lignes de fuite,
+   * bords du cadre — plutôt qu'avec un « garde le cadrage » que le modèle
+   * interprète librement.
+   */
+  const cadrage = [
+    'The photograph you produce is taken from the exact same camera position as the first image:',
+    'same viewpoint, same lens and focal length, same camera height, same tilt.',
+    'The four edges of your image show exactly what the four edges of the first image show —',
+    'nothing enters the frame that was not already visible, nothing leaves it, and you do not step back, zoom or pan.',
+    'Vertical lines stay vertical, and the vanishing lines of the floor, the ceiling and the cabinet fronts',
+    'converge exactly where they converge in the first image.',
+  ].join(' ');
+
+  const phrases: string[] = [];
+
+  if (changements.length === 0) {
+    // Photoréalisation pure. La consigne précédente disait « recrée cette photo
+    // et ne change que les finitions » sans en lister aucune : elle se lisait
+    // donc « ne change rien », et le modèle repartait librement. On nomme
+    // explicitement la tâche à la place.
+    phrases.push(
+      `The first image is a 3D design export of a real ${lieu} — flat materials, simplified lighting. `
+      + 'Your task is to render that exact design as a photograph: real materials, real light, real shadows, real depth of field.',
+    );
+  } else {
+    phrases.push(`The first image is a photograph of a real ${lieu}. Recreate that same photograph.`);
+  }
+
+  phrases.push(cadrage);
+  phrases.push(`${elements[0].toUpperCase()}${elements.slice(1)} stays exactly where it is, at exactly the same size and the same shape.`);
+
+  /**
+   * L'enveloppe de la pièce, traitée à part.
+   *
+   * Demande explicite du 24/09 : murs, sol et plafond doivent être les mêmes,
+   * et rien ne doit être ajouté. Sur nos cinq essais, le modèle a remplacé une
+   * porte-fenêtre par une grande baie vitrée, ajouté des plantes, un panier et
+   * des cadres qui ne sont dans aucun plan. On ne lui dit donc pas « ne change
+   * pas la pièce » — formule qu'il interprète largement — mais on énumère
+   * surface par surface, et on nomme précisément ce qu'il a l'habitude
+   * d'ajouter. Une interdiction nommée se respecte mieux qu'une interdiction
+   * générale.
+   */
+  if (params.mode === 'interior') {
+    phrases.push(
+      'The shell of the room is not yours to redesign. '
+      + 'The walls keep their exact number, position, length and angle, and the openings in them — windows, doors, passageways — '
+      + 'keep their exact position, size, shape and frame; a French door stays a French door and does not become a glazed bay. '
+      + 'The ceiling keeps its exact height, its beams, its bulkheads and its spotlights. '
+      + 'The floor keeps its exact level and its exact material, with the boards or joints running in the same direction.',
+    );
+  } else {
+    phrases.push(
+      'The shell of the building is not yours to redesign. '
+      + 'Volumes, roofline, openings and their frames keep their exact position, size and shape.',
+    );
+  }
+
+  phrases.push(
+    'Add nothing at all. No plant, no vase, no basket, no rug, no cushion, no artwork or framed picture, no extra lamp, '
+    + 'no stool, no chair, no furniture, no tableware, no food, no person and no animal that is not already visible in the first image. '
+    + 'Invent no niche, no open shelf, no glass front and no opening. '
+    + 'Remove nothing either: every object already visible stays, in the same place.',
+  );
 
   if (changements.length > 0) {
     phrases.push(`What you do change is the finishes, and only those: ${enumerer(changements)}.`);
@@ -249,23 +320,13 @@ export async function generateGoogleRender(
   const images = [source, ...retenus];
   const echecs: string[] = [];
 
-  // ── Forme A : /v1beta/interactions (format « input[] / response_format »)
-  const a = await poster('/interactions', {
-    model: MODELE,
-    input: [
-      { type: 'text', text: prompt },
-      ...images.map(i => ({ type: 'image', mime_type: i.mime, data: i.base64 })),
-    ],
-    response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: ratio, image_size: taille },
-  }, cle);
-  const b64a = a.ok ? extraireBase64(a.json) : null;
-  if (b64a) {
-    return { success: true, imageUrls: [], base64: b64a, prompt, endpoint: `google/${MODELE}/interactions`, upscaled: taille === '4K' };
-  }
-  echecs.push(`interactions: ${a.ok ? 'réponse sans image' : messageErreur(a.json, a.statut)}`);
-
-  // ── Forme B : models/{id}:generateContent (format historique)
-  const b = await poster(`/models/${MODELE}:generateContent`, {
+  // ── Forme A : models/{id}:generateContent — c'est CELLE qui répond.
+  //    On l'essayait en second parce que la doc publique mettait /interactions
+  //    en avant ; les cinq rendus du 24/09 ont tranché : generateContent passe,
+  //    /interactions échoue à chaque fois. Inverser l'ordre économise un
+  //    aller-retour réseau par rendu et supprime une ligne d'erreur trompeuse
+  //    dans les diagnostics.
+  const a = await poster(`/models/${MODELE}:generateContent`, {
     contents: [{
       role: 'user',
       parts: [
@@ -278,11 +339,26 @@ export async function generateGoogleRender(
       imageConfig: { aspectRatio: ratio, imageSize: taille },
     },
   }, cle);
+  const b64a = a.ok ? extraireBase64(a.json) : null;
+  if (b64a) {
+    return { success: true, imageUrls: [], base64: b64a, prompt, endpoint: `google/${MODELE}/generateContent`, upscaled: taille === '4K' };
+  }
+  echecs.push(`generateContent: ${a.ok ? 'réponse sans image' : messageErreur(a.json, a.statut)}`);
+
+  // ── Forme B : /v1beta/interactions — repli, au cas où l'éditeur bascule.
+  const b = await poster('/interactions', {
+    model: MODELE,
+    input: [
+      { type: 'text', text: prompt },
+      ...images.map(i => ({ type: 'image', mime_type: i.mime, data: i.base64 })),
+    ],
+    response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: ratio, image_size: taille },
+  }, cle);
   const b64b = b.ok ? extraireBase64(b.json) : null;
   if (b64b) {
-    return { success: true, imageUrls: [], base64: b64b, prompt, endpoint: `google/${MODELE}/generateContent`, upscaled: taille === '4K' };
+    return { success: true, imageUrls: [], base64: b64b, prompt, endpoint: `google/${MODELE}/interactions`, upscaled: taille === '4K' };
   }
-  echecs.push(`generateContent: ${b.ok ? 'réponse sans image' : messageErreur(b.json, b.statut)}`);
+  echecs.push(`interactions: ${b.ok ? 'réponse sans image' : messageErreur(b.json, b.statut)}`);
 
   return {
     success: false,
