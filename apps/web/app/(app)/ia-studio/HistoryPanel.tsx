@@ -73,6 +73,26 @@ interface Props {
   accent:          string;
 }
 
+/**
+ * Le texte d'échec montré à l'écran.
+ *
+ * Les jobs échoués avant le 26/09/2026 portent en base le message brut du
+ * moteur : nom du fournisseur, nom du modèle, quotas, URL de documentation.
+ * Ces lignes restent affichées dans l'historique — potentiellement devant un
+ * client. Rendre les nouveaux messages génériques ne suffit donc pas : il
+ * faut aussi filtrer ce qui est déjà stocké.
+ *
+ * On n'affiche un `errorMessage` que s'il est manifestement rédigé pour
+ * l'utilisateur. Au moindre indice technique, on retombe sur un texte neutre.
+ */
+const INDICE_TECHNIQUE = /google|gemini|openai|anthropic|claude|\bfal\b|fal\.(ai|run|media)|myarchitect|flux|kontext|https?:|generativelanguage|api[_ -]?key|quota|token|rate limit|model:|\bHTTP\b|\b[45]\d{2}\b/i;
+
+function messageEchec(brut: string | null): string {
+  const secours = 'La génération n\'a pas abouti. Réessayez dans un instant.';
+  if (!brut) return secours;
+  return INDICE_TECHNIQUE.test(brut) ? secours : brut;
+}
+
 function StatusBadge({ status }: { status: JobStatus }) {
   const styles: Record<JobStatus, { bg: string; fg: string; label: string; icon: typeof Clock }> = {
     QUEUED:     { bg: '#9ca3af20', fg: '#6b7280', label: 'En attente',  icon: Clock },
@@ -313,9 +333,9 @@ export default function HistoryPanel({ filterType, onSelect, refreshTrigger, acc
                     {job.prompt.slice(0, 110)}{job.prompt.length > 110 ? '…' : ''}
                   </p>
                 )}
-                {job.errorMessage && job.status === 'FAILED' && (
+                {job.status === 'FAILED' && (
                   <p className="text-[11px] text-red-600 line-clamp-2 leading-relaxed">
-                    {job.errorMessage}
+                    {messageEchec(job.errorMessage)}
                   </p>
                 )}
                 <div className="flex items-center gap-2 text-[10px] text-[#304035]/45">
