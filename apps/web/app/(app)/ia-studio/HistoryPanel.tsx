@@ -49,6 +49,7 @@ export interface IaJobRow {
   prompt:          string | null;
   errorMessage:    string | null;
   durationMs:      number | null;
+  /** Cout IA du job. Suivi cote serveur uniquement : jamais affiche. */
   costEUR:         number | null;
   modelsUsed:      string[];
   completedAt:     string | null;
@@ -325,12 +326,6 @@ export default function HistoryPanel({ filterType, onSelect, refreshTrigger, acc
                       <span>·</span>
                       <UserIcon className="h-3 w-3" />
                       <span>{job.createdBy.firstName}</span>
-                    </>
-                  )}
-                  {job.costEUR != null && (
-                    <>
-                      <span>·</span>
-                      <span>{job.costEUR.toFixed(2).replace('.', ',')} €</span>
                     </>
                   )}
                 </div>

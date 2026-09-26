@@ -567,17 +567,6 @@ interface PipelineStep {
   durationMs: number;
 }
 
-/* ─── Estimations affichées (données statiques, pas besoin du serveur) ─── */
-function estimateCost(module: 'coloriste' | 'rendu'): string {
-  // Coloriste utilise désormais flux-pro/kontext (single) ou /kontext/multi
-  // (multi-image) selon le nombre d'inputs — plus rapide que /max/multi et
-  // moins cher (~$0.04-0.06 / image vs $0.10).
-  return module === 'coloriste' ? '~0,05 €' : '~0,06 €';
-}
-function estimateDuration(module: 'coloriste' | 'rendu'): string {
-  return module === 'coloriste' ? '10–20 sec' : '10–20 sec';
-}
-
 /* ─────────────────────────────────────────── ANIMATIONS */
 const CSS = `
 @keyframes fadeUp   { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
