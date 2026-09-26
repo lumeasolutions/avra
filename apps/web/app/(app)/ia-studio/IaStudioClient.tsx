@@ -239,6 +239,75 @@ async function callRenduAPI(params: {
    Les deux routes ont le MÊME contrat d'entrée et de sortie : seul `endpoint`
    change. C'est volontaire — une comparaison de moteurs n'a de valeur que si
    rien d'autre ne diffère. ─── */
+/* ─────────────────────────────────────────── RÉCUPÉRATION D'UN RENDU PERDU */
+/**
+ * Va rechercher dans l'historique un rendu dont la réponse HTTP n'est jamais
+ * arrivée au navigateur.
+ *
+ * LE PROBLÈME (retour Cassandra, 26/09/2026)
+ * ------------------------------------------
+ * Les routes de génération créent le job AVANT de lancer le moteur, puis
+ * écrivent le résultat en base à la fin. Une génération dure 20 à 30 s. Si la
+ * connexion se coupe pendant ce temps — réseau mobile, Wi-Fi qui saute, onglet
+ * mis en veille par le téléphone — l'image est bien générée, stockée et
+ * facturée, mais le `fetch` du client échoue : l'utilisatrice voit « la
+ * connexion s'est interrompue » et croit que le module est cassé.
+ *
+ * Plutôt que d'afficher une erreur, on interroge l'historique du workspace
+ * jusqu'à trois minutes après le départ de la requête, à la recherche du job
+ * correspondant (même moteur, créé après le lancement). S'il est terminé, on
+ * affiche son image comme si de rien n'était.
+ *
+ * `engine` est indispensable : plusieurs modules partagent le même `type` de
+ * job, et un coéquipier peut générer en parallèle.
+ */
+async function recupererJobPerdu(opts: {
+  type:      'EDIT' | 'COLOR_VARIATION' | 'PHOTOREALISM_ENHANCE';
+  engine:    string;
+  /** `Date.now()` relevé juste avant l'envoi de la requête. */
+  depuis:    number;
+  limiteMs?: number;
+}): Promise<{ imageUrls: string[] } | { erreur: string } | null> {
+  const limite = opts.limiteMs ?? 180_000;
+  const fin    = Date.now() + limite;
+  // Marge : l'horloge du serveur peut avoir quelques secondes d'écart.
+  const seuil  = opts.depuis - 15_000;
+
+  while (Date.now() < fin) {
+    await new Promise(r => setTimeout(r, 5_000));
+    try {
+      const res = await fetch('/api/ia/jobs?pageSize=10&type=' + opts.type, { credentials: 'include' });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const jobs: Array<{
+        status: string; createdAt: string;
+        // Champ JSON : `{ signedUrls, paths, meta }` cote serveur.
+        resultImageUrls?: { signedUrls?: string[] } | null;
+        errorMessage?: string | null; params?: unknown;
+      }> = Array.isArray(data?.jobs) ? data.jobs : [];
+
+      const mien = jobs.find(j => {
+        if (new Date(j.createdAt).getTime() < seuil) return false;
+        const p = j.params as Record<string, unknown> | null | undefined;
+        return p != null && typeof p === 'object' && p.engine === opts.engine;
+      });
+      if (!mien) continue;
+
+      if (mien.status === 'DONE') {
+        const urls = (mien.resultImageUrls?.signedUrls ?? []).filter(u => typeof u === 'string');
+        if (urls.length > 0) return { imageUrls: urls };
+      }
+      if (mien.status === 'FAILED') {
+        return { erreur: mien.errorMessage || 'La génération n\'a pas abouti. Réessayez.' };
+      }
+      // QUEUED / PROCESSING : le moteur travaille encore, on repasse.
+    } catch {
+      // Toujours hors ligne : on retente au tour suivant.
+    }
+  }
+  return null;
+}
+
 async function callArchitectAPI(params: {
   endpoint?: string;
   materialSamples?: string[];
@@ -249,6 +318,8 @@ async function callArchitectAPI(params: {
   ambiance?: string; highRes?: boolean;
   referenceImageDataUrl: string;
   projectId?: string | null;
+  /** Nature de la source : plan 3D à photoréaliser, ou rendu déjà abouti. */
+  source?: 'plan3d' | 'rendu';
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string; engine?: string }> {
   const { endpoint = '/api/ia/architect', ...corps } = params;
   const res = await fetch(endpoint, {
@@ -1636,6 +1707,12 @@ export default function IaStudioPage() {
   const [archRefFile,  setArchRefFile]  = useState<File | null>(null);
   const [archRefURL,   setArchRefURL]   = useState<string | null>(null);
   const [archMode,     setArchMode]     = useState<'interior' | 'exterior'>('interior');
+  /**
+   * Nature de l'image importée. Défaut « rendu » : la branche qui préserve.
+   * Cf. le commentaire de `buildGooglePrompt` — c'est la déduction automatique
+   * de cette valeur qui a abîmé les rendus du 26/09.
+   */
+  const [archSource,   setArchSource]   = useState<'plan3d' | 'rendu'>('rendu');
   const [archFacades,     setArchFacades]     = useState('');
   const [archFacadesBas,  setArchFacadesBas]  = useState('');
   const [archFacadesHaut, setArchFacadesHaut] = useState('');
@@ -2043,6 +2120,7 @@ export default function IaStudioPage() {
       return;
     }
     setColorArchLoading(true); setColorArchResult(null); setColorArchError(null);
+    let lanceA = 0;
     try {
       let sourceImageDataUrl: string;
       try { sourceImageDataUrl = await compressImageToDataUrl(photoFile, 2048); }
@@ -2050,6 +2128,7 @@ export default function IaStudioPage() {
         setColorArchError('Impossible de lire la photo. Réessayez avec un autre fichier.');
         setColorArchLoading(false); return;
       }
+      lanceA = Date.now();
       const res = await fetch('/api/ia/coloriste-studio', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2074,7 +2153,29 @@ export default function IaStudioPage() {
         imageUrls: j.imageUrls ?? (j.imageUrl ? [j.imageUrl] : []),
       });
     } catch {
-      setColorArchError('La génération a pris trop de temps ou la connexion s\'est interrompue. Réessayez.');
+      // Coupure réseau : la recolorisation est peut-être terminée côté serveur.
+      setColorArchError('Connexion interrompue — on récupère l\'image, ne fermez pas la page…');
+      const repris = lanceA
+        ? await recupererJobPerdu({ type: 'COLOR_VARIATION', engine: 'coloriste-studio', depuis: lanceA })
+        : null;
+      if (repris && 'imageUrls' in repris) {
+        setIaHistoryRefresh(n => n + 1);
+        setColorArchError(null);
+        setColorArchResult({
+          id: uid(), module: 'coloriste-studio',
+          prompt: coches.map(e => `${e.label} ${studioCols[e.id].hex}`).join(' · '),
+          dossier: dossierName,
+          ts: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          color: studioCols[coches[0].id].hex,
+          imageUrl: repris.imageUrls[0],
+          imageUrls: repris.imageUrls,
+        });
+      } else if (repris) {
+        setColorArchError(repris.erreur);
+      } else {
+        setColorArchError('La connexion s\'est interrompue. Regardez l\'historique en bas de page '
+          + 'avant de relancer : l\'image y est peut-être déjà.');
+      }
     }
     setColorArchLoading(false);
   };
@@ -2462,6 +2563,7 @@ export default function IaStudioPage() {
       return;
     }
     setArchLoading(true); setArchResult(null); setArchError(null);
+    let lanceA = 0;
     try {
       let referenceImageDataUrl: string;
       try {
@@ -2490,10 +2592,14 @@ export default function IaStudioPage() {
           return;
         }
       }
+      // Heure de départ : borne de recherche si la réponse n'arrive jamais et
+      // qu'il faut retrouver le rendu dans l'historique (cf. recupererJobPerdu).
+      lanceA = Date.now();
       const result = await callArchitectAPI({
         endpoint:    versGoogle ? '/api/ia/architect-google' : '/api/ia/architect',
         materialSamples,
         mode:        archMode,
+        source:      archSource,
         facades:     archFacades.trim() || undefined,
         facadesBas:  archMode === 'interior' ? (archFacadesBas.trim()  || undefined) : undefined,
         facadesHaut: archMode === 'interior' ? (archFacadesHaut.trim() || undefined) : undefined,
@@ -2526,9 +2632,41 @@ export default function IaStudioPage() {
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
-      setArchError(msg && !msg.includes('fetch')
-        ? msg
-        : 'La génération a pris trop de temps ou la connexion s\'est interrompue. Réessayez dans quelques secondes.');
+      // Erreur applicative (message explicite) : on l'affiche telle quelle.
+      const coupureReseau = !msg || msg.includes('fetch') || msg.includes('NetworkError')
+        || msg.includes('Load failed') || msg.includes('network');
+      if (!coupureReseau) {
+        setArchError(msg);
+        setArchLoading(false);
+        return;
+      }
+      // Coupure réseau : le rendu est peut-être terminé côté serveur.
+      setArchError('Connexion interrompue — on récupère le rendu, ne fermez pas la page…');
+      const repris = lanceA
+        ? await recupererJobPerdu({
+            type:   'EDIT',
+            engine: versGoogle ? 'google-render-realistic' : 'myarchitectai',
+            depuis: lanceA,
+          })
+        : null;
+      if (repris && 'imageUrls' in repris) {
+        setIaHistoryRefresh(n => n + 1);
+        setArchError(null);
+        setArchResult({
+          id: uid(), module: versGoogle ? 'architect-google' : 'architect',
+          prompt: archAmbiance.trim() || archFacades.trim() || (archMode === 'exterior' ? 'Rendu extérieur' : 'Rendu intérieur'),
+          dossier: dossierName,
+          ts: new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
+          color: versGoogle ? '#4285f4' : '#8a6cc2',
+          imageUrl: repris.imageUrls[0],
+          imageUrls: repris.imageUrls,
+        });
+      } else if (repris) {
+        setArchError(repris.erreur);
+      } else {
+        setArchError('La connexion s\'est interrompue et le rendu n\'est pas revenu. '
+          + 'Regardez l\'historique en bas de page avant de relancer : il y est peut-être déjà.');
+      }
     }
     setArchLoading(false);
   };
@@ -3950,6 +4088,29 @@ export default function IaStudioPage() {
                   { value: 'exterior', label: 'Extérieur', icon: Building2 },
                 ]}
               />
+
+              {/* Nature de la source : elle décide de la consigne envoyée au moteur.
+                  Réservé à l'onglet Studio — l'autre moteur photoréalise
+                  toujours, la distinction n'y changerait rien. */}
+              {tab === 'architect-google' && (
+              <div>
+                <ChipSelector<'plan3d' | 'rendu'>
+                  label="Image de départ"
+                  accent="#8a6cc2"
+                  value={archSource}
+                  onChange={setArchSource}
+                  options={[
+                    { value: 'rendu',  label: 'Rendu déjà abouti', icon: Camera },
+                    { value: 'plan3d', label: 'Plan / export 3D',  icon: Layers },
+                  ]}
+                />
+                <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">
+                  {archSource === 'rendu'
+                    ? 'Votre image a déjà ses matières et sa lumière : elles seront conservées à l\'identique.'
+                    : 'Matières plates et lumière simplifiée (WinnerFlex, SketchUp) : le rendu ajoutera lumière, ombres et profondeur.'}
+                </p>
+              </div>
+              )}
 
               {/* Ambiance / consigne libre */}
               <div>

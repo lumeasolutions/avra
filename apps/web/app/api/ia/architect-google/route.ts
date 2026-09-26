@@ -133,6 +133,7 @@ export async function POST(req: NextRequest) {
 
   const mode: ArchitectMode = body.mode === 'exterior' ? 'exterior' : 'interior';
   const params: ArchitectParams = {
+    source: body.source === 'plan3d' ? 'plan3d' : 'rendu',
     mode,
     facades: typeof body.facades === 'string' ? body.facades : undefined,
     facadesBas: typeof body.facadesBas === 'string' ? body.facadesBas : undefined,
@@ -183,6 +184,7 @@ export async function POST(req: NextRequest) {
         params: {
           engine: 'google-render-realistic',
           mode,
+          source: params.source,
           taille,
           echantillons: echantillonsDataUrls.length,
           facades: params.facades ?? null,
@@ -211,11 +213,26 @@ export async function POST(req: NextRequest) {
 
   const tStart = Date.now();
 
-  const fail = async (status: number, message: string) => {
+  /**
+   * `message` est le texte montré à l'utilisateur : générique, sans nom de
+   * fournisseur ni erreur brute (il finit dans l'historique, potentiellement
+   * devant un client). `detail` est la raison technique réelle, rangée dans
+   * `params.debug` — les logs Vercel Hobby ne remontent qu'à une heure, donc
+   * sans ça un échec signalé le lendemain n'est plus diagnosticable.
+   */
+  const fail = async (status: number, message: string, detail?: string) => {
     try {
       await prisma.iaJob.update({
         where: { id: job.id },
-        data: { status: 'FAILED', errorMessage: message, durationMs: Date.now() - tStart, completedAt: new Date() },
+        data: {
+          status: 'FAILED',
+          errorMessage: message,
+          durationMs: Date.now() - tStart,
+          completedAt: new Date(),
+          ...(detail
+            ? { params: { ...(job.params as Record<string, unknown>), debug: detail.slice(0, 2000) } }
+            : {}),
+        },
       });
     } catch (dbErr) {
       console.warn(`[API /ia/architect-google] fail() couldn't update IaJob ${job.id}:`,
@@ -299,7 +316,7 @@ export async function POST(req: NextRequest) {
       ratio,
     );
     if (!result.success || !result.base64) {
-      return fail(502, result.error ?? 'Génération du rendu échouée.');
+      return fail(502, result.error ?? 'Génération du rendu échouée.', result.detail);
     }
 
     // Stockage du rendu (URL signée 30 j), même chemin que le jumeau.
@@ -338,7 +355,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error('[API /ia/architect-google] exception:', err);
-    const message = err instanceof Error ? err.message : 'Erreur serveur interne';
-    return fail(500, message);
+    const brut = err instanceof Error ? (err.stack ?? err.message) : String(err);
+    // Message générique côté écran, exception complète dans `params.debug`.
+    return fail(500, 'Le rendu n\'a pas abouti. Réessayez dans un instant.', brut);
   }
 }

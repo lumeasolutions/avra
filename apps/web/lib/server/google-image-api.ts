@@ -141,17 +141,46 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
 
   const phrases: string[] = [];
 
-  if (changements.length === 0) {
-    // Photoréalisation pure. La consigne précédente disait « recrée cette photo
-    // et ne change que les finitions » sans en lister aucune : elle se lisait
-    // donc « ne change rien », et le modèle repartait librement. On nomme
-    // explicitement la tâche à la place.
+  /**
+   * Ce que le modèle reçoit comme nature de l'image de départ.
+   *
+   * Cette phrase était choisie selon que l'utilisateur avait rempli un champ
+   * de finition ou non : aucun champ → « export 3D tout plat, fais-en une
+   * photo ». Sur un plan WinnerFlex c'est la bonne consigne. Sur un rendu déjà
+   * abouti, c'est un mensonge, et le modèle fait exactement ce qu'on lui
+   * demande : il rajoute de la lumière, des ombres et de la chaleur sur une
+   * image qui en avait déjà. Mesuré sur les quatre rendus du 26/09/2026 :
+   * −15 à −20 points de luminosité, +21 de chaleur, et des suspensions
+   * inventées. Le seul rendu intact était le seul qui avait pris l'autre
+   * branche, pour la seule raison qu'un champ était rempli.
+   *
+   * On demande donc la nature de la source, au lieu de la deviner. Défaut :
+   * `rendu`, la branche qui préserve — sur un plan plat elle rend un peu
+   * moins, mais elle n'abîme rien.
+   */
+  if (params.source === 'plan3d') {
     phrases.push(
       `The first image is a 3D design export of a real ${lieu} — flat materials, simplified lighting. `
       + 'Your task is to render that exact design as a photograph: real materials, real light, real shadows, real depth of field.',
     );
+    phrases.push(
+      'The lighting becomes real, but the colours do not drift: every surface keeps the exact hue it has in the export. '
+      + 'A white front stays that same white — not beige, not cream, not ivory. '
+      + 'The overall brightness stays comparable to the export, and you add no light fitting, no lamp and no light source '
+      + 'that is not already visible in it.',
+    );
   } else {
-    phrases.push(`The first image is a photograph of a real ${lieu}. Recreate that same photograph.`);
+    phrases.push(
+      `The first image is a finished photorealistic render of a real ${lieu}. `
+      + 'Reproduce it as a photograph. You are not relighting it and you are not restyling it.',
+    );
+    phrases.push(
+      'Exposure, contrast and white balance are already correct — keep them. '
+      + 'Your image is exactly as bright as the first image and exactly as warm or as cool: '
+      + 'you do not darken it, you do not push it towards yellow, orange or gold, and you add no golden hour. '
+      + 'You add no shadow, no light source and no reflection that is not already there, and you remove none either. '
+      + 'Every surface keeps the exact colour it has: a white front stays that same white, not beige and not cream.',
+    );
   }
 
   phrases.push(cadrage);
@@ -341,7 +370,7 @@ export async function generateGoogleRender(
   echantillons: ImageEntree[],
   taille: TailleImage,
   ratio: string,
-): Promise<ArchitectResult & { base64?: string }> {
+): Promise<ArchitectResult & { base64?: string; detail?: string }> {
   // Google annonce « up to 10 images of objects with high-fidelity ». Au-delà,
   // la fidélité de chaque référence n'est plus garantie — or c'est exactement
   // ce qu'on vient chercher. On plafonne donc à 10 images AU TOTAL, photo
@@ -411,7 +440,11 @@ export async function generateGoogleRender(
    * image. interactions: 429 — Rate limit exceeded for model
    * gemini-3.1-flash-image… ». Ce texte est stocké en base et réaffiché dans
    * l'historique — donc potentiellement devant un client. Le détail reste
-   * utile, mais pour nous : il part dans les logs serveur.
+   * utile, mais pour nous : il part dans les logs serveur ET dans `detail`,
+   * que l'appelant range dans le job (`params.debug`).
+   *
+   * Les logs Vercel Hobby ne remontent qu'à une heure : sans ce champ, un
+   * échec signalé le lendemain n'est plus diagnosticable.
    */
   console.error('[google-image-api] échec:', echecs.join(' | '));
 
@@ -429,5 +462,6 @@ export async function generateGoogleRender(
     endpoint: `google/${MODELE}`,
     upscaled: false,
     error: message,
+    detail: echecs.join(' | '),
   };
 }

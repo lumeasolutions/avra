@@ -34,6 +34,19 @@ export type ArchitectMode = 'interior' | 'exterior';
 export interface ArchitectParams {
   /** Intérieur (cuisine, pièce) ou extérieur (façade, perspective). */
   mode: ArchitectMode;
+  /**
+   * Nature de l'image de départ.
+   *
+   * `plan3d` : export WinnerFlex / SketchUp aux matières plates, à
+   * photoréaliser — le moteur a le droit d'ajouter lumière et profondeur.
+   * `rendu` (défaut) : rendu déjà abouti, à préserver.
+   *
+   * Cette distinction n'était pas demandée : elle était déduite du fait que
+   * l'utilisateur avait rempli un champ de finition ou non. Un rendu abouti
+   * lancé sans finition partait donc avec « c'est un export 3D tout plat » et
+   * ressortait assombri et jauni (4 rendus perdus le 26/09/2026).
+   */
+  source?: 'plan3d' | 'rendu';
   /** Façades — toutes (optionnel). Fallback si bas/haut non renseignés. */
   facades?: string;
   /** Façades meubles bas uniquement (optionnel) — override sur les bas. */
