@@ -155,8 +155,8 @@ export default function DevisCuisineGuide() {
 
         <Callout variant="warning" title="Le devis n'est pas qu'un argument commercial">
           Un devis non conforme n'est pas seulement risqué juridiquement : il est aussi suspect
-          commercialement. En 2025, 41 % des particuliers déclarent avoir refusé un cuisiniste après lecture
-          d'un devis « peu professionnel ». Conformité = confiance.
+          commercialement. Un particulier qui compare trois devis écarte d'abord celui qui a l'air bâclé,
+          souvent avant même d'avoir regardé le prix. Conformité = confiance.
         </Callout>
 
         <h2 id="mentions-obligatoires">Les 14 mentions légales obligatoires en 2026</h2>
@@ -225,9 +225,9 @@ export default function DevisCuisineGuide() {
           <li><strong>Garantie et SAV</strong> : durée, étendue, modalités</li>
         </ol>
 
-        <PullQuote author="Étude AVRA — 320 devis analysés en 2025">
-          Un devis cuisine structuré en 5 sections augmente le taux de signature de 12 à 18 % par rapport à un
-          devis monobloc, à montant total identique.
+        <PullQuote>
+          Un devis détaillé poste par poste ne se compare pas de la même façon que le même montant affiché
+          sur une seule ligne. Le client n'achète plus un prix, il achète ce qu'il y a dedans.
         </PullQuote>
 
         <h2 id="detail-poste">Le détail par poste : ce qui fait gagner</h2>
@@ -283,8 +283,8 @@ export default function DevisCuisineGuide() {
 
         <p>
           La DGCCRF (Direction générale de la concurrence, de la consommation et de la répression des fraudes)
-          mène chaque année des contrôles ciblés sur les artisans du bâtiment. En 2024, <strong>34 % des
-          devis cuisine contrôlés</strong> présentaient au moins une non-conformité. Soyez à jour.
+          mène chaque année des enquêtes sur les pratiques commerciales du secteur du bâtiment, et le devis
+          y est un point de contrôle récurrent. Soyez à jour.
         </p>
 
         <h2 id="taux-signature">Augmenter le taux de signature</h2>

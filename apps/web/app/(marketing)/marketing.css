@@ -490,6 +490,40 @@ footer {
   color: var(--color-gold);
 }
 
+/* Bande des pages villes, entre les colonnes et le bas de page. */
+.footer-villes {
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.footer-villes h5 {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 1rem;
+}
+
+.footer-villes-liens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+}
+
+.footer-villes-liens a {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.55);
+  transition: var(--transition);
+}
+
+.footer-villes-liens a:hover {
+  color: var(--color-gold);
+}
+
 .footer-bottom {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 32px;

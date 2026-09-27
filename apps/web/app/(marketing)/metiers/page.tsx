@@ -20,6 +20,7 @@ import {
   Shield,
   Zap,
   Star,
+  MapPin,
 } from 'lucide-react';
 import Nav from '../components/Nav';
 import Footer from '../components/Footer';
@@ -687,6 +688,65 @@ export default function MetiersPage() {
         </div>
       </section>
 
+
+      {/* ══════════════════════════════════════════
+          AVRA PRES DE CHEZ VOUS
+          Le hub metier est l'entree naturelle vers les pages locales, qui
+          n'etaient jusqu'ici reliees qu'entre elles.
+      ══════════════════════════════════════════ */}
+      <section style={{ padding: '80px 5%', background: '#f9f6f0' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '2rem', marginBottom: '12px', color: '#1e2b22' }}>
+            AVRA près de chez vous
+          </h2>
+          <p style={{ color: '#6b7c70', marginBottom: '36px', fontSize: '1.02rem', lineHeight: 1.7, maxWidth: '640px' }}>
+            Les usages ne sont pas les mêmes d&apos;une région à l&apos;autre : contraintes de
+            copropriété en centre-ville, distances de pose en périphérie, réseaux de fournisseurs
+            locaux. Voici nos pages dédiées.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '28px' }}>
+            {[
+              { titre: 'Cuisinistes', villes: [
+                { l: 'Paris et Île-de-France', h: '/cuisiniste-paris' },
+                { l: 'Lyon et Rhône-Alpes', h: '/cuisiniste-lyon' },
+                { l: 'Marseille et PACA', h: '/cuisiniste-marseille' },
+              ] },
+              { titre: 'Menuisiers', villes: [
+                { l: 'Paris et Île-de-France', h: '/menuisier-paris' },
+                { l: 'Lyon et Rhône-Alpes', h: '/menuisier-lyon' },
+                { l: 'Bordeaux et Gironde', h: '/menuisier-bordeaux' },
+              ] },
+              { titre: 'Agenceurs', villes: [
+                { l: 'Toulouse et Occitanie', h: '/agencement-toulouse' },
+                { l: 'Nantes et Pays de la Loire', h: '/agencement-nantes' },
+              ] },
+            ].map((groupe) => (
+              <div key={groupe.titre} style={{
+                background: '#fff', border: '1px solid rgba(201,169,110,0.2)',
+                borderRadius: '14px', padding: '24px',
+              }}>
+                <h3 style={{
+                  fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.08em',
+                  textTransform: 'uppercase', color: '#8c7a4e', marginBottom: '14px',
+                }}>
+                  {groupe.titre}
+                </h3>
+                {groupe.villes.map((v) => (
+                  <Link key={v.h} href={v.h} style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    color: '#1e2b22', textDecoration: 'none',
+                    padding: '8px 0', fontSize: '0.95rem',
+                    borderBottom: '1px solid #f0ece5',
+                  }}>
+                    <MapPin size={14} color="#C9A96E" aria-hidden /> {v.l}
+                  </Link>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ══════════════════════════════════════════
           CTA FINAL

@@ -37,6 +37,25 @@ export default function Footer() {
       { label: 'Comparatif logiciels', href: '/blog/logiciel-cuisiniste-comparatif' },
       { label: 'Contact', href: '/contact' },
     ],
+    /**
+     * Les 8 pages villes, en bande sous les colonnes.
+     *
+     * Elles ne se liaient qu'entre elles : un ilot ferme, injoignable depuis
+     * la navigation. Search Console les classait toutes en « Explorée,
+     * actuellement non indexée » (27/09/2026) — le symptome classique d'une
+     * page orpheline atteinte par le seul sitemap. Le pied de page leur donne
+     * un lien permanent depuis chaque page du site.
+     */
+    villes: [
+      { label: 'Cuisiniste à Paris', href: '/cuisiniste-paris' },
+      { label: 'Cuisiniste à Lyon', href: '/cuisiniste-lyon' },
+      { label: 'Cuisiniste à Marseille', href: '/cuisiniste-marseille' },
+      { label: 'Menuisier à Paris', href: '/menuisier-paris' },
+      { label: 'Menuisier à Lyon', href: '/menuisier-lyon' },
+      { label: 'Menuisier à Bordeaux', href: '/menuisier-bordeaux' },
+      { label: 'Agencement à Toulouse', href: '/agencement-toulouse' },
+      { label: 'Agencement à Nantes', href: '/agencement-nantes' },
+    ],
     legal: [
       { label: 'Mentions légales', href: '/mentions-legales' },
       { label: 'Politique de confidentialité', href: '/confidentialite' },
@@ -97,6 +116,18 @@ export default function Footer() {
           ))}
         </div>
       </div>
+
+      {/* Bande villes — liens permanents vers les pages locales */}
+      <nav className="footer-villes" aria-label="AVRA par ville">
+        <h5>AVRA près de chez vous</h5>
+        <div className="footer-villes-liens">
+          {footerLinks.villes.map((link) => (
+            <Link key={link.href} href={link.href}>
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
 
       {/* Footer Bottom */}
       <div className="footer-bottom">

@@ -145,12 +145,14 @@ export default function LogicielMenuisier2026() {
             legalement 10 ans.
           </li>
           <li>
-            <strong>Les attentes clients</strong> : 62% des particuliers en projet de renovation
-            attendent desormais un visuel 3D ou photo-realiste avec leur devis (etude IFOP 2026).
+            <strong>Les attentes clients</strong> : le particulier arrive au rendez-vous avec des
+            references visuelles plein son telephone, et attend un visuel 3D ou photo-realiste joint a
+            son devis.
           </li>
           <li>
-            <strong>La pression sur les marges</strong> : les couts matiere bois ont augmente de 18% sur
-            18 mois. Sans suivi precis chantier par chantier, impossible de savoir ou la marge fond.
+            <strong>La pression sur les marges</strong> : les couts matiere restent volatils d'un
+            trimestre a l'autre. Sans suivi precis chantier par chantier, impossible de savoir ou la
+            marge fond.
           </li>
         </ul>
 

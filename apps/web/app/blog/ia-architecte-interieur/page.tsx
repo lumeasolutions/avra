@@ -142,10 +142,11 @@ export default function IAArchitecteInterieur() {
           contrôlables avec précision.
         </p>
         <p>
-          Cette bascule technologique se traduit par un changement d'attentes côté client. Une étude IFOP
-          conduite en mars 2026 montre que <strong>62 % des particuliers en projet de rénovation</strong>
-          s'attendent désormais à recevoir au moins une visualisation 3D ou photo-réaliste avec leur devis.
-          Ce n'était que 18 % en 2022.
+          Cette bascule technologique se traduit surtout par un changement d'attentes côté client. Un
+          particulier qui prépare sa rénovation a vu, avant même de vous rencontrer, des centaines
+          d'intérieurs rendus en photo-réaliste sur Pinterest et Instagram. <strong>Arriver au rendez-vous
+          avec un plan en deux dimensions, c'est désormais arriver en dessous de ce qu'il a déjà en
+          tête.</strong>
         </p>
 
         <StatGrid
@@ -174,7 +175,7 @@ export default function IAArchitecteInterieur() {
         <ul>
           <li>Vous présentez <strong>3 à 5 ambiances</strong> au lieu d'une seule pendant un rendez-vous.</li>
           <li>Vous diminuez le temps entre la signature et la première proposition créative de 7 à 1 jour.</li>
-          <li>Vous augmentez votre taux de transformation : un client qui voit le résultat possible signe 18 % plus souvent (étude AVRA 2025).</li>
+          <li>Vous améliorez votre taux de transformation : un client qui voit le résultat se projette, et un client qui se projette décide plus vite.</li>
           <li>Vous gagnez du temps sur les retouches : au lieu de refaire un rendu entier, vous itérez sur la même base.</li>
         </ul>
 
@@ -326,9 +327,9 @@ export default function IAArchitecteInterieur() {
           de coordination chantier, qui était la grande oubliée du métier.
         </Callout>
 
-        <PullQuote author="Étude AVRA 2026 — Échantillon 12 cabinets">
-          Les cabinets qui ont intégré l'IA en 2026 facturent en moyenne 23 % de plus par dossier qu'en 2024,
-          tout en travaillant 11 % de moins.
+        <PullQuote>
+          L'IA ne remplace pas le regard de l'architecte. Elle supprime les heures passées à produire ce que
+          ce regard a déjà décidé.
         </PullQuote>
 
         <h2 id="faq">Questions fréquentes</h2>

@@ -154,9 +154,9 @@ export default function ErreursMargeCuisiniste() {
           ]}
         />
 
-        <PullQuote author="Etude AVRA 2025 — 47 cuisinistes pilotes, 320 chantiers">
-          Sur 320 chantiers analyses, 31% etaient en perte ou en marge inferieure a 10%. La cause unique
-          dans 78% des cas : une combinaison de 2 a 4 des 5 erreurs ci-dessous.
+        <PullQuote>
+          Un dossier ne perd presque jamais sa marge d'un coup. Il la perd par petits morceaux, sur quatre
+          ou cinq postes a la fois, dont aucun ne parait grave pris isolement.
         </PullQuote>
 
         <h2 id="erreur-1">Erreur 1 — Devis sous-estime : la pose mal chiffree</h2>
