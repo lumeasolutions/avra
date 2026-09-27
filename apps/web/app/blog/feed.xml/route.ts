@@ -25,6 +25,27 @@ type Article = {
 // (Une refacto possible plus tard : extraire dans blog/articles.ts partage.)
 const ARTICLES: Article[] = [
   {
+    slug: 'releve-de-mesures-cuisine-checklist',
+    title: 'Releve de mesures cuisine : la checklist complete du metre',
+    description: "Cotes a trois hauteurs, equerrage, faux aplombs, reseaux, acces : la methode de releve qui supprime les reprises de chantier.",
+    pubDate: 'Sun, 27 Sep 2026 08:00:00 GMT',
+    category: 'Methode',
+  },
+  {
+    slug: 'retard-livraison-cuisine-droits-recours',
+    title: 'Retard de livraison : ce que vous devez au client, ce que le fournisseur vous doit',
+    description: "Delai de 30 jours, mise en demeure, resolution, remboursement majore jusqu'a 50 % : le cadre legal du retard de livraison.",
+    pubDate: 'Fri, 25 Sep 2026 08:00:00 GMT',
+    category: 'Reglementation',
+  },
+  {
+    slug: 'tva-cuisine-10-ou-20',
+    title: 'TVA cuisine : 10 %, 5,5 % ou 20 % ? Le guide ligne par ligne',
+    description: "Quel taux sur quelle ligne de devis : mobilier, electromenager, pose, travaux. Fin de l'attestation et mention de certification.",
+    pubDate: 'Tue, 22 Sep 2026 08:00:00 GMT',
+    category: 'Reglementation',
+  },
+  {
     slug: '5-erreurs-marge-cuisiniste',
     title: "5 erreurs qui plombent la marge d'un cuisiniste en 2026",
     description: 'Devis sous-estimes, sous-traitance non chiffree, retards fournisseurs, SAV oublie : les 5 fuites qui rongent en silence votre rentabilite.',

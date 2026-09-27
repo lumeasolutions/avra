@@ -39,9 +39,12 @@ const DERNIERE_MODIF: Record<string, string> = {
   '/demo': '2026-09-06',
   '/contact': '2026-09-06',
   '/rejoindre': '2026-09-06',
-  '/blog': '2026-09-06',
+  '/blog': '2026-09-27',
   '/glossaire': '2026-09-06',
   // Articles : date declaree dans leur propre balisage BlogPosting.
+  '/blog/releve-de-mesures-cuisine-checklist': '2026-09-27',
+  '/blog/retard-livraison-cuisine-droits-recours': '2026-09-27',
+  '/blog/tva-cuisine-10-ou-20': '2026-09-27',
   '/blog/comment-choisir-erp-cuisiniste': '2026-05-01',
   '/blog/logiciel-menuisier-2026': '2026-05-01',
   '/blog/5-erreurs-marge-cuisiniste': '2026-05-01',
@@ -97,6 +100,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // ── Blog ─────────────────────────────────────────────────────────
     url('/blog', { changeFrequency: 'weekly', priority: 0.8 }),
     url('/glossaire', { changeFrequency: 'monthly', priority: 0.75 }),
+    url('/blog/releve-de-mesures-cuisine-checklist', { changeFrequency: 'monthly', priority: 0.85 }),
+    url('/blog/retard-livraison-cuisine-droits-recours', { changeFrequency: 'monthly', priority: 0.85 }),
+    url('/blog/tva-cuisine-10-ou-20', { changeFrequency: 'monthly', priority: 0.9 }),
     url('/blog/comment-choisir-erp-cuisiniste', { changeFrequency: 'monthly', priority: 0.85 }),
     url('/blog/logiciel-menuisier-2026', { changeFrequency: 'monthly', priority: 0.85 }),
     url('/blog/5-erreurs-marge-cuisiniste', { changeFrequency: 'monthly', priority: 0.85 }),

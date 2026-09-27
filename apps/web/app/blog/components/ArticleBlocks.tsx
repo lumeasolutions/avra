@@ -8,6 +8,7 @@
  */
 
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   AlertTriangle, CheckCircle2, Info, Lightbulb, Sparkles, ArrowRight,
   ChevronDown, ChevronUp, Star,
@@ -335,6 +336,37 @@ export function FinalCTA({
         </div>
       </div>
     </section>
+  );
+}
+
+// ─── ArticleImage ─────────────────────────────────────────────────────────────
+/**
+ * Illustration d'article, avec legende.
+ *
+ * `unoptimized` volontaire : les visuels du blog sont deja exportes au bon
+ * format et a la bonne largeur, et passer par /_next/image ne ferait que
+ * consommer du quota Vercel pour un gain nul.
+ */
+export function ArticleImage({
+  src, alt, caption, priority = false,
+}: { src: string; alt: string; caption?: string; priority?: boolean }) {
+  return (
+    <figure style={{ margin: '40px 0' }}>
+      <Image
+        src={src}
+        alt={alt}
+        width={1200}
+        height={630}
+        priority={priority}
+        unoptimized
+        style={{ width: '100%', height: 'auto', borderRadius: '14px', display: 'block', boxShadow: '0 20px 45px -25px rgba(30,43,34,0.45)' }}
+      />
+      {caption && (
+        <figcaption style={{ marginTop: '10px', fontSize: '0.85rem', color: '#6b7c70', lineHeight: 1.5 }}>
+          {caption}
+        </figcaption>
+      )}
+    </figure>
   );
 }
 

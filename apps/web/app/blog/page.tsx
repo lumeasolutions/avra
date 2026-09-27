@@ -31,6 +31,30 @@ export const metadata: Metadata = {
 
 const articles = [
   {
+    slug: 'releve-de-mesures-cuisine-checklist',
+    title: 'Relevé de mesures cuisine : la checklist complète du métré',
+    excerpt: 'Cotes à trois hauteurs, équerrage, faux aplombs, réseaux, accès au chantier : la méthode de relevé qui supprime les reprises, et les dix erreurs qui coûtent une journée de pose.',
+    date: '27 septembre 2026',
+    readTime: '17 min',
+    tags: ['Méthode', 'Chantier', 'Cuisiniste']
+  },
+  {
+    slug: 'retard-livraison-cuisine-droits-recours',
+    title: 'Retard de livraison : ce que vous devez au client, ce que le fournisseur vous doit',
+    excerpt: 'Délai de 30 jours, mise en demeure, résolution du contrat, remboursement majoré jusqu\'à 50 % : le cadre légal du retard, et la méthode pour le voir arriver.',
+    date: '25 septembre 2026',
+    readTime: '15 min',
+    tags: ['Réglementation', 'Fournisseurs', 'Agenceur']
+  },
+  {
+    slug: 'tva-cuisine-10-ou-20',
+    title: 'TVA cuisine : 10 %, 5,5 % ou 20 % ? Le guide ligne par ligne',
+    excerpt: 'Mobilier, électroménager, pose, travaux : quel taux sur quelle ligne de devis. Fin de l\'attestation, mention de certification obligatoire et trois cas chiffrés.',
+    date: '22 septembre 2026',
+    readTime: '16 min',
+    tags: ['Réglementation', 'TVA', 'Cuisiniste']
+  },
+  {
     slug: '5-erreurs-marge-cuisiniste',
     title: '5 erreurs qui plombent la marge d\'un cuisiniste en 2026 — et comment les corriger',
     excerpt: 'Devis sous-estimes, sous-traitance non chiffree, retards fournisseurs, SAV oublie, prix matiere fige : les 5 fuites qui rongent en silence votre rentabilite.',
