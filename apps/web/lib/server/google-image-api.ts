@@ -196,10 +196,13 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
    */
   phrases.push(
     'Where the first image is overexposed, washed out, blurred or simply lacks detail, you keep exactly what is '
-    + 'there and you invent nothing to fill it. A blown-out window stays a bright window. A surface you cannot '
-    + 'read stays plain, in the colour it appears to be. An object whose shape you cannot make out is redrawn as '
-    + 'the same indistinct object, never replaced by a different one that you can imagine more easily. '
-    + 'Missing information is not an invitation.',
+    + 'there and you invent nothing to fill it. A blown-out window stays a bright window. An object whose shape '
+    + 'you cannot make out is redrawn as the same indistinct object, never replaced by a different one that you '
+    + 'can imagine more easily. Missing information is not an invitation. '
+    + 'One exception matters: a surface that is hard to read because it is REFLECTIVE is not a plain surface. '
+    + 'A mirror, a glass splashback, a polished stone, a stainless steel panel or a high-gloss lacquer looks '
+    + 'washed out precisely because it reflects the room. You render it as what it is — reflective, mirroring '
+    + 'its surroundings — and never flatten it into matt paint or plain stone.',
   );
 
   phrases.push(
@@ -268,6 +271,10 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     { libelle: 'the taps and mixers', sauf: ['evier'] },
     { libelle: 'the hob', sauf: ['cooktop'] },
     { libelle: 'the extractor hood' },
+    // Ajouté le 28/09 : une crédence miroir ressortait systématiquement en
+    // surface mate. C'est un poste de vente, il doit survivre au rendu.
+    { libelle: 'the mirrored splashback and every mirror, which stay mirrors and keep reflecting the room', sauf: ['credence'] },
+    { libelle: 'the glass, stainless steel and lacquered surfaces, which keep their reflectivity' },
     { libelle: 'the ovens, the microwave and the built-in appliances, with their exact colour and finish' },
     { libelle: 'the fridge and the wine cooler, with their exact colour and finish' },
     { libelle: 'the windows and their frames, glazing bars and colour' },
@@ -328,7 +335,8 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     `The result is a photorealistic photograph of that ${lieu}, sharp, with fine material detail. `
     + 'Before you output it, check these three things against the first image, because they are the ones that '
     + 'get changed by mistake: the light fittings are the same fittings, of the same shape and the same number; '
-    + 'the splashback and the wall behind the worktop are the same colour and the same material; '
+    + 'the splashback and the wall behind the worktop are the same colour AND the same material, a mirror '
+    + 'still being a mirror and a gloss surface still being glossy; '
     + 'the cabinet fronts are the same colour. '
     + 'If any of the three differs, you have redesigned the room instead of photographing it.',
   );
