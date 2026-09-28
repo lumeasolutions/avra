@@ -185,6 +185,23 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     + 'Edges are crisp, and the image has the depth of field and the micro-contrast of a real camera. '
     + 'The design does not change — its rendering quality does, and visibly so.',
   );
+  /**
+   * Règle d'abstention.
+   *
+   * Les deux essais ratés du 28/09 partaient de sources très claires, presque
+   * cramées. Le moteur, faute d'information, a comblé : crédence blanche
+   * devenue béton gris, suspension remplacée par un autre luminaire. On lui
+   * dit donc explicitement quoi faire du manque d'information — le garder,
+   * pas l'inventer.
+   */
+  phrases.push(
+    'Where the first image is overexposed, washed out, blurred or simply lacks detail, you keep exactly what is '
+    + 'there and you invent nothing to fill it. A blown-out window stays a bright window. A surface you cannot '
+    + 'read stays plain, in the colour it appears to be. An object whose shape you cannot make out is redrawn as '
+    + 'the same indistinct object, never replaced by a different one that you can imagine more easily. '
+    + 'Missing information is not an invitation.',
+  );
+
   phrases.push(
     'Colour is not yours to reinterpret. Every surface keeps the exact hue it has in the first image: '
     + 'a white front stays that same white, not beige, not cream, not ivory. '
@@ -302,7 +319,19 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     phrases.push(`Light the ${lieu} with ${params.ambiance.trim()}. Change the light alone — never the geometry, never the materials.`);
   }
 
-  phrases.push(`The result is a photorealistic photograph of that ${lieu}, sharp, with fine material detail.`);
+  /**
+   * La dernière phrase est celle qui pèse le plus. Elle finissait sur un
+   * « produis une photographie » générique, qui rouvrait la liberté que tout
+   * le reste de la consigne venait de fermer. Elle referme désormais.
+   */
+  phrases.push(
+    `The result is a photorealistic photograph of that ${lieu}, sharp, with fine material detail. `
+    + 'Before you output it, check these three things against the first image, because they are the ones that '
+    + 'get changed by mistake: the light fittings are the same fittings, of the same shape and the same number; '
+    + 'the splashback and the wall behind the worktop are the same colour and the same material; '
+    + 'the cabinet fronts are the same colour. '
+    + 'If any of the three differs, you have redesigned the room instead of photographing it.',
+  );
   return phrases.join(' ');
 }
 
