@@ -322,22 +322,31 @@ export async function POST(req: NextRequest) {
       return fail(502, result.error ?? 'Génération du rendu échouée.', result.detail);
     }
 
-    // Stockage du rendu (URL signée 30 j), même chemin que le jumeau.
-    const buffer = Buffer.from(result.base64, 'base64');
-    const path = buildIaRenderPath(workspaceId, job.id, 0);
-    await uploadToIaRenders(path, buffer, 'image/jpeg');
-    const signedUrl = await createIaRendersSignedUrl(path);
+    // Stockage des tirages (URLs signées 30 j), même chemin que le jumeau.
+    const tirages = result.base64s?.length ? result.base64s : [result.base64];
+    const paths: string[] = [];
+    const signedUrls: string[] = [];
+    for (let i = 0; i < tirages.length; i++) {
+      const p = buildIaRenderPath(workspaceId, job.id, i);
+      await uploadToIaRenders(p, Buffer.from(tirages[i], 'base64'), 'image/jpeg');
+      paths.push(p);
+      signedUrls.push(await createIaRendersSignedUrl(p));
+    }
+    const path = paths[0];
+    const signedUrl = signedUrls[0];
 
-    const costUSD = result.endpoint === 'mock' ? 0 : COUT[taille];
+    // Facturé au tirage réellement produit : si la seconde variante n'a pas
+    // abouti, on ne la compte pas.
+    const costUSD = result.endpoint === 'mock' ? 0 : COUT[taille] * tirages.length;
     await prisma.iaJob.update({
       where: { id: job.id },
       data: {
         status: 'DONE',
         prompt: result.prompt,
         resultImageUrls: {
-          paths: [path],
-          signedUrls: [signedUrl],
-          meta: { engine: 'google', endpoint: result.endpoint, taille, ratio, mode },
+          paths,
+          signedUrls,
+          meta: { engine: 'google', endpoint: result.endpoint, taille, ratio, mode, variantes: tirages.length },
         },
         durationMs: Date.now() - tStart,
         costEUR: costUSD,
@@ -348,7 +357,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       jobId: job.id,
       imageUrl: signedUrl,
-      imageUrls: [signedUrl],
+      imageUrls: signedUrls,
       engine: result.endpoint,
       upscaled: result.upscaled,
       taille,

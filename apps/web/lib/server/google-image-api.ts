@@ -403,13 +403,24 @@ async function poster(chemin: string, corps: unknown, cle: string) {
  * @param taille        résolution de sortie demandée
  * @param ratio         ratio d'aspect de la source, pour ne pas la recadrer
  */
+/**
+ * Nombre de tirages produits par rendu.
+ *
+ * Mesuré le 28/09 sur six rendus de la même image, même consigne : la
+ * luminosité varie de −11,2 à +0,8 par rapport à la source. Douze points
+ * d'écart entre le meilleur et le pire tirage, et `seed` est ignoré par le
+ * modèle — on ne peut donc ni reproduire ni contrôler ce tirage. Deux
+ * variantes transforment ce hasard en choix, pour le prix d'un second rendu.
+ */
+export const NB_VARIANTES = 2;
+
 export async function generateGoogleRender(
   params: ArchitectParams,
   source: ImageEntree,
   echantillons: ImageEntree[],
   taille: TailleImage,
   ratio: string,
-): Promise<ArchitectResult & { base64?: string; detail?: string }> {
+): Promise<ArchitectResult & { base64?: string; base64s?: string[]; detail?: string }> {
   // Google annonce « up to 10 images of objects with high-fidelity ». Au-delà,
   // la fidélité de chaque référence n'est plus garantie — or c'est exactement
   // ce qu'on vient chercher. On plafonne donc à 10 images AU TOTAL, photo
@@ -438,7 +449,7 @@ export async function generateGoogleRender(
   //    /interactions échoue à chaque fois. Inverser l'ordre économise un
   //    aller-retour réseau par rendu et supprime une ligne d'erreur trompeuse
   //    dans les diagnostics.
-  const a = await poster(`/models/${MODELE}:generateContent`, {
+  const corpsRequete = {
     contents: [{
       role: 'user',
       parts: [
@@ -450,12 +461,40 @@ export async function generateGoogleRender(
       responseModalities: ['IMAGE'],
       imageConfig: { aspectRatio: ratio, imageSize: taille },
     },
-  }, cle);
-  const b64a = a.ok ? extraireBase64(a.json) : null;
-  if (b64a) {
-    return { success: true, imageUrls: [], base64: b64a, prompt, endpoint: `google/${MODELE}/generateContent`, upscaled: taille === '4K' };
+  };
+  /**
+   * Les tirages partent EN PARALLÈLE, pas l'un après l'autre : deux appels
+   * séquentiels doubleraient l'attente (34 s au lieu de 17) pour un bénéfice
+   * qui, lui, est simultané. Un tirage qui échoue ne fait pas tomber les
+   * autres — on rend ce qui est revenu.
+   */
+  const tentatives = await Promise.all(
+    Array.from({ length: NB_VARIANTES }, () =>
+      poster(`/models/${MODELE}:generateContent`, corpsRequete, cle)
+        .then(rep => ({ rep, b64: rep.ok ? extraireBase64(rep.json) : null }))
+        .catch(e => ({ rep: null, b64: null as string | null, err: e }))),
+  );
+  const reussis = tentatives.map(t => t.b64).filter((x): x is string => !!x);
+
+  if (reussis.length > 0) {
+    tentatives.forEach((t, i) => {
+      if (!t.b64) {
+        console.warn('[google-image-api] variante %d non produite: %s', i + 1,
+          t.rep ? (t.rep.ok ? 'réponse sans image' : messageErreur(t.rep.json, t.rep.statut)) : 'exception réseau');
+      }
+    });
+    return {
+      success: true,
+      imageUrls: [],
+      base64: reussis[0],
+      base64s: reussis,
+      prompt,
+      endpoint: `google/${MODELE}/generateContent`,
+      upscaled: taille === '4K',
+    };
   }
-  echecs.push(`generateContent: ${a.ok ? 'réponse sans image' : messageErreur(a.json, a.statut)}`);
+  const a = tentatives[0].rep;
+  echecs.push(`generateContent: ${a ? (a.ok ? 'réponse sans image' : messageErreur(a.json, a.statut)) : 'exception réseau'}`);
 
   // ── Forme B : /v1beta/interactions — repli, au cas où l'éditeur bascule.
   const b = await poster('/interactions', {
