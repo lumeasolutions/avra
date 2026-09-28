@@ -403,27 +403,12 @@ async function poster(chemin: string, corps: unknown, cle: string) {
  * @param taille        résolution de sortie demandée
  * @param ratio         ratio d'aspect de la source, pour ne pas la recadrer
  */
-/**
- * Reglages de generation, en cours d'evaluation (28/09/2026).
- *
- * `thinking_level` est documente pour gemini-3.1-flash-image : `minimal` par
- * defaut, `high` disponible. On etait donc au niveau le plus bas sans l'avoir
- * choisi. `temperature` et `seed` sont documentes dans GenerationConfig mais
- * la page image ne dit pas s'ils sont honores par ce modele — d'ou la mesure.
- */
-export interface ReglagesGeneration {
-  temperature?: number;
-  seed?: number;
-  thinkingLevel?: 'minimal' | 'high';
-}
-
 export async function generateGoogleRender(
   params: ArchitectParams,
   source: ImageEntree,
   echantillons: ImageEntree[],
   taille: TailleImage,
   ratio: string,
-  reglages: ReglagesGeneration = {},
 ): Promise<ArchitectResult & { base64?: string; detail?: string }> {
   // Google annonce « up to 10 images of objects with high-fidelity ». Au-delà,
   // la fidélité de chaque référence n'est plus garantie — or c'est exactement
@@ -464,9 +449,6 @@ export async function generateGoogleRender(
     generationConfig: {
       responseModalities: ['IMAGE'],
       imageConfig: { aspectRatio: ratio, imageSize: taille },
-      ...(reglages.temperature !== undefined ? { temperature: reglages.temperature } : {}),
-      ...(reglages.seed !== undefined ? { seed: reglages.seed } : {}),
-      ...(reglages.thinkingLevel ? { thinkingConfig: { thinkingLevel: reglages.thinkingLevel } } : {}),
     },
   }, cle);
   const b64a = a.ok ? extraireBase64(a.json) : null;

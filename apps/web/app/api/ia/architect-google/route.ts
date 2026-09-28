@@ -311,21 +311,12 @@ export async function POST(req: NextRequest) {
       return { base64: e.base64, mime: e.contentType };
     });
 
-    // Trappe de mesure temporaire : permet de comparer les reglages sans
-    // redeployer a chaque essai. A retirer une fois les valeurs figees.
-    const reglages = {
-      temperature: typeof body.temperature === 'number' ? body.temperature : undefined,
-      seed: typeof body.seed === 'number' ? body.seed : undefined,
-      thinkingLevel: body.thinkingLevel === 'high' ? 'high' as const : undefined,
-    };
-
     const result = await generateGoogleRender(
       params,
       { base64: src.base64, mime: src.contentType },
       echantillons,
       taille,
       ratio,
-      reglages,
     );
     if (!result.success || !result.base64) {
       return fail(502, result.error ?? 'Génération du rendu échouée.', result.detail);
