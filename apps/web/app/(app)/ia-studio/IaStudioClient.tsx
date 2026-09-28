@@ -1712,7 +1712,7 @@ export default function IaStudioPage() {
    * Cf. le commentaire de `buildGooglePrompt` — c'est la déduction automatique
    * de cette valeur qui a abîmé les rendus du 26/09.
    */
-  const [archSource,   setArchSource]   = useState<'plan3d' | 'rendu'>('rendu');
+  const [archSource,   setArchSource]   = useState<'plan3d' | 'rendu'>('plan3d');
   const [archFacades,     setArchFacades]     = useState('');
   const [archFacadesBas,  setArchFacadesBas]  = useState('');
   const [archFacadesHaut, setArchFacadesHaut] = useState('');
@@ -4100,14 +4100,14 @@ export default function IaStudioPage() {
                   value={archSource}
                   onChange={setArchSource}
                   options={[
-                    { value: 'rendu',  label: 'Rendu déjà abouti', icon: Camera },
-                    { value: 'plan3d', label: 'Plan / export 3D',  icon: Layers },
+                    { value: 'plan3d', label: 'Plan / export 3D',   icon: Layers },
+                    { value: 'rendu',  label: 'Rendu déjà abouti',  icon: Camera },
                   ]}
                 />
                 <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">
                   {archSource === 'rendu'
-                    ? 'Votre image a déjà ses matières et sa lumière : elles seront conservées à l\'identique.'
-                    : 'Matières plates et lumière simplifiée (WinnerFlex, SketchUp) : le rendu ajoutera lumière, ombres et profondeur.'}
+                    ? 'Votre image a déjà sa lumière : elle sera conservée, seules les matières et la netteté sont améliorées.'
+                    : 'Matières plates et lumière simplifiée (WinnerFlex, SketchUp) : le rendu ajoutera lumière, ombres, matières et profondeur.'}
                 </p>
               </div>
               )}

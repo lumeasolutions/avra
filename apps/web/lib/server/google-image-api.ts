@@ -144,25 +144,42 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
   /**
    * Ce que le modèle reçoit comme nature de l'image de départ.
    *
-   * Cette phrase était choisie selon que l'utilisateur avait rempli un champ
-   * de finition ou non : aucun champ → « export 3D tout plat, fais-en une
-   * photo ». Sur un plan WinnerFlex c'est la bonne consigne. Sur un rendu déjà
-   * abouti, c'est un mensonge, et le modèle fait exactement ce qu'on lui
-   * demande : il rajoute de la lumière, des ombres et de la chaleur sur une
-   * image qui en avait déjà. Mesuré sur les quatre rendus du 26/09/2026 :
-   * −15 à −20 points de luminosité, +21 de chaleur, et des suspensions
-   * inventées. Le seul rendu intact était le seul qui avait pris l'autre
-   * branche, pour la seule raison qu'un champ était rempli.
+   * HISTORIQUE DES DEUX ERREURS SUCCESSIVES
+   * ---------------------------------------
+   * 1. Jusqu'au 26/09, la consigne « export 3D tout plat, fais-en une photo »
+   *    partait dès qu'aucun champ de finition n'était rempli — y compris sur
+   *    un rendu déjà abouti. Le moteur faisait ce qu'on lui demandait : il
+   *    rajoutait lumière, ombres et chaleur sur une image qui en avait déjà.
+   *    Mesuré sur quatre rendus : −15 à −20 points de luminosité, +21 de
+   *    chaleur, des suspensions inventées.
+   * 2. Le 27/09, la branche de préservation a été posée en défaut. Elle disait
+   *    « reproduis-la, tu ne la ré-éclaires pas et tu ne la restyles pas ». Le
+   *    moteur a rendu une copie. Fidélité parfaite, intérêt nul — et un rendu
+   *    facturé pour rien. C'est le reproche du 28/09 : « ça me ressort
+   *    exactement ma 3D, il n'y a pas d'amélioration ».
    *
-   * On demande donc la nature de la source, au lieu de la deviner. Défaut :
-   * `rendu`, la branche qui préserve — sur un plan plat elle rend un peu
-   * moins, mais elle n'abîme rien.
+   * CE QUE LES DEUX BRANCHES DOIVENT FAIRE
+   * --------------------------------------
+   * Monter la qualité photographique dans les deux cas. Ce qui ne change pas,
+   * c'est le projet — géométrie, implantation, couleurs, cadrage. Ce qui change,
+   * c'est son rendu : matière, grain, reflets, ombres de contact, profondeur de
+   * champ. La seule différence entre les deux branches est la latitude laissée
+   * sur l'éclairage.
    */
+  const montee =
+    'Whatever the source, your output is a photograph, not a copy of the input. '
+    + 'Materials show their real texture and grain: the figure of the wood, the weave of the fabric, '
+    + 'the crystalline depth of the stone, the specularity of the metal, the fingerprints of use on a matt lacquer. '
+    + 'Surfaces gain believable micro-reflections and contact shadows where they meet. '
+    + 'Edges are crisp, and the image has the depth of field and the micro-contrast of a real camera. '
+    + 'The design itself does not change — its rendering quality does, and visibly so.';
+
   if (params.source === 'plan3d') {
     phrases.push(
       `The first image is a 3D design export of a real ${lieu} — flat materials, simplified lighting. `
       + 'Your task is to render that exact design as a photograph: real materials, real light, real shadows, real depth of field.',
     );
+    phrases.push(montee);
     phrases.push(
       'The lighting becomes real, but the colours do not drift: every surface keeps the exact hue it has in the export. '
       + 'A white front stays that same white — not beige, not cream, not ivory. '
@@ -171,15 +188,18 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     );
   } else {
     phrases.push(
-      `The first image is a finished photorealistic render of a real ${lieu}. `
-      + 'Reproduce it as a photograph. You are not relighting it and you are not restyling it.',
+      `The first image is an already finished render of a real ${lieu}. Its framing, its geometry, its colours `
+      + 'and the intent of its lighting are correct, and you keep all four. What you raise is the photographic quality.',
     );
+    phrases.push(montee);
     phrases.push(
-      'Exposure, contrast and white balance are already correct — keep them. '
-      + 'Your image is exactly as bright as the first image and exactly as warm or as cool: '
-      + 'you do not darken it, you do not push it towards yellow, orange or gold, and you add no golden hour. '
-      + 'You add no shadow, no light source and no reflection that is not already there, and you remove none either. '
-      + 'Every surface keeps the exact colour it has: a white front stays that same white, not beige and not cream.',
+      'Exposure and white balance stay as they are: your image is as bright as the first one, and neither warmer nor cooler. '
+      + 'You do not darken it, you do not push it towards yellow, orange or gold, and you add no golden hour. '
+      + 'You add no lamp, no light fitting and no light source that is not already visible, and you remove none either. '
+      + 'Every surface keeps the exact colour it has: a white front stays that same white, not beige and not cream. '
+      + 'Within that same light, however, the rendering becomes genuinely photographic: '
+      + 'the result must be visibly sharper, richer in material detail and more convincing than the first image, '
+      + 'while remaining recognisably the same room lit the same way.',
     );
   }
 
