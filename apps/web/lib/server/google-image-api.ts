@@ -142,66 +142,56 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
   const phrases: string[] = [];
 
   /**
-   * Ce que le modèle reçoit comme nature de l'image de départ.
+   * La nature de la source est arbitrée par le moteur, pas par nous.
    *
-   * HISTORIQUE DES DEUX ERREURS SUCCESSIVES
-   * ---------------------------------------
-   * 1. Jusqu'au 26/09, la consigne « export 3D tout plat, fais-en une photo »
-   *    partait dès qu'aucun champ de finition n'était rempli — y compris sur
-   *    un rendu déjà abouti. Le moteur faisait ce qu'on lui demandait : il
-   *    rajoutait lumière, ombres et chaleur sur une image qui en avait déjà.
-   *    Mesuré sur quatre rendus : −15 à −20 points de luminosité, +21 de
-   *    chaleur, des suspensions inventées.
-   * 2. Le 27/09, la branche de préservation a été posée en défaut. Elle disait
-   *    « reproduis-la, tu ne la ré-éclaires pas et tu ne la restyles pas ». Le
-   *    moteur a rendu une copie. Fidélité parfaite, intérêt nul — et un rendu
-   *    facturé pour rien. C'est le reproche du 28/09 : « ça me ressort
-   *    exactement ma 3D, il n'y a pas d'amélioration ».
+   * POURQUOI ON NE DÉCIDE PLUS À SA PLACE
+   * -------------------------------------
+   * Deux branches manuelles cohabitaient, choisies par une case à cocher, et
+   * elles ont produit les deux régressions de la semaine : la branche
+   * « export 3D plat » appliquée à un rendu déjà fini l'assombrissait, et la
+   * branche de préservation, posée en défaut le 27/09, renvoyait une copie —
+   * « ça me ressort exactement ma 3D », 28/09.
    *
-   * CE QUE LES DEUX BRANCHES DOIVENT FAIRE
-   * --------------------------------------
-   * Monter la qualité photographique dans les deux cas. Ce qui ne change pas,
-   * c'est le projet — géométrie, implantation, couleurs, cadrage. Ce qui change,
-   * c'est son rendu : matière, grain, reflets, ombres de contact, profondeur de
-   * champ. La seule différence entre les deux branches est la latitude laissée
-   * sur l'éclairage.
+   * Une détection automatique par statistiques d'image a été mesurée le
+   * 28/09 sur douze images : platitude locale, grain résiduel, entropie de
+   * luminance, part de hautes lumières cramées, pic d'histogramme. Aucun de
+   * ces indicateurs ne sépare un export 3D plat d'un rendu abouti — les
+   * sorties du moteur, qui sont des rendus finis par construction, tombent au
+   * milieu de la plage des sources. Un classifieur là-dessus se tromperait
+   * sans qu'on puisse le voir.
+   *
+   * On décrit donc les deux cas au moteur, qui lui voit l'image, et on lui
+   * laisse choisir. La contrainte de sortie est identique dans les deux cas —
+   * une image plus photographique que l'entrée — ce qui rend une erreur
+   * d'appréciation de sa part sans conséquence.
    */
-  const montee =
-    'Whatever the source, your output is a photograph, not a copy of the input. '
-    + 'Materials show their real texture and grain: the figure of the wood, the weave of the fabric, '
-    + 'the crystalline depth of the stone, the specularity of the metal, the fingerprints of use on a matt lacquer. '
+  phrases.push(
+    `The first image is ${params.mode === 'exterior' ? 'an exterior view' : 'an interior view'} of a real `
+    + `${lieu} designed by a professional. It is either a flat 3D export — simplified materials, `
+    + 'even lighting, no grain — or an already finished render with its own lighting. Judge which one it is, '
+    + 'and treat it accordingly.',
+  );
+  phrases.push(
+    'If it is a flat export, build the real light: directional daylight consistent with the windows you can see, '
+    + 'soft shadows, contact shadows, and the falloff of a real room. '
+    + 'If it is already a finished render, keep its lighting exactly as it is — same direction, same softness, '
+    + 'same time of day — and correct only what is objectively wrong, such as a blown-out window or a crushed shadow.',
+  );
+  phrases.push(
+    'In both cases the result must be visibly more photographic than the first image, and never a copy of it. '
+    + 'Materials gain their real texture and grain: the figure of the wood, the weave of the fabric, '
+    + 'the crystalline depth of the stone, the specularity of the metal, the softness of a matt lacquer. '
     + 'Surfaces gain believable micro-reflections and contact shadows where they meet. '
     + 'Edges are crisp, and the image has the depth of field and the micro-contrast of a real camera. '
-    + 'The design itself does not change — its rendering quality does, and visibly so.';
-
-  if (params.source === 'plan3d') {
-    phrases.push(
-      `The first image is a 3D design export of a real ${lieu} — flat materials, simplified lighting. `
-      + 'Your task is to render that exact design as a photograph: real materials, real light, real shadows, real depth of field.',
-    );
-    phrases.push(montee);
-    phrases.push(
-      'The lighting becomes real, but the colours do not drift: every surface keeps the exact hue it has in the export. '
-      + 'A white front stays that same white — not beige, not cream, not ivory. '
-      + 'The overall brightness stays comparable to the export, and you add no light fitting, no lamp and no light source '
-      + 'that is not already visible in it.',
-    );
-  } else {
-    phrases.push(
-      `The first image is an already finished render of a real ${lieu}. Its framing, its geometry, its colours `
-      + 'and the intent of its lighting are correct, and you keep all four. What you raise is the photographic quality.',
-    );
-    phrases.push(montee);
-    phrases.push(
-      'Exposure and white balance stay as they are: your image is as bright as the first one, and neither warmer nor cooler. '
-      + 'You do not darken it, you do not push it towards yellow, orange or gold, and you add no golden hour. '
-      + 'You add no lamp, no light fitting and no light source that is not already visible, and you remove none either. '
-      + 'Every surface keeps the exact colour it has: a white front stays that same white, not beige and not cream. '
-      + 'Within that same light, however, the rendering becomes genuinely photographic: '
-      + 'the result must be visibly sharper, richer in material detail and more convincing than the first image, '
-      + 'while remaining recognisably the same room lit the same way.',
-    );
-  }
+    + 'The design does not change — its rendering quality does, and visibly so.',
+  );
+  phrases.push(
+    'Colour is not yours to reinterpret. Every surface keeps the exact hue it has in the first image: '
+    + 'a white front stays that same white, not beige, not cream, not ivory. '
+    + 'You do not push the image towards yellow, orange or gold, and you add no golden hour. '
+    + 'You add no lamp, no light fitting and no light source that is not already visible in the first image, '
+    + 'and you remove none either.',
+  );
 
   phrases.push(cadrage);
   phrases.push(`${elements[0].toUpperCase()}${elements.slice(1)} stays exactly where it is, at exactly the same size and the same shape.`);

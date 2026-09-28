@@ -318,8 +318,6 @@ async function callArchitectAPI(params: {
   ambiance?: string; highRes?: boolean;
   referenceImageDataUrl: string;
   projectId?: string | null;
-  /** Nature de la source : plan 3D à photoréaliser, ou rendu déjà abouti. */
-  source?: 'plan3d' | 'rendu';
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string; engine?: string }> {
   const { endpoint = '/api/ia/architect', ...corps } = params;
   const res = await fetch(endpoint, {
@@ -1707,12 +1705,6 @@ export default function IaStudioPage() {
   const [archRefFile,  setArchRefFile]  = useState<File | null>(null);
   const [archRefURL,   setArchRefURL]   = useState<string | null>(null);
   const [archMode,     setArchMode]     = useState<'interior' | 'exterior'>('interior');
-  /**
-   * Nature de l'image importée. Défaut « rendu » : la branche qui préserve.
-   * Cf. le commentaire de `buildGooglePrompt` — c'est la déduction automatique
-   * de cette valeur qui a abîmé les rendus du 26/09.
-   */
-  const [archSource,   setArchSource]   = useState<'plan3d' | 'rendu'>('plan3d');
   const [archFacades,     setArchFacades]     = useState('');
   const [archFacadesBas,  setArchFacadesBas]  = useState('');
   const [archFacadesHaut, setArchFacadesHaut] = useState('');
@@ -2599,7 +2591,6 @@ export default function IaStudioPage() {
         endpoint:    versGoogle ? '/api/ia/architect-google' : '/api/ia/architect',
         materialSamples,
         mode:        archMode,
-        source:      archSource,
         facades:     archFacades.trim() || undefined,
         facadesBas:  archMode === 'interior' ? (archFacadesBas.trim()  || undefined) : undefined,
         facadesHaut: archMode === 'interior' ? (archFacadesHaut.trim() || undefined) : undefined,
@@ -4088,29 +4079,6 @@ export default function IaStudioPage() {
                   { value: 'exterior', label: 'Extérieur', icon: Building2 },
                 ]}
               />
-
-              {/* Nature de la source : elle décide de la consigne envoyée au moteur.
-                  Réservé à l'onglet Studio — l'autre moteur photoréalise
-                  toujours, la distinction n'y changerait rien. */}
-              {tab === 'architect-google' && (
-              <div>
-                <ChipSelector<'plan3d' | 'rendu'>
-                  label="Image de départ"
-                  accent="#8a6cc2"
-                  value={archSource}
-                  onChange={setArchSource}
-                  options={[
-                    { value: 'plan3d', label: 'Plan / export 3D',   icon: Layers },
-                    { value: 'rendu',  label: 'Rendu déjà abouti',  icon: Camera },
-                  ]}
-                />
-                <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">
-                  {archSource === 'rendu'
-                    ? 'Votre image a déjà sa lumière : elle sera conservée, seules les matières et la netteté sont améliorées.'
-                    : 'Matières plates et lumière simplifiée (WinnerFlex, SketchUp) : le rendu ajoutera lumière, ombres, matières et profondeur.'}
-                </p>
-              </div>
-              )}
 
               {/* Ambiance / consigne libre */}
               <div>

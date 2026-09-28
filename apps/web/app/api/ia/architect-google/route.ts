@@ -133,9 +133,9 @@ export async function POST(req: NextRequest) {
 
   const mode: ArchitectMode = body.mode === 'exterior' ? 'exterior' : 'interior';
   const params: ArchitectParams = {
-    // Defaut `plan3d` : c'est l'usage courant du module (un export WinnerFlex
-    // qu'on veut voir en photo). Le defaut inverse, pose le 27/09, renvoyait
-    // une quasi-copie sur ces exports — le module ne servait plus a rien.
+    // Conserve pour les anciens clients qui l'envoient encore, et tracé dans
+    // le job. La consigne ne s'en sert plus : c'est le moteur qui juge la
+    // nature de la source, cf. buildGooglePrompt.
     source: body.source === 'rendu' ? 'rendu' : 'plan3d',
     mode,
     facades: typeof body.facades === 'string' ? body.facades : undefined,
