@@ -116,6 +116,40 @@ export function dossierRendus(phaseLabel: string): string {
   return phaseLabel ? `${phaseLabel}${SEP}${RENDUS_3D}` : RENDUS_3D;
 }
 
+/**
+ * Tous les emplacements du dossier, suggérés en tête.
+ *
+ * `phasesDuDossier` ne retient que les options, projets et versions. C'est le
+ * bon réglage par défaut, mais ça rendait le reste de l'arborescence
+ * inaccessible : un rendu à ranger dans « DOCUMENTS CLIENT » n'avait aucun
+ * chemin, et il fallait le télécharger pour le reposer à la main — retour
+ * Cassandra du 02/10/2026, confirmé par ce qu'on voyait déjà en base.
+ *
+ * `suggere` sépare les deux groupes à l'affichage ; l'ordre reste celui de
+ * l'arborescence, pour qu'on retrouve ses repères.
+ */
+export interface EmplacementRendu extends PhaseRendu {
+  suggere: boolean;
+}
+
+export function tousLesEmplacements(subfolderLabels: string[]): EmplacementRendu[] {
+  const vues = new Set<string>();
+  const uniques = subfolderLabels
+    .filter((l) => l && (vues.has(l) ? false : (vues.add(l), true)))
+    // On ne propose pas de ranger un rendu dans un dossier de rendus : la case
+    // « RENDUS 3D » s'en charge, et l'imbriquer deux fois n'a pas de sens.
+    .filter((l) => !l.split(SEP).some((n) => n.trim().toUpperCase() === RENDUS_3D))
+    .sort((a, b) => a.localeCompare(b, 'fr'));
+
+  const suggeres = uniques.filter(estPhase).map((label) => ({ label, titre: cheminPhase(label), suggere: true }));
+  const autres = uniques.filter((l) => !estPhase(l)).map((label) => ({ label, titre: cheminPhase(label), suggere: false }));
+  return [
+    ...suggeres,
+    { label: '', titre: 'Dossier (général, hors option)', suggere: true },
+    ...autres,
+  ];
+}
+
 /** Caractères interdits dans un nom de fichier (Windows / macOS). */
 const nettoyer = (s: string) => s.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
 

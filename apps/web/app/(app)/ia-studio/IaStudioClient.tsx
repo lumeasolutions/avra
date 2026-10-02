@@ -22,7 +22,8 @@ import HistoryPanel, { type IaJobRow } from './HistoryPanel';
 import { RenderAdjustModal } from './RenderAdjustModal';
 import { uploadDossierDocDirect, listDossierDocs } from '@/lib/dossier-docs-api';
 import {
-  phasesDuDossier, phaseParDefaut, dossierRendus, prochaineVersion, nomRendu, extensionImage,
+  phaseParDefaut, dossierRendus, prochaineVersion, nomRendu, extensionImage,
+  tousLesEmplacements, RENDUS_3D,
 } from '@/lib/ia-render-filing';
 
 /* ─── Types front-end uniquement (pas d'import depuis lib/server) ─── */
@@ -1523,6 +1524,12 @@ export default function IaStudioPage() {
   const [saveDossierId, setSaveDossierId] = useState('');
   const [savePhase, setSavePhase] = useState('');
   const [saveWithSource, setSaveWithSource] = useState(true);
+  /**
+   * Créer le sous-dossier « RENDUS 3D » dans l'emplacement choisi.
+   * Coché par défaut : c'est le rangement recommandé. Décoché, le rendu est
+   * déposé directement dans l'emplacement — demande du 02/10/2026.
+   */
+  const [saveSousDossier, setSaveSousDossier] = useState(true);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveDoneLabel, setSaveDoneLabel] = useState('');
@@ -1570,7 +1577,7 @@ export default function IaStudioPage() {
    * couleur. Pour deux surfaces, deux passages.
    */
   /**
-   * Onglet « Changer les couleurs Studio » — elements cochables librement,
+   * Onglet « Changer les couleurs » — elements cochables librement,
    * chacun avec sa couleur.
    *
    * L'onglet historique impose UN element a la fois et exige de tracer la zone
@@ -2024,6 +2031,7 @@ export default function IaStudioPage() {
     setSaveDossierId(dId);
     setSavePhase(phasePour(dId));
     setSaveWithSource(true);
+    setSaveSousDossier(true);
     setSaveState('idle');
     void chargerLabelsServeur(dId);
     setSaveError(null);
@@ -2048,7 +2056,7 @@ export default function IaStudioPage() {
     const { item, action, icon, onDone, imageUrl, source } = saveTarget;
     const dossier = allDossiers.find(d => d.id === saveDossierId);
     if (!dossier) return;
-    const label = dossierRendus(savePhase);
+    const label = saveSousDossier ? dossierRendus(savePhase) : savePhase;
     setSaveState('saving');
     setSaveError(null);
     try {
@@ -2946,44 +2954,13 @@ export default function IaStudioPage() {
           </button>
           )}
 
-          {/* Rendu Réaliste */}
-          <button onClick={() => setTab('architect')}
-            className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
-              tab==='architect'
-                ? 'border-[#8a6cc2] bg-white shadow-xl'
-                : 'border-[#304035]/8 bg-white/70 hover:border-[#8a6cc2]/30 hover:bg-white hover:shadow-md hover:-translate-y-0.5'
-            }`}
-          >
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-              style={{background:'radial-gradient(ellipse at 20% 50%, rgba(138,108,194,.06), transparent 65%)'}} />
-            {tab==='architect' && (
-              <div className="absolute inset-0"
-                style={{background:'radial-gradient(ellipse at 20% 50%, rgba(138,108,194,.07), transparent 65%)'}} />
-            )}
-            <div className="relative flex items-start gap-4">
-              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-md transition-transform duration-300 group-hover:scale-110 ${tab==='architect'?'scale-110':''}`}
-                style={{background:tab==='architect'?'linear-gradient(135deg,#8a6cc2,#6f54a8)':'linear-gradient(135deg,#8a6cc255,#8a6cc230)'}}>
-                <Building2 className={`h-6 w-6 ${tab==='architect'?'text-white':'text-[#8a6cc2]'}`} />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="font-black text-[#304035] text-lg">Rendu Réaliste</p>
-                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#8a6cc2]/12 text-[#8a6cc2]">Post-conception</span>
-                </div>
-                <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Moteur photoréaliste dédié <span className="font-semibold text-[#304035]/80">architecture & intérieur</span> — intérieur ou extérieur.
-                </p>
-                {tab==='architect' && (
-                  <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#8a6cc2]">
-                    <div className="h-2 w-2 rounded-full bg-[#8a6cc2] dp" />
-                    Module actif — prêt à l'emploi
-                  </div>
-                )}
-              </div>
-            </div>
-          </button>
+          {/* Rendu Realiste (MyArchitectAI) — masque le 02/10/2026.
+              Doublon de « Rendu Realiste Studio » : meme travail, meme intitule, et
+              zero utilisation sur le compte beta depuis que le second existe.
+              Le code et la route restent en place, l'historique reste lisible.
+          {CARTE_RETIREE} */}
 
-          {/* « Rendu Réaliste Studio » — jumeau du précédent, autre moteur de
+          {/* « Rendu Réaliste » — jumeau du précédent, autre moteur de
               rendu (cf. lib/server/google-image-api.ts). Même panneau, même
               photo, mêmes champs : seul le moteur change, pour que la
               comparaison ne porte que sur lui.
@@ -3010,7 +2987,7 @@ export default function IaStudioPage() {
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-black text-[#304035] text-lg">Rendu Réaliste Studio</p>
+                  <p className="font-black text-[#304035] text-lg">Rendu Réaliste</p>
                   <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#4285f4]/12 text-[#4285f4]">Haute définition</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
@@ -3026,46 +3003,13 @@ export default function IaStudioPage() {
             </div>
           </button>
 
-          {/* Changer les couleurs — module d'atterrissage. Son onglet etait
-              masque alors que c'est LUI qui s'affiche par defaut : on arrivait
-              donc sur un module sans aucun onglet selectionne (audit sept. 2026). */}
-          <button onClick={() => setTab('coloriste-archi')}
-            className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
-              tab==='coloriste-archi'
-                ? 'border-[#2f9e8f] bg-white shadow-xl'
-                : 'border-[#304035]/8 bg-white/70 hover:border-[#2f9e8f]/30 hover:bg-white hover:shadow-md hover:-translate-y-0.5'
-            }`}
-          >
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-              style={{background:'radial-gradient(ellipse at 20% 50%, rgba(47,158,143,.06), transparent 65%)'}} />
-            {tab==='coloriste-archi' && (
-              <div className="absolute inset-0"
-                style={{background:'radial-gradient(ellipse at 20% 50%, rgba(47,158,143,.07), transparent 65%)'}} />
-            )}
-            <div className="relative flex items-start gap-4">
-              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-md transition-transform duration-300 group-hover:scale-110 ${tab==='coloriste-archi'?'scale-110':''}`}
-                style={{background:tab==='coloriste-archi'?'linear-gradient(135deg,#2f9e8f,#247a6f)':'linear-gradient(135deg,#2f9e8f55,#2f9e8f30)'}}>
-                <Paintbrush className={`h-6 w-6 ${tab==='coloriste-archi'?'text-white':'text-[#2f9e8f]'}`} />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="font-black text-[#304035] text-lg">Changer les couleurs</p>
-                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#2f9e8f]/12 text-[#2f9e8f]">Photo + couleurs</span>
-                </div>
-                <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Façades, poignées et plan de travail : choisissez vos <span className="font-semibold text-[#304035]/80">couleurs</span>, l’IA recolorise <span className="font-semibold text-[#304035]/80">sans rien déplacer</span>.
-                </p>
-                {tab==='coloriste-archi' && (
-                  <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#2f9e8f]">
-                    <div className="h-2 w-2 rounded-full bg-[#2f9e8f] dp" />
-                    Module actif — prêt à l'emploi
-                  </div>
-                )}
-              </div>
-            </div>
-          </button>
+          {/* Changer les couleurs (un seul element) — masque le 02/10/2026.
+              Doublon de « Changer les couleurs » : meme travail, meme intitule, et
+              zero utilisation sur le compte beta depuis que le second existe.
+              Le code et la route restent en place, l'historique reste lisible.
+          {CARTE_RETIREE} */}
 
-          {/* « Changer les couleurs Studio » — jumeau du precedent.
+          {/* « Changer les couleurs » — jumeau du precedent.
 
               Meme panneau JSX, comme pour le Rendu Realiste : deux copies
               finiraient par diverger. Ce qui change est derriere — c'est ici
@@ -3093,7 +3037,7 @@ export default function IaStudioPage() {
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <p className="font-black text-[#304035] text-lg">Changer les couleurs Studio</p>
+                  <p className="font-black text-[#304035] text-lg">Changer les couleurs</p>
                   <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#4285f4]/12 text-[#4285f4]">Plusieurs éléments</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
@@ -3786,7 +3730,7 @@ export default function IaStudioPage() {
               </div>
               <p className="text-xs leading-snug text-[#304035]/75">
                 {tab === 'architect-google'
-                  ? <><b className="text-[#304035]">Rendu Réaliste Studio</b> — sortie <b className="text-[#304035]">2K</b>, ou <b className="text-[#304035]">4K</b> en cochant «&nbsp;Haute résolution&nbsp;». Vous pouvez joindre de vrais échantillons de matière, ils seront reproduits tels quels.</>
+                  ? <><b className="text-[#304035]">Rendu Réaliste</b> — sortie <b className="text-[#304035]">2K</b>, ou <b className="text-[#304035]">4K</b> en cochant «&nbsp;Haute résolution&nbsp;». Vous pouvez joindre de vrais échantillons de matière, ils seront reproduits tels quels.</>
                   : <><b className="text-[#304035]">Rendu Réaliste</b> — la version rapide. Tous les réglages sont identiques d'un onglet à l'autre.</>}
               </p>
             </div>
@@ -4934,8 +4878,8 @@ export default function IaStudioPage() {
       {/* ── Modale : enregistrer le visuel dans le dossier (phase ▸ RENDUS 3D) ── */}
       {saveTarget && (() => {
         const sd = allDossiers.find(d => d.id === saveDossierId);
-        const phases = phasesDuDossier(labelsDe(saveDossierId));
-        const cible = dossierRendus(savePhase);
+        const emplacements = tousLesEmplacements(labelsDe(saveDossierId));
+        const cible = (saveSousDossier ? dossierRendus(savePhase) : savePhase) || 'Racine du dossier';
         const fermer = () => { if (saveState !== 'saving') { setSaveTarget(null); setSaveState('idle'); } };
         const lbl: React.CSSProperties = { display: 'block', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(48,64,53,0.5)', marginBottom: 6 };
         return (
@@ -4975,15 +4919,31 @@ export default function IaStudioPage() {
                     {allDossiers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
 
-                  <label style={lbl}>Ranger avec</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 200, overflow: 'auto', border: '1px solid rgba(48,64,53,0.1)', borderRadius: 10, padding: 8, marginBottom: 10 }}>
-                    {phases.map(ph => (
-                      <label key={ph.label || '__racine'} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 8, cursor: 'pointer', background: savePhase === ph.label ? 'rgba(166,119,73,0.10)' : 'transparent' }}>
-                        <input type="radio" name="phase-rendu" checked={savePhase === ph.label} disabled={saveState === 'saving'} onChange={() => setSavePhase(ph.label)} />
-                        <span style={{ fontSize: 13, color: '#22281f', fontWeight: savePhase === ph.label ? 700 : 500 }}>{ph.titre}</span>
-                      </label>
-                    ))}
+                  <label style={lbl}>Où le ranger</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 230, overflow: 'auto', border: '1px solid rgba(48,64,53,0.1)', borderRadius: 10, padding: 8, marginBottom: 10 }}>
+                    {emplacements.map((ph, i) => {
+                      const premierAutre = !ph.suggere && (i === 0 || emplacements[i - 1].suggere);
+                      return (
+                        <div key={ph.label || '__racine'}>
+                          {premierAutre && (
+                            <div style={{ fontSize: 9.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(48,64,53,0.4)', margin: '10px 0 4px', paddingLeft: 2 }}>
+                              Tous les emplacements du dossier
+                            </div>
+                          )}
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 8, cursor: 'pointer', background: savePhase === ph.label ? 'rgba(166,119,73,0.10)' : 'transparent' }}>
+                            <input type="radio" name="phase-rendu" checked={savePhase === ph.label} disabled={saveState === 'saving'} onChange={() => setSavePhase(ph.label)} />
+                            <span style={{ fontSize: 13, color: '#22281f', fontWeight: savePhase === ph.label ? 700 : 500 }}>{ph.titre}</span>
+                          </label>
+                        </div>
+                      );
+                    })}
                   </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: '#22281f', marginBottom: 10, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={saveSousDossier} disabled={saveState === 'saving'} onChange={(e) => setSaveSousDossier(e.target.checked)} />
+                    Créer un sous-dossier « {RENDUS_3D} »
+                  </label>
+
                   <p style={{ margin: '0 0 14px', fontSize: 12, color: '#6b6256' }}>
                     📁 Enregistré dans : <strong style={{ color: '#1a2a1e' }}>{cible}</strong>
                   </p>
