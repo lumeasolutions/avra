@@ -186,7 +186,7 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
   );
   phrases.push(
     'If it is a flat export, build the real light: directional daylight consistent with the windows you can see, '
-    + 'soft shadows, contact shadows, and the falloff of a real room. '
+    + 'soft shadows and contact shadows. '
     + 'If it is already a finished render, keep its lighting exactly as it is — same direction, same softness, '
     + 'same time of day — and correct only what is objectively wrong, such as a blown-out window or a crushed shadow.',
   );
@@ -216,6 +216,25 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     + 'A mirror, a glass splashback, a polished stone, a stainless steel panel or a high-gloss lacquer looks '
     + 'washed out precisely because it reflects the room. You render it as what it is — reflective, mirroring '
     + 'its surroundings — and never flatten it into matt paint or plain stone.',
+  );
+
+  /**
+   * Niveau d'exposition — ajouté le 03/10/2026.
+   *
+   * La consigne demandait « the falloff of a real room » sans aucune
+   * contrainte de luminosité : sur les exports plats de Cassandra, les rendus
+   * ressortaient 26 à 54 points plus sombres que la source, mesuré sur ses
+   * neuf rendus réels du 03/10. Un plan clair devenait une pièce crépusculaire.
+   *
+   * Ce sont des visuels de vente : ils doivent donner envie. Les ombres
+   * apportent du relief, elles n'éteignent pas la pièce.
+   */
+  phrases.push(
+    'The room stays bright. Your image is at least as bright overall as the first image, never darker: '
+    + 'shadows give depth and volume, they do not dim the room. '
+    + 'The exposure is that of a well-lit interior photograph taken in daylight — open, airy, inviting. '
+    + 'Never produce a dim, moody, evening or underexposed image, and never let the far side of the room '
+    + 'fall into darkness.',
   );
 
   phrases.push(
