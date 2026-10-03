@@ -66,7 +66,11 @@ const CHAMPS: Array<{ cle: keyof ArchitectParams; libelle: string }> = [
   { cle: 'facades', libelle: 'the cabinet fronts' },
   { cle: 'facadesBas', libelle: 'the base cabinet fronts' },
   { cle: 'facadesHaut', libelle: 'the wall cabinet fronts' },
-  { cle: 'planTravail', libelle: 'every countertop surface, the island as well as the back counter' },
+  // « the island as well as the back counter » nommait un îlot qui, dans une
+  // cuisine linéaire, n'existe pas — et le moteur le fabriquait pour avoir où
+  // poser la matière (test du 02/10/2026). On ne nomme plus que les surfaces
+  // horizontales, et on exclut la crédence, qui a son propre champ.
+  { cle: 'planTravail', libelle: 'the horizontal worktop surfaces, and only those — not the splashback, not the wall above them' },
   { cle: 'credence', libelle: 'the backsplash' },
   { cle: 'evier', libelle: 'the sink' },
   { cle: 'poignees', libelle: 'the handles and pulls' },
@@ -301,6 +305,19 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
   if (changements.length > 0) {
     phrases.push(`What you do change is the finishes, and only those: ${enumerer(changements)}.`);
     phrases.push('Every surface not named in that sentence keeps the exact colour, material and finish it already has in the photograph.');
+    /**
+     * Garde-fou ajouté le 02/10/2026.
+     *
+     * Une surface nommée dans la consigne mais absente de l'image poussait le
+     * moteur à la créer plutôt qu'à l'ignorer : sur une cuisine linéaire, la
+     * mention d'un îlot a produit un comptoir massif qui n'existe nulle part,
+     * et un débordement de la matière sur la crédence.
+     */
+    phrases.push(
+      'If one of the surfaces named above does not exist in this particular room, you simply ignore it. '
+      + 'You never create a surface, a counter, an island or a panel that is not already in the first image '
+      + 'in order to have somewhere to apply a finish. A finish with nowhere to go is a finish you leave out.',
+    );
   }
 
   if (nbEchantillons > 0) {
