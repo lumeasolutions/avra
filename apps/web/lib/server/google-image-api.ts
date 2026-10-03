@@ -287,13 +287,6 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     // Ajouté le 28/09 : une crédence miroir ressortait systématiquement en
     // surface mate. C'est un poste de vente, il doit survivre au rendu.
     { libelle: 'the mirrored splashback and every mirror, which stay mirrors and keep reflecting the room', sauf: ['credence'] },
-    // 03/10/2026 — une crédence ordinaire n'était protégée que par la règle
-    // générale, et elle changeait quand même : passée en bois clair sur un
-    // tirage, en crème sur l'autre, alors que seul le plan de travail était
-    // demandé. Dans ce projet, une interdiction nommée tient, une règle
-    // générale non.
-    { libelle: 'the splashback and the wall surface between the worktop and the wall units, with their exact colour, '
-      + 'material and finish — you do not harmonise them with the cabinets or with the new worktop', sauf: ['credence'] },
     { libelle: 'the glass, stainless steel and lacquered surfaces, which keep their reflectivity' },
     { libelle: 'the ovens, the microwave and the built-in appliances, with their exact colour and finish' },
     { libelle: 'the fridge and the wine cooler, with their exact colour and finish' },
