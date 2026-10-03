@@ -70,7 +70,16 @@ const CHAMPS: Array<{ cle: keyof ArchitectParams; libelle: string }> = [
   // cuisine linéaire, n'existe pas — et le moteur le fabriquait pour avoir où
   // poser la matière (test du 02/10/2026). On ne nomme plus que les surfaces
   // horizontales, et on exclut la crédence, qui a son propre champ.
-  { cle: 'planTravail', libelle: 'the horizontal worktop surfaces, and only those — not the splashback, not the wall above them' },
+  // 03/10/2026 — « pas la crédence » ne suffisait pas : sur une cuisine où le
+  // plan et la crédence forment une bande continue sans joint visible, le
+  // moteur ne voit qu'une seule surface. On décrit donc la limite par la
+  // géométrie — ce qui est horizontal, et où la matière s'arrête — et on dit
+  // explicitement que les deux peuvent sembler n'en faire qu'une.
+  { cle: 'planTravail', libelle: 'the horizontal worktop surfaces only — the flat tops you could set a glass down on. '
+    + 'The new material stops at the front edge and at the rear edge of those flat surfaces. Everything that rises '
+    + 'vertically from them keeps the material it already has: the splashback, the wall behind the hob, the panel '
+    + 'under the wall units. Worktop and splashback may read as one continuous band in this image; they are two '
+    + 'different surfaces and only the horizontal one changes' },
   { cle: 'credence', libelle: 'the backsplash' },
   { cle: 'evier', libelle: 'the sink' },
   { cle: 'poignees', libelle: 'the handles and pulls' },
