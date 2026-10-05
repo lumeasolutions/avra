@@ -101,7 +101,17 @@ type DossierSupprime = {
   client?: { companyName: string | null; firstName: string | null; lastName: string | null } | null;
 };
 
-const SECTIONS_ADMIN = new Set(['equipe', 'securite-admin', 'supprimes']);
+const SECTIONS_ADMIN = new Set([
+  'equipe',
+  'securite-admin',
+  // Perdus, archivés et supprimés portent le même geste : remettre en
+  // circulation un dossier qui en était sorti. C'est une décision de patron —
+  // restaurer un dossier perdu fausse les chiffres de toute l'équipe
+  // (05/10/2026).
+  'perdus',
+  'archives',
+  'supprimes',
+]);
 
 const ROLE_COLORS: Record<string, string> = {
   OWNER:   'bg-[#a67749] text-white',

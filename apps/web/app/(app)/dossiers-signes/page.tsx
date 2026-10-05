@@ -25,6 +25,7 @@ import {
   type DateButoireItem,
 } from '@/components/dossiers/DateButoireValidationModal';
 import { SignedDossierDashboardModal } from '@/components/dossiers/SignedDossierDashboardModal';
+import { useDossierPermissions } from '@/hooks/useDossierPermissions';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -253,6 +254,7 @@ function ConfirmationsPanel({ dossierId, confirmations = [] }: { dossierId: stri
 // ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function DossiersSignesPage() {
+  const { isAdmin } = useDossierPermissions();
   const router = useRouter();
   const dossiersSignes = useVisibleDossiersSignes();
   const datesButoiresSignes = useDossierStore(s => s.datesButoiresSignes);
@@ -352,7 +354,10 @@ export default function DossiersSignesPage() {
           <div className="flex items-center gap-3">
             {/* Lien discret vers les archives - visible seulement s'il y en a.
                 Pointe vers Parametres -> Dossiers archives (28/05/2026). */}
-            {archivedCount > 0 && (
+            {/* Les archives sont réservées à l'administrateur depuis le
+                05/10/2026 : inutile de proposer le lien à un vendeur, la
+                section ne s'ouvrirait pas. */}
+            {archivedCount > 0 && isAdmin && (
               <button
                 onClick={() => router.push('/parametres?section=archives')}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/20 bg-white/10 text-white/80 hover:bg-white/20 hover:text-white text-xs font-semibold transition-all shadow-sm"
