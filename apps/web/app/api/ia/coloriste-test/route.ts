@@ -65,7 +65,16 @@ import {
   colourDistance,
   recolourMaskedRegion,
   hexToRgb,
+  marquerZone,
 } from '@/lib/server/coloriste-test-compositor';
+import {
+  isGoogleImageEnabled,
+  generateGoogleRender,
+  buildGooglePromptMatiere,
+  ratioProche,
+  type ImageEntree,
+} from '@/lib/server/google-image-api';
+import sharp from 'sharp';
 import { checkRateLimit } from '@/lib/server/rate-limit';
 import { getUserContextFromRequest } from '@/lib/server/auth-guard';
 import { prisma } from '@/lib/server/prisma';
@@ -415,11 +424,66 @@ export async function POST(req: NextRequest) {
     let endpointTag: string;
     let finalPrompt: string;
 
-    if (hasMask && maskSignedUrl && refinedMaskBuffer) {
-      // ── 7a) Zone sélectionnée (texture importée, ou clic/pinceau optionnel
-      //       en mode couleurs) : MyArchitectAI /change-textures — appel DIRECT (pas
-      //       generateColoristeTextures) : on veut un échec EXPLICITE, jamais de
-      //       repli silencieux vers /edit-by-prompt sans masque dans CE cas.
+    if (hasMask && refinedMaskBuffer && isGoogleImageEnabled()) {
+      /**
+       * ── 7a-bis) Gemini (05/10/2026).
+       *
+       * Le module rend desormais une PHOTOGRAPHIE de la scene, avec la matiere
+       * posee sur la zone designee — qu'on parte d'une photo ou d'un plan. On
+       * ne recompose donc plus : la sortie du moteur est le resultat.
+       *
+       * Gemini ne sachant pas recevoir un masque, la zone lui est montree dans
+       * l'image, par un aplat magenta, et la consigne lui dit que ce marquage
+       * est une instruction et non un element de la piece (cf. marquerZone et
+       * buildGooglePromptMatiere).
+       */
+      try {
+        const marquee = await marquerZone(sourceBuffer, refinedMaskBuffer);
+        const meta = await sharp(sourceBuffer).metadata();
+        const ratio = ratioProche(meta.width ?? 1024, meta.height ?? 1024);
+
+        const echantillons: ImageEntree[] = [];
+        if (referenceImageDataUrl) {
+          const { buffer, contentType } = dataUrlToBuffer(referenceImageDataUrl);
+          echantillons.push({ base64: buffer.toString('base64'), mime: contentType });
+        } else if (hexZone) {
+          // Couleur unie demandee : on fabrique un echantillon de cette teinte,
+          // comme on le fait deja pour MyArchitectAI.
+          const pastille = await buildSolidColourSwatch(hexZone);
+          echantillons.push({ base64: pastille.toString('base64'), mime: 'image/png' });
+        }
+
+        const consigne = buildGooglePromptMatiere(
+          (typeof body.material === 'string' ? body.material : '') || '',
+          echantillons.length > 0,
+        );
+
+        const res = await generateGoogleRender(
+          {} as never,
+          { base64: marquee.toString('base64'), mime: 'image/jpeg' },
+          echantillons,
+          '2K',
+          ratio,
+          consigne,
+        );
+        const sortie = res.base64s?.[0] ?? res.base64;
+        if (!res.success || !sortie) {
+          return fail(502, res.error ?? "Le moteur n'a renvoyé aucun résultat.");
+        }
+        finalBuffer = Buffer.from(sortie, 'base64');
+        endpointTag = 'gemini-matiere';
+        finalPrompt = consigne;
+      } catch (gErr) {
+        console.error('[API /ia/coloriste-test] Gemini échec:',
+          gErr instanceof Error ? gErr.message : gErr);
+        return fail(502, "Le rendu n'a pas abouti. Réessayez dans un instant.");
+      }
+    } else if (hasMask && maskSignedUrl && refinedMaskBuffer) {
+      // ── 7a) Secours sans Gemini : MyArchitectAI /change-textures — appel
+      //       DIRECT (pas generateColoristeTextures) : on veut un échec
+      //       EXPLICITE, jamais de repli silencieux vers /edit-by-prompt sans
+      //       masque dans CE cas. Ce chemin garde la recomposition, donc la
+      //       garantie que le hors-zone est intact au pixel près.
       const texPrompt = swatchPrompt
         // Échantillon de couleur unie généré par nous (cf. 5d) : consigne dédiée.
         ?? (referenceSignedUrl

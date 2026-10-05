@@ -134,6 +134,50 @@ export async function refineSelectionMask(
   return sharp(feathered).png().toBuffer();
 }
 
+/**
+ * Marque la zone choisie DANS l'image, par un aplat de couleur translucide.
+ *
+ * Gemini ne sait pas recevoir un masque : il ne prend que des images. Pour lui
+ * designer une surface, on la lui montre donc — un aplat magenta pose sur la
+ * zone, et une consigne qui precise que ce marquage est une instruction, pas
+ * un element de la piece. Le magenta est choisi parce qu'il n'existe
+ * pratiquement jamais dans une cuisine : aucun risque de le confondre avec une
+ * matiere a reproduire.
+ *
+ * @param opacite 0 a 1 — assez marque pour etre vu, assez transparent pour que
+ *   la forme de la surface reste lisible dessous.
+ */
+export async function marquerZone(
+  sourceBuffer: Buffer,
+  maskBuffer: Buffer,
+  hex = '#FF00FF',
+  opacite = 0.45,
+): Promise<Buffer> {
+  const meta = await sharp(sourceBuffer).metadata();
+  const largeur = meta.width ?? 1024;
+  const hauteur = meta.height ?? 1024;
+
+  // Le masque sert de canal alpha, attenue par `opacite`.
+  const alpha = await sharp(maskBuffer)
+    .resize(largeur, hauteur, { fit: 'fill' })
+    .greyscale()
+    .linear(opacite, 0)
+    .png()
+    .toBuffer();
+
+  const [r, v, bl] = hexToRgb(hex);
+  const aplat = await sharp({
+    create: { width: largeur, height: hauteur, channels: 3, background: { r, g: v, b: bl } },
+  }).png().toBuffer();
+
+  const aplatTransparent = await sharp(aplat).ensureAlpha().joinChannel(alpha).png().toBuffer();
+
+  return sharp(sourceBuffer)
+    .composite([{ input: aplatTransparent, blend: 'over' }])
+    .jpeg({ quality: 94 })
+    .toBuffer();
+}
+
 export interface CompositeParams {
   /** Image source ORIGINALE (référence de vérité — jamais modifiée hors-masque). */
   originalBuffer: Buffer;

@@ -392,9 +392,63 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
    APPEL
    ───────────────────────────────────────────────────────────────────────── */
 
-interface ImageEntree {
+export interface ImageEntree {
   base64: string;
   mime: string;
+}
+
+/**
+ * Consigne du module « Remplacer une matiere » (05/10/2026).
+ *
+ * Elle differe de celle du Rendu Realiste sur un point : la zone a traiter est
+ * designee par un aplat magenta pose sur l'image (cf. `marquerZone`), Gemini ne
+ * sachant pas recevoir de masque. Il faut donc lui dire a la fois ou agir ET
+ * que ce marquage ne doit pas se retrouver dans le resultat — sans quoi il le
+ * recopie consciencieusement.
+ *
+ * @param matiere      description libre de la matiere, si l'utilisateur en a saisi une
+ * @param avecEchantillon true si une photo de matiere accompagne la demande
+ */
+export function buildGooglePromptMatiere(matiere: string, avecEchantillon: boolean): string {
+  const phrases: string[] = [];
+
+  phrases.push(
+    'The first image is an interior. One surface in it has been covered with a flat magenta overlay. '
+    + 'That overlay is an instruction addressed to you: it marks the surface you must change. '
+    + 'It is not part of the room, it is not a material, and it must not appear anywhere in your image.',
+  );
+
+  if (avecEchantillon) {
+    phrases.push(
+      'The image that follows shows the material to use. Reproduce it faithfully on the marked surface — '
+      + 'its colour, its grain, its reflectance, the scale of its pattern — as that exact material would look '
+      + 'once fitted in this room, lit by this room\'s own light.',
+    );
+  }
+  if (matiere.trim()) {
+    phrases.push(`The marked surface becomes: ${matiere.trim()}.`);
+  }
+
+  phrases.push(
+    'Everything that is not under the magenta overlay keeps the exact colour, material and finish it already has. '
+    + 'You change no layout, no geometry, no viewpoint: the room stays the room, seen from where it is seen. '
+    + 'You add nothing — no lamp, no plant, no object, no decor — and you remove nothing.',
+  );
+
+  // Meme exigence que sur le Rendu Realiste : un export a plat doit ressortir
+  // en photographie, et une photo deja aboutie doit y gagner, jamais y perdre.
+  phrases.push(
+    'Your output is a photograph. If the first image is a flat 3D export or a plan, you make it a real '
+    + 'photograph of that room: true materials, real reflections, contact shadows, the depth of a lens. '
+    + 'If it is already a finished photograph, you return it at least as good, never degraded.',
+  );
+  phrases.push(
+    'The room stays bright. Your image is at least as bright overall as the first image, never darker: '
+    + 'shadows give depth and volume, they do not dim the room. The exposure is that of a well-lit interior '
+    + 'photograph taken in daylight — open, airy, inviting.',
+  );
+
+  return phrases.join(' ');
 }
 
 /** Ratio le plus proche parmi ceux acceptés, pour ne pas recadrer la photo. */
@@ -473,6 +527,8 @@ export async function generateGoogleRender(
   echantillons: ImageEntree[],
   taille: TailleImage,
   ratio: string,
+  /** Consigne deja redigee — court-circuite `buildGooglePrompt` (module Matiere). */
+  promptOverride?: string,
 ): Promise<ArchitectResult & { base64?: string; base64s?: string[]; detail?: string }> {
   // Google annonce « up to 10 images of objects with high-fidelity ». Au-delà,
   // la fidélité de chaque référence n'est plus garantie — or c'est exactement
@@ -480,7 +536,7 @@ export async function generateGoogleRender(
   // comprise : 9 échantillons. (Le chiffre de 14 cité ailleurs concerne le
   // nombre de références mélangeables, pas le régime haute fidélité.)
   const retenus = echantillons.slice(0, 9);
-  const prompt = buildGooglePrompt(params, retenus.length);
+  const prompt = promptOverride ?? buildGooglePrompt(params, retenus.length);
 
   if (!isGoogleImageEnabled()) {
     return {

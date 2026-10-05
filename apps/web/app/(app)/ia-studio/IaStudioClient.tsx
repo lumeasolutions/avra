@@ -2912,10 +2912,13 @@ export default function IaStudioPage() {
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <p className="font-black text-[#304035] text-lg">Remplacer une matière</p>
-                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#a67749]/12 text-[#a67749]">Photo + échantillon</span>
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#a67749]/12 text-[#a67749]">Photo ou plan + échantillon</span>
                 </div>
+                {/* Texte revu le 05/10/2026 : le module ne recolle plus un morceau
+                    dans la photo d'origine, il produit une photographie de la
+                    scène. Promettre « le reste reste identique » serait faux. */}
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Importez un échantillon (bois, pierre, laque…), <span className="font-semibold text-[#304035]/80">peignez la zone</span> : le reste de la photo reste <span className="font-semibold text-[#304035]/80">identique</span>.
+                  Importez un échantillon (bois, pierre, laque…), <span className="font-semibold text-[#304035]/80">peignez la zone</span> : AVRA en fait un <span className="font-semibold text-[#304035]/80">rendu photo-réaliste</span> avec cette matière.
                 </p>
                 {tab==='coloriste-test' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#a67749]">
