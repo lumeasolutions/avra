@@ -2710,18 +2710,29 @@ export default function IaStudioPage() {
     const prevDossier = archResult?.dossier;
     setRetouchLoading(true); setRetouchError(null); setRetouchApplied(null);
     try {
-      let referenceImageDataUrl: string;
-      try {
-        referenceImageDataUrl = await urlToDataUrl(srcUrl);
-      } catch {
-        setRetouchError('Impossible de charger le rendu à retoucher. Réessayez.');
-        setRetouchLoading(false);
-        return;
+      /**
+       * Le rendu est déjà dans notre stockage : on envoie son adresse, pas
+       * l'image. Un rendu 4K pèse ~8 Mo, soit ~10,5 Mo une fois encodé en
+       * base64 — au-delà de la limite de 4,5 Mo d'une requête Vercel, qui la
+       * rejetait avant même d'atteindre le serveur (mesuré le 05/10/2026).
+       * La pièce jointe reste le secours pour une image venue d'ailleurs.
+       */
+      const depuisStockage = /\/storage\/v1\/object\/sign\/ia-renders\//.test(srcUrl);
+      let referenceImageDataUrl: string | undefined;
+      if (!depuisStockage) {
+        try {
+          referenceImageDataUrl = await urlToDataUrl(srcUrl);
+        } catch {
+          setRetouchError('Impossible de charger le rendu à retoucher. Réessayez.');
+          setRetouchLoading(false);
+          return;
+        }
       }
       const res = await fetch('/api/ia/retouch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          sourceImageUrl: depuisStockage ? srcUrl : undefined,
           referenceImageDataUrl,
           changes:     guided ? pending : undefined,
           instruction: guided ? undefined : retouchFree.trim(),
@@ -2737,7 +2748,8 @@ export default function IaStudioPage() {
           parsed && typeof parsed.error === 'string' ? parsed.error
           : res.status === 422 ? 'Consigne trop vague — précisez quel élément changer et comment.'
           : res.status === 429 ? 'Trop de retouches cette heure. Patientez un peu.'
-          : 'La retouche a échoué. Réessayez.';
+          : res.status === 413 ? 'Image trop lourde pour être envoyée. Relancez un rendu, puis réessayez.'
+          : `La retouche a échoué (code ${res.status}). Réessayez.`;
         setRetouchError(msg);
         setRetouchLoading(false);
         return;
@@ -4931,7 +4943,7 @@ export default function IaStudioPage() {
                 </div>
               ) : (
                 <>
-                  <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: '#1a2a1e' }}>Enregistrer dans le dossier</h3>
+                  <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: '#1a2a1e' }}>Sauvegarder / Classer</h3>
                   <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#6b6256' }}>Le rendu est rangé avec l&apos;option à laquelle il correspond et conservé définitivement.</p>
                   <img src={saveTarget.imageUrl} alt="" style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 12, marginBottom: 16 }} />
 
@@ -4986,7 +4998,7 @@ export default function IaStudioPage() {
                     <button onClick={confirmSave} disabled={saveState === 'saving' || !saveDossierId}
                       style={{ flex: 1, borderRadius: 11, border: 'none', padding: '11px', fontWeight: 800, fontSize: 13.5, color: '#fff', cursor: saveState === 'saving' ? 'wait' : 'pointer', background: saveState === 'saving' ? 'rgba(48,64,53,0.45)' : 'linear-gradient(135deg,#1a2a1e,#3D5449)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                       {saveState === 'saving' && <Loader2 className="h-4 w-4 animate-spin" />}
-                      {saveState === 'saving' ? 'Enregistrement…' : saveState === 'error' ? 'Réessayer' : 'Enregistrer'}
+                      {saveState === 'saving' ? 'Enregistrement…' : saveState === 'error' ? 'Réessayer' : 'Sauvegarder / Classer'}
                     </button>
                     <button onClick={fermer} disabled={saveState === 'saving'}
                       style={{ flex: 1, borderRadius: 11, border: '1px solid rgba(48,64,53,0.2)', padding: '11px', fontWeight: 700, fontSize: 13.5, color: '#1a2a1e', background: '#fff', cursor: 'pointer' }}>

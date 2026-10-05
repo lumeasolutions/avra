@@ -74,7 +74,27 @@ export async function POST(req: NextRequest) {
     typeof body.referenceImageDataUrl === 'string' && body.referenceImageDataUrl.startsWith('data:')
       ? body.referenceImageDataUrl
       : null;
-  if (!referenceImageDataUrl) {
+
+  /**
+   * Adresse de l'image à retoucher, quand elle est déjà dans notre stockage.
+   *
+   * On la préfère à la pièce jointe : un rendu 4K pèse ~8 Mo, soit ~10,5 Mo
+   * une fois encodé en base64 dans un corps JSON — au-delà de la limite de
+   * 4,5 Mo d'une fonction Vercel. La requête était alors rejetée par la
+   * plateforme avant d'atteindre ce code (mesuré le 05/10/2026).
+   *
+   * Elle doit pointer sur NOTRE stockage : accepter une adresse quelconque
+   * ferait relayer par le serveur n'importe quelle requête sortante.
+   */
+  const baseStockage = `${(process.env.SUPABASE_URL ?? '').replace(/\/+$/, '')}/storage/v1/object/sign/ia-renders/`;
+  const sourceImageUrl =
+    typeof body.sourceImageUrl === 'string'
+      && baseStockage.length > '/storage/v1/object/sign/ia-renders/'.length
+      && body.sourceImageUrl.startsWith(baseStockage)
+      ? body.sourceImageUrl
+      : null;
+
+  if (!referenceImageDataUrl && !sourceImageUrl) {
     return NextResponse.json(
       { error: 'Image à retoucher requise.' },
       { status: 400 },
@@ -159,10 +179,18 @@ export async function POST(req: NextRequest) {
   try {
     await prisma.iaJob.update({ where: { id: job.id }, data: { status: 'PROCESSING' } });
 
-    // ── 6) Upload de l'image à retoucher → URL signée
+    // ── 6) Image à retoucher → URL signée
     let sourceSignedUrl: string;
+    if (sourceImageUrl) {
+      // Déjà dans notre stockage : rien à téléverser, on réutilise l'adresse.
+      sourceSignedUrl = sourceImageUrl;
+      await prisma.iaJob.update({
+        where: { id: job.id },
+        data: { inputImageUrls: { source: sourceSignedUrl } },
+      });
+    } else {
     try {
-      const { buffer, contentType } = dataUrlToBuffer(referenceImageDataUrl);
+      const { buffer, contentType } = dataUrlToBuffer(referenceImageDataUrl!);
       const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
       const sourcePath = `${workspaceId}/${job.id}/source.${ext}`;
       await uploadToIaRenders(sourcePath, buffer, contentType);
@@ -175,6 +203,7 @@ export async function POST(req: NextRequest) {
       console.warn('[API /ia/retouch] upload source échec:',
         uploadErr instanceof Error ? uploadErr.message : uploadErr);
       return fail(502, 'Impossible de préparer l\'image. Réessayez.');
+    }
     }
 
     // ── 7) Retouche via edit-by-prompt
