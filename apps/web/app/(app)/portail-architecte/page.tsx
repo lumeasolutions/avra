@@ -12,6 +12,22 @@ const fmt = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 
 const DAYS_OF_WEEK = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];
+
+/**
+ * Lundi → dimanche de la semaine en cours. Même calcul que la page Planning,
+ * pour que les deux écrans parlent de la même semaine.
+ */
+function datesSemaineCourante(): Date[] {
+  const today = new Date();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
 const HOURS = Array.from({ length: 9 }, (_, i) => i + 9);
 
 const getStatusColor = (status: string) => {
@@ -217,14 +233,22 @@ export default function PortailArchitectePage() {
         <div className="portail-arch-planning-wrap" style={{ flex: 1, overflowY: 'auto' }}>
         <div className="portail-arch-planning-grid" style={{ display: 'grid', gridTemplateColumns: 'auto repeat(7, 1fr)', gap: 0, fontSize: 11 }}>
           <div style={{ fontWeight: 700, color: '#0F2540', padding: '5px 4px', borderBottom: '2px solid #E0E6ED' }}></div>
-          {DAYS_OF_WEEK.map(day => (
-            <div key={day} style={{
-              fontWeight: 700, color: '#3D5449', padding: '5px 4px',
-              textAlign: 'center', borderBottom: '2px solid #E0E6ED', fontSize: 11,
-            }}>
-              {day}
-            </div>
-          ))}
+          {DAYS_OF_WEEK.map((day, i) => {
+            const d = datesSemaineCourante()[i];
+            const aujourdhui = d.toDateString() === new Date().toDateString();
+            return (
+              <div key={day} style={{
+                fontWeight: 700, color: '#3D5449', padding: '5px 4px',
+                textAlign: 'center', borderBottom: '2px solid #E0E6ED', fontSize: 11,
+                background: aujourdhui ? 'rgba(0,0,0,0.06)' : 'transparent',
+              }}>
+                {day}
+                <span style={{ display: 'block', fontSize: 9, fontWeight: 600, opacity: 0.6 }}>
+                  {d.getDate()}/{String(d.getMonth() + 1).padStart(2, '0')}
+                </span>
+              </div>
+            );
+          })}
 
           {HOURS.map(hour => (
             <div key={`hour-${hour}`} style={{ display: 'contents' }}>
@@ -235,7 +259,11 @@ export default function PortailArchitectePage() {
                 {hour}h
               </div>
               {DAYS_OF_WEEK.map((_, dayIdx) => {
-                const eventsForSlot = planningEvents.filter(e => (e.day - 1) === dayIdx && e.startHour === hour);
+                // Semaine EN COURS seulement. Sans ce filtre, les rendez-vous
+                // de toutes les semaines se superposaient dans la meme case.
+                const eventsForSlot = planningEvents.filter(
+                  e => (e.weekOffset ?? 0) === 0 && (e.day - 1) === dayIdx && e.startHour === hour,
+                );
                 return (
                   <div key={`${dayIdx}-${hour}`} style={{
                     minHeight: 26, borderRight: '1px solid #E0E6ED',
