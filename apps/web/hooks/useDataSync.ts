@@ -670,6 +670,7 @@ export function useDataSync() {
           type: r.extra.type || event.type || 'AUTRE',
           client: r.extra.client || event.title || '',
           weekOffset: r.weekOffset,
+          createdById: event.createdById ?? undefined,
           intervenantId: r.extra.intervenantId,
           intervenantName: r.extra.intervenantName,
           intervenantType: r.extra.intervenantType,

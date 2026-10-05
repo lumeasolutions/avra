@@ -768,13 +768,19 @@ export default function DossiersPage() {
                   className="dossier-card flex items-center gap-4 px-5 py-4 hover:bg-[#f5eee8]/40 transition-all group"
                   style={{ animationDelay: `${i * 30}ms` }}
                 >
-                  {/* Barre couleur gauche */}
-                  <div className={`w-1 h-10 rounded-full bg-gradient-to-b ${cfg.cardAccent} to-transparent shrink-0`} style={{ background: `linear-gradient(180deg, ${c1}, ${c2})` }} />
+                  {/* Barre gauche = le VENDEUR, comme le bandeau de la carte
+                      en vue grille : les deux affichages montrent les mêmes
+                      dossiers, ils doivent porter le même repère. */}
+                  <div
+                    className="w-1 h-10 rounded-full shrink-0"
+                    style={{ background: `linear-gradient(180deg, ${couleurDossier(d)}, ${fondTenu(couleurDossier(d), 0.2)})` }}
+                    title={d.vendeurName ? `Vendeur : ${d.vendeurName}` : 'Aucun vendeur attribué'}
+                  />
 
                   {/* Avatar */}
                   <div
                     className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0"
-                    style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}
+                    style={{ background: `linear-gradient(135deg, ${couleurDossier(d)}, ${c2})` }}
                   >
                     {initials}
                   </div>
@@ -791,7 +797,7 @@ export default function DossiersPage() {
 
                   {/* Vendeur (multi-vendeur 26/05/2026) */}
                   <div className="hidden md:flex shrink-0">
-                    <VendeurBadge vendeurName={d.vendeurName} size="xs" />
+                    <VendeurBadge vendeurName={d.vendeurName} vendeurUserId={d.vendeurUserId} size="xs" />
                   </div>
 
                   {/* Éléments */}

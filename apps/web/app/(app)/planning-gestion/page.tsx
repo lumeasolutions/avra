@@ -15,6 +15,7 @@ import { api } from '@/lib/api';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CustomInterventionTypeModal } from '@/components/planning/CustomInterventionTypeModal';
 import { backdropClose } from '@/lib/backdropClose';
+import { useAuthStore } from '@/store/useAuthStore';
 
 /**
  * Genere une couleur stable a partir d'un nom (hash deterministe).
@@ -204,6 +205,26 @@ export default function PlanningGestionPage() {
   const addPlanningEvent = usePlanningStore(s => s.addPlanningEvent);
   const updateGestEvent = usePlanningStore(s => s.updateGestEvent);
   const deleteGestEvent = usePlanningStore(s => s.deleteGestEvent);
+  /**
+   * Même règle que sur le planning : on ne touche qu'à ses propres
+   * rendez-vous, sauf administrateur. Le serveur l'impose pour les deux
+   * plannings ; ici on évite de proposer un geste qui sera refusé.
+   */
+  const monUserId = useAuthStore(s => s.user?.id);
+  const monRole = useAuthStore(s => s.user?.role);
+  const jeSuisAdmin = monRole === 'ADMIN' || monRole === 'OWNER';
+  const peutToucher = (ev?: { createdById?: string } | null) =>
+    !ev || jeSuisAdmin || !ev.createdById || ev.createdById === monUserId;
+  const [refusRdv, setRefusRdv] = useState<string | null>(null);
+  const refuser = () => {
+    setRefusRdv('Ce rendez-vous a été posé par un autre membre de l’équipe. Seul un administrateur peut le modifier.');
+    setTimeout(() => setRefusRdv(null), 5000);
+  };
+  const supprimerSiPermis = (id: string) => {
+    const ev = gestEvents.find(e => e.id === id);
+    if (!peutToucher(ev)) { refuser(); return; }
+    deleteGestEvent(id);
+  };
   // Métiers custom (créés manuellement par l'user, persistés). 19/05/2026.
   const customInterventionTypes = usePlanningStore(s => s.customInterventionTypes);
   const addCustomInterventionType = usePlanningStore(s => s.addCustomInterventionType);
@@ -353,6 +374,7 @@ export default function PlanningGestionPage() {
   const openEdit = (eventId: string) => {
     const ev = gestEvents.find(e => e.id === eventId);
     if (!ev) return;
+    if (!peutToucher(ev)) { refuser(); return; }
     setEditingEventId(eventId);
     setNewEvent({
       type: ev.type,
@@ -623,6 +645,17 @@ export default function PlanningGestionPage() {
           .pg-cal-inner { min-width: 560px; }
         }
       `}</style>
+
+      {refusRdv && (
+        <div style={{
+          position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
+          background: '#fff', border: '1px solid rgba(192,57,43,0.25)', color: '#9b2c2c',
+          borderRadius: 14, padding: '10px 16px', fontSize: 13, fontWeight: 600,
+          boxShadow: '0 8px 30px rgba(0,0,0,0.14)', maxWidth: 440, textAlign: 'center',
+        }}>
+          {refusRdv}
+        </div>
+      )}
 
       <PageHeader
         icon={<CalendarCog className="h-7 w-7" />}
@@ -920,7 +953,7 @@ export default function PlanningGestionPage() {
                         }}
                       >
                         <button
-                          onClick={(e) => { e.stopPropagation(); deleteGestEvent(ev.id); }}
+                          onClick={(e) => { e.stopPropagation(); supprimerSiPermis(ev.id); }}
                           className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-md hover:bg-white/25"
                         >
                           <X className="h-3 w-3" />
@@ -1165,7 +1198,7 @@ export default function PlanningGestionPage() {
               <Pencil className="h-3.5 w-3.5" /> Modifier
             </button>
             <button
-              onClick={() => { deleteGestEvent(ev.id); setPopoverEventId(null); }}
+              onClick={() => { supprimerSiPermis(ev.id); setPopoverEventId(null); }}
               className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors border-t border-[#304035]/8"
             >
               <Trash2 className="h-3.5 w-3.5" /> Supprimer

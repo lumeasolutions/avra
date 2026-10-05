@@ -454,6 +454,9 @@ export const useConfigStore = create<ConfigState>()(
           if (couleur) suite[userId] = couleur; else delete suite[userId];
           return { couleursEquipe: suite };
         });
+        // Sans cet appel, la couleur restait dans le navigateur de celui qui
+        // l'a choisie : le code couleur n'aurait rien voulu dire pour l'equipe.
+        schedulePersist(get);
       },
 
       addMember: (member) => {

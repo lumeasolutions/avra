@@ -63,6 +63,8 @@ export interface GestEvent {
   type: string;
   client: string;
   weekOffset: number;
+  /** Auteur du rendez-vous — même rôle que sur PlanningEvent (05/10/2026). */
+  createdById?: string;
   /** ID de l'intervenant assigne (optionnel — pas tous les events ont un intervenant). */
   intervenantId?: string;
   /** Nom snapshot au moment de la creation pour preserver l'affichage si l'intervenant est supprime apres. */
