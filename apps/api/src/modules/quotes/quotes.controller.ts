@@ -25,12 +25,12 @@ export class QuotesController {
 
   @Get()
   findAll(@CurrentUser() user: JwtPayload, @Query('projectId') projectId?: string) {
-    return this.quotes.findAll(user.workspaceId, projectId);
+    return this.quotes.findAll(user.workspaceId, projectId, { sub: user.sub, role: user.role });
   }
 
   @Get(':id')
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.quotes.findOne(user.workspaceId, id);
+    return this.quotes.findOne(user.workspaceId, id, { sub: user.sub, role: user.role });
   }
 
   // Création/édition de devis : exclut les rôles lecture seule (VIEWER).

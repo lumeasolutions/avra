@@ -138,17 +138,32 @@ export class InvoicesService {
     }));
   }
 
-  async findAll(workspaceId: string, projectId?: string) {
+  /**
+   * @param actor qui demande. Un vendeur (non ADMIN/OWNER) ne recoit que les
+   *   lignes rattachees a un dossier qui lui est attribue. Les lignes sans
+   *   dossier restent reservees a l'administrateur.
+   */
+  async findAll(workspaceId: string, projectId?: string, actor?: { sub: string; role: string }) {
+    const isAdmin = !actor || actor.role === 'ADMIN' || actor.role === 'OWNER';
     return this.prisma.invoice.findMany({
-      where: { workspaceId, ...(projectId && { projectId }) },
+      where: {
+        workspaceId,
+        ...(projectId && { projectId }),
+        ...(isAdmin ? {} : { project: { vendeurUserId: actor!.sub } }),
+      },
       include: { lines: { orderBy: { position: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(workspaceId: string, id: string) {
+  async findOne(workspaceId: string, id: string, actor?: { sub: string; role: string }) {
+    const isAdmin = !actor || actor.role === 'ADMIN' || actor.role === 'OWNER';
     const inv = await this.prisma.invoice.findFirst({
-      where: { id, workspaceId },
+      where: {
+        id,
+        workspaceId,
+        ...(isAdmin ? {} : { project: { vendeurUserId: actor!.sub } }),
+      },
       include: { lines: { orderBy: { position: 'asc' } } },
     });
     if (!inv) throw new NotFoundException(`Invoice ${id} not found`);

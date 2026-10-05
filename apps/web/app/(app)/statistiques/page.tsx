@@ -16,10 +16,11 @@
  *      - TABLEAU 3 : par VENDEUR (Cassandra, Sylvie, …) + taux conversion + camembert
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, Clock, AlertTriangle, Table2, Users, Package, FolderCheck } from 'lucide-react';
 import { useDossierStore, useFacturationStore, useVisibleDossiers, useVisibleDossiersSignes, useVisibleDossiersPerdus } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { useDossierPermissions } from '@/hooks/useDossierPermissions';
 import { StatsGateModal } from '@/components/statistiques/StatsGateModal';
 import { StatsOverview } from '@/components/statistiques/StatsOverview';
 import { StatsTableauFournisseur } from '@/components/statistiques/StatsTableauFournisseur';
@@ -36,9 +37,19 @@ const TABS: { key: TabKey; label: string; short: string; icon: React.ElementType
 ];
 
 export default function StatistiquesPage() {
-  const dossiers       = useVisibleDossiers();
-  const dossiersSignes = useVisibleDossiersSignes();
-  const dossiersPerdus = useVisibleDossiersPerdus();
+  const tousDossiers       = useVisibleDossiers();
+  const tousDossiersSignes = useVisibleDossiersSignes();
+  const tousDossiersPerdus = useVisibleDossiersPerdus();
+
+  // Un vendeur ne voit que ses propres chiffres (cf. en-tete du fichier).
+  const { isAdmin, isOwnDossier } = useDossierPermissions();
+  const mesDossiers = useCallback(
+    <T,>(liste: T[]): T[] => (isAdmin ? liste : liste.filter((d) => isOwnDossier(d as never))),
+    [isAdmin, isOwnDossier],
+  );
+  const dossiers       = useMemo(() => mesDossiers(tousDossiers), [tousDossiers, mesDossiers]);
+  const dossiersSignes = useMemo(() => mesDossiers(tousDossiersSignes), [tousDossiersSignes, mesDossiers]);
+  const dossiersPerdus = useMemo(() => mesDossiers(tousDossiersPerdus), [tousDossiersPerdus, mesDossiers]);
   const addDossierPrixLigne     = useDossierStore((s) => s.addDossierPrixLigne);
   const removeDossierPrixLigne  = useDossierStore((s) => s.removeDossierPrixLigne);
   const updateDossierPrixLigne  = useDossierStore((s) => s.updateDossierPrixLigne);

@@ -71,12 +71,15 @@ export class AuthService {
       );
     }
 
-    // 🌱 Bêta gate — s'applique aux comptes pro (workspace). Vérifié APRÈS le
-    // mot de passe pour ne pas fuiter l'existence d'un email non whitelisté.
-    // Les intervenants (branche ci-dessus) en sont exemptés : ils sont
-    // parrainés par le pro qui les a invités.
+    // 🌱 Bêta gate — s'applique à celui qui OUVRE un espace, pas à ceux qu'il
+    // invite ensuite dans le sien. Vérifié APRÈS le mot de passe pour ne pas
+    // fuiter l'existence d'un email non whitelisté. Les intervenants (branche
+    // ci-dessus) en sont exemptés : ils sont parrainés par le pro qui les a
+    // invités — et depuis le 05/10/2026 les membres d'équipe aussi, pour la
+    // même raison (cf. `estParraine`).
     if (isBetaGateEnabled() && !isEmailAllowed(user.email)) {
-      throw new ForbiddenException(BETA_GATE_MESSAGE);
+      const parraine = await this.estParraine(uw.workspaceId);
+      if (!parraine) throw new ForbiddenException(BETA_GATE_MESSAGE);
     }
 
     await this.prisma.user.update({
@@ -150,6 +153,26 @@ export class AuthService {
         workspaceName: uw.workspace.name,
       },
     };
+  }
+
+  /**
+   * L'espace est-il tenu par un compte autorise en beta ?
+   *
+   * Un vendeur invite pouvait entrer une seule fois : l'inscription par
+   * invitation contourne volontairement le gate et le connecte dans la
+   * foulee, mais la connexion suivante le refusait, son email n'etant pas
+   * dans BETA_ADMIN_EMAILS. Il perdait son acces a la fin de sa session, sans
+   * rien avoir fait (constate le 05/10/2026).
+   *
+   * Le parrainage est celui qui vaut deja pour les intervenants : si le
+   * proprietaire de l'espace est autorise, ceux qu'il invite le sont aussi.
+   */
+  private async estParraine(workspaceId: string): Promise<boolean> {
+    const proprietaires = await this.prisma.userWorkspace.findMany({
+      where: { workspaceId, role: 'OWNER' },
+      select: { user: { select: { email: true } } },
+    });
+    return proprietaires.some((p) => p.user?.email && isEmailAllowed(p.user.email));
   }
 
   /**

@@ -15,6 +15,6 @@ export class StatsController {
   @UseInterceptors(WorkspaceScopedCacheInterceptor)
   @CacheTTL(300) // 5 minutes
   getGlobal(@CurrentUser() user: JwtPayload) {
-    return this.stats.getGlobal(user.workspaceId);
+    return this.stats.getGlobal(user.workspaceId, { sub: user.sub, role: user.role });
   }
 }

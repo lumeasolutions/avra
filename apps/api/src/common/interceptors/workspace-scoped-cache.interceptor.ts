@@ -27,6 +27,14 @@ export class WorkspaceScopedCacheInterceptor extends CacheInterceptor {
     const workspaceId = req?.user?.workspaceId;
     if (!workspaceId) return undefined; // fail-safe : ne jamais cacher non scopé
 
-    return `${key}::ws:${workspaceId}`;
+    // 05/10/2026 — la clé porte aussi l'utilisateur. Depuis que certaines de
+    // ces reponses dependent de qui demande (un vendeur ne recoit que ses
+    // propres chiffres), une cle au seul workspace servirait au vendeur la
+    // reponse mise en cache par l'administrateur, et l'inverse. La meme fuite
+    // que celle decrite ci-dessus, d'un cran plus bas.
+    const userId = req?.user?.sub ?? req?.user?.id;
+    if (!userId) return undefined; // fail-safe, comme ci-dessus
+
+    return `${key}::ws:${workspaceId}::u:${userId}`;
   }
 }

@@ -419,6 +419,16 @@ export default function ParametresPage() {
         subtitle="Configuration complète de votre espace AVRA"
       />
 
+      {!estAdmin && (
+        <div className="flex items-start gap-2.5 rounded-2xl border border-[#a67749]/25 bg-[#fff8ef] px-4 py-3">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-[#a67749]" />
+          <p className="text-sm text-[#304035]/75">
+            <b className="text-[#304035]">Consultation seule.</b> Vous pouvez consulter ces
+            réglages ; seul un administrateur de l&apos;espace peut les enregistrer.
+          </p>
+        </div>
+      )}
+
       {/* ── Grille des sections ── */}
       <div className="grid gap-2.5 lg:grid-cols-2">
         {/* Section dev temporaire — switch portail (admins uniquement) */}

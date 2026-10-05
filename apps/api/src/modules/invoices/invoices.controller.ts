@@ -18,12 +18,12 @@ export class InvoicesController {
 
   @Get()
   findAll(@CurrentUser() user: JwtPayload, @Query('projectId') projectId?: string) {
-    return this.invoices.findAll(user.workspaceId, projectId);
+    return this.invoices.findAll(user.workspaceId, projectId, { sub: user.sub, role: user.role });
   }
 
   @Get(':id')
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.invoices.findOne(user.workspaceId, id);
+    return this.invoices.findOne(user.workspaceId, id, { sub: user.sub, role: user.role });
   }
 
   // Émission/modification/suppression de factures = documents légaux → OWNER/ADMIN uniquement.

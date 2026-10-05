@@ -59,6 +59,12 @@ export class ProjectsService {
         ...dto,
         workspaceId,
         ownerId: userId,
+        // Le createur est le vendeur attribue par defaut. Sans cela, un dossier
+        // cree par cette voie n'etait attribue a personne — et depuis que
+        // l'ecriture se fonde sur l'attribution, son auteur ne pouvait plus le
+        // modifier une seconde apres l'avoir cree.
+        vendeurUserId:
+          (dto as { vendeurUserId?: string | null }).vendeurUserId ?? userId ?? null,
       },
       include: { client: true, owner: { select: { id: true, firstName: true, lastName: true } } },
     });
@@ -73,17 +79,17 @@ export class ProjectsService {
     const pageSize = filters?.pageSize ?? 20;
     const skip = (page - 1) * pageSize;
 
-    // Cloisonnement vendeur (sécurité serveur) : un non-admin ne reçoit que SES
-    // dossiers (vendeurUserId = son id). Les dossiers orphelins (vendeurUserId
-    // null, ex. legacy non rétro-remplis) restent réservés aux ADMIN/OWNER.
-    // Pas de fallback par nom côté serveur (trop fragile) : après le
-    // rétro-remplissage, l'appartenance passe par l'id.
-    const isAdmin = !actor || actor.role === 'ADMIN' || actor.role === 'OWNER';
+    // Lecture ouverte a toute l'equipe (regle du 05/10/2026) : un vendeur voit
+    // les dossiers de la societe, et ne modifie que les siens — c'est
+    // `assertCanWrite` qui tient cette limite. Le serveur ne renvoyait
+    // auparavant que les dossiers du vendeur, pendant que l'interface etait
+    // ecrite pour les afficher tous : deux regles opposees, et des dossiers
+    // qui apparaissaient puis disparaissaient d'une synchronisation a l'autre.
+    void actor;
     const where = {
       workspaceId,
       lifecycleStatus: filters?.status,
       tradeType: filters?.tradeType,
-      ...(isAdmin ? {} : { vendeurUserId: actor!.sub }),
     };
 
     const [data, total] = await Promise.all([
@@ -105,13 +111,12 @@ export class ProjectsService {
   }
 
   async findOne(workspaceId: string, id: string, actor?: { sub: string; role: string }) {
-    // Cloisonnement vendeur : un non-admin ne peut charger qu'un dossier qui lui
-    // est attribué (vendeurUserId = son id). Sinon → null (introuvable), pour
-    // qu'il ne puisse pas récupérer le dossier d'un autre via l'API.
-    const isAdmin = !actor || actor.role === 'ADMIN' || actor.role === 'OWNER';
+    // Lecture ouverte a toute l'equipe (cf. findAll). La limite est a
+    // l'ecriture, pas a la consultation.
+    void actor;
     // OPTIMISATION: Utiliser select pour charger uniquement les champs nécessaires
     return this.prisma.project.findFirst({
-      where: { id, workspaceId, ...(isAdmin ? {} : { vendeurUserId: actor!.sub }) },
+      where: { id, workspaceId },
       select: {
         id: true,
         workspaceId: true,
@@ -198,16 +203,30 @@ export class ProjectsService {
   }
 
   /**
-   * Cloisonnement vendeur : un MEMBER ne peut modifier qu'un dossier qu'il a
-   * créé (ownerId). ADMIN/OWNER peuvent tout. Aligné sur le gating d'interface.
+   * Cloisonnement vendeur : un MEMBER ne modifie que les dossiers qui lui sont
+   * ATTRIBUES (`vendeurUserId`). ADMIN/OWNER modifient tout.
+   *
+   * C'etait `ownerId`, le createur, jusqu'au 05/10/2026 — alors que la liste,
+   * elle, se fondait deja sur l'attribution. Un dossier cree par
+   * l'administrateur puis attribue a un vendeur lui etait donc refuse a la
+   * modification, et un dossier qu'il avait cree puis qu'on avait reattribue
+   * lui restait modifiable. Une seule notion desormais : celle que
+   * l'utilisateur voit a l'ecran, le vendeur attribue.
+   *
+   * Un dossier sans vendeur attribue (anciens dossiers non retro-remplis)
+   * reste reserve a l'administrateur.
    */
   private assertCanWrite(
-    existing: { ownerId: string | null },
+    existing: { vendeurUserId?: string | null },
     actor: { sub: string; role: string },
   ): void {
     const isAdmin = actor.role === 'ADMIN' || actor.role === 'OWNER';
-    if (!isAdmin && existing.ownerId !== actor.sub) {
-      throw new ForbiddenException('Vous ne pouvez modifier que vos propres dossiers.');
+    if (!isAdmin && existing.vendeurUserId !== actor.sub) {
+      throw new ForbiddenException(
+        existing.vendeurUserId
+          ? 'Ce dossier est attribué à un autre vendeur.'
+          : "Ce dossier n'est attribué à personne : seul un administrateur peut le modifier.",
+      );
     }
   }
 

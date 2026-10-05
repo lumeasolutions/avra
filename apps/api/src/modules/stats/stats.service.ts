@@ -8,11 +8,21 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class StatsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getGlobal(workspaceId: string) {
+  /**
+   * @param actor qui demande. Un vendeur (non ADMIN/OWNER) ne recoit que les
+   *   chiffres des dossiers qui lui sont attribues.
+   */
+  async getGlobal(workspaceId: string, actor?: { sub: string; role: string }) {
+    const isAdmin = !actor || actor.role === 'ADMIN' || actor.role === 'OWNER';
+    const where = {
+      workspaceId,
+      ...(isAdmin ? {} : { vendeurUserId: actor!.sub }),
+    };
+
     // OPTIMISATION: Utiliser une seule requête groupBy avec multiple by pour éviter les filtres JS
     const results = await this.prisma.project.groupBy({
       by: ['lifecycleStatus'],
-      where: { workspaceId },
+      where,
       _count: true,
       _sum: { saleAmount: true, purchaseAmount: true },
     });
