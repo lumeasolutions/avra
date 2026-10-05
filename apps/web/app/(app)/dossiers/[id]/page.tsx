@@ -33,6 +33,7 @@ import { OptionSelectionModal } from '@/components/dossiers/OptionSelectionModal
 import { VendeurAssignDropdown } from '@/components/vendeur/VendeurAssignDropdown';
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useDossierPermissions } from '@/hooks/useDossierPermissions';
+import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
 import { DossierAlertBadge } from '@/components/alerts/DossierAlertBadge';
 import { DossierEcheances } from '@/components/alerts/DossierEcheances';
 import { scrollToAnchor } from '@/lib/scrollToAnchor';
@@ -177,14 +178,14 @@ export default function DossierDetailPage() {
   const allDevis          = useFacturationStore(s => s.devis);
   const dossier           = [...dossiers, ...dossiersSignes].find(d => d.id === id);
   // Droits : admin = tout ; vendeur = uniquement ses propres dossiers.
-  const { canEditDossier } = useDossierPermissions();
+  const { canEditDossier, isAdmin } = useDossierPermissions();
   const canEditThis = canEditDossier(dossier);
   const readOnly = !canEditThis;
   const invoices          = allInvoices.filter(i => i.dossierId === id);
   // Devis du dossier (le store les range déjà du plus récent au plus ancien).
   const devisDossier      = allDevis.filter(d => d.dossierId === id);
   // Actions persistées en DB via l'API (double-write : optimistic local + API)
-  const { signProject, updateProjectStatus, loseProject, renameProject } = useProjectActions();
+  const { signProject, updateProjectStatus, loseProject, renameProject, deleteProject } = useProjectActions();
   // Actions uniquement locales (pas encore d'endpoint API dédié).
   // NOTE : subfolders, validation, notes sont conservés en localStorage.
   // Pour les rendre multi-device, il faudra ajouter des endpoints backend
@@ -324,6 +325,10 @@ export default function DossierDetailPage() {
   const [addFolderParent, setAddFolderParent] = useState<string | null>(null);
   // Marquer le dossier comme perdu (en cours uniquement)
   const [showPerduModal, setShowPerduModal] = useState(false);
+  // Suppression du dossier (reutilise la modale de confirmation existante).
+  const [showSuppression, setShowSuppression] = useState(false);
+  const [suppressionErreur, setSuppressionErreur] = useState<string | null>(null);
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false);
   const [perduReason, setPerduReason] = useState('');
 
   // Fermeture clavier du tableau de bord
@@ -1132,6 +1137,19 @@ export default function DossierDetailPage() {
             >
               <AlertTriangle className="h-3.5 w-3.5" />
               Marquer perdu
+            </button>
+            )}
+            {/* Supprimer — reserve a l'administrateur, comme la route serveur.
+                La proposer a un vendeur reviendrait a promettre une action que
+                le serveur refuse. */}
+            {isAdmin && (
+            <button
+              onClick={() => { setSuppressionErreur(null); setShowSuppression(true); }}
+              className="flex items-center gap-2 bg-white/5 hover:bg-red-500/25 border border-white/15 hover:border-red-300/40 text-white/70 hover:text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all"
+              title="Supprimer ce dossier (récupérable dans Paramètres → Dossiers supprimés)"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Supprimer
             </button>
             )}
             {/* Bouton "Envoyer a intervenant" retire du header — pour eviter le
@@ -2454,6 +2472,27 @@ export default function DossierDetailPage() {
           </div>
         </div>
       )}
+
+      {/* ══ MODAL : Suppression du dossier ══ */}
+      <DeleteDossierModal
+        open={showSuppression}
+        dossierName={dossier.name}
+        dossierFirstName={dossier.firstName}
+        itemsCount={dossier.subfolders?.length ?? 0}
+        loading={suppressionEnCours}
+        error={suppressionErreur}
+        onConfirm={async () => {
+          setSuppressionEnCours(true); setSuppressionErreur(null);
+          try {
+            await deleteProject(dossier.id);
+            router.push('/dossiers');
+          } catch (e: unknown) {
+            setSuppressionErreur(e instanceof Error ? e.message : 'Suppression impossible');
+            setSuppressionEnCours(false);
+          }
+        }}
+        onCancel={() => { if (!suppressionEnCours) { setShowSuppression(false); setSuppressionErreur(null); } }}
+      />
 
       {/* ══ MODAL : Ajout d'un sous-dossier ══ */}
       {showPerduModal && (

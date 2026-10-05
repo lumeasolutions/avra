@@ -274,7 +274,9 @@ export function DeleteDossierModal({
             Souhaitez-vous vraiment supprimer le dossier de{' '}
             <span className="ddm-name-pill">{fullName || 'Sans nom'}</span>{' '}
             ?<br />
-            Cette action est <strong>définitive</strong> et ne peut pas être annulée.
+            Le dossier quittera toutes les listes et ne comptera plus dans les chiffres.
+            Vous le retrouverez dans <strong>Paramètres → Dossiers supprimés</strong>,
+            où un administrateur peut le restaurer.
           </p>
 
           <div className="ddm-body">
@@ -288,7 +290,7 @@ export function DeleteDossierModal({
                     leurs documents, notes et historique de validation associés.
                   </>
                 )}
-                {itemsCount === 0 && ' : ce dossier ne contient pas encore de sous-dossier, mais il sera retiré définitivement.'}
+                {itemsCount === 0 && " : ce dossier ne contient pas encore de sous-dossier, mais il sera retiré de l'affichage."}
               </div>
             </div>
 
