@@ -333,6 +333,18 @@ export class ProjectsService {
       if (!existing) return null;
       this.assertCanWrite(existing, actor);
 
+      // Reattribuer un dossier est une decision d'administrateur : l'ecran le
+      // dit depuis juin (selecteur en lecture seule pour un vendeur), la route
+      // ne l'imposait pas. Un vendeur pouvait donc donner son dossier par
+      // l'API et le perdre dans la foulee, sans pouvoir le recuperer.
+      const changeAttribution =
+        data.vendeurUserId !== undefined || data.vendeurName !== undefined;
+      if (changeAttribution && actor.role !== 'ADMIN' && actor.role !== 'OWNER') {
+        throw new ForbiddenException(
+          'Seul un administrateur peut attribuer un dossier à un autre vendeur.',
+        );
+      }
+
       const patch: Record<string, unknown> = {};
       if (data.prixLignes !== undefined) patch.prixLignes = data.prixLignes as any;
       if (data.confirmations !== undefined) patch.confirmations = data.confirmations as any;
