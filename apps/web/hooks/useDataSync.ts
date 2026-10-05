@@ -138,14 +138,37 @@ export function useDataSync() {
         if (!me?.id) return;
         const store = useAuthStore.getState();
         const cur = store.user;
-        // Garde-fou anti cross-compte : si un AUTRE utilisateur est déjà
-        // persisté, on ne touche à rien (la détection multi-compte de
-        // useDataSync, via avra-last-user-id, gère le reset). En revanche, si
-        // AUCUN user n'est persisté (cas observé : session cookie `logged_in`
-        // valide mais `user: null` dans avra-auth — d'où l'état lecture seule
-        // après un simple rechargement, sans re-login), on (re)peuple l'objet
-        // user depuis le serveur.
-        if (cur && cur.id !== me.id) return;
+        // Si AUCUN user n'est persisté (cas observé : session cookie
+        // `logged_in` valide mais `user: null` dans avra-auth — d'où l'état
+        // lecture seule après un simple rechargement, sans re-login), on
+        // (re)peuple l'objet user depuis le serveur.
+        //
+        // Et si le serveur annonce QUELQU'UN D'AUTRE, c'est un changement de
+        // compte : on vide les données du précédent et on adopte celui-là.
+        //
+        // Avant, on sortait sans rien faire, en comptant sur la détection
+        // multi-compte plus bas. Mais celle-ci compare l'identifiant du store
+        // à celui garde dans localStorage : quand les deux sont périmés de la
+        // même façon, elle ne voit aucun changement. L'écran restait donc au
+        // nom, au rôle et au menu du compte précédent pendant que le serveur
+        // refusait tout — « Forbidden resource », et ça survivait aux
+        // rechargements (constaté le 05/10/2026).
+        if (cur && cur.id !== me.id) {
+          localStorage.setItem('avra-last-user-id', me.id);
+          localStorage.setItem('avra-reset-in-progress', 'true');
+          clearAllAppStoresHard();
+          store.setAuth(store.token || '', {
+            id: me.id,
+            email: me.email,
+            role: me.role,
+            workspaceId: me.workspaceId,
+            firstName: me.firstName,
+            lastName: me.lastName,
+            workspaceName: me.workspace?.name,
+          } as typeof cur);
+          window.location.reload();
+          return;
+        }
         const needsFix =
           !cur ||
           cur.role !== me.role ||
