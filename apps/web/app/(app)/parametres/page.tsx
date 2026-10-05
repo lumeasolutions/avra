@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { api } from '@/lib/api';
 import {
   getTeamOverview, inviteMember, revokeInvitation, resendInvitation, buildInvitationLink,
   updateTeamMember, removeTeamMember, teamDisplayName,
@@ -78,6 +79,7 @@ const SECTIONS = [
   { id: 'produits',       icon: Package,            label: 'Catalogue Produits',       desc: 'Aperçu du catalogue (gérer dans Stock)' },
   { id: 'perdus',         icon: FolderX,            label: 'Dossiers perdus',          desc: 'Archive des dossiers non signés' },
   { id: 'archives',       icon: Archive,            label: 'Dossiers archivés',        desc: 'Dossiers signés terminés (chantier clos)' },
+  { id: 'supprimes',      icon: Trash2,             label: 'Dossiers supprimés',       desc: 'Corbeille — récupérer un dossier supprimé par erreur' },
   { id: 'export',         icon: Download,           label: 'Import / Export',          desc: 'Exporter vos données en CSV/JSON' },
   { id: 'ia',            icon: Sparkles,           label: 'Intelligence Artificielle', desc: 'Configurer l\'assistant et les modules IA' },
 ];
@@ -87,7 +89,19 @@ const SECTIONS = [
  * l'une donne les roles et les acces de l'equipe, l'autre le code du dossier
  * administratif.
  */
-const SECTIONS_ADMIN = new Set(['equipe', 'securite-admin']);
+/** Une ligne de la corbeille, telle que la renvoie GET /projects/deleted. */
+type DossierSupprime = {
+  id: string;
+  name: string;
+  reference: string | null;
+  saleAmount: string | number | null;
+  vendeurName: string | null;
+  deletedAt: string | null;
+  deletedByName: string | null;
+  client?: { companyName: string | null; firstName: string | null; lastName: string | null } | null;
+};
+
+const SECTIONS_ADMIN = new Set(['equipe', 'securite-admin', 'supprimes']);
 
 const ROLE_COLORS: Record<string, string> = {
   OWNER:   'bg-[#a67749] text-white',
@@ -386,6 +400,44 @@ export default function ParametresPage() {
   useEffect(() => {
     if (!estAdmin && active && SECTIONS_ADMIN.has(active)) setActive(null);
   }, [estAdmin, active]);
+
+  // -- Corbeille des dossiers -----------------------------------------------
+  const [corbeille, setCorbeille] = useState<DossierSupprime[]>([]);
+  const [corbeilleEtat, setCorbeilleEtat] = useState<'idle' | 'chargement' | 'erreur'>('idle');
+  const [corbeilleErreur, setCorbeilleErreur] = useState<string | null>(null);
+  const [restaurationId, setRestaurationId] = useState<string | null>(null);
+
+  const chargerCorbeille = useCallback(async () => {
+    setCorbeilleEtat('chargement');
+    setCorbeilleErreur(null);
+    try {
+      setCorbeille(await api<DossierSupprime[]>('/projects/deleted'));
+      setCorbeilleEtat('idle');
+    } catch (e: unknown) {
+      setCorbeilleErreur(e instanceof Error ? e.message : 'Chargement impossible');
+      setCorbeilleEtat('erreur');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (active === 'supprimes') void chargerCorbeille();
+  }, [active, chargerCorbeille]);
+
+  const restaurer = async (id: string) => {
+    setRestaurationId(id);
+    setCorbeilleErreur(null);
+    try {
+      await api(`/projects/${id}/restore`, { method: 'POST' });
+      setCorbeille((c) => c.filter((d) => d.id !== id));
+      // Le dossier revient dans les listes a la prochaine synchronisation ;
+      // on recharge pour que ce soit immediat.
+      if (typeof window !== 'undefined') window.location.reload();
+    } catch (e: unknown) {
+      setCorbeilleErreur(e instanceof Error ? e.message : 'Restauration impossible');
+    } finally {
+      setRestaurationId(null);
+    }
+  };
 
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -1564,6 +1616,86 @@ export default function ParametresPage() {
           Dossiers signes termines (chantier clos) — masques de /dossiers-signes
           mais consultables ici. Bouton Restaurer pour les remettre actifs.
       ══════════════════════════════════════════════════════════════════════ */}
+      {active === 'supprimes' && (
+        <div className="rounded-2xl bg-white shadow-md border border-[#304035]/8 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-bold text-[#304035] text-base flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Dossiers supprimés
+            </h3>
+            <button
+              onClick={() => void chargerCorbeille()}
+              className="flex items-center gap-1.5 rounded-lg border border-[#304035]/15 px-3 py-1.5 text-xs font-semibold text-[#304035]/70 hover:bg-[#f5eee8]/60"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+            </button>
+          </div>
+          <p className="text-xs text-[#304035]/55 mb-4">
+            Tout ce qui a été supprimé dans votre espace, par vous ou par un vendeur. Un dossier
+            supprimé n&apos;apparaît plus nulle part et ne compte plus dans les chiffres, mais il
+            n&apos;est pas perdu : vous pouvez le <strong>remettre en circulation</strong> ici.
+            À ne pas confondre avec un dossier <strong>perdu</strong> (une vente qu&apos;on n&apos;a
+            pas faite) ni <strong>archivé</strong> (un chantier terminé).
+          </p>
+
+          {corbeilleErreur && (
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <AlertTriangle className="h-4 w-4 shrink-0" /> {corbeilleErreur}
+            </div>
+          )}
+
+          {corbeilleEtat === 'chargement' ? (
+            <p className="py-10 text-center text-sm text-[#304035]/40">Chargement…</p>
+          ) : corbeille.length === 0 ? (
+            <div className="py-10 text-center">
+              <Trash2 className="mx-auto mb-3 h-12 w-12 text-[#304035]/10" />
+              <p className="text-sm text-[#304035]/40">La corbeille est vide.</p>
+              <p className="mt-2 text-xs text-[#304035]/30">
+                Les dossiers supprimés avant le 5 octobre 2026 ne s&apos;y trouvent pas :
+                la suppression était alors définitive.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-[#304035]/8">
+              {corbeille.map((d) => {
+                const client = d.client
+                  ? d.client.companyName
+                    || `${d.client.firstName ?? ''} ${d.client.lastName ?? ''}`.trim()
+                  : null;
+                const quand = d.deletedAt
+                  ? new Date(d.deletedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+                  : '—';
+                return (
+                  <div key={d.id} className="flex items-center justify-between gap-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[#304035]">
+                        {d.name}
+                        {d.reference && (
+                          <span className="ml-2 text-[11px] font-normal text-[#304035]/40">{d.reference}</span>
+                        )}
+                      </p>
+                      <p className="truncate text-xs text-[#304035]/50">
+                        {client ? `${client} · ` : ''}
+                        supprimé le {quand}
+                        {d.deletedByName ? ` par ${d.deletedByName}` : ''}
+                        {d.vendeurName ? ` · vendeur : ${d.vendeurName}` : ''}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => void restaurer(d.id)}
+                      disabled={restaurationId === d.id}
+                      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#304035] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#3d5244] disabled:opacity-50"
+                    >
+                      <ArchiveRestore className="h-3.5 w-3.5" />
+                      {restaurationId === d.id ? 'Restauration…' : 'Restaurer'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {active === 'archives' && (() => {
         const archives = dossiersSignes
           .filter(d => d.archivedAt)

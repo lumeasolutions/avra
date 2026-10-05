@@ -560,6 +560,14 @@ model Project {
   /// fallback). Sert au cloisonnement : un vendeur ne voit que SES dossiers.
   vendeurUserId   String?
   statsSkipped    Boolean                @default(false)
+  /// Corbeille (05/10/2026). La suppression d'un dossier etait definitive :
+  /// plus aucun moyen de revenir sur une erreur, ni de recuperer ce qu'un
+  /// vendeur avait supprime. La ligne reste desormais en base, marquee
+  /// supprimee, et toutes les listes filtrent sur `deletedAt: null`.
+  deletedAt       DateTime?
+  /// Qui a supprime (id du User). Pas de relation : on garde la trace meme si
+  /// le compte quitte l'espace.
+  deletedById     String?
   // Listes/objets JSON (cf. types frontend DossierPrixLigne, ConfirmationFournisseur, dateButoires)
   prixLignes      Json?
   confirmations   Json?
@@ -599,6 +607,7 @@ model Project {
   // migration 20260528_dossier_business_fields (Project_workspaceId_archivedAt_idx).
   // Sans cette ligne, un futur `prisma migrate dev` générait un DROP INDEX.
   @@index([workspaceId, archivedAt])
+  @@index([workspaceId, deletedAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

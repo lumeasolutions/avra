@@ -396,10 +396,17 @@ export function useProjectActions() {
       try {
         await api(`/projects/${id}`, { method: 'DELETE' });
       } catch (err: any) {
-        // On retire quand même du store local pour ne pas laisser un fantôme.
-        // L'utilisateur saura via l'erreur que la DB peut être désynchronisée.
-        store.deleteDossier(id);
         const msg = err?.message ?? 'Erreur réseau';
+        // Un refus de droits n'est pas une panne : le dossier existe toujours
+        // et appartient a quelqu'un. Le retirer de l'ecran le ferait
+        // « disparaitre » jusqu'a la synchronisation suivante, en laissant
+        // croire a une suppression qui n'a pas eu lieu. On le garde.
+        if (/forbidden|interdit|droits|autre vendeur|administrateur/i.test(msg)) {
+          throw new Error(msg);
+        }
+        // Panne reseau ou erreur serveur : on retire du store local pour ne pas
+        // laisser un fantome, et on previent que la base peut etre desynchronisee.
+        store.deleteDossier(id);
         throw new Error(`Suppression API échouée : ${msg} (dossier retiré localement)`);
       }
       store.deleteDossier(id);

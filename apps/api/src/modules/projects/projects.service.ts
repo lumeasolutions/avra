@@ -88,6 +88,7 @@ export class ProjectsService {
     void actor;
     const where = {
       workspaceId,
+      deletedAt: null,
       lifecycleStatus: filters?.status,
       tradeType: filters?.tradeType,
     };
@@ -116,7 +117,7 @@ export class ProjectsService {
     void actor;
     // OPTIMISATION: Utiliser select pour charger uniquement les champs nécessaires
     return this.prisma.project.findFirst({
-      where: { id, workspaceId },
+      where: { id, workspaceId, deletedAt: null },
       select: {
         id: true,
         workspaceId: true,
@@ -372,12 +373,78 @@ export class ProjectsService {
     });
   }
 
-  async remove(workspaceId: string, id: string) {
-    // OPTIMISATION: Fusionner vérification et suppression en transaction
+  /**
+   * Suppression reversible : le dossier quitte les listes mais reste en base,
+   * recuperable depuis la corbeille (Parametres → Dossiers supprimes).
+   *
+   * Avant le 05/10/2026, la ligne etait effacee. Une fausse manoeuvre etait
+   * donc sans retour, et il n'existait aucun moyen de recuperer un dossier
+   * supprime depuis un compte vendeur.
+   */
+  async remove(workspaceId: string, id: string, actorSub?: string) {
     return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.project.findFirst({ where: { id, workspaceId } });
+      const existing = await tx.project.findFirst({
+        where: { id, workspaceId, deletedAt: null },
+      });
       if (!existing) return null;
-      return tx.project.delete({ where: { id } });
+      return tx.project.update({
+        where: { id },
+        data: { deletedAt: new Date(), deletedById: actorSub ?? null },
+      });
+    });
+  }
+
+  /** Contenu de la corbeille, du plus recemment supprime au plus ancien. */
+  async listDeleted(workspaceId: string) {
+    const rows = await this.prisma.project.findMany({
+      where: { workspaceId, deletedAt: { not: null } },
+      select: {
+        id: true,
+        name: true,
+        reference: true,
+        tradeType: true,
+        lifecycleStatus: true,
+        saleAmount: true,
+        vendeurName: true,
+        createdAt: true,
+        deletedAt: true,
+        deletedById: true,
+        client: { select: { companyName: true, firstName: true, lastName: true } },
+      },
+      orderBy: { deletedAt: 'desc' },
+      take: 200,
+    });
+
+    // Qui a supprime : on resout les noms en une requete plutot qu'une par ligne.
+    const ids = [...new Set(rows.map((r) => r.deletedById).filter(Boolean) as string[])];
+    type Auteur = { id: string; firstName: string | null; lastName: string | null; email: string };
+    const users: Auteur[] = ids.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, firstName: true, lastName: true, email: true },
+        })
+      : [];
+    const parId = new Map(users.map((u) => [u.id, u] as const));
+
+    return rows.map((r) => {
+      const u = r.deletedById ? parId.get(r.deletedById) : undefined;
+      const nom = u
+        ? `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || u.email
+        : null;
+      return { ...r, deletedByName: nom };
+    });
+  }
+
+  /** Remet un dossier de la corbeille dans les listes. */
+  async restore(workspaceId: string, id: string) {
+    const existing = await this.prisma.project.findFirst({
+      where: { id, workspaceId, deletedAt: { not: null } },
+      select: { id: true },
+    });
+    if (!existing) return null;
+    return this.prisma.project.update({
+      where: { id },
+      data: { deletedAt: null, deletedById: null },
     });
   }
 }

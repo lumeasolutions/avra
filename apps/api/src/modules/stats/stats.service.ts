@@ -16,6 +16,8 @@ export class StatsService {
     const isAdmin = !actor || actor.role === 'ADMIN' || actor.role === 'OWNER';
     const where = {
       workspaceId,
+      // Un dossier mis a la corbeille ne compte plus dans les chiffres.
+      deletedAt: null,
       ...(isAdmin ? {} : { vendeurUserId: actor!.sub }),
     };
 

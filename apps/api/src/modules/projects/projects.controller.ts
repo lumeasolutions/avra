@@ -67,6 +67,28 @@ export class ProjectsController {
     );
   }
 
+  /**
+   * Corbeille — reservee a l'administrateur.
+   *
+   * Declaree avant `@Get(':id')` : dans l'ordre inverse, Nest ferait
+   * correspondre « deleted » au parametre et chercherait un dossier portant
+   * cet identifiant.
+   */
+  @Get('deleted')
+  @Roles('OWNER', 'ADMIN')
+  listDeleted(@CurrentUser() user: JwtPayload) {
+    return this.projects.listDeleted(user.workspaceId);
+  }
+
+  @Post(':id/restore')
+  @Roles('OWNER', 'ADMIN')
+  async restore(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    const result = await this.projects.restore(user.workspaceId, id);
+    await this.cacheManager.del(`projects:${user.workspaceId}`);
+    await this.cacheManager.del(`projects:${id}`);
+    return result;
+  }
+
   @Get(':id')
   @UseInterceptors(UserScopedCacheInterceptor)
   @CacheTTL(600) // 10 minutes for single project
@@ -135,7 +157,7 @@ export class ProjectsController {
   @Delete(':id')
   @Roles('OWNER', 'ADMIN')
   async remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    const result = await this.projects.remove(user.workspaceId, id);
+    const result = await this.projects.remove(user.workspaceId, id, user.sub);
     // Invalidate caches on mutation
     await this.cacheManager.del(`projects:${user.workspaceId}`);
     await this.cacheManager.del(`projects:${id}`);
