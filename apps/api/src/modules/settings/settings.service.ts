@@ -12,12 +12,29 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class SettingsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async get(workspaceId: string) {
+  /**
+   * @param actor qui demande. Les secrets du Dossier administratif ne sont
+   *   renvoyes qu'a un administrateur (cf. en-tete de cette methode).
+   */
+  async get(workspaceId: string, actor?: { role: string }) {
     const row = await this.prisma.workspaceSettings.findUnique({
       where: { workspaceId },
       select: { extra: true },
     });
-    return { config: (row?.extra as Record<string, unknown> | null) ?? null };
+    const config = (row?.extra as Record<string, unknown> | null) ?? null;
+    if (!config) return { config: null };
+
+    const isAdmin = !actor || actor.role === 'ADMIN' || actor.role === 'OWNER';
+    if (isAdmin) return { config };
+
+    // 05/10/2026 — toute la config vit dans un seul bloc JSON, et sa lecture
+    // n'etait reservee a personne : un vendeur recevait `adminDocsPin`, le
+    // code a 4 chiffres en clair. L'ecran lui etait deja barre, mais ce code
+    // protege justement contre quelqu'un qui passerait par la session restee
+    // ouverte d'un admin — le lui donner vidait la protection de son sens.
+    const { adminDocsPin, adminDocsDeviceId, ...sansSecrets } = config as Record<string, unknown>;
+    void adminDocsPin; void adminDocsDeviceId;
+    return { config: sansSecrets };
   }
 
   async update(workspaceId: string, config: Record<string, unknown>) {

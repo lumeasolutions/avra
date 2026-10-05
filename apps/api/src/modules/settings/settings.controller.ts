@@ -20,7 +20,7 @@ export class SettingsController {
 
   @Get()
   get(@CurrentUser() user: JwtPayload) {
-    return this.settings.get(user.workspaceId);
+    return this.settings.get(user.workspaceId, { role: user.role });
   }
 
   @Roles('OWNER', 'ADMIN')
