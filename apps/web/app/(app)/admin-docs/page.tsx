@@ -50,6 +50,7 @@ import { AdminDocShareModal } from '@/components/admin-docs/AdminDocShareModal';
 import { AdminDocsDashboardPanel } from '@/components/admin-docs/AdminDocsDashboardPanel';
 import { AdminDocsAuditPanel } from '@/components/admin-docs/AdminDocsAuditPanel';
 import { AdminDocsPinGate } from '@/components/admin-docs/AdminDocsPinGate';
+import { authApi } from '@/lib/api';
 
 // ─── Catégories ─────────────────────────────────────────────────────────────
 //
@@ -349,6 +350,31 @@ function AdminDocsPageInner() {
   }, [showUpload, activeCategory]);
 
   /**
+   * Realigne le role de l'ecran sur celui de la session.
+   *
+   * Le role affiche vient du navigateur ; il peut avoir vieilli (changement de
+   * compte dans le meme navigateur, droits retires entre-temps). L'entree de
+   * menu et la page s'ouvrent alors pour quelqu'un que le serveur refuse, et
+   * le refus sort en anglais. Au premier refus, on redemande le role au
+   * serveur et on s'aligne : l'entree disparait, l'ecran affiche « Acces
+   * reserve ».
+   */
+  useEffect(() => {
+    if (!error || !/forbidden/i.test(error)) return;
+    let annule = false;
+    authApi.me()
+      .then((moi) => {
+        if (annule || !moi?.role) return;
+        const s = useAuthStore.getState();
+        if (s.user && s.user.role !== moi.role) {
+          s.setAuth(s.token || '', { ...s.user, role: moi.role });
+        }
+      })
+      .catch(() => { /* hors ligne ou session expiree : on laisse en l'etat */ });
+    return () => { annule = true; };
+  }, [error]);
+
+  /**
    * Traduit les messages techniques renvoyes par l'API.
    *
    * « Forbidden resource » est le libelle par defaut de NestJS quand le role
@@ -571,7 +597,7 @@ function AdminDocsPageInner() {
       {/* ── Erreur API globale ── */}
       {error && error !== 'Unauthorized' && (
         <div className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          <AlertCircle className="h-4 w-4 shrink-0" /> {error}
+          <AlertCircle className="h-4 w-4 shrink-0" /> {messageErreur(error)}
         </div>
       )}
 

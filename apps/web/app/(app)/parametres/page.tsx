@@ -82,6 +82,13 @@ const SECTIONS = [
   { id: 'ia',            icon: Sparkles,           label: 'Intelligence Artificielle', desc: 'Configurer l\'assistant et les modules IA' },
 ];
 
+/**
+ * Sections reservees a l'administrateur. Un vendeur n'a rien a y faire :
+ * l'une donne les roles et les acces de l'equipe, l'autre le code du dossier
+ * administratif.
+ */
+const SECTIONS_ADMIN = new Set(['equipe', 'securite-admin']);
+
 const ROLE_COLORS: Record<string, string> = {
   OWNER:   'bg-[#a67749] text-white',
   ADMIN:   'bg-[#304035] text-white',
@@ -370,9 +377,15 @@ export default function ParametresPage() {
   const currentProfession = useAuthStore(s => s.profession);
   const forceProfession = useAuthStore(s => s._devForceProfession);
   const isDevAdmin = !!authUser; // tout user connecté voit le switcher pendant la phase dev
+  const estAdmin = authUser?.role === 'OWNER' || authUser?.role === 'ADMIN';
+  const sectionsVisibles = estAdmin ? SECTIONS : SECTIONS.filter(s => !SECTIONS_ADMIN.has(s.id));
   // (Note : on garde la liste ADMIN_EMAILS pour pouvoir restaurer une politique
   //  stricte d'un seul ajustement plus tard si besoin.)
   void ADMIN_EMAILS;
+
+  useEffect(() => {
+    if (!estAdmin && active && SECTIONS_ADMIN.has(active)) setActive(null);
+  }, [estAdmin, active]);
 
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -436,7 +449,7 @@ export default function ParametresPage() {
             <ChevronRight className={cn('h-4 w-4 transition-transform shrink-0', active === 'portail-dev' ? 'text-white rotate-90' : 'text-[#a67749]/35')} />
           </button>
         )}
-        {SECTIONS.map(s => (
+        {sectionsVisibles.map(s => (
           <button
             key={s.id}
             onClick={() => setActive(active === s.id ? null : s.id)}
