@@ -17,6 +17,8 @@
 
 import { useMemo } from 'react';
 import type { Dossier, DossierSigne, DossierPerdu } from '@/store/useDossierStore';
+import { useConfigStore } from '@/store/useConfigStore';
+import { couleurMembre, couleurDepuisNom } from '@/lib/couleurs-equipe';
 
 interface Props {
   dossiers: Dossier[];
@@ -27,16 +29,19 @@ interface Props {
 const fmt = (n: number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 
-const PALETTE = ['#16a34a', '#7c3aed', '#2563eb', '#a67749', '#dc2626', '#0891b2', '#ea580c', '#0f766e'];
+// La couleur d'un vendeur vient de celle qu'on lui a attribuee dans
+// Equipe & Acces, pour que ce tableau parle le meme langage que les cartes de
+// dossier et le planning. A defaut, l'ancien calcul sur le nom.
 function colorFor(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
-  return PALETTE[Math.abs(h) % PALETTE.length];
+  return couleurDepuisNom(name);
 }
 
 const SANS_VENDEUR = 'Sans vendeur attribué';
 
 export function StatsTableauVendeur({ dossiers, dossiersSignes, dossiersPerdus }: Props) {
+  const membres = useConfigStore((s) => s.members);
+  const couleursEquipe = useConfigStore((s) => s.couleursEquipe);
+
   const rows = useMemo(() => {
     // Indexation par vendeur. Un dossier sans vendeur tombe dans SANS_VENDEUR.
     const map = new Map<string, { perdu: number; enCours: number; vendu: number; ca: number }>();
@@ -44,6 +49,9 @@ export function StatsTableauVendeur({ dossiers, dossiersSignes, dossiersPerdus }
       if (!map.has(key)) map.set(key, { perdu: 0, enCours: 0, vendu: 0, ca: 0 });
       return map.get(key)!;
     };
+    // On part de l'EQUIPE, pas des dossiers : un vendeur sans dossier doit
+    // apparaitre a zero, c'est precisement ce qu'on vient lire ici.
+    for (const m of membres) if (m.name?.trim()) bump(m.name.trim());
     for (const d of dossiers)        bump(d.vendeurName?.trim() || SANS_VENDEUR).enCours++;
     for (const d of dossiersPerdus)  bump(d.vendeurName?.trim() || SANS_VENDEUR).perdu++;
     for (const d of dossiersSignes) {
@@ -61,11 +69,17 @@ export function StatsTableauVendeur({ dossiers, dossiersSignes, dossiersPerdus }
           vendu: v.vendu,
           ca: v.ca,
           tauxConv: total > 0 ? Math.round((v.vendu / total) * 100) : 0,
-          color: colorFor(name),
+          color: (() => {
+            const m = membres.find((x) => x.name?.trim() === name);
+            const id = m ? ((m as { userId?: string }).userId ?? m.id) : undefined;
+            return couleurMembre(id, name, couleursEquipe);
+          })(),
         };
       })
-      .sort((a, b) => b.ca - a.ca);
-  }, [dossiers, dossiersSignes, dossiersPerdus]);
+      // Le CA d'abord ; a egalite (souvent zero), l'ordre alphabetique plutot
+      // qu'un ordre arbitraire qui changerait a chaque rendu.
+      .sort((a, b) => (b.ca - a.ca) || a.name.localeCompare(b.name, 'fr'));
+  }, [dossiers, dossiersSignes, dossiersPerdus, membres, couleursEquipe]);
 
   const totalCA = rows.reduce((s, r) => s + r.ca, 0);
   // Pie data : répartition CA (si pas de CA on tombe sur la répartition vendus)
