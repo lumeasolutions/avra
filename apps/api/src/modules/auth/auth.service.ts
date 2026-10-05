@@ -44,8 +44,11 @@ export class AuthService {
 
     // Recherche du workspace (compte pro). Les intervenants externes n'en ont
     // pas : ils sont rattachés via Intervenant.userId → branche dédiée.
+    // Meme ordre fige qu'au rafraichissement (cf. refresh), pour que la
+    // connexion et le rafraichissement choisissent toujours le meme espace.
     const uw = await this.prisma.userWorkspace.findFirst({
       where: { userId: user.id },
+      orderBy: { id: 'asc' },
       include: { workspace: true },
     });
     if (!uw) {
@@ -409,8 +412,16 @@ export class AuthService {
     }
 
     // Get workspace info — intervenants may not have one (workspaceId null).
+    //
+    // 05/10/2026 — `findFirst` sans `orderBy` laisse Postgres rendre la ligne
+    // qu'il veut. Pour un compte membre de deux espaces, le rafraichissement
+    // pouvait donc emettre un jeton portant l'autre espace et l'autre role que
+    // celui de la connexion : les routes reservees a l'admin repondaient alors
+    // « Forbidden resource » sans que rien n'ait change en base. On fige
+    // l'ordre pour que le choix soit au moins toujours le meme.
     const uw = await this.prisma.userWorkspace.findFirst({
       where: { userId: user.id },
+      orderBy: { id: 'asc' },
       include: { workspace: true },
     });
 

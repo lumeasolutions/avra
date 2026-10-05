@@ -6,8 +6,8 @@
  * Fonctionnalités :
  *  - Upload (drag&drop global ou bouton) avec MIME whitelist + scan magic bytes
  *  - Catégories : Juridique / Assurances / Fournisseurs / RH / Divers
- *  - Préférences : tags personnalisés, description, date d'expiration
- *  - Tableau de bord avec KPIs + alertes d'expiration
+ *  - Préférences : titre, catégorie, description
+ *  - Tableau de bord avec KPIs
  *  - Vue grille / liste, tri colonnes, multi-sélection + actions en lot
  *  - Prévisualisation inline (PDF iframe sandboxé, images zoomables)
  *  - Versioning : remplace un doc → version N+1, historique conservé
@@ -26,9 +26,9 @@ import {
   FolderOpen, Upload, Search, X, File, FileText, ImageIcon,
   Trash2, Download, Plus, Shield, Lock, Eye, Edit3,
   Briefcase, Users, Building2, Package, Check,
-  Loader2, AlertCircle, AlertTriangle, Clock,
+  Loader2, AlertCircle,
   LayoutDashboard, History, Link2, ListChecks, LayoutGrid, List,
-  ArrowUpDown, ArrowUp, ArrowDown, Tag as TagIcon,
+  ArrowUpDown, ArrowUp, ArrowDown,
   ChevronDown, ChevronRight as ChevronRightIcon,
   Building, Calculator, UserCog, Receipt, FileWarning, Landmark, CreditCard,
 } from 'lucide-react';
@@ -39,8 +39,6 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import {
   useAdminDocsStore,
   type AdminDoc,
-  parseTags,
-  expirationStatus,
   formatBytes,
 } from '@/store/useAdminDocsStore';
 
@@ -182,7 +180,7 @@ function categoryLabel(folderId: string | null): string {
   return CATEGORY_DEFS.find(c => c.id === folderId)?.label ?? folderId ?? 'Divers';
 }
 
-type SortKey = 'name' | 'date' | 'size' | 'category' | 'expiresAt';
+type SortKey = 'name' | 'date' | 'size' | 'category';
 type SortDir = 'asc' | 'desc';
 
 // ─── Page principale ─────────────────────────────────────────────────────────
@@ -218,8 +216,6 @@ function AdminDocsPageInner() {
   const [newDocCat, setNewDocCat] = useState('Documents entreprise');
   const [newDocTitle, setNewDocTitle] = useState('');
   const [newDocDesc, setNewDocDesc] = useState('');
-  const [newDocExpiry, setNewDocExpiry] = useState('');
-  const [newDocTags, setNewDocTags] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [dragOverPage, setDragOverPage] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -304,8 +300,7 @@ function AdminDocsPageInner() {
       list = list.filter(d =>
         d.title.toLowerCase().includes(q) ||
         d.storedFile.originalName.toLowerCase().includes(q) ||
-        (d.description ?? '').toLowerCase().includes(q) ||
-        (d.tagsCsv ?? '').toLowerCase().includes(q)
+        (d.description ?? '').toLowerCase().includes(q)
       );
     }
     const sorted = [...list].sort((a, b) => {
@@ -315,12 +310,6 @@ function AdminDocsPageInner() {
         case 'date': cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(); break;
         case 'size': cmp = a.storedFile.sizeBytes - b.storedFile.sizeBytes; break;
         case 'category': cmp = (a.folderId ?? '').localeCompare(b.folderId ?? ''); break;
-        case 'expiresAt': {
-          const ax = a.expiresAt ? new Date(a.expiresAt).getTime() : Number.MAX_SAFE_INTEGER;
-          const bx = b.expiresAt ? new Date(b.expiresAt).getTime() : Number.MAX_SAFE_INTEGER;
-          cmp = ax - bx;
-          break;
-        }
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
@@ -347,12 +336,41 @@ function AdminDocsPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newDocTitle]);
 
+  /**
+   * La categorie d'envoi suit le dossier ouvert.
+   *
+   * Elle restait figee sur « Documents entreprise » : un document ajoute
+   * depuis « Statuts » partait dans Documents entreprise, et donnait
+   * l'impression de ne pas avoir ete enregistre. On la cale a l'ouverture de
+   * la fenetre, l'utilisateur peut toujours en changer.
+   */
+  useEffect(() => {
+    if (showUpload && activeCategory !== 'all') setNewDocCat(activeCategory);
+  }, [showUpload, activeCategory]);
+
+  /**
+   * Traduit les messages techniques renvoyes par l'API.
+   *
+   * « Forbidden resource » est le libelle par defaut de NestJS quand le role
+   * de la session ne fait pas partie de ceux autorises. Affiche brut, il ne
+   * dit rien a personne — et surtout pas ce qu'il faut faire.
+   */
+  const messageErreur = (brut?: string | null) => {
+    const m = (brut ?? '').toLowerCase();
+    if (m.includes('forbidden') || m.includes('unauthorized')) {
+      return 'Votre session n’a plus les droits administrateur. Deconnectez-vous puis reconnectez-vous, et reessayez.';
+    }
+    if (m.includes('csrf')) {
+      return 'La page est restee ouverte trop longtemps. Rechargez-la, puis reessayez.';
+    }
+    if (m.includes('session')) return 'Session expiree. Reconnectez-vous.';
+    return brut || 'Erreur pendant l’envoi.';
+  };
+
   const resetUploadForm = () => {
     setSelectedFile(null);
     setNewDocTitle('');
     setNewDocDesc('');
-    setNewDocExpiry('');
-    setNewDocTags('');
     setUploadError(null);
   };
 
@@ -364,15 +382,13 @@ function AdminDocsPageInner() {
         category: newDocCat,
         title: newDocTitle || selectedFile.name,
         description: newDocDesc || undefined,
-        tagsCsv: newDocTags || undefined,
-        expiresAt: newDocExpiry || undefined,
       });
       resetUploadForm();
       setShowUpload(false);
       setUploadSuccess(true);
       setTimeout(() => setUploadSuccess(false), 2500);
     } catch (e: any) {
-      setUploadError(e?.message ?? 'Erreur upload');
+      setUploadError(messageErreur(e?.message));
     }
   };
 
@@ -672,7 +688,7 @@ function AdminDocsPageInner() {
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Rechercher (nom, fichier, description, tag)…"
+                placeholder="Rechercher (nom, fichier, description)…"
                 className="w-full rounded-xl border border-[#304035]/15 bg-white py-2.5 pl-10 pr-4 text-sm text-[#304035] placeholder:text-[#304035]/35 focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
               />
               {search && (
@@ -806,25 +822,6 @@ function AdminDocsPageInner() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-[#304035]/50 mb-1.5 uppercase tracking-widest">Date d'expiration (optionnelle)</label>
-                  <input
-                    type="date"
-                    value={newDocExpiry}
-                    onChange={e => setNewDocExpiry(e.target.value)}
-                    min={new Date().toISOString().slice(0, 10)}
-                    className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/30 px-3 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-[#304035]/50 mb-1.5 uppercase tracking-widest">Tags (séparés par virgules)</label>
-                  <input
-                    value={newDocTags}
-                    onChange={e => setNewDocTags(e.target.value)}
-                    placeholder="urgent, 2026, blum"
-                    className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/30 px-3 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
-                  />
-                </div>
               </div>
 
               <div>
@@ -882,7 +879,7 @@ function AdminDocsPageInner() {
           {!loading && filtered.length > 0 && viewMode === 'list' && (
             <div className="rounded-2xl bg-white border border-[#304035]/8 overflow-hidden">
               <div className="adm-table-wrap"><div className="adm-table-inner">
-                <div className="grid grid-cols-[36px_28px_1fr_140px_100px_110px_120px_130px] gap-0 px-4 py-2.5 bg-[#304035]/5 border-b border-[#304035]/8 text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest items-center">
+                <div className="grid grid-cols-[36px_28px_1fr_140px_100px_110px_130px] gap-0 px-4 py-2.5 bg-[#304035]/5 border-b border-[#304035]/8 text-[10px] font-bold text-[#304035]/50 uppercase tracking-widest items-center">
                   <div>
                     <input
                       type="checkbox"
@@ -906,22 +903,17 @@ function AdminDocsPageInner() {
                   <button onClick={() => handleSort('date')} className="flex items-center gap-1 hover:text-[#304035]">
                     Date {sortIcon('date')}
                   </button>
-                  <button onClick={() => handleSort('expiresAt')} className="flex items-center gap-1 hover:text-[#304035]">
-                    Expiration {sortIcon('expiresAt')}
-                  </button>
                   <div className="text-right">Actions</div>
                 </div>
 
                 {filtered.map((doc, i) => {
-                  const expState = expirationStatus(doc.expiresAt);
-                  const tags = parseTags(doc.tagsCsv);
                   const versionCount = (doc._count?.childVersions ?? 0) + 1;
                   const isSelected = selectedIds.has(doc.id);
                   return (
                     <div
                       key={doc.id}
                       className={cn(
-                        'grid grid-cols-[36px_28px_1fr_140px_100px_110px_120px_130px] gap-0 items-center px-4 py-3 transition-colors',
+                        'grid grid-cols-[36px_28px_1fr_140px_100px_110px_130px] gap-0 items-center px-4 py-3 transition-colors',
                         isSelected ? 'bg-[#a67749]/8' : 'hover:bg-[#f5eee8]/40',
                         i < filtered.length - 1 && 'border-b border-[#304035]/5'
                       )}
@@ -946,34 +938,10 @@ function AdminDocsPageInner() {
                           )}
                         </p>
                         <p className="text-[10px] text-[#304035]/40 truncate">{doc.storedFile.originalName}</p>
-                        {tags.length > 0 && (
-                          <div className="flex gap-1 mt-1 flex-wrap">
-                            {tags.slice(0, 4).map((t) => (
-                              <span key={t} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#a67749]/10 text-[#7c4f1d]">
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </div>
                       <div className="text-xs text-[#304035]/55">{categoryLabel(doc.folderId)}</div>
                       <div className="text-xs text-[#304035]/55">{formatBytes(doc.storedFile.sizeBytes)}</div>
                       <div className="text-xs text-[#304035]/55">{new Date(doc.createdAt).toLocaleDateString('fr-FR')}</div>
-                      <div className="text-xs">
-                        {doc.expiresAt ? (
-                          <span className={cn(
-                            'font-semibold px-2 py-0.5 rounded',
-                            expState === 'expired' && 'bg-red-100 text-red-700',
-                            expState === 'soon' && 'bg-orange-100 text-orange-700',
-                            expState === 'far' && 'bg-emerald-50 text-emerald-700',
-                          )}>
-                            {expState === 'expired' && '⚠ '}
-                            {new Date(doc.expiresAt).toLocaleDateString('fr-FR')}
-                          </span>
-                        ) : (
-                          <span className="text-[#304035]/30">—</span>
-                        )}
-                      </div>
                       <div className="flex items-center gap-0.5 justify-end">
                         <button
                           onClick={() => setPreviewDoc(doc)}
@@ -1035,8 +1003,6 @@ function AdminDocsPageInner() {
           {!loading && filtered.length > 0 && viewMode === 'grid' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {filtered.map((doc) => {
-                const expState = expirationStatus(doc.expiresAt);
-                const tags = parseTags(doc.tagsCsv);
                 const versionCount = (doc._count?.childVersions ?? 0) + 1;
                 const isSelected = selectedIds.has(doc.id);
                 return (
@@ -1068,28 +1034,8 @@ function AdminDocsPageInner() {
                         <p className="text-[11px] text-[#304035]/45 truncate">{categoryLabel(doc.folderId)}</p>
                       </div>
                     </div>
-                    {tags.length > 0 && (
-                      <div className="flex gap-1 mb-2 flex-wrap">
-                        {tags.slice(0, 5).map((t) => (
-                          <span key={t} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#a67749]/10 text-[#7c4f1d]">
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                     <div className="text-[11px] text-[#304035]/55 space-y-1 mb-3">
                       <div>{formatBytes(doc.storedFile.sizeBytes)} · {new Date(doc.createdAt).toLocaleDateString('fr-FR')}</div>
-                      {doc.expiresAt && (
-                        <div className={cn(
-                          'inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded text-[10px]',
-                          expState === 'expired' && 'bg-red-100 text-red-700',
-                          expState === 'soon' && 'bg-orange-100 text-orange-700',
-                          expState === 'far' && 'bg-emerald-50 text-emerald-700',
-                        )}>
-                          {expState === 'expired' ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                          Expire {new Date(doc.expiresAt).toLocaleDateString('fr-FR')}
-                        </div>
-                      )}
                     </div>
                     <div className="flex items-center gap-1 pt-2 border-t border-[#304035]/5 -mx-4 px-4">
                       <button onClick={() => setPreviewDoc(doc)} className="flex-1 p-1.5 rounded-lg hover:bg-[#304035]/8 text-[#304035]/55" title="Aperçu" aria-label="Aperçu"><Eye className="h-3.5 w-3.5 mx-auto" /></button>
