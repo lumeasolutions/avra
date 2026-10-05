@@ -1733,7 +1733,6 @@ export default function IaStudioPage() {
    * de blanches, craquelures sur un béton uni). C'est ce point précis qu'on
    * vient mesurer.
    */
-  const [archSamples, setArchSamples] = useState<File[]>([]);
   // Upscale 4K ACTIF par defaut. Test A/B du 12/09/2026, meme source et meme
   // prompt, seule la case changeait :
   //           px     nettete   fidelite   niche(ecart-type)
@@ -2577,21 +2576,9 @@ export default function IaStudioPage() {
         setArchLoading(false);
         return;
       }
-      // Échantillons de matière : uniquement l'onglet Google sait les exploiter.
-      let materialSamples: string[] | undefined;
-      if (versGoogle && archSamples.length > 0) {
-        try {
-          // 768 px suffit pour lire une matière, et laisse de la place à la
-          // source dans les 4,5 Mo de la requête.
-          materialSamples = await Promise.all(
-            archSamples.slice(0, 9).map(f => compressImageToDataUrl(f, 768)),
-          );
-        } catch {
-          setArchError('Un échantillon est illisible. Retirez-le ou choisissez un PNG / JPG.');
-          setArchLoading(false);
-          return;
-        }
-      }
+      // Plus d'échantillon joint depuis le Rendu Réaliste (cf. plus haut) :
+      // la route continue de l'accepter, pour « Remplacer une matière ».
+      const materialSamples: string[] | undefined = undefined;
       // Heure de départ : borne de recherche si la réponse n'arrive jamais et
       // qu'il faut retrouver le rendu dans l'historique (cf. recupererJobPerdu).
       lanceA = Date.now();
@@ -3766,49 +3753,14 @@ export default function IaStudioPage() {
                 <Drop label="" sub="Déposez un plan, perspective 3D, sketch ou photo"
                   onFile={setArchRefFile} file={archRefFile} accent="#8a6cc2"
                   tips={['Export image WinnerFlex', 'Rendu 3D ou perspective', 'Sketch / croquis main', 'Photo de la pièce']} />
-                {/* Échantillons de matière — onglet Google uniquement.
-                    Désactivé tant qu'aucune finition n'est nommée : la consigne
-                    rattache l'échantillon aux champs remplis, donc sans champ il
-                    n'a aucune surface où s'appliquer (mesuré le 02/10). */}
-                {tab === 'architect-google' && (() => {
-                  const finitions = [archFacades, archFacadesBas, archFacadesHaut, archPlan,
-                    archCredence, archEvier, archPoignees, archSol, archMurs];
-                  const aUneFinition = finitions.some(v => v.trim().length > 0);
-                  return (
-                  <div className={`mt-4 rounded-xl border p-3 transition-opacity ${aUneFinition ? 'border-[#4285f4]/20 bg-[#4285f4]/5' : 'border-[#304035]/10 bg-[#304035]/[0.03] opacity-70'}`}>
-                    <p className="text-xs font-bold text-[#304035] mb-1">Échantillons de matière <span className="font-normal text-[#304035]/45">— facultatif, 9 max</span></p>
-                    {aUneFinition ? (
-                      <p className="text-[10px] leading-relaxed text-[#304035]/55 mb-2">
-                        Photos de matières réelles (marbre, chêne, laque, carrelage…). Le moteur les recopie au lieu de les deviner.
-                        <b className="text-[#304035]/75"> Importez-les dans le même ordre que les champs remplis ci-dessous</b> — c'est comme ça qu'il les associe.
-                      </p>
-                    ) : (
-                      <p className="text-[10px] leading-relaxed text-[#304035]/55 mb-2">
-                        <b className="text-[#304035]/75">Renseignez d&apos;abord une finition ci-dessous</b> (plan de travail, façades, sol…).
-                        L&apos;échantillon est appliqué à la surface que vous nommez : sans elle, il n&apos;a nulle part où aller.
-                      </p>
-                    )}
-                    <input type="file" accept="image/*" multiple disabled={!aUneFinition}
-                      onChange={e => setArchSamples(Array.from(e.target.files ?? []).slice(0, 9))}
-                      className="block w-full text-[11px] text-[#304035]/70 file:mr-3 file:rounded-lg file:border-0 file:px-3 file:py-1.5 file:text-[11px] file:font-bold file:text-white disabled:cursor-not-allowed file:bg-[#4285f4] hover:file:bg-[#2a64c8] disabled:file:bg-[#304035]/25" />
-                    {archSamples.length > 0 && aUneFinition && (
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <p className="text-[11px] font-semibold text-[#4285f4]">{archSamples.length} échantillon{archSamples.length > 1 ? 's' : ''} joint{archSamples.length > 1 ? 's' : ''}</p>
-                        <button onClick={() => setArchSamples([])}
-                          className="text-[11px] font-semibold text-[#304035]/50 hover:text-[#304035] transition-colors">Retirer</button>
-                      </div>
-                    )}
-                    {/* Limite mesurée le 03/10 : sur quatre tirages, la matière du
-                        plan de travail a débordé sur la crédence quatre fois. On le
-                        dit plutôt que de laisser découvrir. */}
-                    <p className="mt-2 border-t border-[#304035]/10 pt-2 text-[10px] leading-relaxed text-[#304035]/50">
-                      La matière peut déborder sur une surface voisine quand les deux se touchent sans joint
-                      (plan de travail et crédence, par exemple). Pour une surface délimitée au millimètre,
-                      passez par <b className="text-[#304035]/70">Remplacer une matière</b> : vous y peignez la zone vous-même.
-                    </p>
-                  </div>
-                  );
-                })()}
+                {/* La zone « Échantillons de matière » a été retirée le
+                    05/10/2026. Elle promettait d'appliquer une matière réelle à
+                    une surface nommée, ce que le moteur ne sait pas faire : sur
+                    quatre tirages avec le seul plan de travail demandé, la
+                    crédence a été repeinte quatre fois sur quatre. « Remplacer
+                    une matière » fait ce travail correctement, en désignant la
+                    zone au doigt. Les champs de finition ci-dessous restent :
+                    décrire une matière avec des mots fonctionne très bien. */}
                 {archRefFile && archRefURL && (
                   <div className="mt-3 relative rounded-xl overflow-hidden">
                     <Image src={archRefURL} alt="Source" width={500} height={176} loading="lazy" className="w-full max-h-44 object-cover" />
