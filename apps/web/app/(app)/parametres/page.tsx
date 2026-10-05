@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
+import { PALETTE_EQUIPE, couleurMembre } from '@/lib/couleurs-equipe';
 import {
   getTeamOverview, inviteMember, revokeInvitation, resendInvitation, buildInvitationLink,
   updateTeamMember, removeTeamMember, teamDisplayName,
@@ -269,6 +270,10 @@ export default function ParametresPage() {
   const [factForm, setFactForm] = useState(facturationConfig);
   const [savedMap, setSavedMap] = useState<Record<string, boolean>>({});
   const [showAddMember, setShowAddMember] = useState(false);
+  /** Couleur de chaque membre — sert au code couleur des dossiers et du planning. */
+  const couleursEquipe = useConfigStore(s => s.couleursEquipe);
+  const setCouleurMembre = useConfigStore(s => s.setCouleurMembre);
+  const [paletteOuverte, setPaletteOuverte] = useState<string | null>(null);
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'VENDEUR' as 'ADMIN' | 'VENDEUR' | 'POSEUR', active: true });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -1099,8 +1104,48 @@ export default function ParametresPage() {
                 return (
                   <div key={m.userWorkspaceId} className={cn('flex items-center justify-between rounded-xl border px-4 py-3 transition-all', isActive ? 'bg-white border-[#304035]/10' : 'bg-[#304035]/4 border-[#304035]/5 opacity-60')}>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#304035]/10 font-bold text-sm text-[#304035]">
-                        {name.charAt(0).toUpperCase()}
+                      {/* La pastille EST le sélecteur de couleur : on clique
+                           dessus, on choisit, et c'est cette couleur qu'on
+                           retrouvera sur ses dossiers et ses rendez-vous. */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setPaletteOuverte(paletteOuverte === m.userId ? null : m.userId)}
+                          title={`Couleur de ${name}`}
+                          className="flex h-9 w-9 items-center justify-center rounded-full font-bold text-sm text-white shadow-sm transition-transform hover:scale-105"
+                          style={{ background: couleurMembre(m.userId, name, couleursEquipe) }}
+                        >
+                          {name.charAt(0).toUpperCase()}
+                        </button>
+                        {paletteOuverte === m.userId && (
+                          <div className="absolute left-0 top-11 z-30 w-[188px] rounded-xl border border-[#304035]/12 bg-white p-2.5 shadow-xl">
+                            <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-[#304035]/45">
+                              Couleur de {name}
+                            </p>
+                            <div className="grid grid-cols-6 gap-1.5">
+                              {PALETTE_EQUIPE.map(c => (
+                                <button
+                                  key={c}
+                                  type="button"
+                                  onClick={() => { setCouleurMembre(m.userId, c); setPaletteOuverte(null); }}
+                                  title={c}
+                                  className={cn('h-6 w-6 rounded-full transition-transform hover:scale-110',
+                                    couleursEquipe[m.userId] === c && 'ring-2 ring-offset-2 ring-[#304035]')}
+                                  style={{ background: c }}
+                                />
+                              ))}
+                            </div>
+                            {couleursEquipe[m.userId] && (
+                              <button
+                                type="button"
+                                onClick={() => { setCouleurMembre(m.userId, null); setPaletteOuverte(null); }}
+                                className="mt-2 w-full rounded-lg px-2 py-1.5 text-[11px] font-semibold text-[#304035]/55 hover:bg-[#304035]/5"
+                              >
+                                Couleur automatique
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <p className="font-semibold text-[#304035] text-sm">

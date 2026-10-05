@@ -35,6 +35,11 @@ export interface SettingsConfig {
    * rubrique qui l'accueille, y compris une des huit d'origine.
    */
   adminDocsCategories?: { items?: CategoriePerso[]; updatedAt?: number };
+  /**
+   * Couleur attribuee a chaque membre de l'equipe, par identifiant
+   * utilisateur (05/10/2026). Partagee : tout le monde voit les memes.
+   */
+  couleursEquipe?: Record<string, string>;
 }
 
 /** Une rubrique ou sous-rubrique creee par l'utilisateur. */

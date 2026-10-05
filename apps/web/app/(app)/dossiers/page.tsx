@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, Circle, Phone, Mail, MapPin, FolderOpen, LayoutGrid, List, LayoutDashboard } from 'lucide-react';
 import { VendeurBadge } from '@/components/vendeur/VendeurBadge';
+import { useConfigStore } from '@/store/useConfigStore';
+import { couleurMembre, couleursParNom, fondTenu } from '@/lib/couleurs-equipe';
 import { useDossierStore, useVisibleDossiers, useVisibleDossiersPerdus } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { clientDisplayName } from '@/lib/dossier-name';
@@ -106,6 +108,24 @@ export default function DossiersPage() {
   const [filterVendeur, setFilterVendeur] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('status');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  /**
+   * Couleur du vendeur attribué au dossier. Clé fiable = son identifiant ; on
+   * retombe sur son nom pour les dossiers antérieurs au lien structuré, et sur
+   * un gris neutre quand personne n'est attribué.
+   */
+  const couleursEquipe = useConfigStore(s => s.couleursEquipe);
+  const membresEquipe = useConfigStore(s => s.members);
+  const couleurDossier = (d: { vendeurUserId?: string; vendeurName?: string }) =>
+    couleurMembre(
+      d.vendeurUserId,
+      d.vendeurName,
+      couleursEquipe,
+      couleursParNom(
+        membresEquipe.map(m => ({ userId: (m as { userId?: string }).userId ?? m.id, nom: m.name })),
+        couleursEquipe,
+      ),
+    );
 
   // ── Purge opt-in des orphelins locaux ───────────────────────────────────
   // Dossiers présents dans ce navigateur avec un id LOCAL (jamais montés en
@@ -619,8 +639,14 @@ export default function DossiersPage() {
                   className={`relative bg-white rounded-2xl border ${cfg.cardBorder} shadow-sm overflow-hidden`}
                   style={{ boxShadow: `0 2px 8px ${cfg.glowColor}, 0 1px 2px rgba(0,0,0,0.04)` }}
                 >
-                  {/* Bande couleur top */}
-                  <div className={`h-1.5 w-full bg-gradient-to-r ${cfg.cardAccent} to-transparent`} />
+                  {/* Bande haute = le VENDEUR (05/10/2026). La bordure, la
+                      lueur et le badge restent au statut : deux informations,
+                      aucune perdue. */}
+                  <div
+                    className="h-1.5 w-full"
+                    style={{ background: `linear-gradient(90deg, ${couleurDossier(d)}, ${fondTenu(couleurDossier(d), 0.15)})` }}
+                    title={d.vendeurName ? `Vendeur : ${d.vendeurName}` : 'Aucun vendeur attribué'}
+                  />
 
                   <div className="p-5">
                     {/* Row 1 : Avatar + Badge statut */}
@@ -629,7 +655,7 @@ export default function DossiersPage() {
                         {/* Avatar cercle */}
                         <div
                           className="h-12 w-12 rounded-2xl flex items-center justify-center text-white font-bold text-base shadow-md select-none"
-                          style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}
+                          style={{ background: `linear-gradient(135deg, ${couleurDossier(d)}, ${c2})` }}
                         >
                           {initials}
                         </div>
@@ -662,7 +688,7 @@ export default function DossiersPage() {
                       </h3>
                       <div className="flex items-center justify-between gap-2 mt-1">
                         <p className="text-xs text-[#304035]/40">Créé le {d.createdAt}</p>
-                        <VendeurBadge vendeurName={d.vendeurName} size="xs" />
+                        <VendeurBadge vendeurName={d.vendeurName} vendeurUserId={d.vendeurUserId} size="xs" />
                       </div>
                     </div>
 

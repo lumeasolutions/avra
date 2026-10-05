@@ -11,6 +11,8 @@ import {
 import { usePlanningStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { useDemandesStore } from '@/store/useDemandesStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useConfigStore } from '@/store/useConfigStore';
+import { couleurMembre } from '@/lib/couleurs-equipe';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SendToIntervenantButton } from '@/components/demandes/SendToIntervenantButton';
@@ -236,6 +238,14 @@ export default function PlanningPage() {
    * modifiable : mieux vaut ça que bloquer un planning qui marchait hier.
    */
   const monUserId = useAuthStore(s => s.user?.id);
+  /** Couleur de l'auteur d'un rendez-vous, pour le liseré gauche. */
+  const couleursEquipe = useConfigStore(s => s.couleursEquipe);
+  const membresEquipe = useConfigStore(s => s.members);
+  const couleurAuteur = (createdById?: string) => {
+    if (!createdById) return null;
+    const membre = membresEquipe.find(m => ((m as { userId?: string }).userId ?? m.id) === createdById);
+    return couleurMembre(createdById, membre?.name ?? null, couleursEquipe);
+  };
   const monRole = useAuthStore(s => s.user?.role);
   const jeSuisAdmin = monRole === 'ADMIN' || monRole === 'OWNER';
   const peutToucher = (ev?: { createdById?: string } | null) =>
@@ -1118,6 +1128,11 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
                               width: `calc(${widthPct}% - 4px)`,
                               height: heightPx,
                               background: ev.color,
+                              // Liseré gauche = qui a posé le rendez-vous. Le
+                              // corps garde la couleur du type de RDV.
+                              borderLeft: couleurAuteur(ev.createdById)
+                                ? `4px solid ${couleurAuteur(ev.createdById)}`
+                                : undefined,
                               boxShadow: isHovered
                                 ? `0 4px 16px ${ev.color}55, 0 2px 4px rgba(0,0,0,0.1)`
                                 : `0 1px 3px rgba(0,0,0,0.08)`,

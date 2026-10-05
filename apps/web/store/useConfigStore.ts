@@ -290,6 +290,7 @@ function schedulePersist(snapshot: () => ConfigState) {
       iaConfig: s.iaConfig,
       adminDocsPin: s.adminDocsPin,
       adminDocsDeviceId: s.adminDocsDeviceId,
+      couleursEquipe: s.couleursEquipe,
     }).catch((e: any) => console.warn('[config] saveSettings échec, gardé en local:', e?.message || e));
   }, 800);
 }
@@ -338,6 +339,7 @@ interface ConfigState {
     iaConfig: IAConfig;
     adminDocsPin: string | null;
     adminDocsDeviceId: string | null;
+    couleursEquipe: Record<string, string>;
   }>) => void;
 
   // Members actions
@@ -347,6 +349,14 @@ interface ConfigState {
   updateMemberRole: (id: string, role: 'ADMIN' | 'VENDEUR' | 'POSEUR') => void;
   /** Remplace la liste des membres (hydratation depuis le backend équipe). */
   setMembers: (members: UserMember[]) => void;
+
+  /**
+   * Couleur attribuée à chaque membre, par identifiant utilisateur. Rangée
+   * côté serveur avec le reste des réglages : toute l'équipe voit les mêmes
+   * couleurs, sinon le code couleur ne veut rien dire.
+   */
+  couleursEquipe: Record<string, string>;
+  setCouleurMembre: (userId: string, couleur: string | null) => void;
 
   // Reset
   reset: () => void;
@@ -363,6 +373,7 @@ export const useConfigStore = create<ConfigState>()(
       relanceConfig: INITIAL_RELANCE,
       alertesConfig: INITIAL_ALERTES,
       members: INITIAL_MEMBERS,
+      couleursEquipe: {},
       iaConfig: INITIAL_IA,
       adminDocsPin: null,
       adminDocsDeviceId: null,
@@ -433,7 +444,16 @@ export const useConfigStore = create<ConfigState>()(
           iaConfig:          config.iaConfig            ? { ...s.iaConfig, ...config.iaConfig } : s.iaConfig,
           adminDocsPin:      config.adminDocsPin !== undefined ? config.adminDocsPin : s.adminDocsPin,
           adminDocsDeviceId: config.adminDocsDeviceId !== undefined ? config.adminDocsDeviceId : s.adminDocsDeviceId,
+          couleursEquipe:    config.couleursEquipe ?? s.couleursEquipe,
         }));
+      },
+
+      setCouleurMembre: (userId, couleur) => {
+        set(s => {
+          const suite = { ...s.couleursEquipe };
+          if (couleur) suite[userId] = couleur; else delete suite[userId];
+          return { couleursEquipe: suite };
+        });
       },
 
       addMember: (member) => {
@@ -463,6 +483,7 @@ export const useConfigStore = create<ConfigState>()(
         societe: INITIAL_SOCIETE,
         relanceConfig: INITIAL_RELANCE,
         members: INITIAL_MEMBERS,
+      couleursEquipe: {},
         iaConfig: INITIAL_IA,
       }),
     }),

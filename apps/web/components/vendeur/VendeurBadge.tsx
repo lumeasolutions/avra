@@ -12,27 +12,23 @@
  */
 
 import { User } from 'lucide-react';
+import { useConfigStore } from '@/store/useConfigStore';
+import { couleurMembre, couleursParNom, PALETTE_EQUIPE } from '@/lib/couleurs-equipe';
 
 interface Props {
   vendeurName?: string | null;
+  /** Identifiant du vendeur quand il est connu — clé fiable de la couleur. */
+  vendeurUserId?: string | null;
   size?: 'xs' | 'sm' | 'md';
   /** Affiche "Vous" si le vendeur correspond au currentUserName fourni. */
   currentUserName?: string | null;
   className?: string;
 }
 
-const PALETTE = [
-  '#a67749', '#16a34a', '#2563eb', '#7c3aed',
-  '#dc2626', '#0891b2', '#ea580c', '#0f766e',
-  '#be185d', '#4338ca',
-];
-
-/** Hash stable d'un nom → index palette → couleur d'avatar reproductible. */
-function colorForName(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
-  return PALETTE[Math.abs(h) % PALETTE.length];
-}
+// La palette et le calcul de repli vivent désormais dans
+// `lib/couleurs-equipe.ts`, partagés avec les cartes de dossier et le planning
+// — une seule définition pour un code couleur qui doit être le même partout.
+void PALETTE_EQUIPE;
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -41,7 +37,9 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function VendeurBadge({ vendeurName, size = 'sm', currentUserName, className = '' }: Props) {
+export function VendeurBadge({ vendeurName, vendeurUserId, size = 'sm', currentUserName, className = '' }: Props) {
+  const couleursEquipe = useConfigStore(s => s.couleursEquipe);
+  const membres = useConfigStore(s => s.members);
   const trimmed = (vendeurName ?? '').trim();
   const isMe =
     !!trimmed && !!currentUserName &&
@@ -72,7 +70,11 @@ export function VendeurBadge({ vendeurName, size = 'sm', currentUserName, classN
     );
   }
 
-  const bg = colorForName(trimmed);
+  const parNom = couleursParNom(
+    membres.map(m => ({ userId: (m as { userId?: string }).userId ?? m.id, nom: m.name })),
+    couleursEquipe,
+  );
+  const bg = couleurMembre(vendeurUserId, trimmed, couleursEquipe, parNom);
   return (
     <span
       className={className}
