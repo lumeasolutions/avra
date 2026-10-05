@@ -34,6 +34,9 @@ import { VendeurAssignDropdown } from '@/components/vendeur/VendeurAssignDropdow
 import { useProjectActions } from '@/hooks/useProjectActions';
 import { useDossierPermissions } from '@/hooks/useDossierPermissions';
 import { DeleteDossierModal } from '@/components/dossiers/DeleteDossierModal';
+// Critere des boites systeme : defini une seule fois, et partage avec la
+// fenetre de classement des rendus IA (05/10/2026).
+import { estBoiteSysteme } from '@/lib/ia-render-filing';
 import { DossierAlertBadge } from '@/components/alerts/DossierAlertBadge';
 import { DossierEcheances } from '@/components/alerts/DossierEcheances';
 import { scrollToAnchor } from '@/lib/scrollToAnchor';
@@ -138,18 +141,6 @@ const getIconForType = (type?: string) => {
     default:         return <FileText className="h-4 w-4" />;
   }
 };
-
-/**
- * Boîtes système masquées de l'arborescence : « Reçu de l'intervenant » et
- * « Dossier - Documents Intervenants ». Leurs fichiers sont visibles dans les
- * demandes, pas dans le dossier. Critère UNIQUE, partagé par la liste des
- * sous-dossiers et par son compteur d'en-tête — qui divergeaient (l'en-tête
- * comptait aussi les boîtes système et les sous-dossiers imbriqués).
- */
-function estBoiteSysteme(label: string): boolean {
-  const low = label.trim().toLowerCase();
-  return (low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant');
-}
 
 /** Sous-dossier affiché dans la liste principale : de premier niveau, hors boîte système. */
 function estSousDossierVisible(label: string): boolean {

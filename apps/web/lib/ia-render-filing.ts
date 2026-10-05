@@ -19,6 +19,21 @@
 export const RENDUS_3D = 'RENDUS 3D';
 const SEP = ' ▸ ';
 
+/**
+ * Boites systeme : « Recu de l'intervenant » et « Dossier - Documents
+ * Intervenants ». Leurs fichiers se consultent depuis les demandes, pas depuis
+ * le dossier, et la page Dossier les masque de son arborescence.
+ *
+ * Critere unique, partage par la page Dossier et par la fenetre de classement
+ * des rendus : il etait defini du seul cote du dossier, si bien qu'on
+ * proposait de classer un rendu dans deux dossiers que l'utilisateur ne voit
+ * nulle part (constate le 05/10/2026 sur les donnees reelles).
+ */
+export function estBoiteSysteme(label: string): boolean {
+  const low = label.trim().toLowerCase();
+  return (low.includes('reçu') && low.includes('intervenant')) || low.includes('documents intervenant');
+}
+
 export interface PhaseRendu {
   /** Chemin du sous-dossier de la phase ('' = racine du dossier). */
   label: string;
@@ -139,7 +154,11 @@ export function tousLesEmplacements(subfolderLabels: string[]): EmplacementRendu
     // On ne propose pas de ranger un rendu dans un dossier de rendus : la case
     // « RENDUS 3D » s'en charge, et l'imbriquer deux fois n'a pas de sens.
     .filter((l) => !l.split(SEP).some((n) => n.trim().toUpperCase() === RENDUS_3D))
-    .sort((a, b) => a.localeCompare(b, 'fr'));
+    // Ni dans une boite systeme, que le dossier ne montre pas.
+    .filter((l) => !l.split(SEP).some((n) => estBoiteSysteme(n)));
+  // Pas de tri : on garde l'ordre d'arrivee, qui est celui de l'arborescence du
+  // dossier. Un tri alphabetique donnait les memes noms dans un autre ordre, et
+  // on ne s'y retrouvait plus.
 
   const suggeres = uniques.filter(estPhase).map((label) => ({ label, titre: cheminPhase(label), suggere: true }));
   const autres = uniques.filter((l) => !estPhase(l)).map((label) => ({ label, titre: cheminPhase(label), suggere: false }));
