@@ -35,6 +35,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
+import { getSettings, saveSettings, type CategoriePerso } from '@/lib/settings-api';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
   useAdminDocsStore,
@@ -67,7 +68,7 @@ interface CategoryNode {
   children?: { id: string; label: string }[];
 }
 
-const CATEGORY_TREE: CategoryNode[] = [
+const ARBRE_BASE: CategoryNode[] = [
   {
     id: 'Documents entreprise',
     label: 'Documents entreprise',
@@ -153,19 +154,39 @@ const CATEGORY_TREE: CategoryNode[] = [
   },
 ];
 
-/** Liste plate de toutes les catégories (pour le sélecteur upload). */
-const FLAT_CATEGORIES: { id: string; label: string }[] = [
-  ...CATEGORY_TREE.flatMap(node => [
+/**
+ * Arbre affiché = les huit rubriques d'origine + celles créées par
+ * l'utilisateur, rangées dans les réglages du workspace.
+ *
+ * Une rubrique perso sans parent devient une rubrique principale ; avec un
+ * parent, elle se glisse dans les sous-dossiers de celle-ci — y compris dans
+ * une des huit d'origine, ce qui est tout l'intérêt.
+ */
+function construireArbre(perso: CategoriePerso[]): CategoryNode[] {
+  const racines: CategoryNode[] = ARBRE_BASE.map(n => ({ ...n, children: [...(n.children ?? [])] }));
+  const parId = new Map(racines.map(n => [n.id, n]));
+
+  for (const c of perso.filter(x => !x.parent)) {
+    if (parId.has(c.id)) continue;
+    const node: CategoryNode = { id: c.id, label: c.label, icon: FolderOpen, children: [] };
+    racines.push(node);
+    parId.set(c.id, node);
+  }
+  for (const c of perso.filter(x => x.parent)) {
+    const parent = parId.get(c.parent!);
+    if (!parent) continue; // rubrique parente supprimée entre-temps
+    if (!parent.children!.some(e => e.id === c.id)) parent.children!.push({ id: c.id, label: c.label });
+  }
+  return racines;
+}
+
+/** Liste plate de toutes les catégories (pour le sélecteur d'envoi). */
+function aplatir(arbre: CategoryNode[]): { id: string; label: string }[] {
+  return arbre.flatMap(node => [
     { id: node.id, label: node.label },
     ...(node.children ?? []).map(c => ({ id: c.id, label: `${node.label} → ${c.label}` })),
-  ]),
-];
-
-/** Compatibilité avec l'ancienne constante CATEGORY_DEFS (résolution de label). */
-const CATEGORY_DEFS = [
-  { id: 'all', label: 'Tous les documents', icon: FolderOpen },
-  ...FLAT_CATEGORIES.map((c) => ({ id: c.id, label: c.label, icon: FolderOpen })),
-];
+  ]);
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -177,8 +198,9 @@ function fileIcon(mimeType: string) {
   return <File className="h-5 w-5 text-[#304035]/50" />;
 }
 
-function categoryLabel(folderId: string | null): string {
-  return CATEGORY_DEFS.find(c => c.id === folderId)?.label ?? folderId ?? 'Divers';
+function categoryLabel(folderId: string | null, arbre: CategoryNode[]): string {
+  if (!folderId) return 'Divers';
+  return aplatir(arbre).find(c => c.id === folderId)?.label ?? folderId;
 }
 
 type SortKey = 'name' | 'date' | 'size' | 'category';
@@ -203,6 +225,65 @@ function AdminDocsPageInner() {
 
   // ── État UI ──────────────────────────────────────────────────────────────
   const [activeCategory, setActiveCategory] = useState('all');
+
+  /**
+   * Rubriques créées par l'utilisateur, rangées côté serveur dans les réglages
+   * du workspace — elles suivent donc le compte, pas le navigateur.
+   */
+  const [categoriesPerso, setCategoriesPerso] = useState<CategoriePerso[]>([]);
+  const [nouvelleRubrique, setNouvelleRubrique] = useState<string | null>(null); // null = fermé, '' = rubrique racine, 'X' = sous-rubrique de X
+  const [nomRubrique, setNomRubrique] = useState('');
+  const [erreurRubrique, setErreurRubrique] = useState<string | null>(null);
+
+  const arbre = useMemo(() => construireArbre(categoriesPerso), [categoriesPerso]);
+
+  useEffect(() => {
+    let annule = false;
+    getSettings()
+      .then(r => { if (!annule) setCategoriesPerso(r?.config?.adminDocsCategories?.items ?? []); })
+      .catch(() => { /* hors ligne : on garde les huit rubriques d'origine */ });
+    return () => { annule = true; };
+  }, []);
+
+  const enregistrerRubriques = async (items: CategoriePerso[]) => {
+    setCategoriesPerso(items);
+    try {
+      await saveSettings({ adminDocsCategories: { items, updatedAt: Date.now() } });
+    } catch {
+      setErreurRubrique('Rubrique ajoutée à l’écran, mais pas enregistrée. Vérifiez votre connexion.');
+    }
+  };
+
+  const ajouterRubrique = async () => {
+    const nom = nomRubrique.trim();
+    if (!nom) return;
+    if (/[\/]/.test(nom)) { setErreurRubrique('Le nom ne peut pas contenir « / ».'); return; }
+    const parent = nouvelleRubrique || null;
+    const id = parent ? `${parent}/${nom}` : nom;
+    if (aplatir(arbre).some(c => c.id.toLowerCase() === id.toLowerCase())) {
+      setErreurRubrique('Cette rubrique existe déjà.');
+      return;
+    }
+    setErreurRubrique(null);
+    await enregistrerRubriques([...categoriesPerso, { id, label: nom, parent }]);
+    setNomRubrique('');
+    setNouvelleRubrique(null);
+    if (parent) setExpandedCategories(prev => new Set(prev).add(parent));
+    setActiveCategory(id);
+  };
+
+  /** Une rubrique créée ne se retire que si elle est vide — et elle seule. */
+  const supprimerRubrique = async (id: string) => {
+    const utilisee = docs.some(d => d.folderId === id || (d.folderId ?? '').startsWith(`${id}/`));
+    if (utilisee) { setErreurRubrique('Cette rubrique contient des documents : déplacez-les d’abord.'); return; }
+    setErreurRubrique(null);
+    if (activeCategory === id || activeCategory.startsWith(`${id}/`)) setActiveCategory('all');
+    await enregistrerRubriques(
+      categoriesPerso.filter(c => c.id !== id && c.parent !== id),
+    );
+  };
+
+  const estPerso = (id: string) => categoriesPerso.some(c => c.id === id);
   /** Set des dossiers principaux actuellement expandés (sous-dossiers visibles). */
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
@@ -625,8 +706,8 @@ function AdminDocsPageInner() {
             )}>{countFor('all')}</span>
           </button>
 
-          {/* Arbre : 8 dossiers principaux + sous-dossiers expandables */}
-          {CATEGORY_TREE.map(node => {
+          {/* Arbre : rubriques d'origine + celles créées, sous-dossiers dépliables */}
+          {arbre.map(node => {
             const isActive = activeCategory === node.id;
             const hasActiveChild = node.children?.some(c => c.id === activeCategory);
             const isExpanded = expandedCategories.has(node.id) || isActive || hasActiveChild;
@@ -672,6 +753,35 @@ function AdminDocsPageInner() {
                       isActive ? 'bg-white/20 text-white' : 'bg-[#304035]/10 text-[#304035]/60'
                     )}>{countFor(node.id)}</span>
                   </button>
+                  {/* Ajouter une sous-rubrique — y compris dans les rubriques
+                      d'origine, c'est tout l'intérêt. */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNouvelleRubrique(node.id); setNomRubrique(''); setErreurRubrique(null);
+                    }}
+                    title={`Ajouter une sous-rubrique dans ${node.label}`}
+                    aria-label={`Ajouter une sous-rubrique dans ${node.label}`}
+                    className={cn(
+                      'shrink-0 px-2 py-2.5 opacity-0 group-hover:opacity-100 transition-opacity',
+                      isActive ? 'text-white/70 hover:text-white' : 'text-[#304035]/35 hover:text-[#304035]',
+                    )}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                  {estPerso(node.id) && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); void supprimerRubrique(node.id); }}
+                      title={`Supprimer la rubrique ${node.label}`}
+                      aria-label={`Supprimer la rubrique ${node.label}`}
+                      className={cn(
+                        'shrink-0 pr-2 py-2.5 opacity-0 group-hover:opacity-100 transition-opacity',
+                        isActive ? 'text-white/70 hover:text-white' : 'text-[#304035]/35 hover:text-red-600',
+                      )}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
                 {/* Sub-folders */}
                 {isExpanded && node.children && (
@@ -683,25 +793,83 @@ function AdminDocsPageInner() {
                           key={child.id}
                           onClick={() => setActiveCategory(child.id)}
                           className={cn(
-                            'w-full flex items-center justify-between rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                            'group/sub w-full flex items-center justify-between rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
                             subActive
                               ? 'bg-[#a67749] text-white shadow-sm'
                               : 'text-[#304035]/75 hover:bg-[#304035]/5'
                           )}
                         >
                           <span className="truncate text-left">{child.label}</span>
-                          <span className={cn(
-                            'ml-2 text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center',
-                            subActive ? 'bg-white/25 text-white' : 'bg-[#304035]/10 text-[#304035]/55'
-                          )}>{countFor(child.id)}</span>
+                          <span className="flex items-center gap-1">
+                            {estPerso(child.id) && (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => { e.stopPropagation(); void supprimerRubrique(child.id); }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); void supprimerRubrique(child.id); } }}
+                                title={`Supprimer ${child.label}`}
+                                className={cn('opacity-0 group-hover/sub:opacity-100 transition-opacity',
+                                  subActive ? 'text-white/70' : 'text-[#304035]/35 hover:text-red-600')}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </span>
+                            )}
+                            <span className={cn(
+                              'text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center',
+                              subActive ? 'bg-white/25 text-white' : 'bg-[#304035]/10 text-[#304035]/55'
+                            )}>{countFor(child.id)}</span>
+                          </span>
                         </button>
                       );
                     })}
+                    {nouvelleRubrique === node.id && (
+                      <div className="pt-1">
+                        <input
+                          autoFocus
+                          value={nomRubrique}
+                          onChange={(e) => { setNomRubrique(e.target.value); setErreurRubrique(null); }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') void ajouterRubrique();
+                            if (e.key === 'Escape') { setNouvelleRubrique(null); setNomRubrique(''); }
+                          }}
+                          onBlur={() => { if (!nomRubrique.trim()) setNouvelleRubrique(null); }}
+                          placeholder="Nom de la sous-rubrique…"
+                          className="w-full rounded-lg border border-[#a67749]/40 bg-white px-3 py-1.5 text-xs text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#a67749]/30"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             );
           })}
+
+          {/* Créer une rubrique principale */}
+          {nouvelleRubrique === '' ? (
+            <input
+              autoFocus
+              value={nomRubrique}
+              onChange={(e) => { setNomRubrique(e.target.value); setErreurRubrique(null); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void ajouterRubrique();
+                if (e.key === 'Escape') { setNouvelleRubrique(null); setNomRubrique(''); }
+              }}
+              onBlur={() => { if (!nomRubrique.trim()) setNouvelleRubrique(null); }}
+              placeholder="Nom de la rubrique…"
+              className="w-full rounded-xl border border-[#a67749]/40 bg-white px-3.5 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#a67749]/30"
+            />
+          ) : (
+            <button
+              onClick={() => { setNouvelleRubrique(''); setNomRubrique(''); setErreurRubrique(null); }}
+              className="w-full flex items-center gap-2 rounded-xl border border-dashed border-[#304035]/25 px-3.5 py-2.5 text-sm font-semibold text-[#304035]/55 transition-colors hover:border-[#a67749] hover:text-[#a67749]"
+            >
+              <Plus className="h-4 w-4" /> Ajouter une rubrique
+            </button>
+          )}
+
+          {erreurRubrique && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">{erreurRubrique}</p>
+          )}
         </div>
 
         {/* ── Zone documents ── */}
@@ -838,7 +1006,7 @@ function AdminDocsPageInner() {
                     onChange={e => setNewDocCat(e.target.value)}
                     className="w-full rounded-xl border border-[#304035]/15 bg-[#f5eee8]/30 px-3 py-2.5 text-sm text-[#304035] focus:outline-none focus:ring-2 focus:ring-[#304035]/20"
                   >
-                    {CATEGORY_TREE.map(node => (
+                    {arbre.map(node => (
                       <optgroup key={node.id} label={node.label}>
                         <option value={node.id}>📁 {node.label} (général)</option>
                         {(node.children ?? []).map(child => (
@@ -965,7 +1133,7 @@ function AdminDocsPageInner() {
                         </p>
                         <p className="text-[10px] text-[#304035]/40 truncate">{doc.storedFile.originalName}</p>
                       </div>
-                      <div className="text-xs text-[#304035]/55">{categoryLabel(doc.folderId)}</div>
+                      <div className="text-xs text-[#304035]/55">{categoryLabel(doc.folderId, arbre)}</div>
                       <div className="text-xs text-[#304035]/55">{formatBytes(doc.storedFile.sizeBytes)}</div>
                       <div className="text-xs text-[#304035]/55">{new Date(doc.createdAt).toLocaleDateString('fr-FR')}</div>
                       <div className="flex items-center gap-0.5 justify-end">
@@ -1057,7 +1225,7 @@ function AdminDocsPageInner() {
                             </span>
                           )}
                         </p>
-                        <p className="text-[11px] text-[#304035]/45 truncate">{categoryLabel(doc.folderId)}</p>
+                        <p className="text-[11px] text-[#304035]/45 truncate">{categoryLabel(doc.folderId, arbre)}</p>
                       </div>
                     </div>
                     <div className="text-[11px] text-[#304035]/55 space-y-1 mb-3">

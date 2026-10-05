@@ -29,6 +29,21 @@ export interface SettingsConfig {
    * départage le serveur et l'appareil : la modification la plus récente gagne.
    */
   planningTypes?: { rdv?: any[]; metiers?: any[]; updatedAt?: number };
+  /**
+   * Rubriques ajoutees a la main dans le Dossier administratif (05/10/2026).
+   * `parent` null = nouvelle rubrique principale ; sinon identifiant de la
+   * rubrique qui l'accueille, y compris une des huit d'origine.
+   */
+  adminDocsCategories?: { items?: CategoriePerso[]; updatedAt?: number };
+}
+
+/** Une rubrique ou sous-rubrique creee par l'utilisateur. */
+export interface CategoriePerso {
+  /** « Ma rubrique » ou « Documents entreprise/Mon sous-dossier ». */
+  id: string;
+  label: string;
+  /** null pour une rubrique principale. */
+  parent: string | null;
 }
 
 export const getSettings = () => api<{ config: SettingsConfig | null }>('/settings');
