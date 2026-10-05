@@ -312,6 +312,8 @@ async function recupererJobPerdu(opts: {
 async function callArchitectAPI(params: {
   endpoint?: string;
   materialSamples?: string[];
+  /** Fini demandé par surface (05/10/2026) — façades et plan de travail. */
+  finitions?: { facades?: 'mat' | 'satine' | 'brillant'; planTravail?: 'mat' | 'satine' | 'brillant' };
   mode: 'interior' | 'exterior';
   facades?: string; facadesBas?: string; facadesHaut?: string;
   planTravail?: string; sol?: string; murs?: string;
@@ -1720,6 +1722,13 @@ export default function IaStudioPage() {
   const [archFacadesBas,  setArchFacadesBas]  = useState('');
   const [archFacadesHaut, setArchFacadesHaut] = useState('');
   const [archPlan,     setArchPlan]     = useState('');
+  /**
+   * Fini demandé par surface (retour cofondatrice 05/10/2026 : « l'option mat
+   * aussi pour plan de travail »). La matière était écrite en toutes lettres,
+   * mais rien ne disait comment elle devait rendre la lumière : un plan de
+   * travail voulu mat ressortait souvent laqué.
+   */
+  const [archFinis, setArchFinis] = useState<{ facades?: 'mat'|'satine'|'brillant'; planTravail?: 'mat'|'satine'|'brillant' }>({});
   const [archSol,      setArchSol]      = useState('');
   const [archMurs,     setArchMurs]     = useState('');
   const [archPoignees, setArchPoignees] = useState('');
@@ -2024,6 +2033,39 @@ export default function IaStudioPage() {
     ));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [labelsServeur, saveDossierId, saveTarget]);
+
+  /**
+   * Choix du fini d'une surface — n'apparaît que si la matière est renseignée :
+   * un fini sans matière n'a rien à qualifier.
+   */
+  const ChoixFini = ({ surface, rempli }: { surface: 'facades' | 'planTravail'; rempli: boolean }) => {
+    if (!rempli) return null;
+    const courant = archFinis[surface];
+    return (
+      <div className="mt-2 flex items-center gap-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[#304035]/40">Fini</span>
+        {([
+          { v: undefined, l: 'Auto' },
+          { v: 'mat' as const, l: 'Mat' },
+          { v: 'satine' as const, l: 'Satiné' },
+          { v: 'brillant' as const, l: 'Brillant' },
+        ]).map(({ v, l }) => (
+          <button
+            key={l}
+            type="button"
+            onClick={() => setArchFinis(f => { const s = { ...f }; if (v) s[surface] = v; else delete s[surface]; return s; })}
+            className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition-all border ${
+              courant === v
+                ? 'border-[#8a6cc2] bg-[#8a6cc2]/10 text-[#8a6cc2]'
+                : 'border-[#304035]/12 bg-white text-[#304035]/50 hover:border-[#304035]/30'
+            }`}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   /** Ouvre la fenêtre d'enregistrement : dossier + phase pré-choisis. */
   const openSaveModal = (item: Item, action: string, icon: string, onDone: () => void, selectedUrl?: string, source?: File | null) => {
@@ -2595,6 +2637,7 @@ export default function IaStudioPage() {
         facadesBas:  archMode === 'interior' ? (archFacadesBas.trim()  || undefined) : undefined,
         facadesHaut: archMode === 'interior' ? (archFacadesHaut.trim() || undefined) : undefined,
         planTravail: archPlan.trim()    || undefined,
+        finitions:   Object.keys(archFinis).length ? archFinis : undefined,
         sol:         archSol.trim()     || undefined,
         murs:        archMurs.trim()    || undefined,
         // Champs cuisine (n'ont de sens qu'en intérieur)
@@ -4060,6 +4103,7 @@ export default function IaStudioPage() {
                       {s}
                     </button>
                   ))}
+                  <div className="w-full"><ChoixFini surface="facades" rempli={!!archFacades.trim()} /></div>
                 </div>
               </div>
 
@@ -4123,6 +4167,7 @@ export default function IaStudioPage() {
                       {s}
                     </button>
                   ))}
+                  <div className="w-full"><ChoixFini surface="planTravail" rempli={!!archPlan.trim()} /></div>
                 </div>
                 <p className="mt-1.5 text-[10px] text-[#304035]/45 leading-snug">Décrivez précisément la matière (couleur + veinage) pour un rendu plus fidèle.</p>
               </div>

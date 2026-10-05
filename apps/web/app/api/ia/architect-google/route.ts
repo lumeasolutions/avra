@@ -132,12 +132,23 @@ export async function POST(req: NextRequest) {
   }
 
   const mode: ArchitectMode = body.mode === 'exterior' ? 'exterior' : 'interior';
+  const finitionsDemandees = (() => {
+    const f = (body as { finitions?: Record<string, unknown> }).finitions;
+    if (!f || typeof f !== 'object') return undefined;
+    const ok = (v: unknown) => v === 'mat' || v === 'satine' || v === 'brillant';
+    const out: Record<string, 'mat' | 'satine' | 'brillant'> = {};
+    if (ok(f.facades)) out.facades = f.facades as 'mat';
+    if (ok(f.planTravail)) out.planTravail = f.planTravail as 'mat';
+    return Object.keys(out).length ? out : undefined;
+  })();
+
   const params: ArchitectParams = {
     // Conserve pour les anciens clients qui l'envoient encore, et tracé dans
     // le job. La consigne ne s'en sert plus : c'est le moteur qui juge la
     // nature de la source, cf. buildGooglePrompt.
     source: body.source === 'rendu' ? 'rendu' : 'plan3d',
     mode,
+    finitions: finitionsDemandees,
     facades: typeof body.facades === 'string' ? body.facades : undefined,
     facadesBas: typeof body.facadesBas === 'string' ? body.facadesBas : undefined,
     facadesHaut: typeof body.facadesHaut === 'string' ? body.facadesHaut : undefined,

@@ -444,7 +444,11 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, padding:'10px 12px 6px' }}>
               {[
                 { fkey:'urgent'  as const, val:alertesVisibles.filter(isUrgentAlert).length, label:'URGENTS', color:'#D32F2F', bg:'#FFF0F0' },
-                { fkey:'encours' as const, val:portee === 'moi' ? mesDossierIds.size : dossiers.length, label:'EN COURS', color:'#388E3C', bg:'#F0FFF2' },
+                // « En cours » = les alertes qui ne sont ni urgentes ni en
+                // retard. Cette carte affichait un nombre de DOSSIERS alors
+                // qu'elle filtre des ALERTES : on annoncait 6, le clic ne
+                // montrait rien (retour Cassandra, 05/10/2026).
+                { fkey:'encours' as const, val:alertesVisibles.filter(a => !isUrgentAlert(a) && !isRetardAlert(a)).length, label:'EN COURS', color:'#388E3C', bg:'#F0FFF2' },
                 { fkey:'retard'  as const, val:alertesVisibles.filter(isRetardAlert).length, label:'RETARDS', color:'#E07B00', bg:'#FFF8F0' },
               ].map(({ fkey, val, label, color, bg }) => {
                 const selected = alertFilter === fkey;
@@ -548,7 +552,7 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
             {/* Pagination */}
             <div style={{ padding:'8px 12px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', borderTop:'1px solid rgba(0,0,0,0.05)' }}>
               <span style={{ fontSize:11, color:'#B0AB9F', fontWeight:500 }}>
-                {displayedAlerts.length} / {activeAlerts.length} alertes
+                {displayedAlerts.length} / {alertesVisibles.length} alertes
                 {alertFilter !== 'all' && (
                   <button onClick={() => setAlertFilter('all')} style={{ marginLeft:8, border:'none', background:'transparent', color:'#4A6358', fontWeight:700, fontSize:11, cursor:'pointer', textDecoration:'underline', padding:0 }}>
                     tout afficher

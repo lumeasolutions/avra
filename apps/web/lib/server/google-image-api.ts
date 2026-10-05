@@ -114,9 +114,20 @@ function enumerer(items: string[]): string {
  */
 export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: number): string {
   const changements: string[] = [];
+  /** Fini demandé pour une surface, dit au moteur en clair. */
+  const FINI_SURFACE: Record<'mat' | 'satine' | 'brillant', string> = {
+    mat: 'in a matte finish that diffuses light, with no gloss and no mirror reflection',
+    satine: 'in a satin finish, a soft low sheen without sharp reflections',
+    brillant: 'in a glossy lacquered finish that reflects the room, with crisp highlights',
+  };
+
   for (const { cle, libelle } of CHAMPS) {
     const v = params[cle];
-    if (typeof v === 'string' && v.trim()) changements.push(`${libelle} in ${v.trim()}`);
+    if (typeof v === 'string' && v.trim()) {
+      const fini = params.finitions?.[cle as 'facades' | 'planTravail'];
+      const suffixe = fini ? `, ${FINI_SURFACE[fini]}` : '';
+      changements.push(`${libelle} in ${v.trim()}${suffixe}`);
+    }
   }
   if (params.cooktop && COOKTOP[params.cooktop]) {
     changements.push(`the cooktop replaced by ${COOKTOP[params.cooktop]}`);

@@ -47,6 +47,12 @@ export interface ArchitectParams {
    * ressortait assombri et jauni (4 rendus perdus le 26/09/2026).
    */
   source?: 'plan3d' | 'rendu';
+  /**
+   * Fini demandé par surface (05/10/2026). La matière est écrite en toutes
+   * lettres, mais rien ne disait comment elle devait rendre la lumière : un
+   * plan de travail voulu mat ressortait souvent laqué.
+   */
+  finitions?: Partial<Record<'facades' | 'planTravail', 'mat' | 'satine' | 'brillant'>>;
   /** Façades — toutes (optionnel). Fallback si bas/haut non renseignés. */
   facades?: string;
   /** Façades meubles bas uniquement (optionnel) — override sur les bas. */
