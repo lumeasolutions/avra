@@ -1333,11 +1333,48 @@ function AdminDocsPageInner() {
 }
 
 /**
- * Export par défaut : la page est protégée par un code à 4 chiffres
- * (AdminDocsPinGate). Tant que le code n'est pas saisi, le contenu du dossier
- * administratif n'est ni rendu ni monté.
+ * Export par défaut : deux verrous, et l'ordre compte.
+ *
+ * 1. Le rôle. Le dossier administratif est réservé à l'administrateur, et ce
+ *    contrôle doit passer AVANT le code à 4 chiffres. Tant qu'il vivait dans
+ *    le composant intérieur, le verrou s'affichait le premier et le contrôle
+ *    n'était jamais atteint : un vendeur qui tapait /admin-docs à la main
+ *    tombait sur « Créez votre code d'accès » — on lui proposait de poser le
+ *    verrou d'une pièce où il n'entre pas.
+ * 2. Le code à 4 chiffres (AdminDocsPinGate), pour l'administrateur.
+ *
+ * On ne renvoie personne sur la seule foi du navigateur : un membre promu
+ * administrateur depuis un autre poste y garde l'ancien rôle. Au moindre
+ * doute on redemande au serveur, et on ne ferme la porte que s'il confirme.
  */
 export default function AdminDocsPage() {
+  const router = useRouter();
+  const role = useAuthStore((s) => s.user?.role);
+  const isAdmin = role === 'ADMIN' || role === 'OWNER';
+
+  useEffect(() => {
+    if (!role || isAdmin) return;
+    let annule = false;
+    authApi.me()
+      .then((moi) => {
+        if (annule) return;
+        const confirme = moi?.role === 'ADMIN' || moi?.role === 'OWNER';
+        if (confirme && moi?.role) {
+          // Promu entre-temps : on réaligne la session plutôt que de l'éjecter.
+          const s = useAuthStore.getState();
+          if (s.user) s.setAuth(s.token || '', { ...s.user, role: moi.role });
+          return;
+        }
+        router.replace('/dossiers');
+      })
+      .catch(() => { if (!annule) router.replace('/dossiers'); });
+    return () => { annule = true; };
+  }, [role, isAdmin, router]);
+
+  // Ni le contenu, ni le verrou : un écran qui demande un code laisserait
+  // croire qu'il existe une clé.
+  if (!isAdmin) return null;
+
   return (
     <AdminDocsPinGate>
       <AdminDocsPageInner />
