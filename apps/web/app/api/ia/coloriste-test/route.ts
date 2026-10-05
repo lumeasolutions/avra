@@ -73,6 +73,7 @@ import {
   buildGooglePromptMatiere,
   ratioProche,
   type ImageEntree,
+  type FiniMatiere,
 } from '@/lib/server/google-image-api';
 import sharp from 'sharp';
 import { checkRateLimit } from '@/lib/server/rate-limit';
@@ -453,9 +454,14 @@ export async function POST(req: NextRequest) {
           echantillons.push({ base64: pastille.toString('base64'), mime: 'image/png' });
         }
 
+        const finiDemande: FiniMatiere =
+          body.finish === 'mat' || body.finish === 'satine' || body.finish === 'brillant'
+            ? body.finish
+            : 'auto';
         const consigne = buildGooglePromptMatiere(
           (typeof body.material === 'string' ? body.material : '') || '',
           echantillons.length > 0,
+          finiDemande,
         );
 
         const res = await generateGoogleRender(

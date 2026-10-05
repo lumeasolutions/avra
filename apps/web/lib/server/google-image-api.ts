@@ -409,7 +409,26 @@ export interface ImageEntree {
  * @param matiere      description libre de la matiere, si l'utilisateur en a saisi une
  * @param avecEchantillon true si une photo de matiere accompagne la demande
  */
-export function buildGooglePromptMatiere(matiere: string, avecEchantillon: boolean): string {
+export type FiniMatiere = 'auto' | 'mat' | 'satine' | 'brillant';
+
+/**
+ * Fini demande, en clair pour le moteur.
+ *
+ * Une photo d'echantillon porte sa couleur et son grain, pas son fini : le
+ * meme chene se photographie mat chez l'un et vernis chez l'autre selon
+ * l'eclairage du cliche. Sans consigne, le moteur reprend ce qu'il croit voir.
+ */
+const FINI_EN: Record<Exclude<FiniMatiere, 'auto'>, string> = {
+  mat: 'The finish is matte: it diffuses light, it shows no gloss, no sheen and no mirror reflection — only the soft shading of the room.',
+  satine: 'The finish is satin: a soft, low sheen, with gentle highlights but no sharp mirror reflection.',
+  brillant: 'The finish is glossy: a smooth lacquered surface that reflects the room, with crisp highlights and visible reflections of what stands in front of it.',
+};
+
+export function buildGooglePromptMatiere(
+  matiere: string,
+  avecEchantillon: boolean,
+  fini: FiniMatiere = 'auto',
+): string {
   const phrases: string[] = [];
 
   phrases.push(
@@ -427,6 +446,10 @@ export function buildGooglePromptMatiere(matiere: string, avecEchantillon: boole
   }
   if (matiere.trim()) {
     phrases.push(`The marked surface becomes: ${matiere.trim()}.`);
+  }
+
+  if (fini !== 'auto') {
+    phrases.push(`${FINI_EN[fini]} This applies to the marked surface only.`);
   }
 
   phrases.push(

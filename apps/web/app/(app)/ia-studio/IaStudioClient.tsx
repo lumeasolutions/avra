@@ -447,6 +447,8 @@ async function callColoristeTestAPI(params: {
   sourceImageDataUrl?: string; referenceImageDataUrl?: string; maskUrl?: string; sourceUrl?: string; maskDataUrl?: string; projectId?: string | null;
   /** Éléments RÉELLEMENT à modifier (23/09/2026) — les autres sont préservés. */
   elements?: Array<'facade' | 'poignee' | 'plan'>;
+  /** Fini voulu sur la zone — « auto » suit l'échantillon (05/10/2026). */
+  finish?: 'auto' | 'mat' | 'satine' | 'brillant';
 }): Promise<{ imageUrl: string | null; imageUrls?: string[]; error?: string }> {
   const res = await fetch('/api/ia/coloriste-test', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params),
@@ -1660,6 +1662,8 @@ export default function IaStudioPage() {
   const [colorTestRefFile, setColorTestRefFile] = useState<File|null>(null);
   const colorTestRefURL = useMemo(() => (colorTestRefFile ? URL.createObjectURL(colorTestRefFile) : null), [colorTestRefFile]);
   const [colorTestClick, setColorTestClick] = useState<ColoristeTestSelectResult|null>(null);
+  /** Fini demandé pour la matière — « auto » = celui que montre l'échantillon. */
+  const [colorTestFini, setColorTestFini] = useState<'auto'|'mat'|'satine'|'brillant'>('auto');
 
   /* ── RENDU — état */
   // Image de référence (plan WinnerFlex, photo d'inspiration, sketch).
@@ -2416,6 +2420,7 @@ export default function IaStudioPage() {
         maskUrl:            colorTestClick?.mode === 'auto' ? colorTestClick.maskUrl : undefined,
         sourceUrl:          colorTestClick?.mode === 'auto' ? colorTestClick.sourceUrl : undefined,
         maskDataUrl:        colorTestClick?.mode === 'manual' ? colorTestClick.maskDataUrl : undefined,
+        finish:             colorTestFini,
         projectId:          dossierId || null,
       });
       if (result.error) { setColorTestError(result.error); setColorTestLoading(false); return; }
@@ -2993,7 +2998,7 @@ export default function IaStudioPage() {
                   <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#4285f4]/12 text-[#4285f4]">Haute définition</span>
                 </div>
                 <p className="text-sm text-[#304035]/60 leading-relaxed">
-                  Le même module, en <span className="font-semibold text-[#304035]/80">2K ou 4K</span> — et vous pouvez joindre de <span className="font-semibold text-[#304035]/80">vrais échantillons</span> de matière.
+                  Plan, 3D, sketch ou photo : l'IA en fait une <span className="font-semibold text-[#304035]/80">photographie</span>, en <span className="font-semibold text-[#304035]/80">2K ou 4K</span>. Les matières se décrivent avec des mots.
                 </p>
                 {tab==='architect-google' && (
                   <div className="mt-3 flex items-center gap-2 text-xs font-bold text-[#4285f4]">
@@ -3732,7 +3737,7 @@ export default function IaStudioPage() {
               </div>
               <p className="text-xs leading-snug text-[#304035]/75">
                 {tab === 'architect-google'
-                  ? <><b className="text-[#304035]">Rendu Réaliste</b> — sortie <b className="text-[#304035]">2K</b>, ou <b className="text-[#304035]">4K</b> en cochant «&nbsp;Haute résolution&nbsp;». Vous pouvez joindre de vrais échantillons de matière, ils seront reproduits tels quels.</>
+                  ? <><b className="text-[#304035]">Rendu Réaliste</b> — sortie <b className="text-[#304035]">2K</b>, ou <b className="text-[#304035]">4K</b> en cochant «&nbsp;Haute résolution&nbsp;». Décrivez les matières dans les champs ci-dessous ; pour appliquer une <b className="text-[#304035]">photo</b> de matière à un endroit précis, passez par «&nbsp;Remplacer une matière&nbsp;».</>
                   : <><b className="text-[#304035]">Rendu Réaliste</b> — la version rapide. Tous les réglages sont identiques d'un onglet à l'autre.</>}
               </p>
             </div>
@@ -4728,6 +4733,30 @@ export default function IaStudioPage() {
                   <Drop label="" sub="Importer une texture (bois, pierre, tissu…)"
                     onFile={setColorTestRefFile} file={colorTestRefFile} accent="#a67749"
                     tips={['Photo nette de la matière voulue', 'Haute résolution = meilleur rendu']} />
+                  {/* Fini : une photo d'échantillon porte sa couleur et son
+                      grain, pas son fini — le même chêne se photographie mat
+                      chez l'un et verni chez l'autre. */}
+                  <div className="mt-3">
+                    <p className="text-[11px] font-bold text-[#304035]/60 mb-1.5 uppercase tracking-wide">Fini</p>
+                    <div className="flex gap-1.5">
+                      {([
+                        { v: 'auto'     as const, l: "D'après l'échantillon" },
+                        { v: 'mat'      as const, l: 'Mat' },
+                        { v: 'satine'   as const, l: 'Satiné' },
+                        { v: 'brillant' as const, l: 'Brillant' },
+                      ]).map(({ v, l }) => (
+                        <button key={v} type="button" onClick={() => setColorTestFini(v)}
+                          className={`flex-1 rounded-lg border px-2 py-2 text-[11px] font-bold transition-all ${
+                            colorTestFini === v
+                              ? 'border-[#a67749] bg-[#a67749]/10 text-[#a67749]'
+                              : 'border-[#304035]/15 bg-white text-[#304035]/55 hover:border-[#304035]/30'
+                          }`}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {colorTestRefFile && colorTestRefURL && (
                     <div className="mt-3 relative rounded-xl overflow-hidden">
                       <Image src={colorTestRefURL} alt="Texture" width={500} height={120} loading="lazy" className="w-full max-h-32 object-cover" />
