@@ -48,6 +48,7 @@ export class DossierDocumentsController {
     // PAS le JwtPayload brut. user.id = uw.user.id, et user.sub est undefined.
     // Le type JwtPayload annoté est approximatif : on pioche sub OU id selon ce qui existe.
     const userId = (user as any).id ?? (user as any).sub;
+    await this.docs.assertPeutEcrire(user.workspaceId, dossierId, { sub: user.sub, role: user.role });
     return this.docs.upload(user.workspaceId, userId, dossierId, subfolderLabel, file);
   }
 
@@ -68,6 +69,7 @@ export class DossierDocumentsController {
     if (!fileName) throw new BadRequestException('fileName requis');
     if (typeof fileSize !== 'number' || fileSize <= 0) throw new BadRequestException('fileSize invalide');
     if (!mimeType) throw new BadRequestException('mimeType requis');
+    await this.docs.assertPeutEcrire(user.workspaceId, dossierId, { sub: user.sub, role: user.role });
     return this.docs.initDirectUpload(
       user.workspaceId,
       dossierId,
@@ -94,6 +96,7 @@ export class DossierDocumentsController {
     if (!subfolderLabel) throw new BadRequestException('subfolderLabel requis');
     if (!fileName) throw new BadRequestException('fileName requis');
     const userId = (user as any).id ?? (user as any).sub;
+    await this.docs.assertPeutEcrire(user.workspaceId, dossierId, { sub: user.sub, role: user.role });
     return this.docs.finalizeDirectUpload(
       user.workspaceId,
       userId,
@@ -127,7 +130,7 @@ export class DossierDocumentsController {
    * est la source de vérité des sous-dossiers).
    */
   @Patch('rename-subfolder')
-  renameSubfolder(
+  async renameSubfolder(
     @CurrentUser() user: JwtPayload,
     @Param('dossierId') dossierId: string,
     @Body() body: { oldLabel: string; newLabel: string },
@@ -137,6 +140,7 @@ export class DossierDocumentsController {
     if (!oldLabel) throw new BadRequestException('oldLabel requis');
     if (!newLabel) throw new BadRequestException('newLabel requis');
     if (newLabel.length > 200) throw new BadRequestException('Nom de sous-dossier trop long');
+    await this.docs.assertPeutEcrire(user.workspaceId, dossierId, { sub: user.sub, role: user.role });
     return this.docs.renameSubfolder(user.workspaceId, dossierId, oldLabel, newLabel);
   }
 
@@ -145,7 +149,7 @@ export class DossierDocumentsController {
    * déposer dans l'écran dossier). Met à jour l'étiquette en base uniquement.
    */
   @Patch(':docId/move')
-  moveDocument(
+  async moveDocument(
     @CurrentUser() user: JwtPayload,
     @Param('dossierId') dossierId: string,
     @Param('docId') docId: string,
@@ -154,15 +158,17 @@ export class DossierDocumentsController {
     const label = (body?.subfolderLabel ?? '').trim();
     if (!label) throw new BadRequestException('subfolderLabel requis');
     if (label.length > 200) throw new BadRequestException('Nom de sous-dossier trop long');
+    await this.docs.assertPeutEcrire(user.workspaceId, dossierId, { sub: user.sub, role: user.role });
     return this.docs.moveDocument(user.workspaceId, dossierId, docId, label);
   }
 
   @Delete(':docId')
-  remove(
+  async remove(
     @CurrentUser() user: JwtPayload,
     @Param('dossierId') dossierId: string,
     @Param('docId') docId: string,
   ) {
+    await this.docs.assertPeutEcrire(user.workspaceId, dossierId, { sub: user.sub, role: user.role });
     return this.docs.remove(user.workspaceId, dossierId, docId);
   }
 }

@@ -228,6 +228,41 @@ export class DossierDocumentsService {
   }
 
   /**
+   * Droit d'ECRITURE sur le contenu d'un dossier.
+   *
+   * Meme regle que sur le dossier lui-meme (cf. projects.service) : tout le
+   * monde lit, seul le vendeur attribue ecrit, l'administrateur fait tout. Un
+   * dossier sans vendeur attribue reste reserve a l'administrateur.
+   *
+   * Appele depuis le controleur AVANT chaque ecriture — depot, renommage,
+   * deplacement, suppression. La lecture reste ouverte a l'equipe : c'est le
+   * sens de « tout en commun ».
+   */
+  async assertPeutEcrire(
+    workspaceId: string,
+    projectId: string,
+    actor: { sub: string; role: string },
+  ): Promise<void> {
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId },
+      select: { workspaceId: true, vendeurUserId: true },
+    });
+    if (!project) throw new NotFoundException('Dossier introuvable');
+    if (project.workspaceId !== workspaceId) {
+      throw new ForbiddenException('Acces interdit a ce dossier');
+    }
+    const isAdmin = actor.role === 'ADMIN' || actor.role === 'OWNER';
+    if (isAdmin) return;
+    if (project.vendeurUserId !== actor.sub) {
+      throw new ForbiddenException(
+        project.vendeurUserId
+          ? 'Ce dossier est attribue a un autre vendeur : vous pouvez le consulter, pas le modifier.'
+          : "Ce dossier n'est attribue a personne : seul un administrateur peut y deposer des fichiers.",
+      );
+    }
+  }
+
+  /**
    * Upload un fichier dans un sous-dossier d'un dossier (projet).
    * Sécurité :
    *  - Vérif ownership workspace
