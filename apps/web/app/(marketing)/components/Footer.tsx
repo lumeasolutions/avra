@@ -118,7 +118,11 @@ export default function Footer() {
       </div>
 
       {/* Bande villes — liens permanents vers les pages locales */}
-      <nav className="footer-villes" aria-label="AVRA par ville">
+      {/* <div> et non <nav> : marketing.css applique `nav { position: fixed }`
+          à la barre de navigation, et cette bande héritait de la règle — elle
+          se collait en haut de l'écran par-dessus le menu, sur toutes les
+          pages (05/10/2026). Le rôle est porté par l'attribut. */}
+      <div className="footer-villes" role="navigation" aria-label="AVRA par ville">
         <h5>AVRA près de chez vous</h5>
         <div className="footer-villes-liens">
           {footerLinks.villes.map((link) => (
@@ -127,7 +131,7 @@ export default function Footer() {
             </Link>
           ))}
         </div>
-      </nav>
+      </div>
 
       {/* Footer Bottom */}
       <div className="footer-bottom">

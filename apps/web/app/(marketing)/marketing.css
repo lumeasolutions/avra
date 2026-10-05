@@ -492,6 +492,10 @@ footer {
 
 /* Bande des pages villes, entre les colonnes et le bas de page. */
 .footer-villes {
+  /* Ceinture et bretelles : `nav { position: fixed }` existe dans cette même
+     feuille pour la barre de navigation. Si cette bande redevenait un <nav>,
+     elle ne repartirait pas se coller en haut de l'écran. */
+  position: static;
   max-width: 1200px;
   margin: 0 auto 40px;
   padding-top: 32px;
