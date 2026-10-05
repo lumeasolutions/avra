@@ -63,12 +63,41 @@ export class AuditInterceptor implements NestInterceptor {
                 ? (result as { id?: unknown }).id
                 : undefined;
 
+            /**
+             * Route appelee, identifiants remplaces par `:id`.
+             *
+             * Sans elle, le journal ne disait que « CREATE » : impossible de
+             * savoir si l'on avait cree un dossier, un devis ou un
+             * rendez-vous. On ne conserve que le chemin — aucune donnee
+             * metier, ni corps de requete ni reponse.
+             */
+            const chemin = (path || '')
+              .split('/')
+              .map((s) => (/^[a-z0-9]{20,}$/i.test(s) || /^[0-9a-f-]{32,}$/i.test(s) ? ':id' : s))
+              .join('/');
+
+            /**
+             * Dossier concerne, quand la route en designe un. La colonne
+             * existait depuis l'origine et n'avait jamais ete remplie : 923
+             * lignes sans un seul rattachement.
+             */
+            const segments = (path || '').split('/').filter(Boolean);
+            let projectId: string | undefined;
+            for (let i = 0; i < segments.length - 1; i++) {
+              if (['projects', 'dossiers'].includes(segments[i])
+                && /^[a-z0-9]{20,}$/i.test(segments[i + 1])) {
+                projectId = segments[i + 1];
+                break;
+              }
+            }
+
             await this.prisma.auditLog.create({
               data: {
                 workspaceId: user.workspaceId,
                 userId: user.sub,
+                projectId,
                 action: action as any,
-                changes: entityId !== undefined ? { entityId } : null,
+                changes: { chemin, methode: method, ...(entityId !== undefined ? { entityId } : {}) },
                 ipAddress: anonymizedIp,
               },
             });

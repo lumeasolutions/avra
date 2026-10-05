@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { PALETTE_EQUIPE, couleurMembre } from '@/lib/couleurs-equipe';
+import { listerJournal, libelleActivite, auteurJournal, type LigneJournal } from '@/lib/journal-api';
 import {
   getTeamOverview, inviteMember, revokeInvitation, resendInvitation, buildInvitationLink,
   updateTeamMember, removeTeamMember, teamDisplayName,
@@ -13,7 +14,7 @@ import {
   ChevronRight, Save, Plus, Trash2, X, Crown, Eye, EyeOff, Check,
   Hash, Banknote, SlidersHorizontal, RefreshCw, Download, Upload,
   AlertTriangle, Shield, Percent, UserCheck, Users, TrendingUp, Sparkles,
-  Bot, Brain, Mic, MessageSquare, Database, Zap, Repeat, Archive, ArchiveRestore,
+  Bot, Brain, Mic, MessageSquare, Database, Zap, Repeat, Archive, ArchiveRestore, History,
   Lock,
 } from 'lucide-react';
 import type { Apporteur } from '@/store';
@@ -81,6 +82,7 @@ const SECTIONS = [
   { id: 'perdus',         icon: FolderX,            label: 'Dossiers perdus',          desc: 'Archive des dossiers non signés' },
   { id: 'archives',       icon: Archive,            label: 'Dossiers archivés',        desc: 'Dossiers signés terminés (chantier clos)' },
   { id: 'supprimes',      icon: Trash2,             label: 'Dossiers supprimés',       desc: 'Corbeille — récupérer un dossier supprimé par erreur' },
+  { id: 'journal',        icon: History,            label: 'Journal d\'activité',       desc: 'Qui a fait quoi, et quand — par membre de l\'équipe' },
   { id: 'export',         icon: Download,           label: 'Import / Export',          desc: 'Exporter vos données en CSV/JSON' },
   { id: 'ia',            icon: Sparkles,           label: 'Intelligence Artificielle', desc: 'Configurer l\'assistant et les modules IA' },
 ];
@@ -112,6 +114,7 @@ const SECTIONS_ADMIN = new Set([
   'perdus',
   'archives',
   'supprimes',
+  'journal',
 ]);
 
 const ROLE_COLORS: Record<string, string> = {
@@ -274,6 +277,30 @@ export default function ParametresPage() {
   const couleursEquipe = useConfigStore(s => s.couleursEquipe);
   const setCouleurMembre = useConfigStore(s => s.setCouleurMembre);
   const [paletteOuverte, setPaletteOuverte] = useState<string | null>(null);
+
+  // ── Journal d'activité ───────────────────────────────────────────────────
+  const [journal, setJournal] = useState<LigneJournal[]>([]);
+  const [journalTotal, setJournalTotal] = useState(0);
+  const [journalQui, setJournalQui] = useState<string>('');   // '' = toute l'équipe
+  const [journalEtat, setJournalEtat] = useState<'idle' | 'chargement' | 'erreur'>('idle');
+  const [journalErreur, setJournalErreur] = useState<string | null>(null);
+
+  const chargerJournal = useCallback(async (qui: string) => {
+    setJournalEtat('chargement'); setJournalErreur(null);
+    try {
+      const p = await listerJournal({ userId: qui || undefined, limit: 60 });
+      setJournal(p?.data ?? []);
+      setJournalTotal(p?.total ?? 0);
+      setJournalEtat('idle');
+    } catch (e: unknown) {
+      setJournalErreur(e instanceof Error ? e.message : 'Chargement impossible');
+      setJournalEtat('erreur');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (active === 'journal') void chargerJournal(journalQui);
+  }, [active, journalQui, chargerJournal]);
   const [newMember, setNewMember] = useState({ name: '', email: '', role: 'VENDEUR' as 'ADMIN' | 'VENDEUR' | 'POSEUR', active: true });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -1671,6 +1698,86 @@ export default function ParametresPage() {
           Dossiers signes termines (chantier clos) — masques de /dossiers-signes
           mais consultables ici. Bouton Restaurer pour les remettre actifs.
       ══════════════════════════════════════════════════════════════════════ */}
+      {active === 'journal' && (
+        <div className="rounded-2xl bg-white shadow-md border border-[#304035]/8 p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h3 className="flex items-center gap-2 text-base font-bold text-[#304035]">
+              <History className="h-5 w-5" /> Journal d&apos;activité
+            </h3>
+            <div className="flex items-center gap-2">
+              <select
+                value={journalQui}
+                onChange={(e) => setJournalQui(e.target.value)}
+                className="rounded-lg border border-[#304035]/15 bg-white px-3 py-1.5 text-xs font-semibold text-[#304035]"
+              >
+                <option value="">Toute l&apos;équipe</option>
+                {(teamOverview?.members ?? []).map(m => (
+                  <option key={m.userId} value={m.userId}>{teamDisplayName(m)}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => void chargerJournal(journalQui)}
+                className="flex items-center gap-1.5 rounded-lg border border-[#304035]/15 px-3 py-1.5 text-xs font-semibold text-[#304035]/70 hover:bg-[#f5eee8]/60"
+              >
+                <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+              </button>
+            </div>
+          </div>
+
+          <p className="mb-4 text-xs leading-relaxed text-[#304035]/55">
+            Chaque création, modification et suppression faite dans votre espace, avec son auteur et
+            son horodatage. Aucun contenu n&apos;y figure — ni ce qui a été écrit, ni les montants :
+            seulement qui a fait quoi, et sur quel dossier.
+          </p>
+
+          {journalErreur && (
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <AlertTriangle className="h-4 w-4 shrink-0" /> {journalErreur}
+            </div>
+          )}
+
+          {journalEtat === 'chargement' ? (
+            <p className="py-10 text-center text-sm text-[#304035]/40">Chargement…</p>
+          ) : journal.length === 0 ? (
+            <div className="py-10 text-center">
+              <History className="mx-auto mb-3 h-12 w-12 text-[#304035]/10" />
+              <p className="text-sm text-[#304035]/40">Aucune activité enregistrée.</p>
+            </div>
+          ) : (
+            <>
+              <div className="divide-y divide-[#304035]/8">
+                {journal.map((l) => {
+                  const quand = new Date(l.createdAt);
+                  const couleur = l.action === 'DELETE' ? '#c0392b' : l.action === 'CREATE' ? '#2d7a4a' : '#8c7a4e';
+                  return (
+                    <div key={l.id} className="flex items-start gap-3 py-2.5">
+                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: couleur }} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-[#304035]">
+                          <b className="font-semibold">{auteurJournal(l)}</b> {libelleActivite(l)}
+                          {l.project?.name && (
+                            <span className="text-[#304035]/55"> · {l.project.name}</span>
+                          )}
+                        </p>
+                        <p className="text-[11px] text-[#304035]/40">
+                          {quand.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                          {' à '}
+                          {quand.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-4 text-[11px] text-[#304035]/40">
+                {journal.length} action{journal.length > 1 ? 's' : ''} affichée{journal.length > 1 ? 's' : ''}
+                {journalTotal > journal.length && ` sur ${journalTotal} enregistrées`}.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
       {active === 'supprimes' && (
         <div className="rounded-2xl bg-white shadow-md border border-[#304035]/8 p-6">
           <div className="flex items-center justify-between mb-5">

@@ -17,7 +17,15 @@ export class AuditController {
     @CurrentUser() user: JwtPayload,
     @Query('projectId') projectId?: string,
     @Query('limit') limit?: string,
+    @Query('userId') userId?: string,
+    @Query('page') page?: string,
   ) {
-    return this.audit.findByWorkspace(user.workspaceId, projectId, limit ? parseInt(limit, 10) : 100);
+    return this.audit.findByWorkspace(
+      user.workspaceId,
+      projectId,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 100,
+      userId,
+    );
   }
 }
