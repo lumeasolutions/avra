@@ -168,6 +168,15 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
     setCanUndo(true);
   }, []);
 
+  /**
+   * Trace a main levee en cours : `lassoTraceRef` passe a true sur l'appui,
+   * `lassoBougeRef` a true des que le pointeur s'est deplace assez pour qu'on
+   * ne puisse plus parler d'un clic. C'est ce dernier qui departage les deux
+   * gestes au relachement.
+   */
+  const lassoTraceRef = useRef(false);
+  const lassoBougeRef = useRef(false);
+
   const lassoRetireRef = useRef(false);
   lassoRetireRef.current = lassoRetire;
   /** Distance (px image) sous laquelle un clic sur le 1er point ferme la forme : ~14 px à l'écran. */
@@ -519,6 +528,12 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
       lassoRef.current = [...pts, { x: p.x, y: p.y }];
       lassoHoverRef.current = { x: p.x, y: p.y };
       setLassoPts(lassoRef.current.length);
+      // L'appui ouvre un trace a main levee POSSIBLE : il ne deviendra tel que
+      // si le pointeur se deplace. Sinon c'est un clic, et le sommet qu'on
+      // vient de poser suffit.
+      lassoTraceRef.current = true;
+      lassoBougeRef.current = false;
+      try { (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
       redraw();
       return;
     }
@@ -538,7 +553,20 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
 
   const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     if (tool === 'lasso') {
-      if (lassoRef.current.length > 0) { lassoHoverRef.current = getPos(e); redraw(); }
+      const p = getPos(e);
+      if (lassoTraceRef.current) {
+        // Trace a main levee : on seme un point tous les quelques pixels. Trop
+        // serre, le contour pese pour rien ; trop lache, il devient anguleux.
+        const pts = lassoRef.current;
+        const der = pts[pts.length - 1];
+        const d = der ? Math.hypot(p.x - der.x, p.y - der.y) : Infinity;
+        if (d > 3) {
+          if (d > 6) lassoBougeRef.current = true;
+          lassoRef.current = [...pts, p];
+          setLassoPts(lassoRef.current.length);
+        }
+      }
+      if (lassoRef.current.length > 0) { lassoHoverRef.current = p; redraw(); }
       return;
     }
     if (!drawingRef.current) return;
@@ -554,6 +582,16 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
   };
 
   const onPointerUp = (e: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (tool === 'lasso') {
+      try { (e.currentTarget as HTMLCanvasElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      const trace = lassoTraceRef.current && lassoBougeRef.current;
+      lassoTraceRef.current = false;
+      lassoBougeRef.current = false;
+      // On a contourne la forme : on la ferme. On a seulement clique : on
+      // laisse le trace ouvert, l'utilisateur pose le sommet suivant.
+      if (trace && lassoRef.current.length >= 3) lassoFermer();
+      return;
+    }
     if (!drawingRef.current) return;
     drawingRef.current = false;
     try { (e.currentTarget as HTMLCanvasElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
@@ -650,6 +688,10 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={(e) => { if (tool === 'lasso') { lassoHoverRef.current = null; redraw(); } else onPointerUp(e); }}
+          // Pointeur interrompu (geste systeme, stylet souleve) : on referme
+          // proprement le trace en cours, sinon il resterait ouvert sans que
+          // rien ne le signale.
+          onPointerCancel={() => { lassoTraceRef.current = false; lassoBougeRef.current = false; }}
           onDoubleClick={() => { if (tool === 'lasso') lassoFermer(); }}
           style={{
             width: 'auto', height: 'auto',
@@ -662,7 +704,7 @@ export function ColoristeTestClickSelect({ file, accent = '#a67749', onChange }:
           <div style={{ position: 'absolute', left: 10, bottom: 10, background: 'rgba(26,42,30,0.72)', color: '#fff', fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 999, pointerEvents: 'none' }}>
             {tool === 'wand' ? '✨ Cliquez sur la surface à changer'
               : tool === 'rect' ? '▭ Glissez sur la zone à changer'
-              : tool === 'lasso' ? (lassoPts === 0 ? '📍 Cliquez sur le 1er angle' : `📍 ${lassoPts} point${lassoPts > 1 ? 's' : ''} — cliquez sur le 1er point pour fermer`)
+              : tool === 'lasso' ? (lassoPts === 0 ? '✏️ Contournez la forme sans lâcher — ou cliquez angle par angle' : `📍 ${lassoPts} point${lassoPts > 1 ? 's' : ''} — relâchez, ou cliquez sur le 1er point pour fermer`)
                 : tool === 'erase' ? '🧽 Effacez le trop-plein'
                   : '🖌️ Peignez la zone à changer'}
           </div>
