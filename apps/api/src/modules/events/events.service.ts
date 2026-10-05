@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -70,6 +70,10 @@ export class EventsService {
           endAt: true,
           allDay: true,
           location: true,
+          // Auteur du rendez-vous : l'ecran en a besoin pour griser ce qui
+          // n'est pas modifiable et pour colorer au nom de celui qui l'a pose.
+          createdById: true,
+          createdBy: { select: { id: true, firstName: true, lastName: true } },
           project: { select: { id: true, name: true } },
         },
         orderBy: { startAt: 'asc' },
@@ -118,12 +122,35 @@ export class EventsService {
     });
   }
 
-  async update(workspaceId: string, id: string, dto: UpdateEventDto) {
+  /**
+   * Un vendeur ne modifie et ne supprime que les rendez-vous qu'il a poses.
+   * ADMIN et OWNER gardent la main sur tous : c'est a eux qu'on s'adresse pour
+   * deplacer celui d'un collegue absent.
+   *
+   * `actor` est optionnel pour ne pas casser les appels internes qui n'ont pas
+   * d'utilisateur (flux agenda, taches planifiees) : sans acteur, pas de
+   * restriction — ces chemins ne sont pas exposes a l'equipe.
+   */
+  private assertPeutToucher(
+    existing: { createdById: string },
+    actor?: { sub: string; role: string },
+  ): void {
+    if (!actor) return;
+    const isAdmin = actor.role === 'ADMIN' || actor.role === 'OWNER';
+    if (!isAdmin && existing.createdById !== actor.sub) {
+      throw new ForbiddenException(
+        'Ce rendez-vous a été créé par un autre membre de l’équipe. Demandez à un administrateur de le modifier.',
+      );
+    }
+  }
+
+  async update(workspaceId: string, id: string, dto: UpdateEventDto, actor?: { sub: string; role: string }) {
     await this.assertProjectInWorkspace(workspaceId, dto.projectId);
     // OPTIMISATION: Fusionner vérification et update
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.event.findFirst({ where: { id, workspaceId } });
       if (!existing) return null;
+      this.assertPeutToucher(existing, actor);
       // L'état d'envoi au client (`invite`) est écrit par le serveur seul
       // (EventInviteService) : le front renvoie la description sans lui lors
       // d'un déplacement / d'une édition → on le conserve.
@@ -165,11 +192,12 @@ export class EventsService {
     });
   }
 
-  async remove(workspaceId: string, id: string) {
+  async remove(workspaceId: string, id: string, actor?: { sub: string; role: string }) {
     // OPTIMISATION: Fusionner vérification et suppression
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.event.findFirst({ where: { id, workspaceId } });
       if (!existing) return null;
+      this.assertPeutToucher(existing, actor);
       return tx.event.delete({ where: { id } });
     });
   }

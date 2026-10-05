@@ -654,6 +654,7 @@ export function useDataSync() {
           color: r.extra.color || (event.calendarType === 'GESTION' ? '#e8b86d' : '#5b9bd5'),
           type: r.extra.type || event.type || 'AUTRE',
           weekOffset: r.weekOffset,
+          createdById: event.createdById ?? undefined,
           dossierId: r.extra.dossierId || event.project?.id || undefined,
           location: r.extra.location || event.location || undefined,
           visioUrl: r.extra.visioUrl || undefined,

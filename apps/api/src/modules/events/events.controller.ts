@@ -85,7 +85,7 @@ export class EventsController {
     @Param('id') id: string,
     @Body() dto: UpdateEventDto,
   ) {
-    return this.events.update(user.workspaceId, id, dto);
+    return this.events.update(user.workspaceId, id, dto, { sub: user.sub, role: user.role });
   }
 
   /** Envoie (ou met à jour / annule) l'invitation du RDV au client par e-mail + .ics. */
@@ -103,7 +103,7 @@ export class EventsController {
   @Delete(':id')
   @Roles('OWNER', 'ADMIN', 'MEMBER')
   remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.events.remove(user.workspaceId, id);
+    return this.events.remove(user.workspaceId, id, { sub: user.sub, role: user.role });
   }
 }
 

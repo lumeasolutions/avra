@@ -22,6 +22,13 @@ export interface PlanningEvent {
   color: string;
   type?: string;
   weekOffset?: number;
+  /**
+   * Auteur du rendez-vous (05/10/2026). Sert à deux choses : n'autoriser la
+   * modification qu'à lui et aux administrateurs, et colorer le rendez-vous
+   * aux couleurs de celui qui l'a posé. Absent sur les rendez-vous créés
+   * avant ce changement.
+   */
+  createdById?: string;
   /** Dossier client du RDV (rattachement réel, plus seulement dans le titre). */
   dossierId?: string;
   /** Adresse du RDV (sur place). */

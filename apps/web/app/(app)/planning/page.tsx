@@ -227,6 +227,24 @@ export default function PlanningPage() {
   const addPlanningEvent   = usePlanningStore(s => s.addPlanningEvent);
   const addGestEvent       = usePlanningStore(s => s.addGestEvent);
   const updatePlanningEvent = usePlanningStore(s => s.updatePlanningEvent);
+  /**
+   * Un rendez-vous ne se modifie que par celui qui l'a posé — ou par un
+   * administrateur. Le serveur l'impose depuis le 05/10/2026 ; ici on évite
+   * simplement de proposer un geste qui sera refusé.
+   *
+   * Un rendez-vous sans auteur connu (créé avant ce changement) reste
+   * modifiable : mieux vaut ça que bloquer un planning qui marchait hier.
+   */
+  const monUserId = useAuthStore(s => s.user?.id);
+  const monRole = useAuthStore(s => s.user?.role);
+  const jeSuisAdmin = monRole === 'ADMIN' || monRole === 'OWNER';
+  const peutToucher = (ev?: { createdById?: string } | null) =>
+    !ev || jeSuisAdmin || !ev.createdById || ev.createdById === monUserId;
+  const [refusRdv, setRefusRdv] = useState<string | null>(null);
+  const refuser = () => {
+    setRefusRdv('Ce rendez-vous a été posé par un autre membre de l’équipe. Seul un administrateur peut le modifier.');
+    setTimeout(() => setRefusRdv(null), 5000);
+  };
   const deletePlanningEvent = usePlanningStore(s => s.deletePlanningEvent);
 
   // Profession active → filtre les types de RDV proposes
@@ -534,6 +552,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
   /** Suppression d'un RDV : si le client a été invité, proposer de le prévenir. */
   const demanderSuppression = (ev: PlanningEvent) => {
     setPopoverEventId(null);
+    if (!peutToucher(ev)) { refuser(); return; }
     if (ev.invite?.status === 'ENVOYEE') {
       setInviteModal({ event: ev, kind: 'cancel', deleteAfter: true });
       return;
@@ -584,6 +603,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
   const openEdit = (eventId: string) => {
     const ev = planningEvents.find(e => e.id === eventId);
     if (!ev) return;
+    if (!peutToucher(ev)) { refuser(); return; }
     setEditingEventId(eventId);
     setNewEvent({
       type: ev.type ?? 'CLIENT',
@@ -717,6 +737,19 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
       
 
       {/* ── HEADER avec nav + KPIs intégrés ── */}
+      {/* Refus de modifier le rendez-vous d'un collègue : on le dit à l'écran
+          plutôt que de laisser le geste échouer en silence. */}
+      {refusRdv && (
+        <div style={{
+          position: 'fixed', top: 18, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
+          background: '#fff', border: '1px solid rgba(192,57,43,0.25)', color: '#9b2c2c',
+          borderRadius: 14, padding: '10px 16px', fontSize: 13, fontWeight: 600,
+          boxShadow: '0 8px 30px rgba(0,0,0,0.14)', maxWidth: 440, textAlign: 'center',
+        }}>
+          {refusRdv}
+        </div>
+      )}
+
       <PageHeader
         icon={<Calendar className="h-7 w-7" />}
         title="Planning"
