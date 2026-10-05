@@ -170,17 +170,19 @@ export class DemandesController {
 
   /** Modifier une demande (pro) — titre, notes, scheduledFor, type */
   @Patch(':id')
-  updateDemande(
+  async updateDemande(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Body() body: { title?: string; notes?: string | null; scheduledFor?: string | null; type?: DemandeType },
   ) {
+    await this.demandes.assertPeutToucherDemande(user.workspaceId, id, { sub: user.sub, role: user.role });
     return this.demandes.updateDemande(user.workspaceId, id, body);
   }
 
   /** Supprimer une demande (pro) — bloque si EN_COURS/TERMINEE */
   @Delete(':id')
-  removeDemande(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+  async removeDemande(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    await this.demandes.assertPeutToucherDemande(user.workspaceId, id, { sub: user.sub, role: user.role });
     return this.demandes.removeDemande(user.workspaceId, id);
   }
 
