@@ -12,7 +12,7 @@ import {
 import Link from 'next/link';
 import { VendeurBadge } from '@/components/vendeur/VendeurBadge';
 import { useConfigStore } from '@/store/useConfigStore';
-import { couleurMembre, couleursParNom, fondTenu } from '@/lib/couleurs-equipe';
+import { couleurMembre, couleursParNom, fondTenu, eclaircir } from '@/lib/couleurs-equipe';
 import { useDossierStore, useFacturationStore, useVisibleDossiersSignes, type ConfirmationFournisseur, type CommandeType, type CommandeAccessEntry } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
@@ -534,7 +534,7 @@ export default function DossiersSignesPage() {
                       <div className="p-4">
                         <div className="flex items-start gap-3 mb-3">
                           <div className="relative">
-                            <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: `linear-gradient(135deg, ${couleurDossier(d)}, ${c2})` }}>
+                            <div className="h-10 w-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: `linear-gradient(135deg, ${couleurDossier(d)}, ${eclaircir(couleurDossier(d))})` }}>
                               {initials}
                             </div>
                             {/* Badge signé */}
@@ -634,7 +634,7 @@ export default function DossiersSignesPage() {
                       className={cn('flex items-center gap-4 px-4 py-3 hover:bg-[#f5eee8]/30 transition-colors', i < filtered.length - 1 && 'border-b border-[#304035]/5')}
                     >
                       <div className="relative shrink-0">
-                        <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white text-xs font-bold" style={{ background: `linear-gradient(135deg, ${couleurDossier(d)}, ${c2})` }}>
+                        <div className="h-9 w-9 rounded-xl flex items-center justify-center text-white text-xs font-bold" style={{ background: `linear-gradient(135deg, ${couleurDossier(d)}, ${eclaircir(couleurDossier(d))})` }}>
                           {`${d.name.charAt(0)}${d.firstName ? d.firstName.charAt(0) : ''}`.toUpperCase()}
                         </div>
                         <div className="absolute -bottom-1 -right-1 flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 border-2 border-white">

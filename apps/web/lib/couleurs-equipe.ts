@@ -84,3 +84,19 @@ export function fondTenu(hex: string, alpha = 0.14): string {
   const n = parseInt(m[1], 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
 }
+
+/**
+ * Variante plus claire d'une couleur, pour le second point d'un degrade.
+ *
+ * On eclaircit la couleur du vendeur plutot que de la melanger a une teinte
+ * tiree du nom du client : sur un dossier non attribue, ce melange laissait
+ * une carte vive alors qu'elle aurait du rester neutre.
+ */
+export function eclaircir(hex: string, k = 0.38): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const vers = (c: number) => Math.round(c + (255 - c) * k);
+  const r = vers((n >> 16) & 255), v = vers((n >> 8) & 255), bl = vers(n & 255);
+  return `#${[r, v, bl].map(x => x.toString(16).padStart(2, '0')).join('')}`;
+}

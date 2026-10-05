@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { FilePlus, Search, X, ChevronRight, AlertTriangle, Clock, CheckCircle2, Circle, Phone, Mail, MapPin, FolderOpen, LayoutGrid, List, LayoutDashboard } from 'lucide-react';
 import { VendeurBadge } from '@/components/vendeur/VendeurBadge';
 import { useConfigStore } from '@/store/useConfigStore';
-import { couleurMembre, couleursParNom, fondTenu } from '@/lib/couleurs-equipe';
+import { couleurMembre, couleursParNom, fondTenu, eclaircir } from '@/lib/couleurs-equipe';
 import { useDossierStore, useVisibleDossiers, useVisibleDossiersPerdus } from '@/store';
 import { useAuthStore } from '@/store/useAuthStore';
 import { clientDisplayName } from '@/lib/dossier-name';
@@ -655,7 +655,7 @@ export default function DossiersPage() {
                         {/* Avatar cercle */}
                         <div
                           className="h-12 w-12 rounded-2xl flex items-center justify-center text-white font-bold text-base shadow-md select-none"
-                          style={{ background: `linear-gradient(135deg, ${couleurDossier(d)}, ${c2})` }}
+                          style={{ background: `linear-gradient(135deg, ${couleurDossier(d)}, ${eclaircir(couleurDossier(d))})` }}
                         >
                           {initials}
                         </div>
@@ -780,7 +780,7 @@ export default function DossiersPage() {
                   {/* Avatar */}
                   <div
                     className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0"
-                    style={{ background: `linear-gradient(135deg, ${couleurDossier(d)}, ${c2})` }}
+                    style={{ background: `linear-gradient(135deg, ${couleurDossier(d)}, ${eclaircir(couleurDossier(d))})` }}
                   >
                     {initials}
                   </div>
