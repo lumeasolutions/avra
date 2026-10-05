@@ -6,9 +6,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtPayload } from '@avra/types';
 import { IntervenantType } from '../../prisma-enums';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @Controller('intervenants')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class IntervenantsController {
   constructor(private readonly intervenants: IntervenantsService) {}
 
@@ -36,7 +38,12 @@ export class IntervenantsController {
     return this.intervenants.update(user.workspaceId, id, dto);
   }
 
+  /**
+   * Suppression definitive d'une ressource partagee : reservee a
+   * l'administrateur, comme la suppression d'un dossier (05/10/2026).
+   */
   @Delete(':id')
+  @Roles('OWNER', 'ADMIN')
   remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.intervenants.remove(user.workspaceId, id);
   }
