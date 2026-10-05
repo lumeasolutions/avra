@@ -14,6 +14,15 @@ import { api } from '@/lib/api';
 import { MicPermissionHelpModal } from './MicPermissionHelpModal';
 import Link from 'next/link';
 import { isRetardAlert, isUrgentAlert } from '@/lib/alertClassify';
+import { useDossierPermissions } from '@/hooks/useDossierPermissions';
+
+// ── Portee des listes : toute l'equipe, ou seulement ce qui me concerne ──────
+type Portee = 'equipe' | 'moi';
+const AP_PORTEE_KEY = 'avra-assistant-portee';
+function apLoadPortee(): Portee {
+  if (typeof window === 'undefined') return 'equipe';
+  try { return localStorage.getItem(AP_PORTEE_KEY) === 'moi' ? 'moi' : 'equipe'; } catch { return 'equipe'; }
+}
 
 // ── Messagerie intervenants : suivi « vu » ────────────────────────────────────
 // MÊME clé localStorage que la page /messages-intervenants → non-lus synchronisés
@@ -196,15 +205,54 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
     return () => { alive = false; clearInterval(iv); };
   }, []);
 
+  const activeAlerts  = alerts.filter(a => !a.dismissed);
+
+  // ── « Toute l'equipe » / « Moi » ──────────────────────────────────────────
+  const [portee, setPortee] = useState<Portee>('equipe');
+  useEffect(() => { setPortee(apLoadPortee()); }, []);
+  const choisirPortee = (p: Portee) => {
+    setPortee(p);
+    try { localStorage.setItem(AP_PORTEE_KEY, p); } catch { /* navigation privee */ }
+  };
+
+  const monUserId = useAuthStore(s => s.user?.id);
+  const { isOwnDossier } = useDossierPermissions();
+
+  /** Identifiants des dossiers qui me sont attribues (actifs + signes). */
+  const mesDossierIds = useMemo(() => {
+    const ids = new Set<string>();
+    [...dossiers, ...dossiersSignes].forEach((d) => {
+      if (isOwnDossier(d as never)) ids.add(d.id);
+    });
+    return ids;
+  }, [dossiers, dossiersSignes, isOwnDossier]);
+
+  // Une alerte sans dossier (stock, facturation generale) appartient a la
+  // societe et non a quelqu'un : elle reste dans « Toute l'equipe ».
+  const mesAlertes = useMemo(
+    () => activeAlerts.filter(a => !!a.dossierId && mesDossierIds.has(a.dossierId)),
+    [activeAlerts, mesDossierIds],
+  );
+  const alertesVisibles = portee === 'moi' ? mesAlertes : activeAlerts;
+
+  const mesDemandes = useMemo(
+    () => msgDemandes.filter(d =>
+      (!!monUserId && d.createdBy?.id === monUserId)
+      || (!!d.projectId && mesDossierIds.has(d.projectId))),
+    [msgDemandes, monUserId, mesDossierIds],
+  );
+  const demandesVisibles = portee === 'moi' ? mesDemandes : msgDemandes;
+
+  // Le compteur de non-lus suit la portee affichee, sinon il annoncerait des
+  // messages que la liste ne montre pas.
   const unreadMsgCount = useMemo(() => {
     void msgSeenTick;
     const seen = apLoadSeen();
-    return msgDemandes.filter((d) => seen[d.id] !== d.updatedAt).length;
-  }, [msgDemandes, msgSeenTick]);
-  const activeAlerts  = alerts.filter(a => !a.dismissed);
+    return demandesVisibles.filter((d) => seen[d.id] !== d.updatedAt).length;
+  }, [demandesVisibles, msgSeenTick]);
   // Classifieurs URGENT/RETARD importés depuis @/lib/alertClassify — SOURCE DE
   // VÉRITÉ UNIQUE, partagée avec les badges « ! » sur les dossiers.
-  const displayedAlerts = activeAlerts.filter(a =>
+  const displayedAlerts = alertesVisibles.filter(a =>
     alertFilter === 'urgent'  ? isUrgentAlert(a)
     : alertFilter === 'retard'  ? isRetardAlert(a)
     : alertFilter === 'encours' ? (!isUrgentAlert(a) && !isRetardAlert(a))
@@ -336,8 +384,8 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
               borderBottom: tab === 'alerts' ? '2.5px solid #4A6358' : '2.5px solid transparent',
               transition: 'all 0.2s', letterSpacing: '0.04em',
             }}>
-              <span>Alertes{activeAlerts.length > 0 &&
-                <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', background:'#C0392B', color:'white', fontSize:9, fontWeight:800, width:16, height:16, borderRadius:'50%', marginLeft:5, verticalAlign:'middle' }}>{activeAlerts.length}</span>
+              <span>Alertes{alertesVisibles.length > 0 &&
+                <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', background:'#C0392B', color:'white', fontSize:9, fontWeight:800, width:16, height:16, borderRadius:'50%', marginLeft:5, verticalAlign:'middle' }}>{alertesVisibles.length}</span>
               }</span>
             </button>
             <button onClick={() => setTab('messages')} style={{
@@ -354,15 +402,50 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
           </div>
         </div>
 
+        {/* ── PORTEE : toute l'equipe, ou moi ──
+            Deux onglets de plus auraient dedouble deux listes quasi
+            identiques dans un rail de 300 px. Un selecteur porte les deux. */}
+        {(tab === 'alerts' || tab === 'messages') && (
+          <div className="flex-shrink-0" style={{ background:'#F5F2EE', padding:'8px 12px 0' }}>
+            <div style={{ display:'flex', gap:3, background:'#EAE5DF', borderRadius:10, padding:3 }}>
+              {([
+                { cle:'equipe' as const, label:"Toute l'équipe", n: tab === 'alerts' ? activeAlerts.length : msgDemandes.length },
+                { cle:'moi'    as const, label:'Moi',            n: tab === 'alerts' ? mesAlertes.length  : mesDemandes.length },
+              ]).map(({ cle, label, n }) => {
+                const actif = portee === cle;
+                return (
+                  <button key={cle} onClick={() => choisirPortee(cle)} style={{
+                    flex:1, padding:'6px 0', fontSize:10.5, fontWeight:700, borderRadius:8,
+                    border:'none', cursor:'pointer', transition:'all .15s',
+                    background: actif ? 'white' : 'transparent',
+                    color: actif ? '#3D5449' : '#9A9590',
+                    boxShadow: actif ? '0 1px 4px rgba(0,0,0,0.10)' : 'none',
+                  }}>
+                    {label}
+                    <span style={{ marginLeft:5, fontSize:9.5, fontWeight:800, color: actif ? '#8C7A4E' : '#B5AFA8' }}>{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {portee === 'moi' && (
+              <p style={{ margin:'6px 2px 0', fontSize:9.5, lineHeight:1.4, color:'#A8A29E' }}>
+                {tab === 'alerts'
+                  ? 'Les alertes des dossiers qui vous sont attribués. Celles qui ne visent aucun dossier (stock, facturation) restent dans « Toute l’équipe ».'
+                  : 'Les demandes que vous avez écrites, et celles qui portent sur vos dossiers.'}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* ── VUE ALERTES ── */}
         {tab === 'alerts' && (
           <div className="flex flex-col flex-1 overflow-hidden" style={{ background: 'transparent', position: 'relative' }}>
             {/* KPIs */}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, padding:'10px 12px 6px' }}>
               {[
-                { fkey:'urgent'  as const, val:activeAlerts.filter(isUrgentAlert).length, label:'URGENTS', color:'#D32F2F', bg:'#FFF0F0' },
-                { fkey:'encours' as const, val:dossiers.length,                          label:'EN COURS', color:'#388E3C', bg:'#F0FFF2' },
-                { fkey:'retard'  as const, val:activeAlerts.filter(isRetardAlert).length, label:'RETARDS', color:'#E07B00', bg:'#FFF8F0' },
+                { fkey:'urgent'  as const, val:alertesVisibles.filter(isUrgentAlert).length, label:'URGENTS', color:'#D32F2F', bg:'#FFF0F0' },
+                { fkey:'encours' as const, val:portee === 'moi' ? mesDossierIds.size : dossiers.length, label:'EN COURS', color:'#388E3C', bg:'#F0FFF2' },
+                { fkey:'retard'  as const, val:alertesVisibles.filter(isRetardAlert).length, label:'RETARDS', color:'#E07B00', bg:'#FFF8F0' },
               ].map(({ fkey, val, label, color, bg }) => {
                 const selected = alertFilter === fkey;
                 return (
@@ -382,7 +465,11 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
             <div className="ap-scroll flex-1 overflow-y-auto" style={{ padding:'4px 12px 8px', display:'flex', flexDirection:'column', gap:7 }}>
               {displayedAlerts.length === 0 ? (
                 <div style={{ textAlign:'center', padding:'24px 0', color:'#388E3C', fontWeight:600, fontSize:13 }}>
-                  {alertFilter === 'all' ? '✅ Tout est en ordre' : '✅ Aucune alerte dans cette catégorie'}
+                  {alertFilter !== 'all'
+                    ? '✅ Aucune alerte dans cette catégorie'
+                    : portee === 'moi'
+                      ? '✅ Rien à traiter sur vos dossiers'
+                      : '✅ Tout est en ordre'}
                 </div>
               ) : displayedAlerts.map((alert, i) => (
                 <div key={alert.id} className="ap-slide ap-card" style={{
@@ -481,7 +568,7 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
         {tab === 'chat' && <ChatView owlB64={OWL_B64}/>}
 
         {/* ── VUE MESSAGERIE INTERVENANTS ── */}
-        {tab === 'messages' && <MessagesView demandes={msgDemandes} onSeen={() => setMsgSeenTick(t => t + 1)} />}
+        {tab === 'messages' && <MessagesView demandes={demandesVisibles} onSeen={() => setMsgSeenTick(t => t + 1)} />}
       </div>
     </>
   );
