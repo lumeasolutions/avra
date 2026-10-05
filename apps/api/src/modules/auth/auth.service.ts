@@ -63,7 +63,12 @@ export class AuthService {
       if (intervenant) {
         return this.loginIntervenant(user, intervenant.id);
       }
-      throw new UnauthorizedException('Aucun espace de travail associé');
+      // Mot de passe correct, mais le compte n'appartient a aucun espace :
+      // il a ete retire d'une equipe. On le dit, plutot que de laisser croire
+      // a une erreur de saisie.
+      throw new UnauthorizedException(
+        "Votre acces a cette equipe a ete retire. Demandez une nouvelle invitation a l'administrateur de l'espace.",
+      );
     }
 
     // 🌱 Bêta gate — s'applique aux comptes pro (workspace). Vérifié APRÈS le
@@ -716,6 +721,52 @@ export class AuthService {
    * Ne crée PAS de workspace propre : crée le User et le rattache au workspace
    * de l'invitation via UserWorkspace (rôle de l'invitation, statut ACTIVE).
    */
+  /**
+   * Rattache a l'espace de l'invitation un compte qui n'appartient plus a
+   * aucun espace. Voir le commentaire dans `registerWorkspaceMember`.
+   */
+  private async rattacherCompteOrphelin(
+    userId: string,
+    email: string,
+    dto: { password: string; firstName?: string; lastName?: string },
+    inv: { id: string; workspaceId: string; firstName?: string | null; lastName?: string | null },
+    role: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_COST);
+      const refreshTokenPlain = crypto.randomBytes(32).toString('hex');
+      const hashedRefresh = await this.tokenRotation.hashRefreshToken(refreshTokenPlain);
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          passwordHash: hashedPassword,
+          firstName: dto.firstName ?? inv.firstName ?? undefined,
+          lastName: dto.lastName ?? inv.lastName ?? undefined,
+          refreshToken: hashedRefresh,
+          refreshTokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          isActive: true,
+        },
+      });
+
+      await tx.userWorkspace.create({
+        data: { userId, workspaceId: inv.workspaceId, role: role as any, status: 'ACTIVE' },
+      });
+
+      await (tx as any).workspaceInvitation.update({
+        where: { id: inv.id },
+        data: { status: 'ACCEPTED', acceptedAt: new Date(), acceptedByUserId: userId },
+      });
+
+      const accessToken = await this.jwt.signAsync(
+        { sub: userId, email, workspaceId: inv.workspaceId, role } as any,
+        { expiresIn: '15m' },
+      );
+
+      return { userId, workspaceId: inv.workspaceId, accessToken, refreshToken: refreshTokenPlain };
+    });
+  }
+
   async registerWorkspaceMember(dto: {
     token: string;
     password: string;
@@ -738,14 +789,34 @@ export class AuthService {
     }
 
     const email = inv.email.toLowerCase();
+    const role = inv.role; // 'MEMBER' | 'ADMIN' (UserRole)
+
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
-      throw new ConflictException(
-        'Un compte existe deja avec cet email. Connectez-vous pour rejoindre l\'equipe.',
-      );
+      const appartenances = await this.prisma.userWorkspace.count({
+        where: { userId: existing.id },
+      });
+      if (appartenances > 0) {
+        throw new ConflictException(
+          "Un compte existe deja avec cet email. Connectez-vous pour rejoindre l'equipe.",
+        );
+      }
+      /**
+       * Compte orphelin : retire de son equipe, il n'appartient plus a aucun
+       * espace et ne peut donc plus se connecter nulle part.
+       *
+       * Constate le 05/10/2026. Un vendeur accepte son invitation a 09:50, il
+       * est retire de l'equipe a 09:58, reinvite a 10:31 — et la, impasse : la
+       * connexion repond « Aucun espace de travail associe » et l'invitation
+       * repond « connectez-vous pour rejoindre l'equipe », conseil impossible
+       * a suivre. Son compte etait definitivement inutilisable.
+       *
+       * On le rattache donc plutot que de le bloquer. L'invitation a ete
+       * envoyee a cette adresse par le proprietaire de l'espace : c'est la
+       * meme preuve que pour une premiere inscription.
+       */
+      return this.rattacherCompteOrphelin(existing.id, email, dto, inv, role);
     }
-
-    const role = inv.role; // 'MEMBER' | 'ADMIN' (UserRole)
 
     return this.prisma.$transaction(async (tx) => {
       const hashedPassword = await bcrypt.hash(dto.password, BCRYPT_COST);
