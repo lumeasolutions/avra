@@ -276,6 +276,18 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
       'The shell of the room is not yours to redesign. '
       + 'The walls keep their exact number, position, length and angle, and the openings in them — windows, doors, passageways — '
       + 'keep their exact position, size, shape and frame; a French door stays a French door and does not become a glazed bay. '
+      /**
+       * Ajouté le 10/10/2026. Sur le plan de la cofondatrice, deux passages
+       * vers la pièce voisine — du sol au plafond, sans cadre, blancs sur
+       * l'export 3D — sont ressortis en deux fenêtres avec vue sur un jardin,
+       * dans les deux variantes. Un rectangle clair dans un mur, pour le
+       * modèle, c'est une fenêtre : on lui dit ce qu'est un passage, et ce
+       * qu'il doit montrer au travers quand le plan ne montre rien.
+       */
+      + 'An opening that reaches down to the floor with no frame and no glazing is a doorway or a passageway into the next room, '
+      + 'not a window: through it you show the next room — its wall, its floor continuing, softly lit — and never sky, a garden, '
+      + 'a landscape or a window frame. Where the first image shows nothing beyond such an opening but plain white, you render a '
+      + 'plain, evenly lit wall of the next room, and nothing else. A window is only what already has a frame and glazing in the first image. '
       + 'The ceiling keeps its exact height, its beams, its bulkheads and its spotlights. '
       + 'The floor keeps its exact level and its exact material, with the boards or joints running in the same direction.',
     );
@@ -325,6 +337,17 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     { libelle: 'the light fittings, the pendants and their rails' },
     { libelle: 'the sockets, switches and radiators' },
     { libelle: 'the plinths and the skirting boards' },
+    // Ajouté le 10/10 : sur le plan de la cofondatrice, le plan de travail en
+    // bois de l'îlot est ressorti en pierre grise, puis en stratifié délavé —
+    // sans qu'on ait rien demandé sur lui. Remplacer la plaque de cuisson ne
+    // doit pas régénérer le plateau qui la porte. Retiré de la liste dès que
+    // l'utilisateur décrit lui-même une matière de plan.
+    { libelle: 'the worktop, which keeps its exact material, species, tone and grain direction — a wood worktop stays that '
+      + 'same wood and never becomes stone, quartz, laminate or concrete, even around the cooktop that sits on it', sauf: ['planTravail'] },
+    // Même plan : une niche à fond bois est ressortie avec un fond miroir, et
+    // une seconde niche a été inventée. Le fond d'une niche n'est pas un miroir.
+    { libelle: 'the niches and open shelves, which keep their exact number and their exact backs — a wood or painted back '
+      + 'stays wood or paint and never becomes a mirror' },
   ];
   const inchanges = EQUIPEMENTS
     .filter(e => !(e.sauf ?? []).some(k => {
@@ -389,12 +412,14 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
    */
   phrases.push(
     `The result is a photorealistic photograph of that ${lieu}, sharp, with fine material detail. `
-    + 'Before you output it, check these three things against the first image, because they are the ones that '
+    + 'Before you output it, check these five things against the first image, because they are the ones that '
     + 'get changed by mistake: the light fittings are the same fittings, of the same shape and the same number; '
     + 'the splashback and the wall behind the worktop are the same colour AND the same material, a mirror '
     + 'still being a mirror and a gloss surface still being glossy; '
-    + 'the cabinet fronts are the same colour. '
-    + 'If any of the three differs, you have redesigned the room instead of photographing it.',
+    + 'the cabinet fronts are the same colour; '
+    + 'the worktop is the same material — wood if it was wood — unless a worktop finish was explicitly requested above; '
+    + 'and every opening in the walls is the same kind of opening — a passageway into the next room is still a passageway, not a window. '
+    + 'If any of the five differs, you have redesigned the room instead of photographing it.',
   );
   return phrases.join(' ');
 }
@@ -670,7 +695,17 @@ export async function generateGoogleRender(
   console.error('[google-image-api] échec:', echecs.join(' | '));
 
   const brut = echecs.join(' ').toLowerCase();
-  const message = brut.includes('429') || brut.includes('quota') || brut.includes('rate limit')
+  /**
+   * Ajouté le 10/10/2026. Trois échecs de la cofondatrice sur deux jours,
+   * tous « 402 — prepayment credits are depleted », étaient affichés comme
+   * « réessayez dans un instant » : elle a réessayé, trois fois. Un crédit
+   * épuisé n'est pas un incident passager, c'est une action pour l'admin.
+   */
+  const creditEpuise = /(^|[^0-9])402([^0-9]|$)/.test(brut) || brut.includes('credits are depleted')
+    || brut.includes('prepayment') || brut.includes('billing');
+  const message = creditEpuise
+    ? 'Le crédit de rendu est épuisé : les rendus reprendront dès que l’administrateur de l’espace l’aura rechargé.'
+    : brut.includes('429') || brut.includes('quota') || brut.includes('rate limit')
     ? 'Quota de rendus atteint pour le moment. Réessayez dans quelques minutes.'
     : brut.includes('safety') || brut.includes('blocked')
       ? 'L\'image source a été refusée par le moteur de rendu. Essayez une autre vue.'
