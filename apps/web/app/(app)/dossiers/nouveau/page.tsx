@@ -172,7 +172,7 @@ const TVA_RATES: TvaRate[] = TVA_GROUPS.flatMap(g => g.rates);
 
 export default function NouveauDossierPage() {
   const router = useRouter();
-  const { createProject } = useProjectActions();
+  const { createProject, updateProjectStatus } = useProjectActions();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sameAddress, setSameAddress] = useState(false);
@@ -219,6 +219,9 @@ export default function NouveauDossierPage() {
         phone: form.phone || undefined,
         email: form.email || undefined,
       });
+      // Le statut choisi dans le formulaire n'était jamais transmis : tout
+      // dossier naissait avec le statut par défaut (vu le 11/10/2026).
+      if (form.status) await updateProjectStatus(newId, form.status);
       router.push(`/dossiers/${newId}`);
     } catch (err: any) {
       setError(err?.message || 'Erreur lors de la création du dossier');

@@ -283,11 +283,11 @@ export function DeleteDossierModal({
             <div className="ddm-warn-box">
               <AlertTriangle className="ddm-warn-icon" style={{ width: 16, height: 16 }} />
               <div>
-                <strong>Tout sera supprimé</strong>
+                <strong>Tout part avec lui dans la corbeille</strong>
                 {itemsCount > 0 && (
                   <>
                     {' '}: les <strong>{itemsCount} sous-dossier{itemsCount > 1 ? 's' : ''}</strong>,
-                    leurs documents, notes et historique de validation associés.
+                    leurs documents, notes et historique de validation — et tout revient s’il est restauré.
                   </>
                 )}
                 {itemsCount === 0 && " : ce dossier ne contient pas encore de sous-dossier, mais il sera retiré de l'affichage."}

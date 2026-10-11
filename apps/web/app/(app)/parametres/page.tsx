@@ -23,6 +23,7 @@ import { useAuthStore, type Profession } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AdminDocsPinSettings } from '@/components/admin-docs/AdminDocsPinSettings';
+import { useProjectActions } from '@/hooks/useProjectActions';
 
 // TEMPORARY DEV — voir DevPortalSwitcher panel ci-dessous
 // Fix coquille "sss" -> "s" (juillet 2026) : ne matchait pas l'email réel d'Esteve,
@@ -219,6 +220,9 @@ export default function ParametresPage() {
   // Filtré par métier actif (cloisonnement inter-métiers, P0 juillet 2026) — panel
   // "Dossiers perdus" ci-dessous n'affiche que ceux du portail courant.
   const dossiersPerdus      = useVisibleDossiersPerdus();
+  // Restaurer un dossier perdu depuis ce panneau (admin) — il n'existait que
+  // sur l'ancienne page /dossiers-perdus.
+  const { restoreLostProject } = useProjectActions();
   const stockItems          = useStockStore(s => s.stockItems);
   const preferences         = useConfigStore(s => s.preferences) ?? { langue: 'fr', devise: 'EUR', tvaDefaut: 20, formatDate: 'dd/mm/yyyy', fuseauHoraire: 'Europe/Paris', modeCompact: false };
   const updatePreferences   = useConfigStore(s => s.updatePreferences);
@@ -1674,12 +1678,22 @@ export default function ParametresPage() {
                     <p className="font-bold text-[#304035]">{d.name}</p>
                     <p className="text-xs text-[#304035]/60 mt-0.5">{d.reason} · {d.lostDate}</p>
                   </div>
-                  {d.montantEstime && (
-                    <div className="text-right">
-                      <p className="text-[10px] text-[#304035]/50 uppercase tracking-wider">Estimé</p>
-                      <p className="font-bold text-red-600">{fmt(d.montantEstime)}</p>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-4">
+                    {/* `? :` et non `&&` : un montant à 0 affichait un « 0 » isolé. */}
+                    {d.montantEstime ? (
+                      <div className="text-right">
+                        <p className="text-[10px] text-[#304035]/50 uppercase tracking-wider">Estimé</p>
+                        <p className="font-bold text-red-600">{fmt(d.montantEstime)}</p>
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => { void restoreLostProject(d.id); }}
+                      className="rounded-lg border border-[#304035]/20 bg-white px-3 py-1.5 text-xs font-bold text-[#304035] hover:bg-[#304035] hover:text-white transition-colors"
+                    >
+                      Restaurer
+                    </button>
+                  </div>
                 </div>
               ))}
               <div className="rounded-xl bg-[#304035] px-5 py-4 flex items-center justify-between mt-3">

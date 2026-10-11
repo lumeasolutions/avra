@@ -347,6 +347,11 @@ export default function StockPage() {
   return (
     <div className="space-y-6">
       <style>{`
+        /* Le tableau ne se comprime plus jusqu'à écrire les modèles lettre par
+           lettre (vu à 1536 px avec l'assistant ouvert) : largeur minimale,
+           défilement horizontal au-delà. */
+        .stk-table-wrap { overflow-x: auto; }
+        .stk-table-inner { min-width: 900px; }
         @media (max-width: 768px) {
           .stk-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .stk-table-wrap { overflow-x: auto; }

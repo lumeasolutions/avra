@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Check, Clock, CheckCircle2, Pen, Send, Paperclip, AlertCircle } from 'lucide-react';
-import { useFacturationStore, useConfigStore, type Devis } from '@/store';
+import { useFacturationStore, useConfigStore, useDossierStore, type Devis } from '@/store';
 import { api } from '@/lib/api';
 import { generateDevisPdfForSignature } from '@/lib/devisPdf';
 
@@ -16,9 +16,16 @@ export const ModalSignature = React.memo(function ModalSignature({ devis, onClos
   const societe = useConfigStore(s => s.societe);
   const markDevisSigned = useFacturationStore(s => s.markDevisSigned);
   const [email, setEmail] = useState(devis.clientEmail ?? '');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState(devis.client ?? '');
-  const [message, setMessage] = useState(`Bonjour,\n\nVeuillez trouver ci-joint votre devis ${devis.ref} d'un montant de ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(devis.totalTTC)} TTC.\n\nMerci de bien vouloir nous retourner votre accord pour validation.\n\nCordialement,\nL'équipe AVRA`);
+  // Prénom et nom lus sur le dossier lié : le libellé `devis.client` est
+  // « Nom Prénom » d'un bloc, ce qui laissait le prénom vide et le bouton
+  // d'envoi grisé (vu le 11/10/2026).
+  const dossierLie = useDossierStore(s =>
+    devis.dossierId
+      ? (s.dossiers.find(d => d.id === devis.dossierId) ?? s.dossiersSignes.find(d => d.id === devis.dossierId))
+      : undefined);
+  const [firstName, setFirstName] = useState(dossierLie?.firstName ?? '');
+  const [lastName, setLastName] = useState(dossierLie?.name ?? devis.client ?? '');
+  const [message, setMessage] = useState(`Bonjour,\n\nVeuillez trouver ci-joint votre devis ${devis.ref} d'un montant de ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(devis.totalTTC)} TTC.\n\nMerci de bien vouloir nous retourner votre accord pour validation.\n\nCordialement,\n${societe?.nom?.trim() || ''}`.trimEnd());
   const [piecesJointes, setPiecesJointes] = useState<string[]>([]);
   const [newPiece, setNewPiece] = useState('');
   const [sent, setSent] = useState(false);

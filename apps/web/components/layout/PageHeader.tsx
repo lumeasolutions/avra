@@ -30,6 +30,12 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
       }}
     >
       <style>{`
+        /* Portable (≈1366-1536 px) : quand titre + onglets ne tiennent pas sur
+           une ligne, les actions passent dessous au lieu d'écraser le titre
+           (vu le 11/10/2026 sur Facturation : sous-titre illisible). Placé
+           AVANT le bloc mobile, qui garde le dernier mot sous 768 px. */
+        .page-header-top-row { flex-wrap: wrap; row-gap: 8px; }
+        .page-header-title-block { min-width: 190px !important; }
         @media (max-width: 768px) {
           .page-header-root {
             padding: 12px 16px !important;
