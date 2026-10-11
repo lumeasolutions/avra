@@ -161,6 +161,13 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     'nothing enters the frame that was not already visible, nothing leaves it, and you do not step back, zoom or pan.',
     'Vertical lines stay vertical, and the vanishing lines of the floor, the ceiling and the cabinet fronts',
     'converge exactly where they converge in the first image.',
+    // 12/10/2026 — règle des bords : sur la cuisine à colonne bleue, un mur et
+    // une chaise coupés par le bord droit sont devenus un mur-miroir et une
+    // table complète avec chaises et vaisselle.
+    'Think of it as re-photographing the same room from the same locked tripod.',
+    'An object cut by an edge of the first image stays cut at exactly the same place: you never complete it,',
+    'and you never extend the room beyond the frame to show what lies outside it —',
+    'no extra wall, mirror, wardrobe, table, chair or cabinet appears near the edges.',
   ].join(' ');
 
   const phrases: string[] = [];
@@ -195,6 +202,10 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     + 'even lighting, no grain — or an already finished render with its own lighting. Judge which one it is, '
     + 'and treat it accordingly.',
   );
+  // 12/10/2026 : le cadrage passe en tête. En neuvième position, après
+  // lumière, matières et luminosité, le modèle le traitait comme une
+  // consigne parmi d'autres et déplaçait le point de vue.
+  phrases.push(`Above everything else: ${cadrage}`);
   phrases.push(
     'If it is a flat export, build the real light: directional daylight consistent with the windows you can see, '
     + 'soft shadows and contact shadows. '
@@ -256,7 +267,6 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     + 'and you remove none either.',
   );
 
-  phrases.push(cadrage);
   phrases.push(`${elements[0].toUpperCase()}${elements.slice(1)} stays exactly where it is, at exactly the same size and the same shape.`);
 
   /**
@@ -412,14 +422,16 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
    */
   phrases.push(
     `The result is a photorealistic photograph of that ${lieu}, sharp, with fine material detail. `
-    + 'Before you output it, check these five things against the first image, because they are the ones that '
-    + 'get changed by mistake: the light fittings are the same fittings, of the same shape and the same number; '
+    + 'Before you output it, check these six things against the first image, because they are the ones that '
+    + 'get changed by mistake: the framing is identical — the same objects touch the same edges at the same '
+    + 'places, and nothing new appears near the edges; '
+    + 'the light fittings are the same fittings, of the same shape and the same number; '
     + 'the splashback and the wall behind the worktop are the same colour AND the same material, a mirror '
     + 'still being a mirror and a gloss surface still being glossy; '
-    + 'the cabinet fronts are the same colour; '
+    + 'the cabinet fronts are the same colour, and every cabinet keeps the same number of doors and drawers; '
     + 'the worktop is the same material — wood if it was wood — unless a worktop finish was explicitly requested above; '
     + 'and every opening in the walls is the same kind of opening — a passageway into the next room is still a passageway, not a window. '
-    + 'If any of the five differs, you have redesigned the room instead of photographing it.',
+    + 'If any of the six differs, you have redesigned the room instead of photographing it.',
   );
   return phrases.join(' ');
 }
