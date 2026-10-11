@@ -576,9 +576,17 @@ async function poster(chemin: string, corps: unknown, cle: string) {
  * luminosité varie de −11,2 à +0,8 par rapport à la source. Douze points
  * d'écart entre le meilleur et le pire tirage, et `seed` est ignoré par le
  * modèle — on ne peut donc ni reproduire ni contrôler ce tirage. Deux
- * variantes transforment ce hasard en choix, pour le prix d'un second rendu.
+ * variantes transformaient ce hasard en choix, pour le prix d'un second rendu.
+ *
+ * Retour à UNE image le 11/10/2026, décision des fondateurs : les deux
+ * tirages servaient à nos tests, et chaque rendu coûtait le double
+ * (0,30 € en 4K). Une image ne coûte jamais plus cher : si le tirage est
+ * bon, c'est moitié prix ; s'il est mauvais, on relance, et on retombe au
+ * prix des deux variantes. Entre-temps, la consigne a gagné ses règles de
+ * luminosité (« au moins aussi claire que la source, jamais plus sombre »),
+ * qui n'existaient pas lors de la mesure du 28/09.
  */
-export const NB_VARIANTES = 2;
+export const NB_VARIANTES = 1;
 
 export async function generateGoogleRender(
   params: ArchitectParams,
