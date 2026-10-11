@@ -109,7 +109,8 @@ export class IaController {
 
       // Charger le contexte workspace si user connecté
       let dossiers: any[] = [];
-      let invoices: any[] = [];
+      let invoices: any[] = [];     // demandes de paiement (E-Paiement)
+      let factures: any[] = [];     // vraies factures (table Invoice)
       let intervenants: any[] = [];
       let demandes: any[] = [];
       let invitationsPending = 0;
@@ -122,8 +123,9 @@ export class IaController {
         [dossiers, invoices, intervenants, demandes, invitationsPending, events, stock] = await Promise.all([
           canDossiers
             ? this.prisma.project.findMany({
-                where: { workspaceId: ws },
-                select: { id: true, name: true, lifecycleStatus: true, priority: true },
+                // Hors corbeille : les dossiers supprimés gonflaient les comptages.
+                where: { workspaceId: ws, deletedAt: null },
+                select: { id: true, name: true, lifecycleStatus: true, priority: true, saleAmount: true },
                 orderBy: { createdAt: 'desc' },
               })
             : Promise.resolve([] as any[]),
@@ -181,6 +183,13 @@ export class IaController {
               })
             : Promise.resolve([] as any[]),
         ]);
+        if (canFacturation) {
+          factures = await this.prisma.invoice.findMany({
+            where: { workspaceId: ws },
+            select: { reference: true, type: true, status: true, totalTTC: true, clientName: true },
+            orderBy: { date: 'desc' },
+          });
+        }
       }
 
       // Statuts du cycle de vie (enum Prisma FR). Aligne sur useDataSync :
@@ -197,7 +206,12 @@ export class IaController {
         SIGNED_STATUSES.includes(d.lifecycleStatus)
       );
       const urgentCount = dossiers.filter((d: any) => d.priority === 'URGENT').length;
-      const pendingInvoiceCount = invoices.filter((i: any) => i.status === 'PENDING').length;
+      // Vraies factures, avoirs exclus. Non réglées = EN_ATTENTE / RETARD.
+      const facturesEmises = factures.filter((f: any) => f.type !== 'AVOIR' && f.status !== 'AVOIR');
+      const facturesNonReglees = facturesEmises.filter((f: any) => f.status === 'EN_ATTENTE' || f.status === 'RETARD');
+      const pendingInvoiceCount = facturesNonReglees.length;
+      const invoicedTotalEUR = facturesEmises.reduce((s: number, f: any) => s + Number(f.totalTTC ?? 0), 0);
+      const caSigneEUR = signedDossiers.reduce((s: number, d: any) => s + Number(d.saleAmount ?? 0), 0);
 
       // Résumé nommé des dossiers actifs pour que l'IA soit précise
       const activeDossierNames = activeDossiers.map((d: any) => d.name).join(', ') || 'aucun';
@@ -229,15 +243,10 @@ export class IaController {
       const eur = (n: number) => `${Math.round(n)}€`;
 
       // Factures impayees (PENDING) + en retard (FAILED) avec montants + client.
-      const unpaidList = invoices.filter((i: any) => i.status === 'PENDING' || i.status === 'FAILED');
-      const unpaidTotalEUR = unpaidList.reduce((s: number, i: any) => s + Number(i.amount ?? 0), 0);
-      const clientOfInvoice = (i: any) => {
-        const c = i.project?.client;
-        const n = c ? `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() : '';
-        return n || i.project?.name || 'client';
-      };
-      const unpaidInvoicesText = unpaidList.slice(0, 10)
-        .map((i: any) => `${clientOfInvoice(i)} : ${eur(Number(i.amount ?? 0))} (${i.status === 'FAILED' ? 'en retard' : 'en attente'})`)
+      // Depuis les VRAIES factures (avant : demandes de paiement E-Paiement).
+      const unpaidTotalEUR = facturesNonReglees.reduce((s: number, f: any) => s + Number(f.totalTTC ?? 0), 0);
+      const unpaidInvoicesText = facturesNonReglees.slice(0, 10)
+        .map((f: any) => `${f.reference ?? 'facture'} — ${f.clientName || 'client'} : ${eur(Number(f.totalTTC ?? 0))} (${f.status === 'RETARD' ? 'en retard' : 'en attente'})`)
         .join(' ; ');
 
       // RDV / interventions a venir.
@@ -275,8 +284,11 @@ export class IaController {
         urgentCount: canDossiers ? urgentCount : undefined,
         signedCount: canDossiers ? signedDossiers.length : undefined,
         activeDossierNames: canDossiers ? activeDossierNames : undefined,
-        invoiceCount: canFacturation ? invoices.length : undefined,
+        invoiceCount: canFacturation ? facturesEmises.length : undefined,
         pendingInvoiceCount: canFacturation ? pendingInvoiceCount : undefined,
+        invoicedTotalEUR: canFacturation && invoicedTotalEUR > 0 ? invoicedTotalEUR : undefined,
+        paymentRequestCount: canFacturation ? invoices.length : undefined,
+        caSigneEUR: canDossiers && signedDossiers.length > 0 ? caSigneEUR : undefined,
         intervenantCount: canIntervenants ? intervenants.length : undefined,
         activeIntervenantNames: canIntervenants ? (intervenantNames || undefined) : undefined,
         demandeCount: canIntervenants ? demandes.length : undefined,
@@ -397,7 +409,7 @@ export class IaController {
     try {
       const [dossiers, invoices, events] = await Promise.all([
         this.prisma.project.findMany({
-          where: { workspaceId: user.workspaceId },
+          where: { workspaceId: user.workspaceId, deletedAt: null },
           select: { name: true, lifecycleStatus: true, updatedAt: true },
         }),
         this.prisma.paymentRequest.findMany({

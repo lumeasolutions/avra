@@ -31,6 +31,11 @@ export interface ChatContext {
   upcomingEventsText?: string;   // RDV/interventions a venir (date + titre)
   stockRuptureText?: string;     // articles en rupture
   demandesWaitingText?: string;  // demandes en attente : titre + intervenant + date
+  // 11/10/2026 : vraies factures (table Invoice) — avant, « factures »
+  // désignait à tort les demandes de paiement du module E-Paiement.
+  invoicedTotalEUR?: number;     // total TTC facturé (hors avoirs)
+  paymentRequestCount?: number;  // demandes de paiement en ligne (E-Paiement)
+  caSigneEUR?: number;           // somme des montants de vente des dossiers signés
   // Volet 5 (06/2026) : actions REELLES via function-calling. Indique au
   // service quels outils exposer au modele (selon les toggles Parametres → IA).
   // L'IA ne fait que PROPOSER l'action (params structures) ; l'execution reelle

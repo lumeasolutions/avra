@@ -28,6 +28,11 @@ export const SYSTEM_PROMPTS = {
     upcomingEventsText?: string;
     stockRuptureText?: string;
     demandesWaitingText?: string;
+    // 11/10/2026 : vraies factures (table Invoice) — avant, « factures »
+      // désignait à tort les demandes de paiement du module E-Paiement.
+    invoicedTotalEUR?: number;       // total TTC facturé (hors avoirs)
+    paymentRequestCount?: number;    // demandes de paiement en ligne (E-Paiement)
+    caSigneEUR?: number;             // somme des montants de vente des dossiers signés
     // Volet 2 (28/05/2026) — personnalite choisie dans Parametres → IA
     personnalite?: 'professionnel' | 'amical' | 'concis';
   }): string => {
@@ -42,10 +47,16 @@ export const SYSTEM_PROMPTS = {
       lines.push(`- Dossiers urgents: ${context.urgentCount}`);
     if (context?.signedCount !== undefined)
       lines.push(`- Dossiers signés: ${context.signedCount}`);
+    if (context?.caSigneEUR !== undefined)
+      lines.push(context.caSigneEUR > 0
+        ? `- Chiffre d'affaires signé (montants de vente des dossiers signés): ${Math.round(context.caSigneEUR)}€ HT`
+        : `- Chiffre d'affaires signé: les montants de vente ne sont pas renseignés sur les dossiers signés`);
     if (context?.invoiceCount !== undefined)
-      lines.push(`- Factures totales: ${context.invoiceCount}`);
+      lines.push(`- Factures émises: ${context.invoiceCount}${context.invoicedTotalEUR ? ` (total ${Math.round(context.invoicedTotalEUR)}€ TTC)` : ''}`);
     if (context?.pendingInvoiceCount !== undefined)
-      lines.push(`- Factures en attente: ${context.pendingInvoiceCount}`);
+      lines.push(`- Factures non réglées: ${context.pendingInvoiceCount}`);
+    if (context?.paymentRequestCount !== undefined)
+      lines.push(`- Demandes de paiement en ligne (module E-Paiement): ${context.paymentRequestCount}`);
     if (context?.intervenantCount !== undefined)
       lines.push(`- Intervenants enregistrés: ${context.intervenantCount}${context.activeIntervenantNames ? ` (${context.activeIntervenantNames})` : ''}`);
     if (context?.demandeCount !== undefined)
