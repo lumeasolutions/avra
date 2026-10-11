@@ -8,7 +8,7 @@ import {
   Building2, CreditCard, Mail, Globe, MoreVertical,
   ArrowRight, Percent, X, PlusCircle, Edit2,
 } from 'lucide-react';
-import { useFacturationStore, useConfigStore, useUIStore, useVisibleDossiers, useVisibleDossiersSignes, type Invoice, type InvoiceStatus, type Devis, type DevisStatus, type LigneDocument, type InvoiceDetail, type FactureDetailType } from '@/store';
+import { useFacturationStore, useConfigStore, useDossierStore, useUIStore, useVisibleDossiers, useVisibleDossiersSignes, type Invoice, type InvoiceStatus, type Devis, type DevisStatus, type LigneDocument, type InvoiceDetail, type FactureDetailType } from '@/store';
 import { Pen, Paperclip, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -440,10 +440,18 @@ function openPDF(html: string, filename: string) {
 function ModalSignature({ devis, onClose }: { devis: Devis; onClose: () => void }) {
   const sendDevisForSignature = useFacturationStore(s => s.sendDevisForSignature);
   const markDevisSigned = useFacturationStore(s => s.markDevisSigned);
+  const societe = useConfigStore(s => s.societe);
+  // Prénom et nom lus sur le dossier lié : `devis.client` est « Nom Prénom »
+  // d'un bloc, ce qui laissait le prénom vide et le bouton d'envoi grisé
+  // (vu le 11/10/2026).
+  const dossierLie = useDossierStore(s =>
+    devis.dossierId
+      ? (s.dossiers.find(d => d.id === devis.dossierId) ?? s.dossiersSignes.find(d => d.id === devis.dossierId))
+      : undefined);
   const [email, setEmail] = useState(devis.clientEmail ?? '');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState(devis.client ?? '');
-  const [message, setMessage] = useState(`Bonjour,\n\nVeuillez trouver ci-joint votre devis ${devis.ref} d'un montant de ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(devis.totalTTC)} TTC.\n\nMerci de bien vouloir nous retourner votre accord pour validation.\n\nCordialement,\nL'équipe AVRA`);
+  const [firstName, setFirstName] = useState(dossierLie?.firstName ?? '');
+  const [lastName, setLastName] = useState(dossierLie?.name ?? devis.client ?? '');
+  const [message, setMessage] = useState(`Bonjour,\n\nVeuillez trouver ci-joint votre devis ${devis.ref} d'un montant de ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(devis.totalTTC)} TTC.\n\nMerci de bien vouloir nous retourner votre accord pour validation.\n\nCordialement,\n${societe?.nom?.trim() || ''}`.trimEnd());
   const [piecesJointes, setPiecesJointes] = useState<string[]>([]);
   const [newPiece, setNewPiece] = useState('');
   const [sent, setSent] = useState(false);
