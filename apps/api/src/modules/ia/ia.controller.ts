@@ -206,9 +206,13 @@ export class IaController {
         SIGNED_STATUSES.includes(d.lifecycleStatus)
       );
       const urgentCount = dossiers.filter((d: any) => d.priority === 'URGENT').length;
-      // Vraies factures, avoirs exclus. Non réglées = EN_ATTENTE / RETARD.
-      const facturesEmises = factures.filter((f: any) => f.type !== 'AVOIR' && f.status !== 'AVOIR');
-      const facturesNonReglees = facturesEmises.filter((f: any) => f.status === 'EN_ATTENTE' || f.status === 'RETARD');
+      // Vraies factures, avoirs exclus. Les statuts sont stockés en français
+      // avec espace (« EN ATTENTE », « PAYÉE ») : on les normalise avant de
+      // comparer. Non réglée = ni payée, ni avoir.
+      const statutFacture = (f: any) => String(f.status ?? '').toUpperCase().replace(/_/g, ' ').trim();
+      const estRetard = (f: any) => statutFacture(f) === 'RETARD';
+      const facturesEmises = factures.filter((f: any) => f.type !== 'AVOIR' && statutFacture(f) !== 'AVOIR');
+      const facturesNonReglees = facturesEmises.filter((f: any) => !statutFacture(f).startsWith('PAY'));
       const pendingInvoiceCount = facturesNonReglees.length;
       const invoicedTotalEUR = facturesEmises.reduce((s: number, f: any) => s + Number(f.totalTTC ?? 0), 0);
       const caSigneEUR = signedDossiers.reduce((s: number, d: any) => s + Number(d.saleAmount ?? 0), 0);
@@ -246,7 +250,7 @@ export class IaController {
       // Depuis les VRAIES factures (avant : demandes de paiement E-Paiement).
       const unpaidTotalEUR = facturesNonReglees.reduce((s: number, f: any) => s + Number(f.totalTTC ?? 0), 0);
       const unpaidInvoicesText = facturesNonReglees.slice(0, 10)
-        .map((f: any) => `${f.reference ?? 'facture'} — ${f.clientName || 'client'} : ${eur(Number(f.totalTTC ?? 0))} (${f.status === 'RETARD' ? 'en retard' : 'en attente'})`)
+        .map((f: any) => `${f.reference ?? 'facture'} — ${f.clientName || 'client'} : ${eur(Number(f.totalTTC ?? 0))} (${estRetard(f) ? 'en retard' : 'en attente'})`)
         .join(' ; ');
 
       // RDV / interventions a venir.
