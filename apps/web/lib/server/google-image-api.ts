@@ -485,6 +485,21 @@ export function buildGooglePromptMatiere(
     + 'It is not part of the room, it is not a material, and it must not appear anywhere in your image.',
   );
 
+  // 12/10/2026 — retour cofondatrice : sur un plan 3D, le marbre etait bien
+  // pose mais l'image restait un plan 3D. La consigne « photographie » venait
+  // en fin de texte, apres « tout le reste garde exactement sa matiere et son
+  // fini » : le moteur gardait donc aussi l'aspect 3D. La photographie passe
+  // en tete, comme objectif a part entiere, et « garder » vise desormais ce
+  // qu'est chaque matiere, pas son aspect d'image de synthese.
+  phrases.push(
+    'Your job has two parts and both are mandatory. One: your output is a real interior photograph. '
+    + 'Two: the marked surface receives the new material. '
+    + 'If the first image is a flat 3D export or a plan — even shading, plain untextured surfaces, a computer-generated look — '
+    + 'the whole image must come out as a real photograph of that room: every surface, marked or not, looks like its '
+    + 'real material photographed on site, with true grain, real reflections, contact shadows, soft daylight falloff '
+    + 'and the depth of a lens. An output that still looks like a 3D export has failed, even if the material is right.',
+  );
+
   if (avecEchantillon) {
     phrases.push(
       'The image that follows shows the material to use. Reproduce it faithfully on the marked surface — '
@@ -501,17 +516,16 @@ export function buildGooglePromptMatiere(
   }
 
   phrases.push(
-    'Everything that is not under the magenta overlay keeps the exact colour, material and finish it already has. '
+    'Everything that is not under the magenta overlay stays what it is — the same colour, the same material, the same finish '
+    + '(a white lacquer stays a white lacquer, a grey floor stays grey) — shown as that real material looks in a photograph. '
     + 'You change no layout, no geometry, no viewpoint: the room stays the room, seen from where it is seen. '
     + 'You add nothing — no lamp, no plant, no object, no decor — and you remove nothing.',
   );
 
-  // Meme exigence que sur le Rendu Realiste : un export a plat doit ressortir
-  // en photographie, et une photo deja aboutie doit y gagner, jamais y perdre.
+  // Une photo deja aboutie doit y gagner, jamais y perdre (le cas du plan 3D
+  // est traite en tete de consigne).
   phrases.push(
-    'Your output is a photograph. If the first image is a flat 3D export or a plan, you make it a real '
-    + 'photograph of that room: true materials, real reflections, contact shadows, the depth of a lens. '
-    + 'If it is already a finished photograph, you return it at least as good, never degraded.',
+    'If the first image is already a finished photograph, you return it at least as good, never degraded.',
   );
   phrases.push(
     'The room stays bright. Your image is at least as bright overall as the first image, never darker: '
