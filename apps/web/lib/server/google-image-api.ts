@@ -100,6 +100,41 @@ function enumerer(items: string[]): string {
 }
 
 /**
+ * Le cadrage, attaqué de front.
+ *
+ * 24/09/2026 — sur les cinq essais faits en direct dans l'interface, Google
+ * a recadré CINQ fois sur cinq : vue plus large, angle légèrement différent,
+ * éléments qui entrent dans le champ. Le paramètre d'aspect, lui, est bien
+ * respecté (1232x830 → 3:2, 1280x655 → 16:9, vérifié) : le recadrage est
+ * donc un choix du modèle, pas un réglage manquant.
+ *
+ * Et c'est un biais assumé de l'outil : le guide de Google formule ses
+ * références comme « [images] + [relation] + [NOUVELLE SCÈNE] ». Il pousse
+ * à transformer, pas à préserver le point de vue. On le contre avec du
+ * vocabulaire de photographe — position, focale, hauteur, lignes de fuite,
+ * bords du cadre — plutôt qu'avec un « garde le cadrage » que le modèle
+ * interprète librement.
+ *
+ * Partagé avec la consigne « Remplacer une matière » (12/10/2026) : en
+ * passant un plan 3D en photo, le moteur redressait aussi la vue.
+ */
+const CADRAGE = [
+  'The photograph you produce is taken from the exact same camera position as the first image:',
+  'same viewpoint, same lens and focal length, same camera height, same tilt.',
+  'The four edges of your image show exactly what the four edges of the first image show —',
+  'nothing enters the frame that was not already visible, nothing leaves it, and you do not step back, zoom or pan.',
+  'Vertical lines stay vertical, and the vanishing lines of the floor, the ceiling and the cabinet fronts',
+  'converge exactly where they converge in the first image.',
+  // 12/10/2026 — règle des bords : sur la cuisine à colonne bleue, un mur et
+  // une chaise coupés par le bord droit sont devenus un mur-miroir et une
+  // table complète avec chaises et vaisselle.
+  'Think of it as re-photographing the same room from the same locked tripod.',
+  'An object cut by an edge of the first image stays cut at exactly the same place: you never complete it,',
+  'and you never extend the room beyond the frame to show what lies outside it —',
+  'no extra wall, mirror, wardrobe, table, chair or cabinet appears near the edges.',
+].join(' ');
+
+/**
  * Consigne en PROSE NARRATIVE — c'est la recommandation explicite de Google
  * pour ses modèles image : « a simple list of keywords won't cut it; you need
  * to describe the scene narratively ». Ma première version énumérait
@@ -138,37 +173,7 @@ export function buildGooglePrompt(params: ArchitectParams, nbEchantillons: numbe
     ? 'every volume, opening, window, door, roofline and planting'
     : 'every wall, window, opening, cabinet, appliance, tap, plant and object';
 
-  /**
-   * Le cadrage, attaqué de front.
-   *
-   * 24/09/2026 — sur les cinq essais faits en direct dans l'interface, Google
-   * a recadré CINQ fois sur cinq : vue plus large, angle légèrement différent,
-   * éléments qui entrent dans le champ. Le paramètre d'aspect, lui, est bien
-   * respecté (1232x830 → 3:2, 1280x655 → 16:9, vérifié) : le recadrage est
-   * donc un choix du modèle, pas un réglage manquant.
-   *
-   * Et c'est un biais assumé de l'outil : le guide de Google formule ses
-   * références comme « [images] + [relation] + [NOUVELLE SCÈNE] ». Il pousse
-   * à transformer, pas à préserver le point de vue. On le contre avec du
-   * vocabulaire de photographe — position, focale, hauteur, lignes de fuite,
-   * bords du cadre — plutôt qu'avec un « garde le cadrage » que le modèle
-   * interprète librement.
-   */
-  const cadrage = [
-    'The photograph you produce is taken from the exact same camera position as the first image:',
-    'same viewpoint, same lens and focal length, same camera height, same tilt.',
-    'The four edges of your image show exactly what the four edges of the first image show —',
-    'nothing enters the frame that was not already visible, nothing leaves it, and you do not step back, zoom or pan.',
-    'Vertical lines stay vertical, and the vanishing lines of the floor, the ceiling and the cabinet fronts',
-    'converge exactly where they converge in the first image.',
-    // 12/10/2026 — règle des bords : sur la cuisine à colonne bleue, un mur et
-    // une chaise coupés par le bord droit sont devenus un mur-miroir et une
-    // table complète avec chaises et vaisselle.
-    'Think of it as re-photographing the same room from the same locked tripod.',
-    'An object cut by an edge of the first image stays cut at exactly the same place: you never complete it,',
-    'and you never extend the room beyond the frame to show what lies outside it —',
-    'no extra wall, mirror, wardrobe, table, chair or cabinet appears near the edges.',
-  ].join(' ');
+  const cadrage = CADRAGE;
 
   const phrases: string[] = [];
 
@@ -499,6 +504,7 @@ export function buildGooglePromptMatiere(
     + 'real material photographed on site, with true grain, real reflections, contact shadows, soft daylight falloff '
     + 'and the depth of a lens. An output that still looks like a 3D export has failed, even if the material is right.',
   );
+  phrases.push(`Above everything else: ${CADRAGE}`);
 
   if (avecEchantillon) {
     phrases.push(
