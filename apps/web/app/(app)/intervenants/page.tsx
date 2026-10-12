@@ -475,17 +475,14 @@ export default function IntervenantsHubPage() {
           )}
         </div>
 
-        <div className="grid gap-2.5 sm:grid-cols-3">
+        {/* « Donner accès » retiré le 12/10/2026 (document de la cofondatrice :
+            « Enlever donner accès dans intervenants »). */}
+        <div className="grid gap-2.5 sm:grid-cols-2">
           <ActionButton
             primary
             label="Ajouter un artisan"
             icon={<Plus className="h-4 w-4" />}
             onClick={() => setShowAddForm(true)}
-          />
-          <ActionButton
-            label="Donner accès"
-            icon={<Mail className="h-4 w-4" />}
-            onClick={() => setShowDonnerAcces(true)}
           />
           <ActionButton
             label={relanceLoading ? 'Relance…' : 'Relancer'}
@@ -1022,9 +1019,6 @@ function IntervenantDetailHeader({
         <div className="flex flex-wrap gap-2">
           <button onClick={onSendDemande} className="text-xs font-bold rounded-lg px-3 py-2 bg-[#1a2a1e] text-[#cbb98a] hover:bg-[#3D5449] transition-colors">
             <Send className="inline h-3.5 w-3.5 mr-1" /> Envoyer demande
-          </button>
-          <button onClick={onInvite} className="text-xs font-bold rounded-lg px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200">
-            <Mail className="inline h-3.5 w-3.5 mr-1" /> Donner accès
           </button>
           <button onClick={onEdit} className="text-xs font-bold rounded-lg px-3 py-2 bg-[#a67749]/10 text-[#a67749] hover:bg-[#a67749]/20 border border-[#a67749]/20">
             <Pencil className="inline h-3.5 w-3.5 mr-1" /> Modifier

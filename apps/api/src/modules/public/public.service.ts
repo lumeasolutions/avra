@@ -29,21 +29,32 @@ function mapLines(lines: Array<Record<string, unknown>>) {
 export class PublicService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Bloc « émetteur » à partir du workspace + ses réglages (best-effort). */
+  /**
+   * Bloc « émetteur » montré au client.
+   *
+   * 12/10/2026 : lit d'abord les Coordonnées Société saisies dans Paramètres
+   * (WorkspaceSettings.extra.societe). Avant, seul le nom de l'espace
+   * (« cgdesignplan ») et deux anciennes colonnes étaient lus : un client
+   * voyait un nom technique, sans TVA, téléphone ni e-mail. L'ancien
+   * comportement reste en repli champ par champ.
+   */
   private async emitter(workspaceId: string) {
     const ws = await this.prisma.workspace.findUnique({
       where: { id: workspaceId },
-      select: { name: true, settings: { select: { address: true, siret: true } } },
+      select: { name: true, settings: { select: { address: true, siret: true, extra: true } } },
     });
+    const extra = (ws?.settings?.extra ?? {}) as Record<string, unknown>;
+    const s = (extra.societe ?? {}) as Record<string, unknown>;
+    const lire = (k: string) => (typeof s[k] === 'string' ? (s[k] as string).trim() : '');
     return {
-      nom: ws?.name ?? '',
-      adresse: ws?.settings?.address ?? '',
-      codePostal: '',
-      ville: '',
-      siret: ws?.settings?.siret ?? '',
-      tva: '',
-      phone: '',
-      email: '',
+      nom: lire('nom') || ws?.name || '',
+      adresse: lire('adresse') || ws?.settings?.address || '',
+      codePostal: lire('codePostal'),
+      ville: lire('ville'),
+      siret: lire('siret') || ws?.settings?.siret || '',
+      tva: lire('tva'),
+      phone: lire('phone'),
+      email: lire('email'),
     };
   }
 

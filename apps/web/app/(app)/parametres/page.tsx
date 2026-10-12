@@ -1090,7 +1090,7 @@ export default function ParametresPage() {
               </div>
               <div className="text-right">
                 <p className="text-xs text-white/60">Facturation mensuelle</p>
-                <p className="text-xl font-bold">149€ <span className="text-sm font-normal text-white/60">HT/mois</span></p>
+                <p className="text-xl font-bold">199€ <span className="text-sm font-normal text-white/60">HT/mois</span></p>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 border-t border-white/15 pt-3">

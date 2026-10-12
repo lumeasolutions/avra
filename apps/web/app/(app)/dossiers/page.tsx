@@ -100,7 +100,7 @@ export default function DossiersPage() {
   // Validations d'étapes (persistées via dossierBoard) — pour la mini-jauge des cartes.
   const echeancesValidees = useDossierStore((s) => s.echeancesValidees);
   // Droits : admin = tout ; vendeur = ses propres dossiers uniquement.
-  const { canEditDossier } = useDossierPermissions();
+  const { canEditDossier, isAdmin } = useDossierPermissions();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   // Multi-vendeur (26/05/2026) : filtre par vendeur dans la liste.
@@ -508,14 +508,17 @@ export default function DossiersPage() {
           Tous ({dossiers.length})
         </button>
 
-        {/* Acces aux dossiers perdus (non signes) */}
-        <Link
-          href="/dossiers-perdus"
-          className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border bg-white text-red-600 border-red-200 hover:bg-red-50"
-          title="Voir les dossiers perdus (non signes)"
-        >
-          Perdus ({dossiersPerdus.length})
-        </Link>
+        {/* Acces aux dossiers perdus (non signes) — admin seulement, comme
+            Parametres > Dossiers perdus (decision du 05/10/2026). */}
+        {isAdmin && (
+          <Link
+            href="/parametres?section=perdus"
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border bg-white text-red-600 border-red-200 hover:bg-red-50"
+            title="Voir les dossiers perdus (non signes)"
+          >
+            Perdus ({dossiersPerdus.length})
+          </Link>
+        )}
 
         {/* Filtre vendeur — multi-vendeur 26/05/2026 */}
         {(() => {

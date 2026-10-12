@@ -284,6 +284,15 @@ export default function DossiersSignesPage() {
   const profession = useAuthStore(s => s.profession);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'montant'>('date');
+  /**
+   * Clé de tri d'une date « jj/mm/aaaa » → « aaaammjj ». Comparées telles
+   * quelles, ces dates se triaient par jour du mois : un dossier signé le
+   * 11/10 passait après un dossier du 30/07 (vu le 11/10/2026).
+   */
+  const cleDate = (s?: string) => {
+    const m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(s ?? '');
+    return m ? `${m[3]}${m[2]}${m[1]}` : (s ?? '');
+  };
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeTab, setActiveTab] = useState<'commandes' | 'commande-fournisseur' | 'confirmations'>('commandes');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -330,7 +339,7 @@ export default function DossiersSignesPage() {
     list.sort((a, b) => {
       if (sortBy === 'name') return a.name.localeCompare(b.name);
       if (sortBy === 'montant') return b.montantHT - a.montantHT;
-      return b.signedDate.localeCompare(a.signedDate);
+      return cleDate(b.signedDate).localeCompare(cleDate(a.signedDate));
     });
     return list;
   }, [enriched, search, sortBy]);
@@ -339,7 +348,7 @@ export default function DossiersSignesPage() {
   const totalCA = enriched.reduce((s, d) => s + d.montantHT, 0);
   const moyenneCA = enriched.length > 0 ? totalCA / enriched.length : 0;
   const dernierSigne = enriched.length > 0
-    ? [...enriched].sort((a, b) => b.signedDate.localeCompare(a.signedDate))[0]
+    ? [...enriched].sort((a, b) => cleDate(b.signedDate).localeCompare(cleDate(a.signedDate)))[0]
     : null;
 
   // Stats confirmations

@@ -64,7 +64,9 @@ export default function EpaiementPage() {
       {/* Bandeau sécurité */}
       <div className="flex items-center gap-3 rounded-2xl bg-purple-50 border border-purple-200 px-5 py-3">
         <Lock className="h-4 w-4 text-purple-600 shrink-0" />
-        <p className="text-sm text-purple-700">Paiements sécurisés — chiffrement SSL &amp; authentification 3D Secure</p>
+        {/* 12/10/2026 : le bandeau promettait « 3D Secure » — aucun paiement en
+            ligne n'existe encore, la page suit les règlements. */}
+        <p className="text-sm text-purple-700">Suivi des acomptes, soldes et règlements de vos clients.</p>
       </div>
 
       {/* KPIs */}

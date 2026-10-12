@@ -26,15 +26,15 @@ const faqItems = [
   },
   {
     q: "Qu'est-ce qu'un showroom ?",
-    a: "Un showroom correspond à un point de vente ou un magasin. Le plan Showroom inclut 1 espace distinct avec ses dossiers, son planning et ses 4 utilisateurs.",
+    a: "Un showroom correspond à un point de vente ou un magasin. Le plan Showroom inclut 1 espace distinct avec ses dossiers, son planning et ses 3 utilisateurs.",
   },
   {
     q: "Puis-je ajouter des utilisateurs supplémentaires ?",
-    a: "Le plan Showroom inclut 4 utilisateurs. Pour des besoins supplémentaires ou plusieurs showrooms, le plan Entreprise sur devis est fait pour vous.",
+    a: "Le plan Showroom inclut 3 utilisateurs. Pour des besoins supplémentaires ou plusieurs showrooms, le plan Entreprise sur devis est fait pour vous.",
   },
   {
     q: "Y a-t-il un engagement ?",
-    a: "Aucun. Résiliez en 1 clic, à tout moment, sans frais — sauf abonnement annuel.",
+    a: "Aucun. Résiliez en 1 clic, à tout moment, sans frais.",
   },
   {
     q: "Qu'inclut le plan Entreprise ?",
@@ -43,7 +43,7 @@ const faqItems = [
 ];
 
 const showroomFeatures = [
-  '1 showroom · 4 utilisateurs inclus',
+  '1 showroom · 3 utilisateurs inclus',
   'Assistant AVRA',
   'IA photo-réalisme — 160 rendus/mois',
   '50 signatures électroniques/mois',
@@ -76,7 +76,6 @@ const PWAInstallTarifs = dynamic(() => import('../components/PWAInstallHero').th
 
 export default function TarifsClient() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [annual, setAnnual] = useState(false);
 
   return (
     <>
@@ -221,15 +220,16 @@ export default function TarifsClient() {
         <div style={{ position: 'absolute', bottom: '0%', right: '0%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.09) 0%, transparent 65%)', pointerEvents: 'none', filter: 'blur(40px)' }} />
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 800, height: 300, background: 'radial-gradient(ellipse, rgba(201,169,110,0.05) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-        {/* Toggle */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 56 }}>
+        {/* Toggle Mensuel / Annuel retiré le 12/10/2026 : prix passé à 199 €,
+            aucun tarif annuel fixé. À remettre quand il le sera. */}
+        <div style={{ display: 'none', justifyContent: 'center', marginBottom: 56 }}>
           <div style={{ display: 'inline-flex', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 50, padding: 5, gap: 4, backdropFilter: 'blur(12px)' }}>
-            <button onClick={() => setAnnual(false)} style={{ padding: '9px 26px', borderRadius: 50, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.88rem', fontWeight: 700, background: !annual ? 'linear-gradient(135deg, #c9a96e, #a67749)' : 'transparent', color: !annual ? '#ffffff' : 'rgba(255,255,255,0.5)', transition: 'all 0.25s ease', boxShadow: !annual ? '0 4px 16px rgba(201,169,110,0.35)' : 'none' }}>
+            <button type="button" style={{ padding: '9px 26px', borderRadius: 50, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.88rem', fontWeight: 700, background: 'linear-gradient(135deg, #c9a96e, #a67749)', color: '#ffffff', transition: 'all 0.25s ease' }}>
               Mensuel
             </button>
-            <button onClick={() => setAnnual(true)} style={{ padding: '9px 26px', borderRadius: 50, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.88rem', fontWeight: 700, background: annual ? 'linear-gradient(135deg, #c9a96e, #a67749)' : 'transparent', color: annual ? '#ffffff' : 'rgba(255,255,255,0.5)', transition: 'all 0.25s ease', display: 'flex', alignItems: 'center', gap: 8, boxShadow: annual ? '0 4px 16px rgba(201,169,110,0.35)' : 'none' }}>
+            <button type="button" style={{ padding: '9px 26px', borderRadius: 50, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.88rem', fontWeight: 700, background: 'transparent', color: 'rgba(255,255,255,0.5)', transition: 'all 0.25s ease', display: 'flex', alignItems: 'center', gap: 8 }}>
               Annuel
-              <span style={{ background: annual ? 'rgba(255,255,255,0.25)' : 'rgba(201,169,110,0.25)', color: annual ? '#fff' : '#c9a96e', borderRadius: 50, padding: '2px 8px', fontSize: '.7rem', fontWeight: 700 }}>-13%</span>
+              <span style={{ background: 'rgba(201,169,110,0.25)', color: '#c9a96e', borderRadius: 50, padding: '2px 8px', fontSize: '.7rem', fontWeight: 700 }}>-13%</span>
             </button>
           </div>
         </div>
@@ -261,7 +261,7 @@ export default function TarifsClient() {
                 </div>
                 <div>
                   <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#1e2b22', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>Indépendant</div>
-                  <div style={{ fontSize: '.82rem', color: '#8a9a8d', fontWeight: 500, marginTop: 2 }}>1 showroom · 4 utilisateurs</div>
+                  <div style={{ fontSize: '.82rem', color: '#8a9a8d', fontWeight: 500, marginTop: 2 }}>1 showroom · 3 utilisateurs</div>
                 </div>
               </div>
 
@@ -272,22 +272,16 @@ export default function TarifsClient() {
               <div style={{ background: 'linear-gradient(135deg, rgba(201,169,110,0.08), rgba(201,169,110,0.04))', border: '1px solid rgba(201,169,110,0.25)', borderRadius: 20, padding: '1.4rem 1.6rem', marginBottom: '1.8rem' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginBottom: 6 }}>
                   <span style={{ fontSize: 'clamp(4rem, 8vw, 5.5rem)', fontWeight: 900, color: '#1e2b22', fontFamily: 'var(--font-display)', lineHeight: 1, letterSpacing: '-0.04em' }}>
-                    {annual ? '130' : '149'}
+                    199
                   </span>
                   <div style={{ display: 'flex', flexDirection: 'column', paddingBottom: 10, gap: 0 }}>
                     <span style={{ fontSize: '2rem', fontWeight: 900, color: '#c9a96e', lineHeight: 1 }}>€</span>
                     <span style={{ fontSize: '.78rem', color: '#8a9a8d', fontWeight: 600, lineHeight: 1.2 }}>/mois</span>
                   </div>
                 </div>
-                {annual ? (
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(201,169,110,0.15)', border: '1px solid rgba(201,169,110,0.4)', borderRadius: 50, padding: '4px 14px', fontSize: '.78rem', fontWeight: 700, color: '#a67749' }}>
-                    💰 Économisez 228€/an
-                  </div>
-                ) : (
-                  <div style={{ fontSize: '.82rem', color: '#8a9a8d' }}>
-                    Soit <strong style={{ color: '#a67749' }}>130€/mois</strong> en abonnement annuel
-                  </div>
-                )}
+                <div style={{ fontSize: '.82rem', color: '#8a9a8d' }}>
+                  HT par mois · sans engagement
+                </div>
               </div>
 
               {/* CTA principal — Bêta privée, redirige vers /demo */}
