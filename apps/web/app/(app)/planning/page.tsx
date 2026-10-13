@@ -723,6 +723,19 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
     };
   }, [popoverEventId]);
 
+  /* Téléphone (14/10/2026) : une journée par largeur d'écran, que l'on fait
+     défiler d'un geste (cf. styles .plan-cal-*). À l'ouverture, et quand on
+     revient sur la semaine en cours, on se place sur aujourd'hui. */
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia('(max-width: 900px)').matches) return;
+    const wrap = document.querySelector<HTMLElement>('.plan-cal-wrap');
+    if (!wrap) return;
+    const jour = weekOffset === 0 ? (new Date().getDay() + 6) % 7 : 0;
+    const colonne = wrap.querySelector<HTMLElement>('.plan-cal-inner > .grid > div:nth-child(2)');
+    const largeur = colonne?.getBoundingClientRect().width ?? 0;
+    wrap.scrollTo({ left: jour * largeur, behavior: 'auto' });
+  }, [weekOffset]);
+
   /* Deadlines : dossiers créés avec status URGENT depuis > 7 jours */
   const deadlines = dossiers
     .filter(d => ['URGENT','EN COURS'].includes(d.status))
@@ -742,6 +755,33 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
           .plan-side-panel { width: 100% !important; }
           .plan-cal-wrap { overflow-x: auto; }
           .plan-cal-inner { min-width: 560px; }
+        }
+        /* Téléphone (14/10/2026) : vue « jour ». Chaque journée prend la largeur
+           de l'écran et l'on passe d'un jour à l'autre d'un geste, qui se cale
+           sur le jour suivant. La colonne des heures disparaît : chaque créneau
+           affiche son heure dans son coin (compteur CSS, une ligne = une heure),
+           si bien qu'on la lit quel que soit le jour affiché. La zone des heures
+           garde son défilement interne, qui s'ouvre sur 7 h comme avant. */
+        @media (max-width: 900px) {
+          .plan-cal-wrap {
+            --plan-jour: calc(100vw - 34px);
+            overflow-x: auto; scroll-snap-type: x mandatory;
+            scrollbar-width: none; -webkit-overflow-scrolling: touch;
+          }
+          .plan-cal-wrap::-webkit-scrollbar { display: none; }
+          .plan-main-layout { align-items: stretch !important; }
+          .plan-main-layout > * { min-width: 0; max-width: 100%; }
+          .plan-cal-inner { min-width: 0 !important; width: calc(7 * var(--plan-jour)); }
+          .plan-cal-inner .grid { grid-template-columns: repeat(7, var(--plan-jour)) !important; }
+          .plan-cal-inner .grid > div:first-child { display: none !important; }
+          .plan-cal-inner .grid > div:not(:first-child) { scroll-snap-align: start; }
+          .plan-cal-inner > .relative.overflow-y-auto { counter-reset: heure -1; max-height: min(560px, calc(100dvh - 300px)) !important; }
+          .plan-cal-inner > .relative.overflow-y-auto > .grid { counter-increment: heure; }
+          .plan-cell::before {
+            content: counter(heure) ':00';
+            position: absolute; top: 4px; left: 8px; z-index: 1;
+            font-size: 11px; font-weight: 500; color: rgba(48,64,53,.38); pointer-events: none;
+          }
         }
       ` }} />
       

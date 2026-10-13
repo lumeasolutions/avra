@@ -358,6 +358,28 @@ export default function StockPage() {
           .stk-table-inner { min-width: 700px; }
           .stk-card-grid { grid-template-columns: 1fr !important; }
         }
+        /* Téléphone (14/10/2026) : cartes de chiffres sur un même fond ivoire
+           (les fonds pastel bleu, vert, rouge, violet sortaient de la charte ;
+           la couleur reste sur l'icône) ; actions du bandeau sur une ligne :
+           export en bouton icône, « Ajouter un article » en cuivre. */
+        @media (max-width: 900px) {
+          .stk-kpi-grid > div {
+            background: #fffdfb !important; border-color: rgba(48,64,53,.08) !important;
+            border-radius: 18px !important; box-shadow: 0 6px 18px rgba(48,64,53,.07) !important;
+          }
+          .stk-kpi-grid > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+          .stk-actions { flex-wrap: nowrap !important; width: 100%; }
+          .stk-export {
+            flex: 0 0 44px; width: 44px; height: 44px; padding: 0 !important; justify-content: center;
+            font-size: 0 !important; gap: 0 !important; border-radius: 14px !important;
+            background: rgba(245,238,232,.12) !important; border: 1px solid rgba(226,189,143,.4) !important; box-shadow: none !important;
+          }
+          .stk-export svg { width: 19px !important; height: 19px !important; }
+          .stk-ajouter {
+            flex: 1 1 auto; justify-content: center; height: 44px; padding: 0 12px !important; border-radius: 14px !important;
+            background: linear-gradient(180deg, #c3925f 0%, #a67749 55%, #8f633b 100%) !important;
+          }
+        }
         /* Scrollbar visible custom sur le body de la modale "Nouvel article"
            (19/05/2026) — pour que l'utilisateur sache qu'il peut scroller et
            atteindre le bouton "Enregistrer l'article". */
@@ -375,12 +397,12 @@ export default function StockPage() {
         title="Stock"
         subtitle={`${stockItems.length} article${stockItems.length > 1 ? 's' : ''}`}
         actions={
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="stk-actions flex items-center gap-2 flex-wrap">
             {/* Export button */}
             <button
               onClick={handleExport}
               disabled={exporting}
-              className="flex items-center gap-2 rounded-xl bg-[#10b981] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#10b981]/85 transition-all shadow-md hover:shadow-lg active:scale-95 disabled:opacity-60"
+              className="stk-export flex items-center gap-2 rounded-xl bg-[#10b981] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#10b981]/85 transition-all shadow-md hover:shadow-lg active:scale-95 disabled:opacity-60"
               title="Exporter le stock affiché en fichier Excel (.xlsx)"
             >
               <Download className="h-4 w-4" />
@@ -416,7 +438,7 @@ export default function StockPage() {
             </div>
             <button
               onClick={() => setShowAdd(true)}
-              className="flex items-center gap-2 rounded-xl bg-[#a67749] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#a67749]/85 transition-all shadow-md hover:shadow-lg active:scale-95"
+              className="stk-ajouter flex items-center gap-2 rounded-xl bg-[#a67749] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#a67749]/85 transition-all shadow-md hover:shadow-lg active:scale-95"
             >
               <Plus className="h-4 w-4" />
               Ajouter un article
