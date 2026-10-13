@@ -712,8 +712,8 @@ function OngletDevis({ autoOpen = false }: { autoOpen?: boolean }) {
       </div>
 
       {/* Filtres + bouton */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex gap-2 flex-wrap">
+      <div className="fac-barre flex items-center justify-between flex-wrap gap-3">
+        <div className="fac-filtres flex gap-2 flex-wrap">
           {(['TOUS', 'BROUILLON', 'ENVOYÉ', 'ACCEPTÉ', 'REFUSÉ', 'EXPIRÉ'] as const).map(s => (
             <button key={s} onClick={() => setFilterStatut(s)}
               className={cn('rounded-full px-3 py-1 text-xs font-semibold transition-all',
@@ -724,7 +724,7 @@ function OngletDevis({ autoOpen = false }: { autoOpen?: boolean }) {
           ))}
         </div>
         <button onClick={() => { setEditDevis(undefined); setModalOpen(true); }}
-          className="flex items-center gap-2 rounded-xl px-4 py-2 bg-[#a67749] text-white text-sm font-bold hover:bg-[#a67749]/90 transition-colors shadow-sm">
+          className="fac-nouveau flex items-center gap-2 rounded-xl px-4 py-2 bg-[#a67749] text-white text-sm font-bold hover:bg-[#a67749]/90 transition-colors shadow-sm">
           <Plus className="h-4 w-4" /> Nouveau devis
         </button>
       </div>
@@ -933,8 +933,8 @@ function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
       </div>
 
       {/* Filtres + bouton */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex gap-2 flex-wrap">
+      <div className="fac-barre flex items-center justify-between flex-wrap gap-3">
+        <div className="fac-filtres flex gap-2 flex-wrap">
           {(['TOUTES', 'PAYÉE', 'EN ATTENTE', 'ACOMPTE', 'RETARD', 'AVOIR'] as const).map(s => (
             <button key={s} onClick={() => setFilterStatut(s)}
               className={cn('rounded-full px-3 py-1 text-xs font-semibold transition-all',
@@ -944,7 +944,7 @@ function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="fac-actions flex items-center gap-2 flex-wrap">
           {exportInfo && (
             <span className="text-xs font-semibold text-[#304035]/60">{exportInfo}</span>
           )}
@@ -955,7 +955,7 @@ function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
             <FileText className="h-4 w-4" /> Export comptable
           </button>
           <button onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 bg-[#304035] text-white text-sm font-bold hover:bg-[#304035]/90 transition-colors shadow-sm">
+            className="fac-nouveau flex items-center gap-2 rounded-xl px-4 py-2 bg-[#304035] text-white text-sm font-bold hover:bg-[#304035]/90 transition-colors shadow-sm">
             <Plus className="h-4 w-4" /> Nouvelle facture
           </button>
         </div>
@@ -1220,6 +1220,48 @@ export default function FacturationPage() {
           .fac-ligne-actions svg { width: 16px !important; height: 16px !important; }
         }
 
+
+        /* Téléphone (14/10/2026) :
+           - onglets Devis / Factures / E-facturation / E-paiement sur une
+             rangée pleine largeur qui défile (le dernier était coupé) ;
+           - filtres sur une seule rangée qui défile au lieu de deux lignes ;
+           - « Nouvelle facture / Nouveau devis » en cuivre, pleine largeur,
+             avec « Export comptable » à côté ;
+           - cartes de chiffres sur un même fond, seules les couleurs du texte
+             gardent le sens (encaissé, retard, signés…). */
+        @media (max-width: 900px) {
+          .fac-onglets { width: 100% !important; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap !important; border-radius: 16px !important; }
+          .fac-onglets::-webkit-scrollbar { display: none; }
+          .fac-onglets > button { flex: 0 0 auto; white-space: nowrap; }
+          .fac-barre { flex-direction: column; align-items: stretch !important; gap: 10px !important; }
+          .fac-filtres {
+            flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none;
+            margin: 0 -16px; padding: 2px 16px;
+          }
+          .fac-filtres::-webkit-scrollbar { display: none; }
+          .fac-filtres > button { flex: 0 0 auto; white-space: nowrap; padding: 7px 13px !important; font-size: 12.5px !important; }
+          .fac-actions { flex-wrap: nowrap !important; }
+          .fac-actions { width: 100%; }
+          /* Export comptable : bouton icône (libellé en infobulle), pour laisser
+             la place au bouton principal. */
+          .fac-actions > button:not(.fac-nouveau) {
+            flex: 0 0 48px; width: 48px; height: 48px; padding: 0 !important; justify-content: center;
+            border-radius: 15px !important; font-size: 0 !important; gap: 0 !important;
+          }
+          .fac-actions > button:not(.fac-nouveau) svg { width: 20px !important; height: 20px !important; }
+          .fac-actions > span { display: none; }
+          .fac-nouveau {
+            flex: 1 1 auto; justify-content: center; height: 48px; border-radius: 15px !important;
+            color: #fffaf4 !important;
+            background: linear-gradient(180deg, #c3925f 0%, #a67749 55%, #8f633b 100%) !important;
+            box-shadow: 0 10px 24px rgba(166,119,73,.3), inset 0 1px 0 rgba(255,236,210,.35) !important;
+          }
+          .fac-barre > .fac-nouveau { width: 100%; }
+          .fact-kpi-3 > div, .fact-kpi-4 > div {
+            background: #fffdfb !important; border-color: rgba(48,64,53,.08) !important;
+            border-radius: 18px !important; box-shadow: 0 6px 18px rgba(48,64,53,.07) !important;
+          }
+        }
         @media (max-width: 768px) {
           .fact-kpi-3 { grid-template-columns: 1fr !important; }
           .fact-kpi-4 { grid-template-columns: repeat(2, 1fr) !important; }
@@ -1236,7 +1278,7 @@ export default function FacturationPage() {
         title="Facturation"
         subtitle={`${invoices.length} facture(s) · ${devis.length} devis`}
         actions={
-          <div className="flex gap-1 bg-white/15 border border-white/20 rounded-2xl p-1.5 shadow-sm w-fit">
+          <div className="fac-onglets flex gap-1 bg-white/15 border border-white/20 rounded-2xl p-1.5 shadow-sm w-fit">
             {TABS.map(tab => (
               <button
                 key={tab.key}
