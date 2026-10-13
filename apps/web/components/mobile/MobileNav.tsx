@@ -371,14 +371,9 @@ const STYLES = `
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 104px) !important;
   }
 
-  /* L'assistant (la chouette) remonte au-dessus de la barre, sans son
-     étiquette, plus discret pour ne pas masquer le contenu. */
-  .avra-fab-dock {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 88px) !important;
-    right: 14px !important;
-    transform: scale(.82); transform-origin: bottom right;
-  }
-  .avra-fab-dock .avra-label { display: none !important; }
+  /* L'ancien bouton de l'assistant laisse la place à la chouette
+     déplaçable (components/mobile/ChouetteFlottante). */
+  .avra-fab-dock { display: none !important; }
 
   /* Panneau de l'assistant ouvert : au-dessus de la barre (sinon elle masquait
      le champ de saisie), sur toute la largeur de l'écran. */

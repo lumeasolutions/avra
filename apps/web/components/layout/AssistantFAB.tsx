@@ -3,6 +3,7 @@
 import { useAssistantStore } from '@/store/useAssistantStore';
 import { useConfigStore } from '@/store/useConfigStore';
 import { AssistantPanel } from './AssistantPanel';
+import { ChouetteFlottante } from '@/components/mobile/ChouetteFlottante';
 
 const OWL_B64 = "/nouveaulogochouette.webp";
 
@@ -91,6 +92,9 @@ export function AssistantFAB() {
 
       {/* Panneau flottant */}
       <AssistantPanel open={open} onClose={() => setOpen(false)} />
+
+      {/* Téléphone : chouette déplaçable (le bouton ci-dessous y est masqué). */}
+      <ChouetteFlottante />
 
       {/* Bouton FAB */}
       {/* « avra-fab-dock » : sur téléphone, MobileNav le remonte au-dessus de la barre du bas. */}
