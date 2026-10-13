@@ -1860,3 +1860,22 @@ color: #aaa;
 margin-top: auto;
 
 }
+
+/* ─────────────────────────────────────────
+   ÉCRANS TACTILES (13/10/2026)
+   Une quinzaine de boutons n'apparaissent qu'au survol de la souris
+   (opacity-0 group-hover:opacity-100) : supprimer un article de stock, une
+   commande, un créneau de planning, les actions d'un rendu IA… Sur un
+   téléphone ou une tablette, il n'y a pas de survol : ils restaient
+   invisibles. On les affiche donc d'emblée sur ces écrans. Seuls les
+   boutons, liens et conteneurs de boutons sont concernés : les halos
+   décoratifs révélés au survol restent tels quels.
+   ───────────────────────────────────────── */
+@media (hover: none), (pointer: coarse) {
+  button.group-hover\:opacity-100,
+  a.group-hover\:opacity-100,
+  .group-hover\:opacity-100:has(> button),
+  .group-hover\:opacity-100:has(> a) {
+    opacity: 1 !important;
+  }
+}
