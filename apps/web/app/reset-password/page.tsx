@@ -58,7 +58,7 @@ function ResetPasswordForm() {
 
   return (
     <>
-      <style suppressHydrationWarning>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         * { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(20px); }
@@ -150,7 +150,7 @@ function ResetPasswordForm() {
         @media (max-width: 480px) {
           .rp-card { padding: 36px 24px; }
         }
-      `}</style>
+      ` }} />
 
       <div className="rp-wrapper">
         <div style={{ position: 'absolute', top: '15%', left: '50%', width: '600px', height: '600px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.06) 0%, transparent 60%)', transform: 'translateX(-50%)', pointerEvents: 'none' }} />

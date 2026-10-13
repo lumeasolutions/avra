@@ -68,12 +68,12 @@ export default function SignaturePage() {
 
   return (
     <div className="space-y-6">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .sig-table-wrap { overflow-x: auto; }
           .sig-table-inner { min-width: 600px; }
         }
-      `}</style>
+      ` }} />
       <PageHeader
         icon={<PenTool className="h-7 w-7" />}
         title="Signatures électroniques"

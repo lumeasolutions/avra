@@ -1145,10 +1145,10 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
         )}
       </div>
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes sti-overlay-in { from { opacity: 0 } to { opacity: 1 } }
         @keyframes sti-drawer-in { from { transform: translateX(100%) } to { transform: translateX(0) } }
-      `}</style>
+      ` }} />
     </div>,
     document.body,
   );

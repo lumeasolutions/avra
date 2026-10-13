@@ -161,7 +161,7 @@ export function AdminDocEditModal({ open, doc, onSave, onClose }: AdminDocEditPr
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes ademFade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes ademRise { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
         .adem-bg {
@@ -291,7 +291,7 @@ export function AdminDocEditModal({ open, doc, onSave, onClose }: AdminDocEditPr
         .adem-save:disabled { opacity: 0.5; cursor: not-allowed; }
         .adem-spin { animation: adem-spin 0.8s linear infinite; }
         @keyframes adem-spin { to { transform: rotate(360deg); } }
-      `}</style>
+      ` }} />
 
       <div className="adem-bg" role="dialog" aria-modal="true" onClick={() => { if (!saving) onClose(); }}>
         <div className="adem-card" onClick={(e) => e.stopPropagation()}>

@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <>
-      <style suppressHydrationWarning>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         * { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(20px); }
@@ -133,7 +133,7 @@ export default function ForgotPasswordPage() {
         @media (max-width: 480px) {
           .fp-card { padding: 36px 24px; }
         }
-      `}</style>
+      ` }} />
 
       <div className="fp-wrapper">
         {/* Déco fond */}

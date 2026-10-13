@@ -400,7 +400,7 @@ export default function MenuisierParis() {
           ]
         }) }} />
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .breadcrumb-nav {
           font-size: 0.95rem;
           color: #6b7c70;
@@ -424,7 +424,7 @@ export default function MenuisierParis() {
             transform: translateY(0);
           }
         }
-      `}</style>
+      ` }} />
     </>
   );
 }

@@ -224,7 +224,7 @@ export default function Nav() {
         </div>
       )}
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes navOwlFloat {
           0%, 100% { transform: translateY(0px) rotate(-1.5deg) scale(1); }
           33% { transform: translateY(-3px) rotate(0deg) scale(1.02); }
@@ -253,7 +253,7 @@ export default function Nav() {
           .nav-cta-desktop { display: none !important; }
           .nav-hamburger { display: flex !important; }
         }
-      `}</style>
+      ` }} />
     </>
   );
 }

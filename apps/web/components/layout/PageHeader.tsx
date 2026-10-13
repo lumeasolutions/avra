@@ -13,6 +13,93 @@ interface PageHeaderProps {
   extra?: React.ReactNode;
 }
 
+/**
+ * Styles du bandeau. Injectés par dangerouslySetInnerHTML : écrits en enfant
+ * texte d'une balise <style>, React échappait les apostrophes des commentaires
+ * différemment côté serveur et côté navigateur — erreur d'hydratation sur
+ * chaque page qui affiche ce bandeau.
+ */
+const STYLES = `
+/* Portable (≈1366-1536 px) : quand titre + onglets ne tiennent pas sur
+   une ligne, les actions passent dessous au lieu d'écraser le titre
+   (vu le 11/10/2026 sur Facturation : sous-titre illisible). Placé
+   AVANT le bloc mobile, qui garde le dernier mot sur téléphone. */
+.page-header-top-row { flex-wrap: wrap; row-gap: 8px; }
+.page-header-title-block { min-width: 190px !important; }
+
+/* Téléphone (13/10/2026) : même matière que le menu « Plus » — façades
+   laquées vert profond, filet de lumière — titre en Playfair, retour en
+   verre dépoli. Seuil 900 px, aligné sur la barre de navigation du bas. */
+@media (max-width: 900px) {
+  .page-header-root {
+    padding: 16px 16px 15px !important;
+    border-radius: 22px !important;
+    background:
+      linear-gradient(115deg, rgba(20,28,23,.92) 0%, rgba(26,36,30,.78) 55%, rgba(20,28,23,.55) 100%),
+      url('/images/mobile/menu-laque.webp') 70% 38% / cover no-repeat,
+      #1d2820 !important;
+    border: 1px solid rgba(226,189,143,.16);
+    box-shadow: 0 14px 32px rgba(20,28,23,.28), inset 0 1px 0 rgba(255,255,255,.06) !important;
+    overflow: hidden !important;
+  }
+  .page-header-root::after {
+    content: ''; position: absolute; left: 16px; right: 16px; bottom: 0; height: 1px;
+    background: linear-gradient(90deg, rgba(201,154,106,0), rgba(201,154,106,.55) 30%, rgba(226,189,143,.7) 50%, rgba(201,154,106,.55) 70%, rgba(201,154,106,0));
+    pointer-events: none;
+  }
+  .page-header-owl {
+    display: none !important;
+  }
+  .page-header-title {
+    font-family: var(--font-playfair-display, 'Playfair Display'), Georgia, serif !important;
+    font-weight: 600 !important;
+    font-size: 21px !important;
+    letter-spacing: 0 !important;
+    color: #fffaf4 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .page-header-subtitle {
+    font-size: 12.5px !important;
+    color: rgba(245,238,232,.66) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .page-header-back-btn {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    flex-shrink: 0 !important;
+    background: rgba(245,238,232,.1) !important;
+    border: 1px solid rgba(226,189,143,.4) !important;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  .page-header-top-row {
+    flex-wrap: wrap !important;
+    gap: 8px 12px !important;
+  }
+  .page-header-title-block {
+    min-width: 0 !important;
+  }
+  .page-header-actions {
+    width: 100% !important;
+    margin-top: 6px !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    /* Les boutons passent à la ligne : pas besoin de défilement horizontal,
+       qui laissait une barre de défilement visible à droite. */
+    overflow: visible !important;
+  }
+  /* Bouton rond « Tableau de bord » (dossiers) : sans son étiquette, qui
+     débordait (« TABLEAU DE BOR »), et un peu plus compact. */
+  .page-header-actions .dtb-label { display: none !important; }
+  .page-header-actions .dtb-wrap { transform: scale(.78); transform-origin: center; margin: -7px -4px; }
+}
+`;
+
 export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle, actions, extra }: PageHeaderProps) {
   const router = useRouter();
 
@@ -29,55 +116,7 @@ export const PageHeader = React.memo(function PageHeader({ icon, title, subtitle
         position: 'relative',
       }}
     >
-      <style>{`
-        /* Portable (≈1366-1536 px) : quand titre + onglets ne tiennent pas sur
-           une ligne, les actions passent dessous au lieu d'écraser le titre
-           (vu le 11/10/2026 sur Facturation : sous-titre illisible). Placé
-           AVANT le bloc mobile, qui garde le dernier mot sous 768 px. */
-        .page-header-top-row { flex-wrap: wrap; row-gap: 8px; }
-        .page-header-title-block { min-width: 190px !important; }
-        @media (max-width: 768px) {
-          .page-header-root {
-            padding: 12px 16px !important;
-            border-radius: 12px !important;
-          }
-          .page-header-owl {
-            display: none !important;
-          }
-          .page-header-title {
-            font-size: 17px !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-          }
-          .page-header-subtitle {
-            font-size: 11px !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-          }
-          .page-header-back-btn {
-            width: 32px !important;
-            height: 32px !important;
-            min-width: 32px !important;
-            flex-shrink: 0 !important;
-          }
-          .page-header-top-row {
-            flex-wrap: wrap !important;
-            gap: 6px !important;
-          }
-          .page-header-title-block {
-            min-width: 0 !important;
-          }
-          .page-header-actions {
-            width: 100% !important;
-            margin-top: 6px !important;
-            flex-wrap: wrap !important;
-            gap: 6px !important;
-            overflow-x: auto !important;
-          }
-        }
-      `}</style>
+      <style dangerouslySetInnerHTML={{ __html: STYLES }} />
 
       {/* Ligne principale: retour + titre + actions */}
       <div className="page-header-top-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

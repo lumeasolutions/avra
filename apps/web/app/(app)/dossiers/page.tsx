@@ -217,14 +217,14 @@ export default function DossiersPage() {
 
   return (
     <div className="space-y-6 w-full">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .dos-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .dos-search-bar { flex-direction: column !important; }
           .dos-search-bar > * { width: 100% !important; }
           .dos-top-row { grid-template-columns: 1fr !important; }
         }
-      `}</style>
+      ` }} />
 
       {/* ── Purge opt-in : dossiers présents seulement dans ce navigateur ── */}
       {localOrphans.length > 0 && !purgeDismissed && (
@@ -300,7 +300,7 @@ export default function DossiersPage() {
        *  + le widget ValidationDashboard. Click sur la X ou backdrop pour fermer. */}
       {showDashboard && (
         <>
-          <style>{`
+          <style dangerouslySetInnerHTML={{ __html: `
             @keyframes dboardReveal {
               0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.85) rotate(-1deg); filter: blur(6px); }
               60%  { opacity: 1; transform: translate(-50%, -50%) scale(1.02) rotate(0); filter: blur(0); }
@@ -395,7 +395,7 @@ export default function DossiersPage() {
               .dboard-panel { width: calc(100vw - 24px); max-height: 90vh; }
               .dboard-aura { width: calc(100vw - 12px); }
             }
-          `}</style>
+          ` }} />
 
           <div className="dboard-backdrop" onClick={() => setShowDashboard(false)} aria-hidden="true" />
           <div className="dboard-aura" aria-hidden="true" />

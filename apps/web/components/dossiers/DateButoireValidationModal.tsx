@@ -882,7 +882,7 @@ export function DateButoireValidationModal({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes dbvFade {
           from { opacity: 0; backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); }
           to   { opacity: 1; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
@@ -1699,7 +1699,7 @@ export function DateButoireValidationModal({
           transform: translateY(-1px);
           box-shadow: 0 4px 10px rgba(166,119,73,0.25);
         }
-      `}</style>
+      ` }} />
 
       <div
         className="dbv-bg"
@@ -2265,7 +2265,7 @@ function CommandesAccessPanel({
 
   return (
     <div className="cap-pane">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes capSlideIn {
           from { opacity: 0; transform: translateX(20px); }
           to   { opacity: 1; transform: translateX(0); }
@@ -2508,7 +2508,7 @@ function CommandesAccessPanel({
           color: rgba(48,64,53,0.4);
           font-size: 12px;
         }
-      `}</style>
+      ` }} />
 
       {/* Header */}
       <div className="cap-header">

@@ -358,7 +358,7 @@ export default function DossiersSignesPage() {
 
   return (
     <div className="space-y-5 w-full">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .sig-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .sig-search-bar { flex-direction: column !important; }
@@ -367,7 +367,7 @@ export default function DossiersSignesPage() {
           .sig-modal { max-width: 100% !important; margin: 0 !important; border-radius: 16px !important; }
           .sig-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
-      `}</style>
+      ` }} />
       
 
       {/* ── HEADER ── */}
@@ -961,7 +961,7 @@ function SignesDashboardPanel({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes sigDashIn {
           0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
           100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
@@ -982,7 +982,7 @@ function SignesDashboardPanel({
           box-shadow: 0 30px 80px rgba(0,0,0,0.35);
           animation: sigDashIn 0.3s cubic-bezier(0.34, 1.42, 0.64, 1);
         }
-      `}</style>
+      ` }} />
       <div className="sig-dash-backdrop" onClick={onClose} aria-hidden="true" />
       <aside id="signes-dashboard-panel" className="sig-dash-panel" role="dialog" aria-label="Tableau de bord dossiers signes">
         <div style={{

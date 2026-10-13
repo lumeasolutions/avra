@@ -111,7 +111,7 @@ export function MarketingChat() {
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes mcBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
         @keyframes mcPulseRing { 0%{transform:scale(1);opacity:0.8} 100%{transform:scale(1.5);opacity:0} }
         @keyframes mcOpen { from{opacity:0;transform:translateY(16px) scale(0.95)} to{opacity:1;transform:translateY(0) scale(1)} }
@@ -126,7 +126,7 @@ export function MarketingChat() {
         .mc-scroll::-webkit-scrollbar-thumb { background: rgba(61,84,73,0.2); border-radius: 10px; }
         .mc-btn:hover { transform: scale(1.05); }
         .mc-suggestion:hover { background: #f0f5f2 !important; border-color: #3D5449 !important; color: #3D5449 !important; }
-      `}</style>
+      ` }} />
 
       {/* Panel chat */}
       {open && (

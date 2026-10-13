@@ -56,7 +56,7 @@ export function AdminDocDeleteModal({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes addmFade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes addmRise {
           from { opacity: 0; transform: translateY(20px) scale(0.96); }
@@ -189,7 +189,7 @@ export function AdminDocDeleteModal({
         .addm-btn:disabled { opacity: 0.55; cursor: not-allowed; }
         .addm-spin { animation: spin 0.9s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+      ` }} />
 
       <div
         className="addm-bg"

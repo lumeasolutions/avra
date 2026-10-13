@@ -112,12 +112,12 @@ export function StatsManualEntryModal({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes smeFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes smeScaleIn { from { transform: scale(0.96) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
         .sme-overlay { animation: smeFadeIn 0.25s ease-out; }
         .sme-card { animation: smeScaleIn 0.32s cubic-bezier(0.22,1,0.36,1); }
-      `}</style>
+      ` }} />
 
       <div
         className="sme-overlay"

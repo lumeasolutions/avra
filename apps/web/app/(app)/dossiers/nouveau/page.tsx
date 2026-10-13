@@ -253,7 +253,7 @@ export default function NouveauDossierPage() {
         }
       />
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .nou-form-grid { grid-template-columns: 1fr !important; }
           .nou-form-grid > .col-span-2,
@@ -262,7 +262,7 @@ export default function NouveauDossierPage() {
           .nou-sub-grid-3 { grid-template-columns: 1fr !important; }
           .nou-sub-grid-3 > .col-span-2 { grid-column: span 1 !important; }
         }
-      `}</style>
+      ` }} />
       <form onSubmit={handleSubmit}>
         <div className="nou-form-grid grid grid-cols-3 gap-5">
 

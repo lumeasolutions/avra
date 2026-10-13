@@ -579,7 +579,7 @@ function AdminDocsPageInner() {
 
   return (
     <div className="space-y-5 relative">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .adm-main-layout { flex-direction: column !important; }
           .adm-sidebar { width: 100% !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 6px !important; }
@@ -611,7 +611,7 @@ function AdminDocsPageInner() {
         .adm-drop-card svg { color: #a67749; margin: 0 auto 12px; }
         .adm-drop-card h3 { margin: 0; font-size: 22px; color: #1a1614; font-weight: 800; }
         .adm-drop-card p { margin: 6px 0 0; font-size: 13px; color: rgba(48,64,53,0.6); }
-      `}</style>
+      ` }} />
 
       {/* ── Drop zone overlay (drag&drop global) ── */}
       {dragOverPage && !showUpload && (

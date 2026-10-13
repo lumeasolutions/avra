@@ -262,7 +262,7 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes apFloat  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
         @keyframes apBlink  { 0%,100%{opacity:1} 50%{opacity:0.3} }
         @keyframes apSlide  { from{opacity:0;transform:translateX(10px)} to{opacity:1;transform:translateX(0)} }
@@ -284,7 +284,7 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
         .ap-textarea { word-wrap: break-word; overflow-wrap: anywhere; }
         .ap-card { transition:transform .15s,box-shadow .15s; }
         .ap-card:hover { transform:translateX(3px); box-shadow:0 4px 16px rgba(0,0,0,0.10) !important; }
-      `}</style>
+      ` }} />
 
 
 

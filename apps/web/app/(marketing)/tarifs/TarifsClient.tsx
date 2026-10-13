@@ -162,7 +162,7 @@ export default function TarifsClient() {
         </div>
       </section>
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes pricePulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(201,169,110,0.4), 0 24px 80px rgba(201,169,110,0.25); }
           50% { box-shadow: 0 0 0 12px rgba(201,169,110,0), 0 24px 80px rgba(201,169,110,0.4); }
@@ -204,7 +204,7 @@ export default function TarifsClient() {
             grid-template-columns: 1fr !important;
           }
         }
-      `}</style>
+      ` }} />
 
       {/* ── PLANS ── */}
       <section

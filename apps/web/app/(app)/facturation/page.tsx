@@ -1206,7 +1206,7 @@ export default function FacturationPage() {
 
   return (
     <div className="space-y-6">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .fact-kpi-3 { grid-template-columns: 1fr !important; }
           .fact-kpi-4 { grid-template-columns: repeat(2, 1fr) !important; }
@@ -1216,7 +1216,7 @@ export default function FacturationPage() {
           .fact-search-bar > * { width: 100% !important; }
           .fact-modal { max-width: 100% !important; }
         }
-      `}</style>
+      ` }} />
       {/* Header */}
       <PageHeader
         icon={<FileText className="h-7 w-7" />}

@@ -647,7 +647,7 @@ export function StatsGateModal({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes sgFadeIn { from { opacity: 0; backdrop-filter: blur(0); } to { opacity: 1; backdrop-filter: blur(6px); } }
         @keyframes sgScaleIn { from { transform: scale(0.94) translateY(8px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
         @keyframes sgGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(217,179,138,0.5); } 50% { box-shadow: 0 0 0 8px rgba(217,179,138,0); } }
@@ -665,7 +665,7 @@ export function StatsGateModal({
           mask: radial-gradient(circle, transparent 7px, #000 8px);
           -webkit-mask: radial-gradient(circle, transparent 7px, #000 8px);
         }
-      `}</style>
+      ` }} />
 
       <div
         className="sg-overlay"

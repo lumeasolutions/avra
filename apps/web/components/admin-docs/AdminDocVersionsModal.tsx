@@ -72,7 +72,7 @@ export function AdminDocVersionsModal({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes adsvFade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes adsvRise { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
         .adsv-bg {
@@ -182,7 +182,7 @@ export function AdminDocVersionsModal({
           background: #fef2f2; border: 1px solid #fecaca;
           color: #991b1b; font-size: 12px;
         }
-      `}</style>
+      ` }} />
 
       <div className="adsv-bg" onClick={() => { if (!uploading) onClose(); }}>
         <div className="adsv-card" onClick={(e) => e.stopPropagation()}>
@@ -232,7 +232,7 @@ export function AdminDocVersionsModal({
                 </>
               )}
             </label>
-            <style>{`@keyframes adsv-spin { to { transform: rotate(360deg); } }`}</style>
+            <style dangerouslySetInnerHTML={{ __html: `@keyframes adsv-spin { to { transform: rotate(360deg); } }` }} />
           </div>
 
           <div className="adsv-list">

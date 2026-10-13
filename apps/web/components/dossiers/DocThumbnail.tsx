@@ -226,7 +226,7 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
         border: `1px solid ${style.ring}`,
       }}
     >
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .dt-wrap {
           position: relative;
           width: 100%;
@@ -300,7 +300,7 @@ export function DocThumbnail({ doc, dossierId, height = 120 }: Props) {
           text-align: center;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-      `}</style>
+      ` }} />
 
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element

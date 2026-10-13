@@ -327,7 +327,7 @@ function SkeletonList() {
           borderRadius: 12,
         }} />
       ))}
-      <style>{`@keyframes pulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes pulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }` }} />
     </>
   );
 }

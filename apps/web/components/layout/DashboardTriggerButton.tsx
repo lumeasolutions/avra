@@ -28,7 +28,7 @@ export function DashboardTriggerButton({
 }: Props) {
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes dtbAuraRotate { to { transform: rotate(360deg); } }
         @keyframes dtbPulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(217,179,138,.55), 0 8px 22px rgba(217,179,138,.35), inset 0 1px 0 rgba(255,255,255,.4); }
@@ -99,7 +99,7 @@ export function DashboardTriggerButton({
           white-space: nowrap; text-align: center; line-height: 1.2;
           text-shadow: 0 1px 4px rgba(0,0,0,.3);
         }
-      `}</style>
+      ` }} />
       <div className="dtb-wrap" style={{ width: size }}>
         <div className="dtb-circle" style={{ width: size, height: size }}>
           <span className="dtb-aura" aria-hidden="true" />

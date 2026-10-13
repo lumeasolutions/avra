@@ -165,7 +165,7 @@ export default function EFacturationPortal() {
           <div className="w-12 h-12 border-4 border-[#e2e8f0] border-t-[#6366f1] rounded-full animate-spin mx-auto mb-4" />
           <p className="text-[#64748b] text-[15px]">Chargement du document…</p>
         </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <style dangerouslySetInnerHTML={{ __html: `@keyframes spin { to { transform: rotate(360deg); } }` }} />
       </div>
     );
   }
@@ -248,7 +248,7 @@ export default function EFacturationPortal() {
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; }
         @media print {
@@ -258,7 +258,7 @@ export default function EFacturationPortal() {
           .doc-card { box-shadow: none; border-radius: 0; }
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
+      ` }} />
 
       {/* Header portail */}
       <div className="no-print bg-[#1e293b] text-white py-[14px] px-6 flex items-center justify-between sticky top-0 z-50">

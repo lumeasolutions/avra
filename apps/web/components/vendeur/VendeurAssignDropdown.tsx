@@ -170,12 +170,12 @@ export function VendeurAssignDropdown({
             padding: 6, animation: 'vadFadeIn 0.14s ease-out',
           }}
         >
-          <style>{`
+          <style dangerouslySetInnerHTML={{ __html: `
             @keyframes vadFadeIn {
               from { opacity: 0; transform: translateY(-4px); }
               to { opacity: 1; transform: translateY(0); }
             }
-          `}</style>
+          ` }} />
           {options.length === 0 ? (
             <p style={{
               margin: 0, padding: '10px 12px', fontSize: 11,

@@ -86,12 +86,12 @@ export function PWAInstallHero() {
         </div>
       )}
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes pwaBtnPulse {
           0%, 100% { box-shadow: 0 8px 40px rgba(201,169,110,0.5); }
           50% { box-shadow: 0 8px 60px rgba(201,169,110,0.75); }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }

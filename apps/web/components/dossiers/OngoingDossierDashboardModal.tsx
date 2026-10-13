@@ -73,7 +73,7 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes odbFadeBg {
           from { opacity: 0; backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); }
           to   { opacity: 1; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
@@ -286,7 +286,7 @@ export function OngoingDossierDashboardModal({ dossier, onClose }: Props) {
           display: inline-flex; align-items: center; gap: 6px;
           box-shadow: 0 4px 14px rgba(48,64,53,0.25);
         }
-      `}</style>
+      ` }} />
 
       <div className="odb-backdrop" onClick={onClose}>
         <div className="odb-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Tableau de bord du dossier">

@@ -346,7 +346,7 @@ export default function StockPage() {
 
   return (
     <div className="space-y-6">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         /* Le tableau ne se comprime plus jusqu'à écrire les modèles lettre par
            lettre (vu à 1536 px avec l'assistant ouvert) : largeur minimale,
            défilement horizontal au-delà. */
@@ -366,7 +366,7 @@ export default function StockPage() {
         .stock-modal-body::-webkit-scrollbar-track { background: rgba(48,64,53,0.04); border-radius: 8px; margin: 4px 0; }
         .stock-modal-body::-webkit-scrollbar-thumb { background: rgba(48,64,53,0.3); border-radius: 8px; border: 2px solid #fff; }
         .stock-modal-body::-webkit-scrollbar-thumb:hover { background: rgba(48,64,53,0.5); }
-      `}</style>
+      ` }} />
       
 
       {/* ── HEADER ── */}

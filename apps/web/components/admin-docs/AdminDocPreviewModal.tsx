@@ -91,7 +91,7 @@ export function AdminDocPreviewModal({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes adpFade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes adpRise { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
         .adp-backdrop {
@@ -171,7 +171,7 @@ export function AdminDocPreviewModal({
         .adp-fallback svg { color: rgba(255,255,255,0.35); margin: 0 auto 14px; }
         .adp-fallback h4 { margin: 0 0 8px; color: #fff; font-size: 16px; }
         .adp-fallback p { margin: 0 0 18px; font-size: 13px; line-height: 1.5; }
-      `}</style>
+      ` }} />
 
       <div
         className="adp-backdrop"

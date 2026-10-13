@@ -21,7 +21,7 @@ export function BackButton() {
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes bbPulse {
           0%   { transform: translateY(-50%) scale(1); }
           30%  { transform: translateY(-50%) scale(1.35); }
@@ -130,7 +130,7 @@ export function BackButton() {
           height: 20px;
           transition: color 0.15s;
         }
-      `}</style>
+      ` }} />
 
       {/* Anneaux pulsants */}
       <div className="bb-ring bb-ring1" />

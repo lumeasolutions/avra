@@ -284,7 +284,7 @@ export default function CommentCaMarchePage() {
       </section>
 
       {/* ─── STEPS ─── */}
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes stepGlow {
           0%, 100% { opacity: 0.6; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.08); }
@@ -307,7 +307,7 @@ export default function CommentCaMarchePage() {
             gap: 32px !important;
           }
         }
-      `}</style>
+      ` }} />
       <section id="etapes" style={{
         padding: '120px 5%',
         background: 'linear-gradient(180deg, #080d09 0%, #0e1810 40%, #0a0c0a 100%)',
@@ -749,11 +749,11 @@ export default function CommentCaMarchePage() {
           </div>
         </div>
 
-        <style>{`
+        <style dangerouslySetInnerHTML={{ __html: `
           @keyframes pwaOrb1 { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-30px) scale(1.05)} }
           @keyframes pwaOrb2 { 0%,100%{transform:translateX(0) scale(1)} 50%{transform:translateX(30px) scale(1.08)} }
           @media(max-width:768px) { .pwa-grid { grid-template-columns: 1fr !important; } }
-        `}</style>
+        ` }} />
       </section>
 
       {/* ─── SUPPORT ─── */}

@@ -735,7 +735,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
 
   return (
     <div className="w-full space-y-4">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .plan-kpi-extra { grid-template-columns: repeat(2, 1fr) !important; }
           .plan-main-layout { flex-direction: column !important; }
@@ -743,7 +743,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
           .plan-cal-wrap { overflow-x: auto; }
           .plan-cal-inner { min-width: 560px; }
         }
-      `}</style>
+      ` }} />
       
 
       {/* ── HEADER avec nav + KPIs intégrés ── */}

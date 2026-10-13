@@ -64,7 +64,7 @@ export function DeleteDossierModal({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes ddmFadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
@@ -238,7 +238,7 @@ export function DeleteDossierModal({
         .ddm-btn:disabled { opacity: 0.55; cursor: not-allowed; }
         .ddm-spin { animation: spin 0.9s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+      ` }} />
 
       <div
         className="ddm-backdrop"

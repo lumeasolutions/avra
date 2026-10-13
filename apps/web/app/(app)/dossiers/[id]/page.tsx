@@ -817,7 +817,7 @@ export default function DossierDetailPage() {
           <strong>Lecture seule</strong> — ce dossier appartient à un autre vendeur. Vous pouvez le consulter et télécharger les documents, mais pas le modifier ni le supprimer.
         </div>
       )}
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         /* Colonne « Dossiers & fichiers » étroite (petit écran d'ordinateur) :
            à côté des 5 boutons d'action il ne reste que ~40 px pour le nom,
            qui se cassait lettre par lettre. On passe le nom sur sa propre
@@ -854,7 +854,7 @@ export default function DossierDetailPage() {
             padding: 18px !important;
           }
         }
-      `}</style>
+      ` }} />
 
       {/* ══════════════════════════════════════════
           HEADER WAHOU — fond texturé vert
@@ -976,7 +976,7 @@ export default function DossierDetailPage() {
 
           {/* Bouton Tableau de bord — rond, anime, voyant.
               Place entre la progression d'etapes et la colonne d'actions. */}
-          <style>{`
+          <style dangerouslySetInnerHTML={{ __html: `
             @keyframes ddbBtnAuraRotate { to { transform: rotate(360deg); } }
             @keyframes ddbBtnPulse {
               0%, 100% { box-shadow: 0 0 0 0 rgba(217, 179, 138, 0.55), 0 8px 22px rgba(217, 179, 138, 0.35), inset 0 1px 0 rgba(255,255,255,0.4); }
@@ -1087,7 +1087,7 @@ export default function DossierDetailPage() {
               .ddb-trigger-circle { width: 52px; height: 52px; }
               .ddb-trigger-label { font-size: 9px; }
             }
-          `}</style>
+          ` }} />
           <div className="ddb-trigger-wrap">
             <div className="ddb-trigger-circle">
               <span className="ddb-trigger-aura" aria-hidden="true" />
@@ -1693,7 +1693,7 @@ export default function DossierDetailPage() {
 
           {/* Bande Échéances (dates butoires) — badge ! sur les retards/imminents,
               + surbrillance quand on arrive via un clic depuis l'assistant. */}
-          <style>{`
+          <style dangerouslySetInnerHTML={{ __html: `
             @keyframes avraAlertPulse {
               0%, 100% { box-shadow: 0 0 0 0 rgba(211,47,47,0); }
               25%      { box-shadow: 0 0 0 3px rgba(211,47,47,0.45); }
@@ -1703,7 +1703,7 @@ export default function DossierDetailPage() {
               border-radius: 12px;
               background: rgba(211,47,47,0.06) !important;
             }
-          `}</style>
+          ` }} />
           <DossierEcheances dossierId={id} />
 
           {/* Résumé financier */}
@@ -2206,7 +2206,7 @@ export default function DossierDetailPage() {
                             className={`dt-card group relative ${!readOnly && doc.docId ? 'cursor-grab active:cursor-grabbing' : ''}`}
                             style={{ position: 'relative', opacity: draggingDoc?.docId && draggingDoc.docId === doc.docId ? 0.4 : 1 }}
                           >
-                            <style>{`
+                            <style dangerouslySetInnerHTML={{ __html: `
                               .dt-card { transition: transform 0.18s ease; }
                               .dt-actions {
                                 position: absolute; top: 6px; left: 6px;
@@ -2230,7 +2230,7 @@ export default function DossierDetailPage() {
                               .dt-action-dl:hover { color: #a67749; background: #fff8ef; }
                               .dt-action-rm:hover { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
                               .dt-action-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
-                            `}</style>
+                            ` }} />
                             <button
                               type="button"
                               onClick={() => canPreview && openPreview(doc)}
@@ -2729,7 +2729,7 @@ export default function DossierDetailPage() {
             animation: 'dcFadeIn 0.25s ease-out',
           }}
         >
-          <style>{`
+          <style dangerouslySetInnerHTML={{ __html: `
             @keyframes dcFadeIn { from { opacity: 0; } to { opacity: 1; } }
             @keyframes dcPopIn {
               0% { opacity: 0; transform: scale(0.85) translateY(20px); }
@@ -2747,7 +2747,7 @@ export default function DossierDetailPage() {
               0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5), 0 20px 60px rgba(239,68,68,0.3); }
               50%      { box-shadow: 0 0 0 14px rgba(239,68,68,0), 0 20px 60px rgba(239,68,68,0.45); }
             }
-          `}</style>
+          ` }} />
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -2945,7 +2945,7 @@ export default function DossierDetailPage() {
 
         return (
           <>
-            <style>{`
+            <style dangerouslySetInnerHTML={{ __html: `
               @keyframes ddbFadeBg {
                 from { opacity: 0; backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); }
                 to   { opacity: 1; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
@@ -3274,7 +3274,7 @@ export default function DossierDetailPage() {
                 .ddb-panel { top: 70px; right: 12px; left: 12px; width: auto; }
                 .ddb-progress-pct { font-size: 24px; }
               }
-            `}</style>
+            ` }} />
 
             <div className="ddb-backdrop" onClick={() => setShowDashboard(false)} aria-hidden="true" />
             <div className="ddb-aura" aria-hidden="true" />

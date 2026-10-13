@@ -152,14 +152,14 @@ export default function AgencementToulouse() {
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://avra-app.fr/' }, { '@type': 'ListItem', position: 2, name: 'Métiers', item: 'https://avra-app.fr/metiers' }, { '@type': 'ListItem', position: 3, name: 'Agenceur', item: 'https://avra-app.fr/agenceur' }, { '@type': 'ListItem', position: 4, name: 'Toulouse', item: 'https://avra-app.fr/agencement-toulouse' }] }) }} />
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .breadcrumb-nav { font-size: 0.95rem; color: #6b7c70; }
         .breadcrumb-nav a { color: #6b7c70; text-decoration: none; transition: color 0.3s ease; }
         .breadcrumb-nav a:hover { color: #c9a96e; }
         .breadcrumb-nav span { color: #6b7c70; margin: '0 8px'; }
         .reveal { opacity: 0; transform: translateY(20px); animation: revealAnim 0.8s ease forwards; }
         @keyframes revealAnim { to { opacity: 1; transform: translateY(0); } }
-      `}</style>
+      ` }} />
     </>
   );
 }

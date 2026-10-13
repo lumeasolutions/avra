@@ -369,7 +369,7 @@ export default function MetiersPage() {
       {/* ══════════════════════════════════════════
           AVANT / APRÈS — RENDU IA PHOTO-RÉALISTE
       ══════════════════════════════════════════ */}
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes avApresGlow {
           0%, 100% { box-shadow: 0 0 40px rgba(201,169,110,0.15), 0 0 0 1px rgba(201,169,110,0.2); }
           50% { box-shadow: 0 0 80px rgba(201,169,110,0.35), 0 0 0 1px rgba(201,169,110,0.5); }
@@ -397,7 +397,7 @@ export default function MetiersPage() {
             min-height: 280px !important;
           }
         }
-      `}</style>
+      ` }} />
       <section style={{
         padding: '120px 5%',
         background: 'linear-gradient(180deg, #07100a 0%, #0d1a10 50%, #060d08 100%)',

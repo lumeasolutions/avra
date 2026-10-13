@@ -144,12 +144,12 @@ export default function PWAInstallButton({ variant = 'hero' }: Props) {
         </div>
       )}
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes installPulse {
           0%, 100% { box-shadow: 0 8px 32px rgba(201,169,110,0.45), 0 2px 8px rgba(0,0,0,0.3); }
           50% { box-shadow: 0 8px 48px rgba(201,169,110,0.7), 0 2px 8px rgba(0,0,0,0.3); }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }

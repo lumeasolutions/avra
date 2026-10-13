@@ -636,7 +636,7 @@ export default function PlanningGestionPage() {
             : `📧 ${intervSent} a été prévenu(e) par e-mail.`}
         </div>
       )}
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .pg-kpi-extra { grid-template-columns: repeat(2, 1fr) !important; }
           .pg-main-layout { flex-direction: column !important; }
@@ -644,7 +644,7 @@ export default function PlanningGestionPage() {
           .pg-cal-wrap { overflow-x: auto; }
           .pg-cal-inner { min-width: 560px; }
         }
-      `}</style>
+      ` }} />
 
       {refusRdv && (
         <div style={{

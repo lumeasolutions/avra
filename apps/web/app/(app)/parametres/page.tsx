@@ -503,13 +503,13 @@ export default function ParametresPage() {
 
   return (
     <div className="space-y-5">
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .param-kpi-3 { grid-template-columns: 1fr !important; }
           .param-kpi-2 { grid-template-columns: 1fr !important; }
           .param-kpi-3-sm { grid-template-columns: repeat(2, 1fr) !important; }
         }
-      `}</style>
+      ` }} />
       {/* ── Header ── */}
       <PageHeader
         icon={<Settings className="h-7 w-7" />}

@@ -401,7 +401,7 @@ export default function CuisinistelyOn() {
           ]
         }) }} />
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .breadcrumb-nav {
           font-size: 0.95rem;
           color: #6b7c70;
@@ -425,7 +425,7 @@ export default function CuisinistelyOn() {
             transform: translateY(0);
           }
         }
-      `}</style>
+      ` }} />
     </>
   );
 }

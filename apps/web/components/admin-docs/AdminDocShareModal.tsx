@@ -122,7 +122,7 @@ export function AdminDocShareModal({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes adshFade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes adshRise { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
         .adsh-bg {
@@ -265,7 +265,7 @@ export function AdminDocShareModal({
           background: #fef2f2; border: 1px solid #fecaca;
           color: #991b1b; font-size: 12px;
         }
-      `}</style>
+      ` }} />
 
       <div className="adsh-bg" onClick={() => { if (!creating) onClose(); }}>
         <div className="adsh-card" onClick={(e) => e.stopPropagation()}>

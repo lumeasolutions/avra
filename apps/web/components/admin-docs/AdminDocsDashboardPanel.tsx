@@ -74,7 +74,7 @@ export function AdminDocsDashboardPanel({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes addbFade {
           from { opacity: 0; backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); }
           to   { opacity: 1; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
@@ -344,7 +344,7 @@ export function AdminDocsDashboardPanel({
           .addb-kpis { grid-template-columns: repeat(2, 1fr); }
           .addb-cats { grid-template-columns: 1fr 1fr; }
         }
-      `}</style>
+      ` }} />
 
       <div className="addb-bg" onClick={onClose} aria-hidden="true" />
       <div className="addb-aura" aria-hidden="true" />

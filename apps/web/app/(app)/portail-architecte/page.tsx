@@ -133,7 +133,7 @@ export default function PortailArchitectePage() {
     {/* Téléphone : accueil dédié. Ce tableau de bord-ci reste celui de l'ordinateur. */}
     <MobileAccueil metier="architecte" />
     <div data-portail-bureau className="portail-arch-root" style={{ padding: '0px 20px 16px 0', fontFamily: "'Segoe UI', Arial, sans-serif", display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .portail-arch-root { padding: 0 0 16px 0 !important; padding-top: 64px !important; }
           .portail-arch-kpi { grid-template-columns: 1fr 1fr !important; }
@@ -141,7 +141,7 @@ export default function PortailArchitectePage() {
           .portail-arch-planning-wrap { overflow-x: auto; }
           .portail-arch-planning-grid { min-width: 520px; }
         }
-      `}</style>
+      ` }} />
 
       <PageHeader
         icon={<span style={{ fontSize: 20 }}>🏛️</span>}

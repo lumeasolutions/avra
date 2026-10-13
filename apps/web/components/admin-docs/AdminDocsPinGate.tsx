@@ -177,10 +177,10 @@ export function AdminDocsPinGate({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex items-center justify-center py-10" style={{ minHeight: '70vh' }}>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes avraPinShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
         .avra-pin-shake { animation: avraPinShake .45s ease; }
-      `}</style>
+      ` }} />
       <div className={`w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-xl border border-[#304035]/8 ${shake ? 'avra-pin-shake' : ''}`}>
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#304035]">
           {isPasswordMode ? <KeyRound className="h-7 w-7 text-[#c9a96e]" />

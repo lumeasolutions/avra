@@ -18,7 +18,7 @@ export function AssistantFAB() {
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes fabAurora {
           0%   { background-position: 0% 50%; }
           50%  { background-position: 100% 50%; }
@@ -87,7 +87,7 @@ export function AssistantFAB() {
         .avra-sparkle-2 { animation: fabSparkle 2.4s ease-in-out 0.6s infinite;  --tx: -26px; --ty: -18px; }
         .avra-sparkle-3 { animation: fabSparkle 2.4s ease-in-out 1.2s infinite;  --tx: 22px; --ty: 24px; }
         .avra-sparkle-4 { animation: fabSparkle 2.4s ease-in-out 1.8s infinite;  --tx: -24px; --ty: 20px; }
-      `}</style>
+      ` }} />
 
       {/* Panneau flottant */}
       <AssistantPanel open={open} onClose={() => setOpen(false)} />

@@ -238,10 +238,10 @@ export default function ComparatifCuisiniste() {
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ '@context': 'https://schema.org', '@type': 'BlogPosting', headline: 'Meilleur logiciel cuisiniste 2026 : top 7 comparatif complet', description: 'Comparatif détaillé des 7 meilleurs logiciels pour cuisinistes en 2026.', author: { '@type': 'Organization', name: 'AVRA' }, datePublished: '2026-04-15', dateModified: '2026-04-15' }) }} />
 
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         table { background: white; }
         th, td { border: 1px solid #ede5dd; }
-      `}</style>
+      ` }} />
     </>
   );
 }

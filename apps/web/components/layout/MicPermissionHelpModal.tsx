@@ -295,7 +295,7 @@ export function MicPermissionHelpModal({ open, onClose, onRetry }: Props) {
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes mphFade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes mphReveal {
           from { opacity: 0; transform: scale(0.92) translateY(10px); }
@@ -569,7 +569,7 @@ export function MicPermissionHelpModal({ open, onClose, onRetry }: Props) {
 
         @keyframes mphSpin { to { transform: rotate(360deg); } }
         .mph-spin { animation: mphSpin 0.85s linear infinite; }
-      `}</style>
+      ` }} />
 
       <div className="mph-bg" role="dialog" aria-modal="true" onClick={onClose}>
         <div className="mph-card" onClick={(e) => e.stopPropagation()}>

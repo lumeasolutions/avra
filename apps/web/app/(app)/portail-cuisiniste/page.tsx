@@ -132,7 +132,7 @@ export default function PortailCuisinistePage() {
     {/* Téléphone : accueil dédié. Ce tableau de bord-ci reste celui de l'ordinateur. */}
     <MobileAccueil metier="cuisiniste" />
     <div data-portail-bureau className="portail-cui-root" style={{ padding: '0px 20px 16px 0', fontFamily: "'Segoe UI', Arial, sans-serif", display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .portail-cui-root { padding: 0 0 16px 0 !important; padding-top: 64px !important; }
           .portail-cui-kpi { grid-template-columns: 1fr 1fr !important; }
@@ -140,7 +140,7 @@ export default function PortailCuisinistePage() {
           .portail-cui-planning-wrap { overflow-x: auto; }
           .portail-cui-planning-grid { min-width: 520px; }
         }
-      `}</style>
+      ` }} />
 
       {/* En-tête portail */}
       <PageHeader

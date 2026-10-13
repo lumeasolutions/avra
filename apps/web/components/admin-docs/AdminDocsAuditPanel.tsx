@@ -79,7 +79,7 @@ export function AdminDocsAuditPanel({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @keyframes adapFade { from { opacity: 0; } to { opacity: 1; } }
         @keyframes adapSlide { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
         .adap-bg {
@@ -218,7 +218,7 @@ export function AdminDocsAuditPanel({
           border-bottom: 1px solid rgba(48,64,53,0.05);
           position: sticky; top: 0; z-index: 1;
         }
-      `}</style>
+      ` }} />
 
       <div className="adap-bg" onClick={onClose} aria-hidden="true" />
       <aside className="adap-panel" role="dialog" aria-modal="true" aria-label="Journal d'audit">
