@@ -220,9 +220,25 @@ export default function DossiersPage() {
       <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 768px) {
           .dos-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .dos-search-bar { flex-direction: column !important; }
-          .dos-search-bar > * { width: 100% !important; }
           .dos-top-row { grid-template-columns: 1fr !important; }
+        }
+        /* Téléphone (13/10/2026) : la recherche sur sa ligne, puis tri, « Tous »,
+           « Perdus » et vendeur en pastilles qui passent à la ligne, au lieu de
+           quatre grands blocs empilés (≈150 px rendus aux dossiers). */
+        @media (max-width: 900px) {
+          .dos-search-bar { flex-direction: row !important; flex-wrap: wrap !important; gap: 8px !important; }
+          .dos-search-bar > :first-child { flex: 1 1 100%; width: 100% !important; }
+          .dos-search-bar > :not(:first-child) { flex: 0 0 auto; width: auto !important; }
+          .dos-search-bar > button,
+          .dos-search-bar > a,
+          .dos-search-bar > select {
+            height: 38px; padding: 0 14px !important; border-radius: 999px !important;
+            font-size: 13px !important; display: inline-flex; align-items: center;
+          }
+          .dos-search-bar > select { max-width: 64vw; padding-right: 30px !important; }
+          .dos-search-bar > div:nth-child(2) { border-radius: 999px !important; }
+          .dos-search-bar > div:nth-child(2) > button { border-radius: 999px !important; }
+          .dos-search-bar input { border-radius: 16px !important; padding-top: 13px !important; padding-bottom: 13px !important; font-size: 16px !important; }
         }
       ` }} />
 
