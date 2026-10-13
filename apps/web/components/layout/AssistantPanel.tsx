@@ -289,7 +289,7 @@ export function AssistantPanel({ open, onClose, permanent = false }: Props) {
 
 
       {/* Panneau — permanent (sidebar) ou flottant */}
-      <div className={permanent ? "relative w-full h-full z-40 overflow-hidden flex flex-col" : "fixed bottom-6 right-6 w-[300px] max-h-[580px] z-40 rounded-[28px] overflow-hidden shadow-[0_24px_72px_rgba(0,0,0,0.22),0_8px_24px_rgba(0,0,0,0.14)] flex flex-col animate-[apOpen_0.25s_cubic-bezier(0.34,1.56,0.64,1)_both]"}
+      <div className={permanent ? "relative w-full h-full z-40 overflow-hidden flex flex-col" : "ap-flottant fixed bottom-6 right-6 w-[300px] max-h-[580px] z-40 rounded-[28px] overflow-hidden shadow-[0_24px_72px_rgba(0,0,0,0.22),0_8px_24px_rgba(0,0,0,0.14)] flex flex-col animate-[apOpen_0.25s_cubic-bezier(0.34,1.56,0.64,1)_both]"}
         style={{ background: '#F5F2EE' }}>
 
         {/* Chouette filigrane — au centre du panneau */}

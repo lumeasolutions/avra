@@ -380,6 +380,15 @@ const STYLES = `
   }
   .avra-fab-dock .avra-label { display: none !important; }
 
+  /* Panneau de l'assistant ouvert : au-dessus de la barre (sinon elle masquait
+     le champ de saisie), sur toute la largeur de l'écran. */
+  .ap-flottant {
+    left: 10px !important; right: 10px !important; width: auto !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 84px) !important;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 110px) !important;
+    z-index: 150 !important;
+  }
+
   .mn-barre {
     --mn-cuivre: #c99a6a;
     display: grid;
