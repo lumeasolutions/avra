@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useMemo, useState } from 'react';
 import { usePortailGuard } from '@/hooks/usePortailGuard';
+import { MobileAccueil } from '@/components/mobile/MobileAccueil';
 import { statutSigne, couleurStatutSigne, parStatutSigne } from '@/lib/statut-dossier-signe';
 
 const fmt = (n: number) =>
@@ -128,7 +129,10 @@ export default function PortailMenuisierPage() {
   };
 
   return (
-    <div className="portail-men-root" style={{ padding: '0px 20px 16px 0', fontFamily: "'Segoe UI', Arial, sans-serif", display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <>
+    {/* Téléphone : accueil dédié. Ce tableau de bord-ci reste celui de l'ordinateur. */}
+    <MobileAccueil metier="menuisier" />
+    <div data-portail-bureau className="portail-men-root" style={{ padding: '0px 20px 16px 0', fontFamily: "'Segoe UI', Arial, sans-serif", display: 'flex', flexDirection: 'column', height: '100%' }}>
       <style>{`
         @media (max-width: 768px) {
           .portail-men-root { padding: 0 0 16px 0 !important; padding-top: 64px !important; }
@@ -296,5 +300,6 @@ export default function PortailMenuisierPage() {
 
 
     </div>
+    </>
   );
 }
