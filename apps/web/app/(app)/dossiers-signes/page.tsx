@@ -367,6 +367,27 @@ export default function DossiersSignesPage() {
           .sig-modal { max-width: 100% !important; margin: 0 !important; border-radius: 16px !important; }
           .sig-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
+        /* Téléphone (14/10/2026) : onglets sur une rangée qui défile, recherche
+           et tri sur une ligne, cartes resserrées, boutons sans capitales. */
+        @media (max-width: 900px) {
+          .sig-tab-bar { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; border-radius: 16px !important; }
+          .sig-tab-bar::-webkit-scrollbar { display: none; }
+          .sig-tab-bar > button { flex: 0 0 auto; white-space: nowrap; border-radius: 12px !important; }
+          .sig-search-bar { flex-direction: row !important; flex-wrap: wrap !important; gap: 8px !important; }
+          .sig-search-bar > :first-child { flex: 1 1 100%; width: 100% !important; }
+          .sig-search-bar > :not(:first-child) { width: auto !important; border-radius: 999px !important; }
+          .sig-search-bar input { font-size: 16px !important; border-radius: 16px !important; }
+          .sig-kpi-grid > div { border-radius: 18px !important; padding: 13px 14px !important; }
+          .signe-card > div { border-radius: 18px !important; }
+          .signe-card > div > div:first-child { height: 3px !important; }
+          .signe-card > div > div:nth-child(2) { padding: 13px 14px 14px !important; }
+          .signe-card .flex.flex-wrap.gap-2 > button {
+            padding: 9px 10px !important; border-radius: 12px !important;
+            font-size: 13px !important; letter-spacing: 0 !important; font-weight: 600 !important;
+            text-transform: lowercase;
+          }
+          .signe-card .flex.flex-wrap.gap-2 > button::first-letter { text-transform: uppercase; }
+        }
       ` }} />
       
 

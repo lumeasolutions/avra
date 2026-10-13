@@ -892,6 +892,14 @@ export default function DossierDetailPage() {
             font-size: 12px !important; text-align: center; line-height: 1.15;
           }
           .dossier-header-actions > button svg { width: 18px !important; height: 18px !important; }
+          /* Badge de statut sous les initiales (il chevauchait le bouton rond). */
+          .dossier-avatar { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+          .dossier-avatar > div:nth-child(2) { position: static !important; }
+          /* Action principale en cuivre, couleur des actions de l'application. */
+          .btn-creer-devis {
+            background: linear-gradient(180deg, #c3925f 0%, #a67749 55%, #8f633b 100%) !important;
+            box-shadow: 0 10px 24px rgba(166,119,73,.32), inset 0 1px 0 rgba(255,236,210,.35) !important;
+          }
         }
       ` }} />
 
@@ -1584,7 +1592,7 @@ export default function DossierDetailPage() {
             {canEditThis && (
             <button
               onClick={() => setShowDevis(true)}
-              className="flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white text-sm transition-all hover:shadow-lg active:scale-95"
+              className="btn-creer-devis flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white text-sm transition-all hover:shadow-lg active:scale-95"
               style={{ background: 'linear-gradient(135deg, #10b981, #059669)', boxShadow: '0 4px 16px rgba(16,185,129,0.3)' }}
             >
               <Plus className="h-4 w-4" />
