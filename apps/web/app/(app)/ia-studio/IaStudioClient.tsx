@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useDossierStore, useHistoryStore, useAuthStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { IaAvantApres } from '@/components/mobile/IaAvantApres';
 import HistoryPanel, { type IaJobRow } from './HistoryPanel';
 import { RenderAdjustModal } from './RenderAdjustModal';
 import { uploadDossierDocDirect, listDossierDocs } from '@/lib/dossier-docs-api';
@@ -2846,6 +2847,9 @@ export default function IaStudioPage() {
             </div>
           )}
         />
+
+        {/* Téléphone : comparateur avant / après (plan 3D → photo) */}
+        <IaAvantApres />
 
         {/* ══════════════════════════ TABS SÉLECTEUR */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
