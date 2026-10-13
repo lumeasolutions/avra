@@ -738,9 +738,9 @@ function OngletDevis({ autoOpen = false }: { autoOpen?: boolean }) {
             {filtered.map(d => {
               const cfg = DEVIS_STATUS_CFG[d.statut];
               return (
-                <div key={d.id} className="flex items-center justify-between px-5 py-4 hover:bg-[#f5eee8]/30 transition-all group"
+                <div key={d.id} className="fac-ligne flex items-center justify-between px-5 py-4 hover:bg-[#f5eee8]/30 transition-all group"
                   onMouseEnter={() => setHoveredId(d.id)} onMouseLeave={() => setHoveredId(null)}>
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="fac-ligne-gauche flex items-center gap-4 flex-1 min-w-0">
                     <div className="h-10 w-10 rounded-xl bg-[#a67749]/10 flex items-center justify-center shrink-0">
                       <FileCheck className="h-5 w-5 text-[#a67749]" />
                     </div>
@@ -753,7 +753,7 @@ function OngletDevis({ autoOpen = false }: { autoOpen?: boolean }) {
                       {d.conditionsPaiement && <p className="text-[10px] text-[#304035]/35 mt-0.5">{d.conditionsPaiement}</p>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 ml-4 shrink-0">
+                  <div className="fac-ligne-droite flex items-center gap-3 ml-4 shrink-0">
                     <div className="text-right">
                       <p className="font-bold text-[#304035] whitespace-nowrap">{fmtPrecise(d.totalTTC)}</p>
                       <p className="text-[10px] text-[#304035]/40 whitespace-nowrap">{fmtPrecise(d.totalHT)} HT</p>
@@ -800,7 +800,7 @@ function OngletDevis({ autoOpen = false }: { autoOpen?: boolean }) {
                     {/* Télécharger PDF / Word / Excel — toujours visible (menu déroulant). */}
                     <DevisDownload devis={d} compact />
                     {/* Actions secondaires au hover */}
-                    <div className={cn('flex items-center gap-1 transition-all duration-150', hoveredId === d.id ? 'opacity-100' : 'opacity-0')}>
+                    <div className={cn('fac-ligne-actions flex items-center gap-1 transition-all duration-150', hoveredId === d.id ? 'opacity-100' : 'opacity-0')}>
                       {(d.statut === 'BROUILLON' || d.statut === 'ENVOYÉ') && (
                         <button onClick={() => { setEditDevis(d); setModalOpen(true); }} title="Modifier"
                           className="rounded-lg p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 transition-colors">
@@ -974,9 +974,9 @@ function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
               const detail = invoiceDetails[inv.id];
               const hasDetail = !!detail?.lignes?.length;
               return (
-                <div key={inv.id} className="flex items-center justify-between px-5 py-4 hover:bg-[#f5eee8]/30 transition-all group"
+                <div key={inv.id} className="fac-ligne flex items-center justify-between px-5 py-4 hover:bg-[#f5eee8]/30 transition-all group"
                   onMouseEnter={() => setHoveredId(inv.id)} onMouseLeave={() => setHoveredId(null)}>
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="fac-ligne-gauche flex items-center gap-4 flex-1 min-w-0">
                     <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0', cfg.bg)}>
                       <FileText className={cn('h-5 w-5', cfg.color)} />
                     </div>
@@ -1004,7 +1004,7 @@ function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
                       })()}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 ml-4 shrink-0">
+                  <div className="fac-ligne-droite flex items-center gap-3 ml-4 shrink-0">
                     <div className="text-right">
                       <p className="font-bold text-[#304035]">{fmt(ttc)}</p>
                       <p className="text-[10px] text-[#304035]/40">TVA {inv.tva}%</p>
@@ -1018,7 +1018,7 @@ function OngletFactures({ autoOpen = false }: { autoOpen?: boolean }) {
                       </button>
                     )}
                     {/* Actions secondaires au hover */}
-                    <div className={cn('flex items-center gap-1 transition-all duration-150', hoveredId === inv.id ? 'opacity-100' : 'opacity-0')}>
+                    <div className={cn('fac-ligne-actions flex items-center gap-1 transition-all duration-150', hoveredId === inv.id ? 'opacity-100' : 'opacity-0')}>
                       {(hasDetail || inv.montantHT > 0) && (
                         <button
                           onClick={() => {
@@ -1116,7 +1116,7 @@ function OngletEFacturation() {
         ) : (
           <div className="divide-y divide-[#304035]/5">
             {docsAvecToken.map(doc => (
-              <div key={doc.id} className="flex items-center justify-between px-5 py-4 hover:bg-[#f5eee8]/20 transition-colors">
+              <div key={doc.id} className="fac-ligne flex items-center justify-between px-5 py-4 hover:bg-[#f5eee8]/20 transition-colors">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="h-9 w-9 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
                     {doc.type === 'Devis' ? <FileCheck className="h-4 w-4 text-violet-600" /> : <FileText className="h-4 w-4 text-violet-600" />}
@@ -1207,6 +1207,19 @@ export default function FacturationPage() {
   return (
     <div className="space-y-6">
       <style dangerouslySetInnerHTML={{ __html: `
+        /* Téléphone (13/10/2026) : nom et référence sur toute la largeur,
+           montant + actions en dessous ; actions toujours visibles (pas de
+           survol de souris sur un écran tactile). */
+        @media (max-width: 900px) {
+          .fac-ligne { flex-wrap: wrap; row-gap: 10px; padding-left: 14px !important; padding-right: 14px !important; }
+          .fac-ligne-gauche { flex: 1 1 100% !important; gap: 12px !important; }
+          .fac-ligne-droite { flex: 1 1 100%; margin-left: 52px !important; justify-content: space-between; flex-wrap: wrap; row-gap: 8px; }
+          .fac-ligne-droite > .text-right { text-align: left !important; margin-right: auto; }
+          .fac-ligne-actions { opacity: 1 !important; }
+          .fac-ligne-actions > button { padding: 8px !important; border-radius: 10px !important; }
+          .fac-ligne-actions svg { width: 16px !important; height: 16px !important; }
+        }
+
         @media (max-width: 768px) {
           .fact-kpi-3 { grid-template-columns: 1fr !important; }
           .fact-kpi-4 { grid-template-columns: repeat(2, 1fr) !important; }
