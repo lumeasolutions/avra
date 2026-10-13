@@ -28,7 +28,7 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import {
   wasRecentlyRefreshed, isAnotherTabRefreshing,
-  tryAcquireLock, markRefreshSuccess, releaseLock,
+  tryAcquireLock, markRefreshSuccess, releaseLock, renewLock,
   waitForOtherTabRefresh,
 } from '@/lib/refreshLock';
 
@@ -94,14 +94,18 @@ export function useTokenRefresh() {
             // causer un 401 ponctuel, alors que la session est encore
             // valide. On ne deconnecte qu'apres 2 echecs consecutifs.
             console.warn(`[useTokenRefresh] refresh 401 (${reason}) — retry in 2s before logout`);
-            releaseLock();
+            // On garde le verrou pendant l'attente (14/10/2026) : le relacher
+            // faisait conclure a un echec les appels d'api.ts qui attendaient.
+            renewLock();
             await new Promise((r) => setTimeout(r, 2000));
-            if (cancelled) return false;
+            if (cancelled) { releaseLock(); return false; }
 
             // Le retry beneficie d'eventuels refresh fait par autres onglets
             if (wasRecentlyRefreshed()) {
+              releaseLock();
               return true;
             }
+            renewLock();
             // Sinon on retente nous-meme
             const retry = await fetch('/api/v1/auth/refresh', {
               method: 'POST',
@@ -121,6 +125,7 @@ export function useTokenRefresh() {
             // d'api.ts, qui ne déconnecte QUE si un vrai appel API échoue même
             // après refresh. Évite les déconnexions intempestives multi-onglets.
             console.warn(`[useTokenRefresh] refresh proactif KO (${reason}) — délégué à api.ts, pas de logout`);
+            releaseLock();
             return false;
           }
           console.warn(`[useTokenRefresh] refresh transient error (${res.status}, ${reason})`);
@@ -192,15 +197,17 @@ export function useTokenRefresh() {
           markRefreshSuccess();
         } else if (res.status === 401) {
           // Retry resilient avant logout (cf. attemptRefresh principal)
-          releaseLock();
+          renewLock();
           await new Promise((r) => setTimeout(r, 2000));
-          if (wasRecentlyRefreshed()) return; // un autre onglet l'a fait
+          if (wasRecentlyRefreshed()) { releaseLock(); return; } // un autre onglet l'a fait
+          renewLock();
           const retry = await fetch('/api/v1/auth/refresh', {
             method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({}),
           });
           if (retry.ok) { markRefreshSuccess(); return; }
+          releaseLock();
           // Idem : pas de logout sur refresh proactif KO — délégué au mécanisme
           // réactif d'api.ts (ne déconnecte que sur un vrai appel API en échec).
           console.warn('[useTokenRefresh] refresh proactif KO (pathname) — délégué à api.ts, pas de logout');

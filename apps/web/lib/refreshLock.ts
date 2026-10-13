@@ -26,8 +26,10 @@ const KEY_IN_FLIGHT = 'avra:refresh:inFlightAt';
 
 /** Fenêtre de "récent" : si un refresh a réussi dans les X derniers ms, skip. */
 const RECENT_WINDOW_MS = 10_000;
-/** Durée max de validité d'un flag in-flight (stale lock). */
-const STALE_LOCK_MS = 8_000;
+/** Durée max de validité d'un flag in-flight (stale lock). 14/10/2026 : 8 s
+ *  ne couvraient pas un démarrage à froid de l'API (Vercel) ; un second appel
+ *  croyait le verrou mort et relançait un rafraîchissement concurrent. */
+const STALE_LOCK_MS = 20_000;
 
 /** Lit le timestamp du dernier refresh réussi (par n'importe quel onglet). */
 export function getLastRefreshAt(): number {
@@ -79,6 +81,13 @@ export function markRefreshSuccess(): void {
   } catch { /* noop */ }
 }
 
+/** Prolonge le lock détenu (avant une seconde tentative) : les autres appels
+ *  continuent d'attendre au lieu de conclure à un échec. */
+export function renewLock(): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(KEY_IN_FLIGHT, String(Date.now())); } catch { /* noop */ }
+}
+
 /** Libère le lock sans marquer succès (cas d'échec). */
 export function releaseLock(): void {
   if (typeof window === 'undefined') return;
@@ -89,7 +98,7 @@ export function releaseLock(): void {
  * Attend qu'un refresh en cours sur un autre onglet se termine.
  * Polling de 200ms, abandon après timeout.
  */
-export async function waitForOtherTabRefresh(timeoutMs = 6000): Promise<boolean> {
+export async function waitForOtherTabRefresh(timeoutMs = 20_000): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {

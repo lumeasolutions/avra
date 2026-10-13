@@ -183,8 +183,15 @@ export class AuthController {
       });
       return { ok: true };
     } catch (err) {
-      // Refresh invalide / expiré → on purge tous les cookies pour forcer un login.
-      clearAuthCookies(res);
+      // 14/10/2026 — Deux rafraichissements partis en meme temps avec le meme
+      // jeton (chargement d'une page pendant un demarrage a froid) : le premier
+      // fait tourner la session et pose les nouveaux cookies, le second ne la
+      // retrouve plus et echoue. Purger les cookies ICI effacait ceux que le
+      // premier venait de poser → deconnexion d'une session pourtant valide
+      // (« Session expiree » en ouvrant Intervenants). On ne purge donc que si
+      // le jeton est vraiment mort (signature ou date) ; sinon on repond 401
+      // sans toucher aux cookies, et le client rejoue avec les nouveaux.
+      if (!this.auth.isRefreshJwtStillValid(refreshToken)) clearAuthCookies(res);
       return res.status(401).json({ message: 'Invalid refresh token' });
     }
   }

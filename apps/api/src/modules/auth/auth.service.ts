@@ -367,6 +367,15 @@ export class AuthService {
     }
   }
 
+  /**
+   * Vrai si le jeton de rafraichissement est encore un JWT valide (signature
+   * et date). Sert a /auth/refresh pour distinguer un jeton mort d'un jeton
+   * qui vient d'etre tourne par une requete concurrente du meme navigateur.
+   */
+  isRefreshJwtStillValid(refreshToken: string): boolean {
+    return !!this.tokenRotation.verifyRefreshJwt(refreshToken);
+  }
+
   async refreshToken(refreshToken: string, legacyUserId?: string) {
     const decoded = this.tokenRotation.verifyRefreshJwt(refreshToken);
 

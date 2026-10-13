@@ -151,11 +151,14 @@ async function refreshAccessToken(): Promise<boolean> {
           lock.markRefreshSuccess();
           return true;
         }
-        // 401 : retry 1 fois apres 2s avant d'abandonner
+        // 401 : retry 1 fois apres 2s avant d'abandonner. On GARDE le verrou
+        // pendant l'attente (14/10/2026) : le relacher faisait conclure a un
+        // echec les appels qui attendaient, donc les deconnectait.
         if (res.status === 401) {
-          lock.releaseLock();
+          lock.renewLock();
           await new Promise((r) => setTimeout(r, 2000));
-          if (lock.wasRecentlyRefreshed()) return true;
+          if (lock.wasRecentlyRefreshed()) { lock.releaseLock(); return true; }
+          lock.renewLock();
           const retry = await fetch(`${API_BASE}/auth/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -166,9 +169,8 @@ async function refreshAccessToken(): Promise<boolean> {
             lock.markRefreshSuccess();
             return true;
           }
-        } else {
-          lock.releaseLock();
         }
+        lock.releaseLock();
         lastRefreshFailedAt = Date.now();
         return false;
       } catch {
@@ -236,13 +238,10 @@ export async function api<T>(
 
   // Handle 401 — essayer de rafraîchir le token (une seule fois, pas de boucle)
   if (res.status === 401 && !_retried && !path.startsWith('/auth/')) {
-    const ok = await refreshAccessToken();
-    if (!ok) {
-      // Refresh impossible → session morte → redirection /login
-      handleSessionExpired();
-      throw new Error('Session expirée');
-    }
-    // Nouveau cookie access_token défini par le serveur — relancer la requête UNE seule fois
+    // On rejoue la requête UNE fois même si notre propre rafraîchissement a
+    // échoué (14/10/2026) : un autre a pu réussir entre-temps et poser de
+    // nouveaux cookies. On ne déconnecte que si la vraie requête échoue encore.
+    await refreshAccessToken();
     res = await fetch(`${API_BASE}${path}`, {
       ...init,
       headers,
@@ -346,11 +345,8 @@ export async function apiUpload<T>(
   captureCsrfFromResponse(res);
 
   if (res.status === 401) {
-    const ok = await refreshAccessToken();
-    if (!ok) {
-      handleSessionExpired();
-      throw new Error('Session expirée');
-    }
+    // Cf. api() : on rejoue même si notre rafraîchissement a échoué.
+    await refreshAccessToken();
     csrf = readCsrfCookie() ?? currentCsrfToken;
     res = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
