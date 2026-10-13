@@ -218,6 +218,39 @@ export default function DossiersPage() {
   return (
     <div className="space-y-6 w-full">
       <style dangerouslySetInnerHTML={{ __html: `
+
+        /* Téléphone (14/10/2026) : chaque dossier devient une ligne compacte —
+           initiales, nom, vendeur et date, statut, fine barre de progression —
+           au lieu d'une carte de 250 px (≈ 6 dossiers par écran au lieu de 2,5).
+           La ligne entière ouvre le dossier ; son tableau de bord reste
+           accessible depuis le dossier ouvert. */
+        @media (max-width: 900px) {
+          .dc { border-radius: 18px !important; }
+          .dc > div:first-child { height: 3px !important; }
+          .dc-corps {
+            display: grid; grid-template-columns: 44px minmax(0, 1fr) auto;
+            grid-template-areas: "av nom statut" "prog prog prog";
+            column-gap: 12px; row-gap: 10px; align-items: center;
+            padding: 12px 14px 13px !important;
+          }
+          .dc-tete { display: contents !important; }
+          .dc-avatar { grid-area: av; }
+          .dc-avatar > div:first-child { width: 44px !important; height: 44px !important; border-radius: 14px !important; font-size: 14px !important; }
+          .dc-statut { grid-area: statut; align-self: start; }
+          .dc-statut > div:first-child { font-size: 10.5px !important; padding: 3px 8px !important; }
+          .dc-nom { grid-area: nom; margin: 0 !important; min-width: 0; }
+          .dc-nom h3 { font-size: 15px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .dc-nom > div { margin-top: 3px !important; justify-content: flex-start !important; gap: 8px !important; flex-wrap: nowrap; overflow: hidden; }
+          /* Le vendeur compte plus que la date de création, visible dans le dossier. */
+          .dc-nom > div > p { display: none; }
+          .dc-nom > div > *:last-child { min-width: 0; overflow: hidden; }
+          .dc-contact, .dc-pied { display: none !important; }
+          .dc-prog { grid-area: prog; margin: 0 !important; display: flex; align-items: center; gap: 10px; }
+          .dc-prog > div:first-child { order: 2; margin: 0 !important; flex-shrink: 0; }
+          .dc-prog > div:first-child > span:first-child { display: none; }
+          .dc-prog > div:last-child { flex: 1; height: 4px !important; }
+          .dossier-card + .dossier-card { margin-top: 0; }
+        }
         @media (max-width: 768px) {
           .dos-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .dos-top-row { grid-template-columns: 1fr !important; }
@@ -655,7 +688,7 @@ export default function DossiersPage() {
                 style={{ animationDelay: `${i * 40}ms` }}
               >
                 <div
-                  className={`relative bg-white rounded-2xl border ${cfg.cardBorder} shadow-sm overflow-hidden`}
+                  className={`dc relative bg-white rounded-2xl border ${cfg.cardBorder} shadow-sm overflow-hidden`}
                   style={{ boxShadow: `0 2px 8px ${cfg.glowColor}, 0 1px 2px rgba(0,0,0,0.04)` }}
                 >
                   {/* Bande haute = le VENDEUR (05/10/2026). La bordure, la
@@ -667,10 +700,10 @@ export default function DossiersPage() {
                     title={d.vendeurName ? `Vendeur : ${d.vendeurName}` : 'Aucun vendeur attribué'}
                   />
 
-                  <div className="p-5">
+                  <div className="dc-corps p-5">
                     {/* Row 1 : Avatar + Badge statut */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="relative">
+                    <div className="dc-tete flex items-start justify-between mb-4">
+                      <div className="dc-avatar relative">
                         {/* Avatar cercle */}
                         <div
                           className="h-12 w-12 rounded-2xl flex items-center justify-center text-white font-bold text-base shadow-md select-none"
@@ -686,7 +719,7 @@ export default function DossiersPage() {
                       </div>
 
                       {/* Badge statut + bouton corbeille */}
-                      <div className="flex items-center gap-2">
+                      <div className="dc-statut flex items-center gap-2">
                         <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${cfg.tagBg}`}>
                           <Icon className="h-3 w-3" />
                           {cfg.label}
@@ -701,7 +734,7 @@ export default function DossiersPage() {
                     </div>
 
                     {/* Nom + vendeur (multi-vendeur 26/05/2026) */}
-                    <div className="mb-1">
+                    <div className="dc-nom mb-1">
                       <h3 className="font-bold text-[#304035] text-base leading-tight group-hover:text-[#a67749] transition-colors">
                         {clientDisplayName(d)}
                       </h3>
@@ -712,7 +745,7 @@ export default function DossiersPage() {
                     </div>
 
                     {/* Infos contact */}
-                    <div className="space-y-1 mb-4 mt-3">
+                    <div className="dc-contact space-y-1 mb-4 mt-3">
                       {d.phone && (
                         <div className="flex items-center gap-2 text-xs text-[#304035]/55">
                           <Phone className="h-3 w-3 shrink-0 text-[#304035]/30" />
@@ -734,7 +767,7 @@ export default function DossiersPage() {
                     </div>
 
                     {/* Barre progression */}
-                    <div className="mb-3">
+                    <div className="dc-prog mb-3">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs text-[#304035]/40 font-medium">Progression</span>
                         <span className="text-xs font-bold text-[#304035]/60">{progress}%</span>
@@ -748,7 +781,7 @@ export default function DossiersPage() {
                     </div>
 
                     {/* Footer — 2 actions : Tableau de bord (modal) + Voir le dossier (link entier) */}
-                    <div className="flex items-center justify-between pt-3 border-t border-[#304035]/5 gap-2">
+                    <div className="dc-pied flex items-center justify-between pt-3 border-t border-[#304035]/5 gap-2">
                       <button
                         type="button"
                         onClick={(e) => openDashboard(e, d)}

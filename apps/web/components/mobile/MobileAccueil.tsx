@@ -58,11 +58,15 @@ function lireDate(s: string | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Mêmes couleurs et même ordre que la liste des dossiers (STATUS_CONFIG de
+ * app/(app)/dossiers) : un statut garde sa couleur d'un écran à l'autre.
+ */
 const STATUTS_EN_COURS: Record<string, { libelle: string; fond: string; texte: string; rang: number }> = {
-  URGENT: { libelle: 'Urgent', fond: '#fbe9e5', texte: '#b4432f', rang: 0 },
-  'A VALIDER': { libelle: 'À valider', fond: '#fbf1dc', texte: '#a8741c', rang: 1 },
-  'EN COURS': { libelle: 'En cours', fond: '#eaf1ec', texte: '#3d5244', rang: 2 },
-  FINITION: { libelle: 'Finition', fond: '#e6efe9', texte: '#2d5a3d', rang: 3 },
+  URGENT: { libelle: 'Urgent', fond: '#fef2f2', texte: '#dc2626', rang: 0 },
+  'EN COURS': { libelle: 'En cours', fond: '#fff7ed', texte: '#ea580c', rang: 1 },
+  FINITION: { libelle: 'Finition', fond: '#ecfdf5', texte: '#047857', rang: 2 },
+  'A VALIDER': { libelle: 'À valider', fond: '#f0fdf4', texte: '#15803d', rang: 3 },
 };
 
 function initiales(nom: string): string {

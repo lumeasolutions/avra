@@ -96,7 +96,13 @@ const STYLES = `
   /* Bouton rond « Tableau de bord » (dossiers) : sans son étiquette, qui
      débordait (« TABLEAU DE BOR »), et un peu plus compact. */
   .page-header-actions .dtb-label { display: none !important; }
-  .page-header-actions .dtb-wrap { transform: scale(.78); transform-origin: center; margin: -7px -4px; }
+  /* Le bouton rond passe dans le coin haut droit du bandeau au lieu de
+     rester seul sur une ligne ; le titre lui laisse la place. */
+  .page-header-actions .dtb-wrap {
+    position: absolute; top: 12px; right: 12px; margin: 0;
+    transform: scale(.74); transform-origin: top right;
+  }
+  .page-header-root:has(.dtb-wrap) .page-header-title-block { padding-right: 52px; }
 }
 `;
 
