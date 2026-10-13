@@ -664,6 +664,54 @@ const CSS = `
 .d4  { animation-delay:.24s } .d5 { animation-delay:.30s }
 `;
 
+/* Téléphone (14/10/2026) : les cartes de modules deviennent trois tuiles
+   photo côte à côte (matière, rendu, couleurs) avec leur seul titre. Le texte
+   explicatif reste sur ordinateur ; sur téléphone il prenait un écran entier
+   avant d'arriver à l'outil. */
+const TUILES_CSS = `
+.ia-tuile-photo { display: none; }
+@media (max-width: 900px) {
+  .ia-modules { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 10px !important; }
+  .ia-tuile {
+    padding: 0 !important; aspect-ratio: 3 / 4; border-radius: 20px !important;
+    border: 2px solid transparent !important; background: #202b24 !important;
+    box-shadow: 0 10px 24px rgba(32,43,36,.18) !important; transform: none !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ia-tuile[aria-pressed="true"] {
+    border-color: #c99a6a !important;
+    box-shadow: 0 0 0 3px rgba(201,154,106,.28), 0 14px 30px rgba(32,43,36,.28) !important;
+  }
+  .ia-tuile:active { transform: scale(.97) !important; }
+  .ia-tuile > div.absolute { display: none !important; }
+  .ia-tuile-photo {
+    display: block; position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+    transition: transform .5s cubic-bezier(.16,1,.3,1);
+  }
+  .ia-tuile[aria-pressed="true"] .ia-tuile-photo { transform: scale(1.06); }
+  .ia-tuile-photo::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(15,22,18,.05) 35%, rgba(15,22,18,.88) 100%);
+  }
+  .ia-tuile > div.relative { position: absolute !important; left: 0; right: 0; bottom: 0; padding: 10px 10px 11px; }
+  .ia-tuile > div.relative > div:first-child { display: none !important; }
+  .ia-tuile .flex-1 > div:first-child { margin: 0 !important; display: block !important; }
+  .ia-tuile .flex-1 > div:first-child > span,
+  .ia-tuile .flex-1 > p,
+  .ia-tuile .flex-1 > div:not(:first-child) { display: none !important; }
+  .ia-tuile .flex-1 > div:first-child > p {
+    font-family: var(--font-playfair-display, 'Playfair Display'), Georgia, serif !important;
+    font-weight: 600 !important; font-size: 14px !important; line-height: 1.15 !important;
+    color: #fffaf4 !important; text-shadow: 0 1px 8px rgba(0,0,0,.4);
+  }
+  .ia-tuile[aria-pressed="true"] .flex-1 > div:first-child > p::after {
+    content: ''; display: block; width: 18px; height: 2px; margin-top: 6px;
+    border-radius: 2px; background: #e2bd8f;
+  }
+}
+`;
+
 /* ─────────────────────────────────────────── TYPES */
 type Module = 'coloriste' | 'rendu' | 'architect' | 'architect-google' | 'coloriste-archi' | 'coloriste-studio' | 'coloriste-tex' | 'coloriste-test';
 
@@ -1490,7 +1538,10 @@ export default function IaStudioPage() {
   const userName       = currentUser ? (currentUser.firstName ?? currentUser.email.split('@')[0]) : 'Utilisateur';
 
   /* État global */
-  const [tab,          setTab]          = useState<Module>('coloriste-archi');
+  // Ouvre sur « Changer les couleurs » (plusieurs éléments) : l'ancien
+  // « coloriste-archi » n'a plus de carte depuis le 02/10/2026, on ne pouvait
+  // plus y revenir une fois quitté.
+  const [tab,          setTab]          = useState<Module>('coloriste-studio');
   // Bump pour forcer le rafraîchissement du HistoryPanel après une génération
   // réussie. Le panneau écoute ce nombre dans son useEffect.
   const [iaHistoryRefresh, setIaHistoryRefresh] = useState(0);
@@ -2852,7 +2903,8 @@ export default function IaStudioPage() {
         <IaAvantApres />
 
         {/* ══════════════════════════ TABS SÉLECTEUR */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <style dangerouslySetInnerHTML={{ __html: TUILES_CSS }} />
+        <div className="ia-modules grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {SHOW_LEGACY_COLORISTE && (<>
           {/* Coloriste */}
           <button onClick={() => setTab('coloriste')}
@@ -2930,13 +2982,14 @@ export default function IaStudioPage() {
           </>)}
 
           {/* Coloriste test — 5e onglet, moteur détection+compositing revu (juillet 2026) */}
-          <button onClick={() => setTab('coloriste-test')}
-            className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
+          <button onClick={() => setTab('coloriste-test')} aria-pressed={tab==='coloriste-test'}
+            className={`ia-tuile group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
               tab==='coloriste-test'
                 ? 'border-[#a67749] bg-white shadow-xl'
                 : 'border-[#304035]/8 bg-white/70 hover:border-[#a67749]/30 hover:bg-white hover:shadow-md hover:-translate-y-0.5'
             }`}
           >
+            <span className="ia-tuile-photo" aria-hidden style={{ backgroundImage: "url('/images/mobile/ia-matiere.webp')" }} />
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               style={{background:'radial-gradient(ellipse at 20% 50%, rgba(166,119,73,.06), transparent 65%)'}} />
             {tab==='coloriste-test' && (
@@ -3021,13 +3074,14 @@ export default function IaStudioPage() {
 
               Aucun nom de fournisseur n'apparaît à l'écran : ça n'apprend rien
               à l'utilisateur, et ces écrans sont montrés à des clients. */}
-          <button onClick={() => setTab('architect-google')}
-            className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
+          <button onClick={() => setTab('architect-google')} aria-pressed={tab==='architect-google'}
+            className={`ia-tuile group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
               tab==='architect-google'
                 ? 'border-[#4285f4] bg-white shadow-xl'
                 : 'border-[#304035]/8 bg-white/70 hover:border-[#4285f4]/30 hover:bg-white hover:shadow-md hover:-translate-y-0.5'
             }`}
           >
+            <span className="ia-tuile-photo" aria-hidden style={{ backgroundImage: "url('/images/mobile/ia-rendu.webp')" }} />
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               style={{background:'radial-gradient(ellipse at 20% 50%, rgba(66,133,244,.06), transparent 65%)'}} />
             {tab==='architect-google' && (
@@ -3071,13 +3125,14 @@ export default function IaStudioPage() {
               passe (facades hautes, facades basses, poignees, plan de travail,
               credence ensemble), la ou l'onglet historique impose un element
               a la fois. */}
-          <button onClick={() => setTab('coloriste-studio')}
-            className={`group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
+          <button onClick={() => setTab('coloriste-studio')} aria-pressed={tab==='coloriste-studio'}
+            className={`ia-tuile group relative overflow-hidden rounded-2xl border-2 p-6 text-left transition-all duration-350 ${
               tab==='coloriste-studio'
                 ? 'border-[#4285f4] bg-white shadow-xl'
                 : 'border-[#304035]/8 bg-white/70 hover:border-[#4285f4]/30 hover:bg-white hover:shadow-md hover:-translate-y-0.5'
             }`}
           >
+            <span className="ia-tuile-photo" aria-hidden style={{ backgroundImage: "url('/images/mobile/ia-couleurs.webp')" }} />
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
               style={{background:'radial-gradient(ellipse at 20% 50%, rgba(66,133,244,.06), transparent 65%)'}} />
             {tab==='coloriste-studio' && (
