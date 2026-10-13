@@ -394,7 +394,9 @@ const STYLES = `
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     align-items: end;
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 140;
+    /* 45 : au-dessus du contenu des pages, en dessous des fenêtres modales
+       (z-index 50 et plus) — sinon la barre masquait leurs boutons du bas. */
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
     padding: 6px 6px calc(env(safe-area-inset-bottom, 0px) + 6px);
     background: linear-gradient(180deg, rgba(24,33,27,.86) 0%, rgba(13,19,15,.95) 100%);
     -webkit-backdrop-filter: blur(20px) saturate(150%);
