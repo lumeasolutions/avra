@@ -113,7 +113,7 @@ export function MobileNav() {
     {
       titre: 'Atelier & chantiers',
       tuiles: [
-        { href: '/planning-gestion', libelle: 'Planning des poseurs', detail: 'Équipes et interventions', icone: CalendarRange, pastille: b.retardCount },
+        { href: '/planning-gestion', libelle: 'Planning gestion', detail: 'Poseurs et interventions', icone: CalendarRange, pastille: b.retardCount },
         { href: '/stock', libelle: 'Stock', detail: 'Articles et mouvements', icone: Package },
         { href: '/intervenants', libelle: 'Intervenants', detail: 'Artisans et demandes', icone: Users, pastille: b.demandesActionCount },
       ],
