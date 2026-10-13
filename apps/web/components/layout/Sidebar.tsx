@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-import { useFacturationStore, useUIStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
-import { AssistantPanel } from './AssistantPanel';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useDemandesStore } from '@/store/useDemandesStore';
+import { useNavBadges } from '@/hooks/useNavBadges';
 
 const PROFESSION_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
   architecte: { label: "Architecte d'intérieur", emoji: '🏛️', color: '#3D5449' },
@@ -17,11 +16,6 @@ const PROFESSION_LABELS: Record<string, { label: string; emoji: string; color: s
 
 export function Sidebar() {
   const pathname = usePathname() ?? '';
-  const dossiers = useVisibleDossiers();
-  const dossiersSignes = useVisibleDossiersSignes();
-  const invoices = useFacturationStore(s => s.invoices);
-  const devis = useFacturationStore(s => s.devis);
-  const alerts = useUIStore(s => s.alerts);
   const profession = useAuthStore(s => s.profession);
   // Dossier administratif : visible uniquement pour l'administrateur.
   const role = useAuthStore(s => s.user?.role);
@@ -38,22 +32,15 @@ export function Sidebar() {
     router.push('/login');
   };
   const professionInfo = profession ? PROFESSION_LABELS[profession] : null;
-  const urgentCount = useMemo(() => dossiers.filter(d => d.status === 'URGENT').length, [dossiers]);
-  // Ne compter que les dossiers signés ACTIFS (non archivés) — les archivés ont
-  // leur propre compteur ("X archivés") et ne doivent pas gonfler ce badge.
-  const signedCount = dossiersSignes.filter(d => !(d as { archivedAt?: string | null }).archivedAt).length;
-  const retardCount = useMemo(() => invoices.filter(e => e.statut === 'RETARD').length, [invoices]);
-  const alertCount = useMemo(() => alerts.filter(a => !a.dismissed).length, [alerts]);
-  const devisSignatureCount = useMemo(() => devis.filter(d => d.signatureStatus === 'EN_ATTENTE_SIGNATURE').length, [devis]);
-  const devisEnvoyeCount = useMemo(() => devis.filter(d => d.statut === 'ENVOYÉ').length, [devis]);
-  const factuBadge = retardCount + devisSignatureCount + devisEnvoyeCount;
-  const confirmationsPendingCount = useMemo(
-    () => dossiersSignes.reduce((s, d) => s + (d.confirmations ?? []).filter(c => !c.validee).length, 0),
-    [dossiersSignes]
-  );
+  // Pastilles partagées avec la navigation mobile (barre du bas, menu « Plus »).
+  const {
+    urgentCount, signedCount, retardCount, alertCount, factuBadge,
+    confirmationsPendingCount, demandesActionCount,
+  } = useNavBadges();
 
   // ── Phase C : badge demandes en attente / SAV non traites ──
-  const proStats = useDemandesStore(s => s.proStats);
+  // Le rafraîchissement vit ici : ce menu est monté sur tous les écrans,
+  // téléphone compris (il y est simplement masqué).
   // 18/05/2026 - FIX hammering: avant on avait `[fetchProStats]` en deps, ce
   // qui re-trigger l'effet à chaque update du store (Zustand re-crée parfois
   // la référence après un setState interne, surtout en mode strict ou hot
@@ -66,7 +53,6 @@ export function Sidebar() {
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const demandesActionCount = proStats?.actionRequiredCount ?? 0;
   // savPendingCount retire (sidebar SAV supprimee — voir /intervenants > demandes rapides)
 
   // ── Mobile open/close state ──────────────────────────────────────────────

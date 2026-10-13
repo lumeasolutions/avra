@@ -1,41 +1,52 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { Check, ArrowRight } from 'lucide-react';
 import { useAuthStore, Profession } from '@/store/useAuthStore';
 
-const PORTAILS = [
+/**
+ * Choix du métier, juste après la première connexion (13/10/2026).
+ *
+ * Même direction artistique que l'écran de connexion : nuit, vert profond,
+ * cuivre. Chaque métier a sa photo (générée pour AVRA, même lumière du soir) :
+ * l'îlot de cuisine, l'atelier d'ébéniste, la table de l'architecte.
+ */
+const PORTAILS: Array<{
+  id: Exclude<Profession, null>;
+  titre: string;
+  accroche: string;
+  description: string;
+  image: string;
+  flou: string;
+  tags: string[];
+}> = [
   {
-    id: 'architecte' as Profession,
-    emoji: '🏛️',
-    titre: "Architecte d'intérieur",
-    description: 'Gestion de projets déco, plans, suivi de chantier, dossiers clients, e-signature et facturation.',
-    couleur: '#6b8e73',
-    couleurDark: '#3D5449',
-    gradient: 'linear-gradient(135deg, #6b8e73 0%, #3D5449 55%, #2C3E2F 100%)',
-    glowColor: 'rgba(107,142,115,0.55)',
-    tags: ['Dossiers projets', 'Plans & visuels', 'Devis & facturation', 'E-signature'],
-  },
-  {
-    id: 'menuisier' as Profession,
-    emoji: '🪵',
-    titre: 'Menuisier',
-    description: 'Suivi des commandes bois, gestion des chantiers, devis matériaux, planning atelier et livraisons.',
-    couleur: '#c08a5a',
-    couleurDark: '#7B4F2E',
-    gradient: 'linear-gradient(135deg, #d9b38a 0%, #a67749 50%, #7B4F2E 100%)',
-    glowColor: 'rgba(192,138,90,0.55)',
-    tags: ['Commandes bois', 'Planning atelier', 'Devis matériaux', 'Suivi chantier'],
-  },
-  {
-    id: 'cuisiniste' as Profession,
-    emoji: '🍳',
+    id: 'cuisiniste',
     titre: 'Cuisiniste',
-    description: 'Conception cuisines, gestion poses, suivi SAV, catalogue produits et planification des techniciens.',
-    couleur: '#4a7ec0',
-    couleurDark: '#1A3A5C',
-    gradient: 'linear-gradient(135deg, #4a7ec0 0%, #1A3A5C 55%, #0F2540 100%)',
-    glowColor: 'rgba(74,126,192,0.55)',
-    tags: ['Conception cuisines', 'Planning pose', 'SAV & garanties', 'Catalogue produits'],
+    accroche: 'Showroom & sur-mesure',
+    description: 'Conception, poses, SAV et planning des techniciens.',
+    image: '/images/mobile/metier-cuisiniste.webp',
+    flou: 'data:image/webp;base64,UklGRoQAAABXRUJQVlA4IHgAAAAwBACdASoMABUAPtFWo0uoJKMhsAgBABoJQBOmUABwcktJjsgGADhPJoAA/vD4fSSlQGv11FTxOmuTyn3ORJ2AkOJFxL9g+VkJGsy6H1//1YZ9gDDGt8NEDDQ/hicmlasuztPHdb5dmcBgWbaIUWbOXxtirGLwAAA=',
+    tags: ['Conception', 'Planning pose', 'SAV'],
+  },
+  {
+    id: 'menuisier',
+    titre: 'Menuisier',
+    accroche: 'Atelier & agencement',
+    description: 'Commandes bois, devis matériaux, atelier et livraisons.',
+    image: '/images/mobile/metier-menuisier.webp',
+    flou: 'data:image/webp;base64,UklGRoAAAABXRUJQVlA4IHQAAACQAwCdASoMABUAPtFUo0uoJKMhsAgBABoJZACdACFmbAhCOBn2AP70QnyQ/Sf5NVVt5hsockj+Ovy6ZLVNM4hC9+eQlNQpYZ9UwdJ/FHh/S5bFfM3Tm8HWdZQDF663t1zLVd0Q84rhs3DyPwBluP9eU73AAA==',
+    tags: ['Commandes bois', 'Chantiers'],
+  },
+  {
+    id: 'architecte',
+    titre: "Architecte d'intérieur",
+    accroche: 'Projets & matières',
+    description: 'Plans, visuels, devis, e-signature et facturation.',
+    image: '/images/mobile/metier-architecte.webp',
+    flou: 'data:image/webp;base64,UklGRpgAAABXRUJQVlA4IIwAAABwBACdASoMABUAPtFUo0uoJKMhsAgBABoJYgCdL11s/wGKlx8KUBd8gUM8AAD+9DXaUj+eAqY9vTsHsYHCExSnJiJIKAb85XKekG2Kp1blWoKsvcA2UJ3O7j6Ob91aDjp9LUjEIlTZ2fEK/Se8mLtlJndOkf1wxH9KUvzaiz9K6oOKdWc6d+roN2AAAA==',
+    tags: ['Plans & visuels', 'E-signature'],
   },
 ];
 
@@ -45,7 +56,6 @@ export default function PortalSelectPage() {
   const user = useAuthStore(s => s.user);
   const [selected, setSelected] = useState<Profession>(null);
   const [loading, setLoading] = useState(false);
-  const [confetti, setConfetti] = useState(false);
 
   useEffect(() => {
     if (profession) {
@@ -53,11 +63,8 @@ export default function PortalSelectPage() {
     }
   }, [profession]);
 
-  const handleSelect = (id: Profession) => setSelected(id);
-
   const handleConfirm = () => {
     if (!selected) return;
-    setConfetti(true);
     setLoading(true);
     setProfession(selected);
     setTimeout(() => {
@@ -65,405 +72,238 @@ export default function PortalSelectPage() {
     }, 900);
   };
 
-  const prenom = user?.firstName ?? 'là';
-  const selectedPortail = PORTAILS.find(p => p.id === selected);
+  const prenom = user?.firstName?.trim();
+  const choix = PORTAILS.find(p => p.id === selected);
 
   return (
-    <div
-      className="ps-wrap"
-      style={{
-        minHeight: '100vh',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '40px 20px',
-        fontFamily: "'Segoe UI', Arial, sans-serif",
-      }}
-    >
-      <style>{`
-        @keyframes psAurora {
-          0%   { background-position: 0% 50%; }
-          50%  { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        @keyframes psFloat {
-          0%, 100% { transform: translateY(0); }
-          50%      { transform: translateY(-8px); }
-        }
-        @keyframes psPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(217,179,138,0.55), 0 0 40px rgba(217,179,138,0.4); }
-          50%      { box-shadow: 0 0 0 16px rgba(217,179,138,0), 0 0 60px rgba(217,179,138,0.6); }
-        }
-        @keyframes psFadeUp {
-          from { opacity: 0; transform: translateY(18px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes psShimmer {
-          0%   { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-        @keyframes psTwinkle {
-          0%, 100% { opacity: 0.25; transform: scale(1); }
-          50%      { opacity: 1;    transform: scale(1.5); }
-        }
-        @keyframes psOrb {
-          0%   { transform: translate(0,0) scale(1); }
-          33%  { transform: translate(40px,-30px) scale(1.15); }
-          66%  { transform: translate(-30px,25px) scale(0.9); }
-          100% { transform: translate(0,0) scale(1); }
-        }
-        @keyframes psConfetti {
-          0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
-        }
-        @keyframes psRing {
-          0%   { transform: scale(1);   opacity: 0.7; }
-          100% { transform: scale(2.2); opacity: 0; }
-        }
+    <main className={`ps${loading ? ' ps--sortie' : ''}`}>
+      <style dangerouslySetInnerHTML={{ __html: STYLES }} />
 
-        .ps-bg {
-          position: absolute; inset: 0;
-          background: linear-gradient(160deg, #1E2D22 0%, #2C3E2F 30%, #1A2E35 60%, #243a2b 100%);
-          background-size: 300% 300%;
-          animation: psAurora 18s ease-in-out infinite;
-          z-index: 0;
-        }
-        .ps-orb {
-          position: absolute; border-radius: 50%;
-          filter: blur(80px);
-          pointer-events: none;
-          z-index: 1;
-        }
-        .ps-orb-1 { top: -10%; left: -5%; width: 420px; height: 420px; background: radial-gradient(circle, rgba(166,119,73,0.5), transparent 70%); animation: psOrb 18s ease-in-out infinite; }
-        .ps-orb-2 { bottom: -15%; right: -10%; width: 500px; height: 500px; background: radial-gradient(circle, rgba(74,163,80,0.35), transparent 70%); animation: psOrb 22s ease-in-out infinite reverse; }
-        .ps-orb-3 { top: 30%; right: 20%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(74,126,192,0.3), transparent 70%); animation: psOrb 25s ease-in-out infinite; }
+      <header className="ps-entete">
+        <div className="ps-logo">AVRA</div>
+        <div className="ps-filet" />
+        <p className="ps-bienvenue">Bienvenue{prenom ? `, ${prenom}` : ''}</p>
+        <h1 className="ps-titre">Quel est votre métier&nbsp;?</h1>
+        <p className="ps-sous-titre">Votre espace s&apos;adapte à votre façon de travailler.</p>
+      </header>
 
-        .ps-star {
-          position: absolute; width: 2px; height: 2px;
-          background: #fff;
-          border-radius: 50%;
-          box-shadow: 0 0 6px #fff, 0 0 12px rgba(217,179,138,0.6);
-          animation: psTwinkle 3s ease-in-out infinite;
-          z-index: 1;
-        }
-
-        .ps-content { position: relative; z-index: 10; display: contents; }
-
-        .ps-header { animation: psFadeUp 0.6s ease-out both; }
-
-        .ps-owl-ring {
-          position: relative;
-          width: 100px; height: 100px;
-          margin: 0 auto 20px;
-        }
-        .ps-owl-ring::before, .ps-owl-ring::after {
-          content: ''; position: absolute; inset: 0;
-          border-radius: 50%;
-          border: 2px solid rgba(217,179,138,0.5);
-          animation: psRing 2.5s ease-out infinite;
-        }
-        .ps-owl-ring::after { animation-delay: 1.25s; }
-        .ps-owl-inner {
-          position: relative;
-          width: 100%; height: 100%;
-          border-radius: 50%;
-          background: linear-gradient(135deg, rgba(217,179,138,0.25), rgba(74,163,80,0.2));
-          border: 2px solid rgba(217,179,138,0.6);
-          display: flex; align-items: center; justify-content: center;
-          animation: psPulse 2.8s ease-in-out infinite, psFloat 4s ease-in-out infinite;
-          backdrop-filter: blur(10px);
-          overflow: hidden;
-        }
-        .ps-owl-inner img { width: 70px; height: 70px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5)) drop-shadow(0 0 12px rgba(217,179,138,0.5)); }
-
-        .ps-title {
-          background: linear-gradient(135deg, #ffffff 0%, #d9b38a 50%, #ffffff 100%);
-          background-size: 200% 200%;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: psAurora 4s ease-in-out infinite;
-          font-size: 42px;
-          font-weight: 900;
-          letter-spacing: 6px;
-          margin-bottom: 10px;
-        }
-
-        .ps-card {
-          animation: psFadeUp 0.6s ease-out both;
-          position: relative;
-          background: rgba(255,255,255,0.06);
-          border: 2px solid rgba(255,255,255,0.1);
-          border-radius: 22px;
-          padding: 28px 24px;
-          cursor: pointer;
-          text-align: left;
-          transition: transform 0.35s cubic-bezier(0.22,1,0.36,1), box-shadow 0.35s ease, border-color 0.35s ease, background 0.35s ease;
-          backdrop-filter: blur(14px);
-          overflow: hidden;
-          color: white;
-          font-family: inherit;
-        }
-        .ps-card:nth-child(1) { animation-delay: 0.1s; }
-        .ps-card:nth-child(2) { animation-delay: 0.2s; }
-        .ps-card:nth-child(3) { animation-delay: 0.3s; }
-
-        .ps-card::before {
-          content: '';
-          position: absolute; inset: 0;
-          background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%);
-          transform: translateX(-100%);
-          transition: transform 0.6s ease;
-          pointer-events: none;
-        }
-        .ps-card:hover::before { transform: translateX(100%); }
-
-        .ps-card:hover {
-          transform: translateY(-8px) scale(1.02);
-          border-color: rgba(217,179,138,0.4);
-          background: rgba(255,255,255,0.09);
-        }
-
-        .ps-card.selected {
-          transform: translateY(-10px) scale(1.03);
-          border-color: rgba(255,255,255,0.3);
-        }
-
-        .ps-card-emoji-ring {
-          width: 58px; height: 58px; border-radius: 16px;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 30px;
-          margin-bottom: 16px;
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.15);
-          transition: all 0.3s ease;
-        }
-        .ps-card:hover .ps-card-emoji-ring { transform: rotate(-6deg) scale(1.1); }
-
-        .ps-tag {
-          padding: 4px 11px;
-          border-radius: 20px;
-          font-size: 11px;
-          font-weight: 600;
-          background: rgba(255,255,255,0.08);
-          color: rgba(255,255,255,0.55);
-          border: 1px solid rgba(255,255,255,0.12);
-          transition: all 0.2s ease;
-        }
-        .ps-card.selected .ps-tag {
-          background: rgba(255,255,255,0.22);
-          color: rgba(255,255,255,0.95);
-          border-color: rgba(255,255,255,0.3);
-        }
-
-        .ps-check {
-          position: absolute; top: 14px; right: 14px;
-          width: 28px; height: 28px; border-radius: 50%;
-          background: white;
-          display: flex; align-items: center; justify-content: center;
-          color: #304035; font-weight: 900; font-size: 14px;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-          animation: psFadeUp 0.3s ease-out both;
-        }
-
-        .ps-cta {
-          position: relative;
-          padding: 16px 52px;
-          border-radius: 16px;
-          border: none;
-          font-size: 15px;
-          font-weight: 800;
-          letter-spacing: 0.8px;
-          min-width: 260px;
-          overflow: hidden;
-          transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
-        }
-        .ps-cta.active {
-          background: linear-gradient(135deg, #d9b38a 0%, #C49A3C 45%, #a67749 100%);
-          background-size: 200% 200%;
-          color: white;
-          cursor: pointer;
-          box-shadow: 0 12px 40px rgba(196,154,60,0.5), 0 0 0 1px rgba(255,255,255,0.15) inset;
-          animation: psAurora 3s ease-in-out infinite;
-        }
-        .ps-cta.active:hover {
-          transform: translateY(-3px) scale(1.03);
-          box-shadow: 0 18px 50px rgba(196,154,60,0.65), 0 0 0 1px rgba(255,255,255,0.25) inset;
-        }
-        .ps-cta.active:active { transform: translateY(0) scale(0.98); }
-        .ps-cta.disabled {
-          background: rgba(255,255,255,0.08);
-          color: rgba(255,255,255,0.35);
-          cursor: not-allowed;
-          border: 1px solid rgba(255,255,255,0.1);
-        }
-        .ps-cta-shimmer {
-          position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-          background: linear-gradient(110deg, transparent 40%, rgba(255,255,255,0.4) 50%, transparent 60%);
-          animation: psShimmer 2.5s ease-in-out infinite;
-          pointer-events: none;
-        }
-
-        .ps-confetti-piece {
-          position: fixed; top: -20px;
-          width: 10px; height: 14px;
-          pointer-events: none;
-          z-index: 100;
-          animation: psConfetti 1.8s linear forwards;
-        }
-
-        @media (max-width: 768px) {
-          .ps-title { font-size: 32px; letter-spacing: 4px; }
-          .ps-owl-ring { width: 84px; height: 84px; }
-          .ps-owl-inner img { width: 58px; height: 58px; }
-        }
-      `}</style>
-
-      {/* Backdrop animé */}
-      <div className="ps-bg" />
-      <div className="ps-orb ps-orb-1" />
-      <div className="ps-orb ps-orb-2" />
-      <div className="ps-orb ps-orb-3" />
-
-      {/* Étoiles scintillantes */}
-      {Array.from({ length: 30 }).map((_, i) => {
-        const top = (i * 37) % 100;
-        const left = (i * 53) % 100;
-        const delay = (i * 0.17) % 3;
-        const size = 1 + ((i * 7) % 3);
-        return (
-          <span
-            key={i}
-            className="ps-star"
-            style={{ top: `${top}%`, left: `${left}%`, animationDelay: `${delay}s`, width: size, height: size }}
-          />
-        );
-      })}
-
-      {/* Confetti on confirm */}
-      {confetti && Array.from({ length: 50 }).map((_, i) => {
-        const left = Math.random() * 100;
-        const delay = Math.random() * 0.4;
-        const colors = ['#d9b38a', '#C49A3C', '#4aa350', '#6b8e73', '#c08a5a', '#ffffff'];
-        const color = colors[i % colors.length];
-        const duration = 1.4 + Math.random() * 0.8;
-        return (
-          <span
-            key={i}
-            className="ps-confetti-piece"
-            style={{
-              left: `${left}%`,
-              background: color,
-              animationDelay: `${delay}s`,
-              animationDuration: `${duration}s`,
-              borderRadius: i % 3 === 0 ? '50%' : '2px',
-            }}
-          />
-        );
-      })}
-
-      {/* En-tête */}
-      <div className="ps-header" style={{ textAlign: 'center', marginBottom: 48, position: 'relative', zIndex: 10 }}>
-        <div className="ps-owl-ring">
-          <div className="ps-owl-inner">
-            <img src="/nouveaulogochouette.webp" alt="AVRA" />
-          </div>
-        </div>
-        <h1 className="ps-title">AVRA</h1>
-        <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 15, marginBottom: 4 }}>
-          Bienvenue{prenom !== 'là' ? `, ${prenom}` : ''} ✨
-        </p>
-        <p style={{ color: 'rgba(255,255,255,0.92)', fontSize: 18, fontWeight: 700, marginTop: 8 }}>
-          Choisissez votre portail métier
-        </p>
-        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, marginTop: 6 }}>
-          Votre espace sera personnalisé selon votre profession
-        </p>
-      </div>
-
-      {/* Cartes */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
-        gap: 20,
-        maxWidth: 960,
-        width: '100%',
-        marginBottom: 40,
-        position: 'relative',
-        zIndex: 10,
-      }}>
-        {PORTAILS.map((p) => {
-          const isSelected = selected === p.id;
+      <div className="ps-cartes" role="radiogroup" aria-label="Votre métier">
+        {PORTAILS.map((p, i) => {
+          const actif = selected === p.id;
           return (
             <button
               key={p.id}
-              onClick={() => handleSelect(p.id)}
-              className={`ps-card${isSelected ? ' selected' : ''}`}
-              style={{
-                background: isSelected ? p.gradient : undefined,
-                boxShadow: isSelected
-                  ? `0 20px 60px ${p.glowColor}, 0 0 0 1px rgba(255,255,255,0.2) inset`
-                  : '0 4px 24px rgba(0,0,0,0.25)',
-              }}
+              type="button"
+              role="radio"
+              aria-checked={actif}
+              className={`ps-carte${actif ? ' ps-carte--choisie' : ''}`}
+              onClick={() => setSelected(p.id)}
+              style={{ ['--i' as string]: i }}
             >
-              {isSelected && <div className="ps-check">✓</div>}
-
-              <div
-                className="ps-card-emoji-ring"
-                style={{
-                  background: isSelected ? 'rgba(255,255,255,0.18)' : undefined,
-                  borderColor: isSelected ? 'rgba(255,255,255,0.3)' : undefined,
-                }}
-              >
-                {p.emoji}
-              </div>
-
-              <div style={{ color: 'white', fontSize: 19, fontWeight: 800, marginBottom: 10, letterSpacing: 0.3 }}>
-                {p.titre}
-              </div>
-
-              <div style={{
-                color: isSelected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.55)',
-                fontSize: 13,
-                lineHeight: 1.55,
-                marginBottom: 18,
-              }}>
-                {p.description}
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {p.tags.map(tag => (
-                  <span key={tag} className="ps-tag">{tag}</span>
-                ))}
-              </div>
+              <Image
+                src={p.image}
+                alt=""
+                fill
+                sizes="(min-width: 900px) 300px, 100vw"
+                quality={85}
+                placeholder="blur"
+                blurDataURL={p.flou}
+                className="ps-photo"
+                priority={i === 0}
+              />
+              <span className="ps-voile" aria-hidden="true" />
+              <span className="ps-coche" aria-hidden="true"><Check size={16} strokeWidth={2.6} /></span>
+              <span className="ps-texte">
+                <span className="ps-accroche">{p.accroche}</span>
+                <strong className="ps-nom">{p.titre}</strong>
+                <span className="ps-desc">{p.description}</span>
+                <span className="ps-tags">
+                  {p.tags.map(t => <span key={t} className="ps-tag">{t}</span>)}
+                </span>
+              </span>
             </button>
           );
         })}
       </div>
 
-      {/* CTA */}
-      <button
-        onClick={handleConfirm}
-        disabled={!selected || loading}
-        className={`ps-cta ${selected && !loading ? 'active' : 'disabled'}`}
-        style={{ position: 'relative', zIndex: 10 }}
-      >
-        {selected && !loading && <span className="ps-cta-shimmer" />}
-        <span style={{ position: 'relative', zIndex: 2 }}>
-          {loading
-            ? '⏳ Ouverture de votre portail…'
-            : selected
-            ? `Accéder à mon portail ${selectedPortail?.emoji ?? ''}`
-            : 'Sélectionnez un portail'}
-        </span>
-      </button>
-
-      <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, marginTop: 22, position: 'relative', zIndex: 10 }}>
-        Vous pourrez changer de portail depuis vos paramètres
-      </p>
-    </div>
+      <div className="ps-pied">
+        <button
+          type="button"
+          className="ps-cta"
+          onClick={handleConfirm}
+          disabled={!selected || loading}
+        >
+          {loading ? (
+            <>
+              <svg className="ps-roue" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="28 60" />
+              </svg>
+              Ouverture de votre espace…
+            </>
+          ) : choix ? (
+            <>Entrer dans mon espace {choix.titre.toLowerCase()} <ArrowRight size={18} aria-hidden="true" /></>
+          ) : (
+            'Choisissez votre métier'
+          )}
+        </button>
+        <p className="ps-note">Vous pourrez changer de métier depuis vos paramètres.</p>
+      </div>
+    </main>
   );
 }
+
+/**
+ * Styles préfixés « ps- », injectés par dangerouslySetInnerHTML (une balise
+ * <style> en enfant texte fait diverger serveur et navigateur sur les
+ * apostrophes).
+ */
+const STYLES = `
+.ps {
+  --ps-ivoire: #f5eee8;
+  --ps-cuivre: #c99a6a;
+  position: relative;
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column; align-items: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 36px) 18px 0;
+  color: var(--ps-ivoire);
+  font-family: var(--font-dm-sans, 'DM Sans'), -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(166,119,73,.16), transparent 42%),
+    radial-gradient(circle at 0% 100%, rgba(48,64,53,.6), transparent 50%),
+    linear-gradient(170deg, #18221c 0%, #0f1612 60%, #0b110d 100%);
+  /* clip et non hidden : hidden ferait de la page un conteneur de défilement
+     et le bouton du bas ne resterait plus collé à l'écran. */
+  overflow-x: clip;
+}
+.ps *, .ps *::before, .ps *::after { box-sizing: border-box; }
+
+.ps-entete { text-align: center; max-width: 560px; animation: ps-descend .8s cubic-bezier(.22,.61,.36,1) both; }
+.ps-logo {
+  font-family: var(--font-playfair-display, 'Playfair Display'), Georgia, serif;
+  font-size: 30px; letter-spacing: .2em; margin-right: -.2em; line-height: 1;
+}
+.ps-filet {
+  width: 120px; height: 1px; margin: 12px auto 18px; position: relative;
+  background: linear-gradient(90deg, transparent, var(--ps-cuivre) 20%, #e2bd8f 50%, var(--ps-cuivre) 80%, transparent);
+}
+.ps-filet::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px;
+  transform: translate(-50%,-50%) rotate(45deg); background: #e2bd8f; box-shadow: 0 0 10px rgba(226,189,143,.7);
+}
+.ps-bienvenue { font-size: 14px; letter-spacing: .04em; color: rgba(245,238,232,.62); }
+.ps-titre {
+  margin-top: 6px;
+  font-family: var(--font-playfair-display, 'Playfair Display'), Georgia, serif;
+  font-weight: 600; font-size: clamp(28px, 8vw, 40px); line-height: 1.15;
+}
+.ps-sous-titre { margin-top: 8px; font-size: 14.5px; color: rgba(245,238,232,.6); }
+
+.ps-cartes {
+  width: 100%; max-width: 980px;
+  display: grid; grid-template-columns: 1fr; gap: 14px;
+  margin-top: 26px;
+}
+.ps-carte {
+  position: relative; overflow: hidden;
+  height: 214px; border-radius: 22px;
+  border: 1px solid rgba(245,238,232,.12);
+  background: #141c17; color: inherit; font: inherit; text-align: left;
+  padding: 0; cursor: pointer;
+  box-shadow: 0 14px 34px rgba(0,0,0,.35);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .3s cubic-bezier(.22,1,.36,1), border-color .3s ease, box-shadow .3s ease;
+  animation: ps-monte .7s cubic-bezier(.22,1,.36,1) both;
+  animation-delay: calc(var(--i) * 90ms + 150ms);
+}
+.ps-photo { object-fit: cover; object-position: 50% 45%; transition: transform .8s cubic-bezier(.22,1,.36,1), filter .4s ease; filter: saturate(.92) brightness(.9); }
+.ps-voile {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(10,14,11,.88) 0%, rgba(10,14,11,.55) 52%, rgba(10,14,11,.08) 100%);
+}
+.ps-texte {
+  position: absolute; inset: 0; padding: 18px 18px 16px;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 4px;
+  max-width: 86%;
+}
+.ps-accroche { font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: #d6ab7d; white-space: nowrap; }
+.ps-nom {
+  font-family: var(--font-playfair-display, 'Playfair Display'), Georgia, serif;
+  font-weight: 600; font-size: 25px; line-height: 1.15;
+}
+.ps-desc { font-size: 13.5px; line-height: 1.4; color: rgba(245,238,232,.72); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ps-tags { display: flex; flex-wrap: nowrap; gap: 6px; margin-top: 8px; overflow: hidden; }
+.ps-tag {
+  padding: 4px 10px; border-radius: 999px; font-size: 11.5px; white-space: nowrap;
+  background: rgba(245,238,232,.1); border: 1px solid rgba(245,238,232,.16); color: rgba(245,238,232,.82);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.ps-coche {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: transparent;
+  border: 1.5px solid rgba(245,238,232,.5);
+  background: rgba(10,14,11,.35);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  transition: all .3s cubic-bezier(.34,1.56,.64,1);
+}
+.ps-carte--choisie {
+  border-color: rgba(226,189,143,.85);
+  box-shadow: 0 18px 44px rgba(166,119,73,.32), 0 0 0 1px rgba(226,189,143,.55), inset 0 0 0 1px rgba(226,189,143,.25);
+}
+.ps-carte--choisie .ps-photo { transform: scale(1.05); filter: saturate(1.05) brightness(1); }
+.ps-carte--choisie .ps-coche {
+  color: #fffaf4; border-color: transparent;
+  background: linear-gradient(180deg, #c3925f, #8f633b);
+  box-shadow: 0 4px 14px rgba(166,119,73,.55);
+  transform: scale(1.08);
+}
+.ps-carte:active { transform: scale(.985); }
+.ps-carte:focus-visible { outline: 2px solid #e2bd8f; outline-offset: 3px; }
+
+.ps-pied {
+  position: sticky; bottom: 0; z-index: 5;
+  width: calc(100% + 36px); margin-top: 22px;
+  padding: 18px 18px calc(env(safe-area-inset-bottom, 0px) + 18px);
+  display: flex; flex-direction: column; align-items: center;
+  background: linear-gradient(180deg, rgba(11,17,13,0) 0%, rgba(11,17,13,.92) 32%, #0b110d 100%);
+}
+.ps-cta {
+  position: relative; overflow: hidden;
+  width: 100%; max-width: 420px; height: 56px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  border-radius: 16px; border: none; cursor: pointer;
+  font: inherit; font-size: 16px; font-weight: 600; letter-spacing: .02em;
+  color: #fffaf4;
+  background: linear-gradient(180deg, #c3925f 0%, #a67749 52%, #8f633b 100%);
+  box-shadow: 0 10px 28px rgba(166,119,73,.38), inset 0 1px 0 rgba(255,236,210,.35);
+  transition: transform .2s ease, opacity .3s ease, filter .3s ease;
+}
+.ps-cta:disabled { cursor: default; filter: grayscale(.6) brightness(.55); box-shadow: none; }
+.ps-cta:not(:disabled):active { transform: scale(.985); }
+.ps-roue { width: 18px; height: 18px; animation: ps-tourne .8s linear infinite; }
+.ps-note { margin-top: 12px; font-size: 12px; color: rgba(245,238,232,.4); }
+
+.ps--sortie .ps-entete, .ps--sortie .ps-cartes { transition: opacity .6s ease, transform .6s ease; opacity: .35; transform: scale(.985); }
+
+@keyframes ps-descend { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
+@keyframes ps-monte { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+@keyframes ps-tourne { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ps *, .ps *::before, .ps *::after { animation: none !important; transition: none !important; }
+}
+
+/* Ordinateur : trois grandes cartes verticales côte à côte */
+@media (min-width: 900px) {
+  .ps { justify-content: center; padding: 48px 32px 0; }
+  .ps-logo { font-size: 36px; }
+  .ps-cartes { grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 36px; }
+  .ps-carte { height: 460px; }
+  .ps-carte:hover { transform: translateY(-6px); }
+  .ps-carte:hover .ps-photo { transform: scale(1.04); }
+  .ps-voile { background: linear-gradient(180deg, rgba(10,14,11,0) 30%, rgba(10,14,11,.6) 62%, rgba(10,14,11,.94) 100%); }
+  .ps-texte { max-width: none; padding: 22px; }
+  .ps-pied { position: static; background: none; width: 100%; padding: 30px 0 40px; }
+}
+`;

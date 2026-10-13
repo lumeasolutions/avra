@@ -3,6 +3,7 @@
 import nextDynamic from 'next/dynamic';
 import { useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { MobileNav } from '@/components/mobile/MobileNav';
 import { AppGuard } from '@/components/layout/AppGuard';
 import { usePathname } from 'next/navigation';
 import { useDataSync } from '@/hooks/useDataSync';
@@ -78,8 +79,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <DataSyncProvider />
       <SentryUserProvider />
       <div className="flex min-h-screen w-full bg-[#f5eee8]">
-        {/* Sidebar gauche (inclut le bouton hamburger mobile) */}
+        {/* Sidebar gauche : ordinateur. Sur téléphone, elle reste montée (elle
+            rafraîchit les pastilles) mais c'est MobileNav qui navigue. */}
         <Sidebar />
+        <MobileNav />
         {/* Contenu central */}
         <main
           className="app-main-content min-h-screen py-5 overflow-y-scroll app-scroll-visible"

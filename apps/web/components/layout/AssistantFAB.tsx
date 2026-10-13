@@ -93,7 +93,8 @@ export function AssistantFAB() {
       <AssistantPanel open={open} onClose={() => setOpen(false)} />
 
       {/* Bouton FAB */}
-      <div style={{ position: 'fixed', bottom: 28, right: 28, zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+      {/* « avra-fab-dock » : sur téléphone, MobileNav le remonte au-dessus de la barre du bas. */}
+      <div className="avra-fab-dock" style={{ position: 'fixed', bottom: 28, right: 28, zIndex: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
 
         {/* Label tooltip */}
         {!open && (
