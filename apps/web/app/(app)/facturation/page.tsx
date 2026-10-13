@@ -1163,7 +1163,7 @@ function OngletEPaiement() {
       <iframe
         src="/epaiement"
         style={{ width: '100%', height: 'calc(100vh - 260px)', border: 'none', display: 'block' }}
-        title="E Paiement"
+        title="E-Paiement"
       />
     </div>
   );
@@ -1177,7 +1177,7 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'devis',         label: 'Devis',          icon: <FileCheck className="h-4 w-4" /> },
   { key: 'factures',      label: 'Factures',        icon: <FileText className="h-4 w-4" /> },
   { key: 'e-facturation', label: 'E-Facturation',   icon: <Globe className="h-4 w-4" /> },
-  { key: 'epaiement',     label: 'E Paiement',      icon: <CreditCard className="h-4 w-4" /> },
+  { key: 'epaiement',     label: 'E-Paiement',      icon: <CreditCard className="h-4 w-4" /> },
 ];
 
 export default function FacturationPage() {

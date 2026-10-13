@@ -46,6 +46,25 @@ export default function EpaiementPage() {
 
   return (
     <div className="space-y-6">
+      {/* Téléphone (14/10/2026) : les trois montants sur une ligne au lieu de
+          trois grandes cartes empilées ; filtres sur une rangée qui défile ;
+          « Nouveau paiement » en cuivre, comme les autres actions principales. */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 900px) {
+          .pay-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; }
+          .pay-kpis > div { padding: 12px 10px !important; border-radius: 16px !important; }
+          .pay-kpis > div > p:first-child { font-size: 10px !important; letter-spacing: .04em !important; white-space: nowrap; }
+          .pay-kpis > div > p:last-child { font-size: 16px !important; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+          .pay-filtres { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px; }
+          .pay-filtres::-webkit-scrollbar { display: none; }
+          .pay-filtres > button { flex: 0 0 auto; white-space: nowrap; }
+          .pay-nouveau {
+            color: #fffaf4 !important; border: 0 !important;
+            background: linear-gradient(180deg, #c3925f 0%, #a67749 55%, #8f633b 100%) !important;
+            box-shadow: 0 8px 20px rgba(166,119,73,.32), inset 0 1px 0 rgba(255,236,210,.35) !important;
+          }
+        }
+      ` }} />
       <PageHeader
         icon={<CreditCard className="h-7 w-7" />}
         title="E-Paiement"
@@ -53,7 +72,7 @@ export default function EpaiementPage() {
         actions={
           <button
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 rounded-xl bg-white/15 border border-white/20 px-4 py-2 text-sm font-bold text-white hover:bg-white/25 transition-all"
+            className="pay-nouveau flex items-center gap-2 rounded-xl bg-white/15 border border-white/20 px-4 py-2 text-sm font-bold text-white hover:bg-white/25 transition-all"
           >
             <Plus className="h-4 w-4" />
             Nouveau paiement
@@ -70,7 +89,7 @@ export default function EpaiementPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="pay-kpis grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-5">
           <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">Encaissé</p>
           <p className="text-xl font-bold text-emerald-700">{fmt(totalEncaisse)}</p>
@@ -117,7 +136,7 @@ export default function EpaiementPage() {
       )}
 
       {/* Filtres */}
-      <div className="flex flex-wrap gap-2">
+      <div className="pay-filtres flex flex-wrap gap-2">
         {(['TOUS', 'ENCAISSÉ', 'EN ATTENTE', 'RETARD'] as const).map(s => (
           <button key={s} onClick={() => setFilterStatus(s)}
             className={cn('rounded-full px-4 py-1.5 text-xs font-bold transition-all', filterStatus === s ? 'bg-[#304035] text-white shadow-md' : 'bg-white border border-[#304035]/15 text-[#304035]/70 hover:border-[#304035]/30')}>

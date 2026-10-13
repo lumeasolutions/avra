@@ -144,7 +144,19 @@ export default function StatistiquesPage() {
       )}
 
       {/* Onglets */}
-      <div className="rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-1.5 flex gap-1.5">
+      {/* Téléphone (14/10/2026) : les quatre onglets côte à côte dépassaient
+          l'écran (≈ 520 px) et faisaient dézoomer toute la page. Icône au-dessus
+          du libellé, marges serrées : les quatre tiennent dans la largeur. */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 900px) {
+          .stat-onglets { gap: 4px !important; padding: 4px !important; }
+          .stat-onglets > button {
+            min-width: 0; flex-direction: column; gap: 3px !important;
+            padding: 8px 2px !important; font-size: 11.5px !important; letter-spacing: -.01em;
+          }
+        }
+      ` }} />
+      <div className="stat-onglets rounded-2xl bg-white border border-[#304035]/8 shadow-sm p-1.5 flex gap-1.5">
         {TABS.map((t) => {
           const Icon = t.icon;
           const active = tab === t.key;

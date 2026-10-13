@@ -509,6 +509,28 @@ export default function ParametresPage() {
           .param-kpi-2 { grid-template-columns: 1fr !important; }
           .param-kpi-3-sm { grid-template-columns: repeat(2, 1fr) !important; }
         }
+        /* Téléphone (14/10/2026) : la douzaine de réglages devient une liste
+           groupée — un seul bloc, lignes séparées par un filet — au lieu d'une
+           pile de cartes (la page faisait près de 2 000 px). */
+        @media (max-width: 900px) {
+          .param-liste {
+            gap: 0 !important; background: #fff; border-radius: 20px; overflow: hidden;
+            border: 1px solid rgba(48,64,53,.08); box-shadow: 0 6px 18px rgba(48,64,53,.06);
+          }
+          .param-liste > button {
+            border-radius: 0 !important; border-width: 0 0 1px 0 !important;
+            border-color: rgba(48,64,53,.07) !important; box-shadow: none !important;
+            padding: 12px 14px !important;
+          }
+          .param-liste > button:last-child { border-bottom-width: 0 !important; }
+          .param-liste > button > div > div:first-child { width: 36px !important; height: 36px !important; border-radius: 11px !important; }
+          .param-liste > button p:first-child { font-size: 14.5px !important; }
+          .param-liste { grid-template-columns: minmax(0, 1fr) !important; }
+          .param-liste > button { min-width: 0; }
+          .param-liste > button > div { min-width: 0; }
+          .param-liste > button > div > div:last-child { min-width: 0; }
+          .param-liste > button p + p { font-size: 12px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        }
       ` }} />
       {/* ── Header ── */}
       <PageHeader
@@ -528,7 +550,7 @@ export default function ParametresPage() {
       )}
 
       {/* ── Grille des sections ── */}
-      <div className="grid gap-2.5 lg:grid-cols-2">
+      <div className="param-liste grid gap-2.5 lg:grid-cols-2">
         {/* Section dev temporaire — switch portail (admins uniquement) */}
         {isDevAdmin && (
           <button

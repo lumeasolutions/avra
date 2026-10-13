@@ -438,7 +438,7 @@ export default function IntervenantsHubPage() {
               <p className="text-xs text-[#304035]/55">
                 {filterType === FILTER_ALERTES
                   ? 'Tous tes intervenants sont en règle. Bon travail !'
-                  : 'Cliquez sur "RAJOUTER UN ARTISAN" pour en créer un.'}
+                  : 'Utilisez « Ajouter un artisan » ci-dessous pour en créer un.'}
               </p>
             </div>
           ) : (
@@ -709,12 +709,27 @@ interface IntervenantAlert {
 function FiltersBar({ types, activeType, onPick }: { types: string[]; activeType: string; onPick: (t: string) => void }) {
   const isAlertes = activeType === FILTER_ALERTES;
   return (
-    <div className="rounded-2xl bg-white border border-[#304035]/10 shadow-sm px-4 py-3">
+    <div className="itv-filtres rounded-2xl bg-white border border-[#304035]/10 shadow-sm px-4 py-3">
+      {/* Téléphone (14/10/2026) : la trentaine de métiers occupait un écran
+          entier. Une seule rangée qui défile, « Alertes » en tête. */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 900px) {
+          .itv-filtres { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+          .itv-filtres > div > span { display: none !important; }
+          .itv-chips {
+            flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none;
+            margin: 0 -16px; padding: 2px 16px;
+          }
+          .itv-chips::-webkit-scrollbar { display: none; }
+          .itv-chips > button { flex: 0 0 auto; padding: 8px 14px !important; font-size: 13px !important; }
+          .itv-chips > .itv-alertes { order: -1; margin-left: 0 !important; }
+        }
+      ` }} />
       <div className="flex items-start gap-2.5">
         <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#304035]/50 shrink-0 mt-1.5">
           <Filter className="h-3.5 w-3.5" /> Métier
         </span>
-        <div className="flex items-center gap-1.5 flex-wrap flex-1">
+        <div className="itv-chips flex items-center gap-1.5 flex-wrap flex-1">
           {types.map(t => {
             const active = t === activeType;
             return (
@@ -735,7 +750,7 @@ function FiltersBar({ types, activeType, onPick }: { types: string[]; activeType
           <button
             onClick={() => onPick(FILTER_ALERTES)}
             className={cn(
-              'inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-full transition-all whitespace-nowrap border ml-0.5',
+              'itv-alertes inline-flex items-center gap-1 text-[12px] font-medium px-3 py-1.5 rounded-full transition-all whitespace-nowrap border ml-0.5',
               isAlertes
                 ? 'bg-[#b91c1c] text-white border-[#b91c1c]'
                 : 'bg-[#fbecec] text-[#b91c1c] border-[#e7c9c9] hover:bg-[#f6e0e0]'

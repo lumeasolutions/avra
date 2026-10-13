@@ -713,7 +713,7 @@ export function StatsGateModal({
                 margin: 0, fontSize: 16, fontWeight: 800, color: '#304035',
                 letterSpacing: '0.02em', textTransform: 'uppercase',
               }}>
-                Statistiques manquants <span style={{
+                Statistiques manquantes <span style={{
                   fontWeight: 600, color: 'rgba(48,64,53,0.55)', textTransform: 'none',
                 }}>(prix achat / prix vente)</span>
               </h2>

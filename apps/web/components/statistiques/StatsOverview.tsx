@@ -104,7 +104,15 @@ export function StatsOverview({ dossiers, dossiersSignes, dossiersPerdus, onRens
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* ── Cartes héros ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+      {/* Téléphone (14/10/2026) : deux cartes par ligne, la troisième prend
+          toute la largeur au lieu de rester seule à gauche. */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 900px) {
+          .stat-heros { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+          .stat-heros > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+        }
+      ` }} />
+      <div className="stat-heros" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
         <HeroCard
           color={GREEN} label="Signés" icon="✓" count={m.nS}
           amount={eur(m.vVente)} sub={m.vVente > 0 ? `CA vendu · marge ${m.marge}%` : 'ce qu’on a gagné'}
