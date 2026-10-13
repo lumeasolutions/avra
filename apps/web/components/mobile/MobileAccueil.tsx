@@ -85,6 +85,12 @@ export function MobileAccueil({ metier }: { metier: Metier }) {
 
   const photo = PHOTOS[metier];
   const prenom = user?.firstName?.trim();
+  // L'espace porte parfois le nom de la personne (« Esteve Boucheret ») :
+  // « Votre journée chez Esteve Boucheret » sonnerait faux.
+  const espace = user?.workspaceName?.trim();
+  const nomPersonne = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim().toLowerCase();
+  const espaceAffiche = espace && espace.toLowerCase() !== nomPersonne && !(prenom && espace.toLowerCase().startsWith(prenom.toLowerCase()))
+    ? espace : null;
   const salutation = maintenant && maintenant.getHours() >= 18 ? 'Bonsoir' : 'Bonjour';
   // « Mardi 13 octobre » : majuscule au jour seulement, le mois reste en
   // minuscule comme le veut l'usage français.
@@ -139,6 +145,7 @@ export function MobileAccueil({ metier }: { metier: Metier }) {
   );
 
   // Courbe des six mois, dessinée à l'échelle de son propre maximum.
+  const aucunEncaissement = encaisse.mois.every((m) => m.total === 0);
   const max = Math.max(...encaisse.mois.map((m) => m.total), 1);
   const points = encaisse.mois.map((m, i) => [i * 52 + 4, 46 - (m.total / max) * 38] as const);
   const trace = points.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x},${y.toFixed(1)}`).join(' ');
@@ -170,7 +177,7 @@ export function MobileAccueil({ metier }: { metier: Metier }) {
         </div>
         <div className="ma-hero-texte">
           <h1>{salutation}{prenom ? `, ${prenom}` : ''}</h1>
-          <p>{user?.workspaceName ? `Votre journée chez ${user.workspaceName}` : 'Voici votre journée'}</p>
+          <p>{espaceAffiche ? `Votre journée chez ${espaceAffiche}` : 'Voici votre journée'}</p>
         </div>
       </section>
 
@@ -187,9 +194,12 @@ export function MobileAccueil({ metier }: { metier: Metier }) {
               {encaisse.evolution >= 0 ? '+' : ''}{encaisse.evolution} % vs {MOIS_COURT[encaisse.mois[4].mois]}
             </span>
           ) : (
-            <span className="ma-ca-evol ma-ca-evol--neutre">Factures payées, hors avoirs</span>
+            <span className="ma-ca-evol ma-ca-evol--neutre">
+              {aucunEncaissement ? 'Vos encaissements s\u2019afficheront ici dès la première facture payée.' : 'Factures payées, hors avoirs'}
+            </span>
           )}
         </div>
+        {!aucunEncaissement && (
         <svg className="ma-courbe" viewBox="0 0 268 56" aria-hidden="true">
           <defs>
             <linearGradient id="ma-aire" x1="0" y1="0" x2="0" y2="1">
@@ -201,6 +211,7 @@ export function MobileAccueil({ metier }: { metier: Metier }) {
           <path d={trace} fill="none" stroke="#e2bd8f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           <circle cx={points[5][0]} cy={points[5][1]} r="3.5" fill="#fffaf4" stroke="#c99a6a" strokeWidth="2" />
         </svg>
+        )}
       </Link>
 
       {/* ── Trois chiffres ── */}
@@ -405,10 +416,11 @@ const STYLES = `
   .ma-ca-montant {
     font-family: var(--font-playfair-display, 'Playfair Display'), Georgia, serif;
     font-size: 30px; font-weight: 600; line-height: 1.1; color: #fffaf4; white-space: nowrap;
+    font-variant-numeric: lining-nums tabular-nums;
   }
   .ma-ca-evol { display: inline-flex; align-items: center; gap: 3px; font-size: 12.5px; color: #9fd0a8; }
   .ma-ca-evol--baisse { color: #f0a493; }
-  .ma-ca-evol--neutre { color: rgba(245,238,232,.55); }
+  .ma-ca-evol--neutre { color: rgba(245,238,232,.6); line-height: 1.4; }
   .ma-courbe { width: 46%; max-width: 170px; height: 56px; flex-shrink: 0; }
 
   .ma-chiffres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
@@ -418,7 +430,7 @@ const STYLES = `
     background: #fffdfb; border: 1px solid rgba(48,64,53,.07);
     box-shadow: 0 6px 18px rgba(48,64,53,.07);
   }
-  .ma-chiffre strong { font-family: var(--font-playfair-display, 'Playfair Display'), Georgia, serif; font-size: 25px; font-weight: 600; line-height: 1.1; margin-top: 4px; }
+  .ma-chiffre strong { font-family: var(--font-playfair-display, 'Playfair Display'), Georgia, serif; font-size: 25px; font-weight: 600; line-height: 1.1; margin-top: 4px; font-variant-numeric: lining-nums; }
   .ma-chiffre > span:last-child { font-size: 12.5px; color: #6b766f; }
   .ma-chiffre-ico {
     width: 30px; height: 30px; border-radius: 10px;
@@ -460,9 +472,10 @@ const STYLES = `
 
   .ma-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
   .ma-action {
-    display: flex; align-items: center; gap: 10px;
-    height: 56px; padding: 0 14px; border-radius: 17px;
-    text-decoration: none; font-size: 14.5px; font-weight: 600; color: #1d2620;
+    display: flex; align-items: center; gap: 8px;
+    height: 56px; padding: 0 12px; border-radius: 17px;
+    text-decoration: none; font-size: 14px; font-weight: 600; color: #1d2620;
+    white-space: nowrap; overflow: hidden;
     background: #fffdfb; border: 1px solid rgba(48,64,53,.08);
     box-shadow: 0 6px 18px rgba(48,64,53,.07);
   }
