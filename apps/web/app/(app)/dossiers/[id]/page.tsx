@@ -853,6 +853,45 @@ export default function DossierDetailPage() {
             gap: 14px !important;
             padding: 18px !important;
           }
+
+          /* Téléphone (13/10/2026) : même matière que les autres bandeaux
+             (façades laquées, filet cuivre), nom en Playfair ; le bouton rond
+             « Tableau de bord » passe dans le coin au lieu d'occuper une ligne,
+             et les trois actions se rangent côte à côte. */
+          .dossier-header {
+            min-height: 0 !important;
+            border-radius: 24px !important;
+            background:
+              linear-gradient(120deg, rgba(20,28,23,.9) 0%, rgba(26,36,30,.76) 60%, rgba(20,28,23,.6) 100%),
+              url('/images/mobile/menu-laque.webp') 70% 40% / cover no-repeat,
+              #1d2820;
+            border: 1px solid rgba(226,189,143,.16);
+            box-shadow: 0 16px 36px rgba(20,28,23,.3);
+          }
+          .dossier-header > svg { display: none !important; }
+          .dossier-header::after {
+            content: ''; position: absolute; left: 18px; right: 18px; bottom: 0; height: 1px; z-index: 11;
+            background: linear-gradient(90deg, rgba(201,154,106,0), rgba(226,189,143,.7) 50%, rgba(201,154,106,0));
+          }
+          .dossier-header h1 {
+            font-family: var(--font-playfair-display, 'Playfair Display'), Georgia, serif !important;
+            font-weight: 600 !important; font-size: 26px !important; letter-spacing: 0 !important; line-height: 1.15 !important;
+          }
+          .dossier-avatar > div:first-child { width: 60px !important; height: 60px !important; font-size: 22px !important; border-radius: 18px !important; }
+          .dossier-header-inner .ddb-trigger-wrap {
+            position: absolute; top: 18px; right: 18px; margin: 0 !important; width: 50px !important;
+          }
+          .dossier-header-inner .ddb-trigger-circle { width: 50px !important; height: 50px !important; }
+          .dossier-header-inner .ddb-trigger-label { display: none !important; }
+          .dossier-header-actions {
+            display: grid !important; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px !important;
+          }
+          .dossier-header-actions > button {
+            flex-direction: column; justify-content: center; gap: 5px !important;
+            min-height: 58px; padding: 8px 6px !important; border-radius: 16px !important;
+            font-size: 12px !important; text-align: center; line-height: 1.15;
+          }
+          .dossier-header-actions > button svg { width: 18px !important; height: 18px !important; }
         }
       ` }} />
 
@@ -1110,7 +1149,7 @@ export default function DossierDetailPage() {
           </div>
 
           {/* Actions header */}
-          <div className="shrink-0 flex flex-col gap-2">
+          <div className="dossier-header-actions shrink-0 flex flex-col gap-2">
             {canEditThis && (
             <button
               onClick={() => setShowStatus(true)}
