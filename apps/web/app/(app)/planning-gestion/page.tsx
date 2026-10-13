@@ -242,6 +242,17 @@ export default function PlanningGestionPage() {
   );
 
   const [weekOffset, setWeekOffset]   = useState(0);
+  /* Téléphone (14/10/2026) : une journée par largeur d'écran (cf. .pg-cal-*).
+     À l'ouverture, et au retour sur la semaine en cours, on se place sur
+     aujourd'hui ; sur une autre semaine, sur le lundi. */
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia('(max-width: 900px)').matches) return;
+    const wrap = document.querySelector<HTMLElement>('.pg-cal-wrap');
+    const colonne = wrap?.querySelector<HTMLElement>('.pg-jour');
+    if (!wrap || !colonne) return;
+    const jour = weekOffset === 0 ? (new Date().getDay() + 6) % 7 : 0;
+    wrap.scrollTo({ left: jour * colonne.getBoundingClientRect().width, behavior: 'auto' });
+  }, [weekOffset]);
   const [showAdd,    setShowAdd]      = useState(false);
   const [showOccasionalPicker, setShowOccasionalPicker] = useState(false);
   const [showOccasionalLegend, setShowOccasionalLegend] = useState(false);
@@ -644,6 +655,33 @@ export default function PlanningGestionPage() {
           .pg-cal-wrap { overflow-x: auto; }
           .pg-cal-inner { min-width: 560px; }
         }
+        /* Téléphone (14/10/2026) : vue « jour », comme le Planning. Chaque
+           journée prend la largeur de l'écran ; un geste passe au jour suivant
+           et se cale dessus. La colonne des heures disparaît : chaque créneau
+           affiche son heure dans son coin (compteur CSS). */
+        @media (max-width: 900px) {
+          .pg-main-layout { flex-direction: column !important; align-items: stretch !important; }
+          .pg-main-layout > * { min-width: 0; max-width: 100%; }
+          .pg-side-panel { width: 100% !important; }
+          .pg-cal-wrap {
+            --pg-jour: calc(100vw - 34px);
+            overflow-x: auto; scroll-snap-type: x mandatory;
+            scrollbar-width: none; -webkit-overflow-scrolling: touch;
+          }
+          .pg-cal-wrap::-webkit-scrollbar { display: none; }
+          .pg-cal-inner { min-width: 0 !important; width: calc(7 * var(--pg-jour)); }
+          .pg-cal-inner > .grid, .pg-cal-inner > .relative > .grid { grid-template-columns: repeat(7, var(--pg-jour)) !important; }
+          .pg-cal-inner > .grid > div:first-child, .pg-cal-inner > .relative > .grid > div:first-child { display: none !important; }
+          .pg-cal-inner > .grid > div:not(:first-child) { scroll-snap-align: start; }
+          .pg-cal-inner > .relative { max-height: min(600px, calc(100dvh - 300px)) !important; }
+          .pg-jour { counter-reset: pgh -1; }
+          .pg-cell { counter-increment: pgh; }
+          .pg-cell::before {
+            content: counter(pgh) ':00';
+            position: absolute; top: 4px; left: 8px; z-index: 1;
+            font-size: 11px; font-weight: 500; color: rgba(48,64,53,.38); pointer-events: none;
+          }
+        }
       ` }} />
 
       {refusRdv && (
@@ -794,14 +832,14 @@ export default function PlanningGestionPage() {
 
               {/* Colonnes jours */}
               {DAYS_SHORT.map((_, dayIdx) => (
-                <div key={dayIdx} className="relative border-l border-[#304035]/5">
+                <div key={dayIdx} className="pg-jour relative border-l border-[#304035]/5">
                   {HOURS.map((_, hIdx) => {
                     const hour = START_HOUR + hIdx;
                     const isDragOverCell = dragHover?.day === dayIdx + 1 && dragHover?.hour === hour;
                     return (
                       <div
                         key={hIdx}
-                        className="border-b border-[#304035]/5 hover:bg-[#304035]/2 transition-colors cursor-pointer group relative"
+                        className="pg-cell border-b border-[#304035]/5 hover:bg-[#304035]/2 transition-colors cursor-pointer group relative"
                         style={{
                           height: CELL_H + 'px',
                           backgroundImage: 'linear-gradient(to bottom, transparent calc(25% - 1px), rgba(48,64,53,0.04) 25%, transparent calc(25% + 1px), transparent calc(50% - 1px), rgba(48,64,53,0.06) 50%, transparent calc(50% + 1px), transparent calc(75% - 1px), rgba(48,64,53,0.04) 75%, transparent calc(75% + 1px))',

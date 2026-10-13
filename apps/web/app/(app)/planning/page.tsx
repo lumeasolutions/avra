@@ -769,7 +769,8 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
             scrollbar-width: none; -webkit-overflow-scrolling: touch;
           }
           .plan-cal-wrap::-webkit-scrollbar { display: none; }
-          .plan-main-layout { align-items: stretch !important; }
+          .plan-main-layout { flex-direction: column !important; align-items: stretch !important; }
+          .plan-side-panel { width: 100% !important; }
           .plan-main-layout > * { min-width: 0; max-width: 100%; }
           .plan-cal-inner { min-width: 0 !important; width: calc(7 * var(--plan-jour)); }
           .plan-cal-inner .grid { grid-template-columns: repeat(7, var(--plan-jour)) !important; }
