@@ -1256,6 +1256,14 @@ function AddDossierInline({ onAdd }: { onAdd: (name: string) => void }) {
   );
 }
 
+/** Adresse saisie mais incomplète (« paul@gmail ») : chaque demande à cet
+ *  artisan échouerait à l'envoi. Vide = permis (pas d'e-mail). */
+const MESSAGE_EMAIL_INVALIDE = 'Adresse e-mail incomplète ou invalide (exemple : nom@domaine.fr).';
+function emailInvalide(email: string): boolean {
+  const e = email.trim();
+  return e !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$/.test(e);
+}
+
 function AddIntervenantModal({
   defaultType, onClose, onCreate,
 }: {
@@ -1264,6 +1272,8 @@ function AddIntervenantModal({
   onCreate: (data: { type: string; name: string; phone: string; email: string; notes?: string }) => void;
 }) {
   const [form, setForm] = useState({ type: defaultType, name: '', phone: '', email: '', notes: '' });
+  const emailKo = emailInvalide(form.email);
+  const peutCreer = !!form.name.trim() && !emailKo;
   return (
     <div onClick={onClose} className="fixed inset-0 z-90 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -1274,12 +1284,13 @@ function AddIntervenantModal({
           </select>
           <input value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nom *" className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm" autoFocus />
           <input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="Téléphone" className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm" />
-          <input type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm" />
+          <input type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className={`w-full rounded-lg border px-3 py-2 text-sm ${emailKo ? 'border-red-400' : 'border-[#304035]/12'}`} />
+          {emailKo && <p className="text-xs text-red-600 -mt-1">{MESSAGE_EMAIL_INVALIDE}</p>}
           <textarea value={form.notes} onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes / spécialité" rows={2} className="w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm" />
         </div>
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="flex-1 rounded-lg border border-[#304035]/12 px-4 py-2 text-sm font-bold text-[#304035]/60">Annuler</button>
-          <button onClick={() => form.name.trim() && onCreate(form)} disabled={!form.name.trim()} className="flex-1 rounded-lg bg-[#304035] hover:bg-[#3D5449] text-white px-4 py-2 text-sm font-bold disabled:opacity-50">Créer</button>
+          <button onClick={() => peutCreer && onCreate({ ...form, email: form.email.trim() })} disabled={!peutCreer} className="flex-1 rounded-lg bg-[#304035] hover:bg-[#3D5449] text-white px-4 py-2 text-sm font-bold disabled:opacity-50">Créer</button>
         </div>
       </div>
     </div>
@@ -1302,7 +1313,8 @@ function EditIntervenantModal({
     email: intervenant.email || '',
     notes: intervenant.notes || '',
   });
-  const canSave = form.nom.trim().length > 0 && !saving;
+  const emailKo = emailInvalide(form.email);
+  const canSave = form.nom.trim().length > 0 && !saving && !emailKo;
   return (
     <div onClick={onClose} className="fixed inset-0 z-90 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -1330,7 +1342,8 @@ function EditIntervenantModal({
           </label>
           <label className="block">
             <span className="text-xs font-bold text-[#304035]/60">Email</span>
-            <input type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className="mt-1 w-full rounded-lg border border-[#304035]/12 px-3 py-2 text-sm" />
+            <input type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm ${emailKo ? 'border-red-400' : 'border-[#304035]/12'}`} />
+            {emailKo && <span className="mt-1 block text-xs text-red-600">{MESSAGE_EMAIL_INVALIDE}</span>}
           </label>
           <label className="block">
             <span className="text-xs font-bold text-[#304035]/60">Notes / spécialité</span>

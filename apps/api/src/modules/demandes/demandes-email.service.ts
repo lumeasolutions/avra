@@ -139,6 +139,8 @@ export class DemandesEmailService {
     publicToken?: string;
     /** E-mail de l'utilisateur AVRA (pour Reply-To : l'intervenant lui répond directement). */
     proEmail?: string;
+    /** Relance d'une demande restée sans réponse : titre et phrase adaptés. */
+    relance?: boolean;
   }): Promise<EmailSendResult> {
     const base = params.publicToken
       ? `${this.webUrl}/intervention/${params.publicToken}`
@@ -168,13 +170,15 @@ export class DemandesEmailService {
       : '';
 
     const html = baseLayout({
-      title: 'Nouvelle demande',
-      preheader: `${params.proName} vous a envoyé une demande : ${params.title}`,
+      title: params.relance ? 'Rappel : demande en attente' : 'Nouvelle demande',
+      preheader: params.relance
+        ? `${params.proName} attend votre réponse : ${params.title}`
+        : `${params.proName} vous a envoyé une demande : ${params.title}`,
       body: `
-        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Nouvelle demande</h1>
+        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">${params.relance ? 'Rappel : demande en attente' : 'Nouvelle demande'}</h1>
         <p style="color:#5b5045;margin:0 0 18px">
           Bonjour ${escapeHtml(params.intervenantName)},<br/>
-          <strong>${escapeHtml(params.proName)}</strong> (${escapeHtml(params.workspaceName)}) vous a envoyé une demande sur AVRA.
+          <strong>${escapeHtml(params.proName)}</strong> (${escapeHtml(params.workspaceName)}) ${params.relance ? 'attend toujours votre réponse à cette demande envoyée sur AVRA.' : 'vous a envoyé une demande sur AVRA.'}
         </p>
         <div style="background:#fafaf8;border-left:4px solid #cbb98a;padding:14px 18px;border-radius:8px;margin:18px 0">
           <div style="font-size:11px;color:#7c6c58;letter-spacing:.08em;font-weight:700;text-transform:uppercase;margin-bottom:4px">${escapeHtml(demandeTypeLabel(params.type))}</div>
@@ -264,6 +268,7 @@ export class DemandesEmailService {
 
     const html = baseLayout({
       title: 'Nouveau message',
+      footer: params.senderRole === 'intervenant' ? 'Vous recevez cet e-mail car un intervenant a donné suite à une demande que vous avez envoyée depuis AVRA.' : undefined,
       preheader: `${params.senderName} : ${preview.slice(0, 60)}`,
       body: `
         <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Nouveau message</h1>
@@ -313,6 +318,7 @@ export class DemandesEmailService {
 
     const html = baseLayout({
       title: 'Mise à jour de demande',
+      footer: 'Vous recevez cet e-mail car un intervenant a donné suite à une demande que vous avez envoyée depuis AVRA.',
       preheader: `${params.intervenantName} a mis à jour : ${params.title}`,
       body: `
         <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">Mise à jour de demande</h1>

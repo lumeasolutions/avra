@@ -589,9 +589,15 @@ export default function PlanningGestionPage() {
       ))
         .then((crees) => {
           // L'API dit ce qui est réellement parti : plus de « prévenu » à tort.
-          const nonPartis = crees.filter((d) => d.emailDelivery && d.emailDelivery.intervenant.status !== 'sent').length;
-          if (nonPartis > 0) {
-            setIntervSent(`__error__:${nonPartis}/${crees.length}`); setTimeout(() => setIntervSent(null), 8000);
+          const nonPartis = crees.filter((d) => d.emailDelivery && d.emailDelivery.intervenant.status !== 'sent');
+          if (nonPartis.length > 0) {
+            const noms = nonPartis.map((d) =>
+              d.intervenant?.companyName || [d.intervenant?.firstName, d.intervenant?.lastName].filter(Boolean).join(' ') || 'un intervenant');
+            const seul = nonPartis.length === 1;
+            const message = crees.length > 1
+              ? `Créneau créé, mais l'e-mail n'a pas pu partir pour ${noms.join(', ')} (${nonPartis.length} sur ${crees.length}). ${seul ? 'Prévenez-le' : 'Prévenez-les'} directement.`
+              : `Créneau créé, mais l'e-mail à ${noms[0]} n'a pas pu partir. Prévenez-le directement.`;
+            setIntervSent(`__error__:${message}`); setTimeout(() => setIntervSent(null), 9000);
             return;
           }
           const label = targetIds.length > 1
@@ -649,12 +655,7 @@ export default function PlanningGestionPage() {
       {intervSent && (
         <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9999, background: intervSent.startsWith('__error__') ? '#dc2626' : '#16a34a', color: '#fff', padding: '12px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', maxWidth: 340 }}>
           {intervSent.startsWith('__error__')
-            ? (() => {
-                const [n, total] = intervSent.slice('__error__:'.length).split('/').map(Number);
-                return n && total > 1
-                  ? `Créneau créé, mais l'e-mail n'a pas pu partir pour ${n} intervenant${n > 1 ? 's' : ''} sur ${total}. Prévenez-les directement.`
-                  : "Créneau créé, mais l'e-mail à l'intervenant n'a pas pu partir (vérifiez son e-mail).";
-              })()
+            ? (intervSent.slice('__error__:'.length) || "Créneau créé, mais l'e-mail à l'intervenant n'a pas pu partir (vérifiez son e-mail).")
             : `📧 ${intervSent} a été prévenu(e) par e-mail. Un accusé d'envoi vous a été adressé.`}
         </div>
       )}

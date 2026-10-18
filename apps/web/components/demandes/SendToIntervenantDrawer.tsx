@@ -1101,6 +1101,10 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
               .map((d) => d.delivery?.receipt)
               .filter((r): r is DemandeEmailDelivery['receipt'] => !!r);
             const accuseOk = accuses.find((r): r is { status: 'sent'; to: string } => r.status === 'sent');
+            // Un e-mail adressé à l'expéditeur est un accusé d'envoi si la demande est
+            // partie, un AVIS D'ÉCHEC sinon : on ne dit pas « il prouve l'envoi » à tort.
+            const nbAccuses = deliveries.filter((d) => d.delivery?.receipt.status === 'sent' && d.delivery.intervenant.status === 'sent').length;
+            const nbAvis = deliveries.filter((d) => d.delivery?.receipt.status === 'sent' && d.delivery.intervenant.status !== 'sent').length;
             const accuseRate = accuses.find((r): r is { status: 'failed'; to: string; reason: string } => r.status === 'failed');
             const nomSeul = selectedIntervenant ? nomIntervenant(selectedIntervenant) : "L'intervenant";
             return (
@@ -1160,10 +1164,11 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                 }}>
                   <Mail size={16} style={{ flexShrink: 0, marginTop: 2 }} />
                   <span>
-                    {accuses.filter((r) => r.status === 'sent').length > 1
-                      ? `${accuses.filter((r) => r.status === 'sent').length} accusés d’envoi (un par destinataire) vous ont été adressés à `
-                      : 'Un accusé d’envoi vous a été adressé à '}
-                    <strong>{accuseOk.to}</strong>. Conservez-le : il prouve l'envoi et liste les documents transmis.
+                    {nbAvis === 0
+                      ? <>{nbAccuses > 1 ? `${nbAccuses} accusés d’envoi (un par destinataire) vous ont été adressés à ` : 'Un accusé d’envoi vous a été adressé à '}<strong>{accuseOk.to}</strong>. Conservez-le : il prouve l'envoi et liste les documents transmis.</>
+                      : nbAccuses === 0
+                        ? <>{nbAvis > 1 ? `${nbAvis} avis d’échec vous ont été adressés à ` : 'Un avis d’échec vous a été adressé à '}<strong>{accuseOk.to}</strong> : il garde la trace de la tentative d'envoi.</>
+                        : <>{`${nbAccuses} accusé${nbAccuses > 1 ? 's' : ''} d’envoi et ${nbAvis} avis d’échec vous ont été adressés à `}<strong>{accuseOk.to}</strong>.</>}
                   </span>
                 </div>
               )}
