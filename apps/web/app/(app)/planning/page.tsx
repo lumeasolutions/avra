@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { prochainCreneau } from '@/lib/rdv';
 import {
   Calendar, ChevronLeft, ChevronRight, Plus, X, Clock,
   AlertTriangle, Circle, CheckCircle, Zap, CalendarDays,
@@ -599,7 +600,14 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
       setWeekOffset(0);
       openAdd(day, hour, 0);
       const dos = params.get('dossier');
-      if (dos) setNewEvent(n => ({ ...n, dossierId: dos }));
+      if (dos) {
+        setNewEvent(n => ({ ...n, dossierId: dos }));
+        // Depuis une fiche dossier : créneau utile (le lendemain matin en soirée).
+        const c = prochainCreneau(9);
+        setWeekOffset(c.weekOffset);
+        setModalDate(c.date); setModalHour(c.heure); setModalMinute(0);
+        setCalYear(c.annee); setCalMonth(c.mois);
+      }
       const retour = params.get('retour');
       retourDossierRef.current = retour && /^\/dossiers(-signes)?\/[A-Za-z0-9_-]+$/.test(retour) ? retour : null;
       window.history.replaceState(null, '', '/planning');

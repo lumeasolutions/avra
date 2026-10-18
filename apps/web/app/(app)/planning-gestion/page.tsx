@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePlanningStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { attendreRdvEnregistre } from '@/store/usePlanningStore';
+import { prochainCreneau } from '@/lib/rdv';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { createDemande } from '@/lib/demandes-api';
 import { uploadDossierDocDirect } from '@/lib/dossier-docs-api';
@@ -678,6 +679,13 @@ export default function PlanningGestionPage() {
         dossierId: (dossier as any)?.id,
         type: type && ALL_TYPES.some((t) => t.key === type) ? type : n.type,
       }));
+      if (dos) {
+        // Depuis une fiche dossier : créneau utile (le lendemain 8 h en soirée).
+        const c = prochainCreneau(8);
+        setWeekOffset(c.weekOffset);
+        setModalDate(c.date); setModalHour(c.heure); setModalMinute(0);
+        setCalYear(c.annee); setCalMonth(c.mois);
+      }
       window.history.replaceState(null, '', '/planning-gestion');
     } else if (voir) {
       const ev = gestEvents.find((e) => e.id === voir);

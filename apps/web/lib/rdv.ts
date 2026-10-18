@@ -51,3 +51,31 @@ export function objetClientParDefaut(typeLabel?: string): string {
   if (!typeLabel || /^rdv client$/i.test(typeLabel)) return 'Rendez-vous';
   return typeLabel;
 }
+
+/**
+ * Créneau proposé par défaut quand on planifie depuis une fiche dossier :
+ * l'heure suivante (jamais avant `heureMatin`), ou le lendemain matin passé
+ * 18 h. Renvoie la date (AAAA-MM-JJ), l'heure et le décalage de semaine.
+ */
+export function prochainCreneau(heureMatin: number, maintenant = new Date()): {
+  date: string; heure: number; annee: number; mois: number; weekOffset: number;
+} {
+  const d = new Date(maintenant);
+  let heure: number;
+  if (d.getHours() >= 18) {
+    d.setDate(d.getDate() + 1);
+    heure = heureMatin;
+  } else {
+    heure = Math.max(heureMatin, d.getHours() + 1);
+  }
+  d.setHours(0, 0, 0, 0);
+  const weekOffset = Math.round((lundiDe(d).getTime() - lundiDe(maintenant).getTime()) / (7 * 86400000));
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return { date, heure, annee: d.getFullYear(), mois: d.getMonth(), weekOffset };
+}
+
+function lundiDe(x: Date): Date {
+  const d = new Date(x); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d;
+}
