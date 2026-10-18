@@ -339,10 +339,12 @@ export function useProjectActions() {
       if (user?.id === 'demo' || !user?.workspaceId) return;
       if (isLocalOnlyId(id)) return;
 
+      // Une valeur par statut (relue par mapPriorityToStatus dans useDataSync).
+      // Avant : FINITION et A VALIDER partageaient LOW → indiscernables.
       const priorityMap: Record<string, string> = {
         'URGENT': 'URGENT',
         'EN COURS': 'MEDIUM',
-        'FINITION': 'LOW',
+        'FINITION': 'HIGH',
         'A VALIDER': 'LOW',
       };
 

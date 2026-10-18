@@ -60,9 +60,26 @@ function mapLifecycleToStatus(lifecycle: string): 'URGENT' | 'EN COURS' | 'FINIT
   }
 }
 
+/**
+ * Statut affiché d'un dossier (Urgent / En cours / Finition / À valider).
+ *
+ * Il est enregistré dans `Project.priority` (cf. updateProjectStatus) avec une
+ * valeur par statut : URGENT, MEDIUM = En cours, HIGH = Finition, LOW = À
+ * valider. Avant (oct. 2026), seul URGENT était relu : un dossier mis « En
+ * cours » ou « Finition » revenait « À VALIDER » au rechargement dès qu'il
+ * n'était pas signé (le cycle de vie DRAFT l'emportait).
+ */
 function mapPriorityToStatus(priority: string, lifecycle: string): 'URGENT' | 'EN COURS' | 'FINITION' | 'A VALIDER' {
-  if (priority === 'URGENT') return 'URGENT';
-  return mapLifecycleToStatus(lifecycle);
+  switch (priority) {
+    case 'URGENT': return 'URGENT';
+    case 'HIGH': return 'FINITION';
+    // Un dossier en chantier sans statut choisi reste affiché « Finition ».
+    case 'MEDIUM': return lifecycle === 'EN_CHANTIER' ? 'FINITION' : 'EN COURS';
+    // LOW valait autrefois « Finition » ou « À valider » : on garde « Finition »
+    // pour les dossiers en chantier (affichage d'avant), « À valider » sinon.
+    case 'LOW': return lifecycle === 'EN_CHANTIER' ? 'FINITION' : 'A VALIDER';
+    default: return mapLifecycleToStatus(lifecycle);
+  }
 }
 
 // Mapping statuts paiements Prisma → frontend
