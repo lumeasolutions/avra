@@ -143,6 +143,32 @@ function etiquette(tags: unknown, nom: string): string {
 }
 
 /**
+ * Raison d'un refus en français clair. Resend envoie un long message technique
+ * en anglais ; on s'appuie sur le type/sous-type du refus (catégories AWS SES
+ * reprises par Resend) et on ne garde le message brut qu'en dernier recours.
+ */
+function raisonEnFrancais(data: any): string | null {
+  const b = data?.bounce ?? {};
+  const type = String(b.type ?? '').toLowerCase();
+  const sous = String(b.subType ?? b.subtype ?? '').toLowerCase();
+  const parSousType: Record<string, string> = {
+    noemail: "l'adresse e-mail n'existe pas",
+    suppressed: "l'adresse est bloquée après un refus précédent",
+    onaccountsuppressionlist: "l'adresse est bloquée après un refus précédent",
+    mailboxfull: 'la boîte de réception est pleine',
+    messagetoolarge: "l'e-mail est trop volumineux pour cette messagerie",
+    contentrejected: "la messagerie a refusé le contenu de l'e-mail",
+    attachmentrejected: 'la messagerie a refusé une pièce jointe',
+  };
+  if (parSousType[sous]) return parSousType[sous];
+  if (type === 'permanent') return "adresse inexistante ou refusée définitivement par la messagerie";
+  if (type === 'transient') return 'messagerie temporairement indisponible';
+  if (type === 'undetermined') return 'raison non précisée par la messagerie';
+  const brut = b.message ?? data?.failed?.reason ?? null;
+  return brut ? String(brut).slice(0, 160) : null;
+}
+
+/**
  * Événement de remise d'un e-mail AVRA. Seuls ceux qui portent l'étiquette
  * avra_demande (e-mails adressés aux intervenants) sont transmis à l'API ;
  * les autres (accusés, e-mails marketing…) sont ignorés.
@@ -153,7 +179,7 @@ async function transmettreEvenementRemise(event: any): Promise<void> {
     const demandeId = etiquette(data.tags, 'avra_demande');
     const emailId = data.email_id ? String(data.email_id) : '';
     if (!demandeId || !emailId) return;
-    const raison = data.bounce?.message ?? data.failed?.reason ?? data.bounce?.subType ?? null;
+    const raison = raisonEnFrancais(data);
     await fetch(`${WEB_URL}/api/v1/demandes/internal/email-event`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Avra-Webhook-Key': WEBHOOK_SECRET },
