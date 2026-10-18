@@ -335,6 +335,31 @@ export class DemandesController {
   }
 
   /**
+   * Événements de remise des e-mails (Resend → webhook vérifié par la route web
+   * /api/webhooks/resend-inbound, qui transmet ici). Protégé par le même secret
+   * que le webhook (RESEND_WEBHOOK_SECRET), en en-tête X-Avra-Webhook-Key.
+   */
+  @Public()
+  @SkipCsrf()
+  @Throttle({ default: { ttl: 60_000, limit: 300 } })
+  @Post('internal/email-event')
+  async emailEvent(@Req() req: Request, @Body() body: any) {
+    const secret = process.env.RESEND_WEBHOOK_SECRET;
+    if (!secret) throw new ForbiddenException('RESEND_WEBHOOK_SECRET non configure');
+    const key = (req.headers['x-avra-webhook-key'] ?? '') as string;
+    if (!constantTimeCompare(key, secret)) throw new ForbiddenException('Cle webhook invalide');
+    const at = body?.at ? new Date(String(body.at)) : null;
+    return this.demandes.recordEmailEvent({
+      type: String(body?.type ?? ''),
+      emailId: String(body?.emailId ?? '').slice(0, 100),
+      demandeId: String(body?.demandeId ?? '').slice(0, 100),
+      kind: String(body?.kind ?? 'demande'),
+      raison: body?.raison ? String(body.raison) : null,
+      at,
+    });
+  }
+
+  /**
    * Endpoint cron auto-rappel.
    *
    * SEC CRIT-003:

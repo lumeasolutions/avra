@@ -129,6 +129,46 @@ async function uploadInboundAttachments(emailId: string, token: string): Promise
   return { uploaded: count, skipped };
 }
 
+/** Lit une étiquette Resend : objet { nom: valeur } ou liste [{ name, value }]. */
+function etiquette(tags: unknown, nom: string): string {
+  if (Array.isArray(tags)) {
+    const t = tags.find((x: any) => x?.name === nom);
+    return t?.value ? String(t.value) : '';
+  }
+  if (tags && typeof tags === 'object') {
+    const v = (tags as Record<string, unknown>)[nom];
+    return v ? String(v) : '';
+  }
+  return '';
+}
+
+/**
+ * Événement de remise d'un e-mail AVRA. Seuls ceux qui portent l'étiquette
+ * avra_demande (e-mails adressés aux intervenants) sont transmis à l'API ;
+ * les autres (accusés, e-mails marketing…) sont ignorés.
+ */
+async function transmettreEvenementRemise(event: any): Promise<void> {
+  try {
+    const data = event?.data ?? {};
+    const demandeId = etiquette(data.tags, 'avra_demande');
+    const emailId = data.email_id ? String(data.email_id) : '';
+    if (!demandeId || !emailId) return;
+    const raison = data.bounce?.message ?? data.failed?.reason ?? data.bounce?.subType ?? null;
+    await fetch(`${WEB_URL}/api/v1/demandes/internal/email-event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Avra-Webhook-Key': WEBHOOK_SECRET },
+      body: JSON.stringify({
+        type: String(event.type),
+        emailId,
+        demandeId,
+        kind: etiquette(data.tags, 'avra_type') || 'demande',
+        raison: raison ? String(raison) : null,
+        at: event.created_at ?? data.created_at ?? null,
+      }),
+    });
+  } catch { /* un événement perdu ne doit pas faire rejouer le webhook en boucle */ }
+}
+
 export async function POST(request: NextRequest) {
   const raw = await request.text();
 
@@ -138,6 +178,14 @@ export async function POST(request: NextRequest) {
 
   let event: any;
   try { event = JSON.parse(raw); } catch { return NextResponse.json({ ok: true }); }
+
+  // Suivi de remise des e-mails envoyés aux intervenants (remis, refusé,
+  // indésirable, retardé, ouvert, cliqué) : transmis à l'API, qui le note dans
+  // l'historique de la demande et prévient le pro en cas de refus.
+  if (typeof event?.type === 'string' && event.type.startsWith('email.') && event.type !== 'email.received') {
+    await transmettreEvenementRemise(event);
+    return NextResponse.json({ ok: true });
+  }
 
   if (event?.type !== 'email.received' || !INBOUND_DOMAIN) {
     return NextResponse.json({ ok: true });

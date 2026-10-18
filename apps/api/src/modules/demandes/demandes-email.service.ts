@@ -22,6 +22,19 @@ export type EmailSendResult =
   | { ok: true; id: string | null }
   | { ok: false; reason: string };
 
+/** Étiquettes Resend posées sur les e-mails adressés aux intervenants : elles
+ *  reviennent dans les webhooks de remise (delivered / bounced…) et permettent
+ *  de rattacher l'événement à la bonne demande sans table supplémentaire. */
+export type EmailTags = { demandeId: string; kind: 'demande' | 'relance' | 'message' };
+function tagsResend(t: EmailTags): Array<{ name: string; value: string }> {
+  // Resend n'accepte que lettres ASCII, chiffres, « _ » et « - » dans les valeurs.
+  const propre = (v: string) => v.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 256);
+  return [
+    { name: 'avra_demande', value: propre(t.demandeId) },
+    { name: 'avra_type', value: propre(t.kind) },
+  ];
+}
+
 /** Libellés lisibles des types de demande (les e-mails affichaient la clé brute). */
 const DEMANDE_TYPE_LABELS: Record<string, string> = {
   POSE: 'Pose',
@@ -68,7 +81,7 @@ export class DemandesEmailService {
   }
 
   /** Envoie via l'API Resend. Ne lève jamais : le résultat dit si c'est parti. */
-  private async send(opts: { to: string; subject: string; html: string; fromName?: string; replyTo?: string }): Promise<EmailSendResult> {
+  private async send(opts: { to: string; subject: string; html: string; fromName?: string; replyTo?: string; tags?: EmailTags }): Promise<EmailSendResult> {
     if (!this.enabled) {
       this.logger.warn(`[email] RESEND_API_KEY manquante — envoi ignore : "${opts.subject}"`);
       return { ok: false, reason: "l'envoi d'e-mails n'est pas configuré sur le serveur" };
@@ -80,6 +93,7 @@ export class DemandesEmailService {
         subject: opts.subject,
         html: opts.html,
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+        ...(opts.tags ? { tags: tagsResend(opts.tags) } : {}),
       });
       // Resend limite le nombre d'envois par seconde : un envoi à plusieurs
       // intervenants (chacun avec son accusé) peut dépasser la limite. Sur un
@@ -195,7 +209,11 @@ export class DemandesEmailService {
         ` : ctaButton(link, cta)}
       `,
     });
-    return this.send({ to: params.to, subject: `[AVRA] ${params.proName} : ${params.title}`, html, fromName: params.proName, replyTo: this.inboundReplyTo(params.publicToken) ?? params.proEmail });
+    return this.send({
+      to: params.to, subject: `[AVRA] ${params.proName} : ${params.title}`, html, fromName: params.proName,
+      replyTo: this.inboundReplyTo(params.publicToken) ?? params.proEmail,
+      tags: { demandeId: params.demandeId, kind: params.relance ? 'relance' : 'demande' },
+    });
   }
 
   /**
@@ -285,7 +303,12 @@ export class DemandesEmailService {
         ${ctaButton(link, 'Voir et répondre')}
       `,
     });
-    return this.send({ to: params.to, subject: `[AVRA] Message de ${params.senderName} — ${params.demandeTitle}`, html, fromName: params.senderName, replyTo: params.senderRole === 'pro' ? (this.inboundReplyTo(params.replyToToken) ?? params.senderEmail) : params.senderEmail });
+    return this.send({
+      to: params.to, subject: `[AVRA] Message de ${params.senderName} — ${params.demandeTitle}`, html, fromName: params.senderName,
+      replyTo: params.senderRole === 'pro' ? (this.inboundReplyTo(params.replyToToken) ?? params.senderEmail) : params.senderEmail,
+      // Seuls les messages adressés à l'intervenant sont suivis (remise / rejet).
+      tags: params.senderRole === 'pro' ? { demandeId: params.demandeId, kind: 'message' } : undefined,
+    });
   }
 
   /**
@@ -354,6 +377,47 @@ export class DemandesEmailService {
    * réponse à l'accusé serait rangée comme un message de l'intervenant.
    * Le lien public de l'intervenant (sans compte, sans expiration) n'y figure pas.
    */
+  /**
+   * Prévient l'expéditeur qu'un e-mail adressé à l'intervenant n'a PAS été
+   * remis (rejeté par sa messagerie, ou signalé comme indésirable). Déclenché
+   * par le webhook de remise Resend, parfois plusieurs minutes après l'envoi.
+   */
+  async notifyDeliveryProblem(params: {
+    to: string;
+    senderName: string;
+    intervenantName: string;
+    intervenantEmail: string;
+    demandeId: string;
+    title: string;
+    /** 'bounced' | 'complained' | 'failed' */
+    probleme: string;
+    raison?: string | null;
+    quoi: string;
+  }): Promise<EmailSendResult> {
+    const link = `${this.webUrl}/intervenants?demande=${encodeURIComponent(params.demandeId)}`;
+    const explication = params.probleme === 'complained'
+      ? `${escapeHtml(params.intervenantName)} a classé l'e-mail comme <strong>indésirable</strong>. Ses prochains e-mails AVRA risquent de ne plus lui parvenir.`
+      : `La messagerie de ${escapeHtml(params.intervenantName)} (${escapeHtml(params.intervenantEmail)}) a <strong>refusé</strong> ${escapeHtml(params.quoi)}${params.raison ? ` : <em>${escapeHtml(params.raison)}</em>` : ''}.`;
+    const html = baseLayout({
+      title: 'E-mail non remis',
+      preheader: `${params.intervenantName} n'a pas reçu : ${params.title}`,
+      footer: "Vous recevez cet e-mail car une demande que vous avez envoyée depuis AVRA n'a pas pu être remise.",
+      body: `
+        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">E-mail non remis</h1>
+        <p style="color:#5b5045;margin:0 0 18px">Bonjour ${escapeHtml(params.senderName)},</p>
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 16px;margin:0 0 18px;color:#991b1b;font-size:14px">
+          ⚠ ${explication}
+        </div>
+        <div style="background:#fafaf8;border-left:4px solid #cbb98a;padding:14px 18px;border-radius:8px;margin:18px 0">
+          <div style="font-size:17px;font-weight:700;color:#1a2a1e">${escapeHtml(params.title)}</div>
+        </div>
+        <p style="color:#5b5045;margin:0 0 18px">La demande reste dans AVRA. Prévenez ${escapeHtml(params.intervenantName)} directement, et vérifiez son adresse e-mail dans sa fiche.</p>
+        ${ctaButton(link, 'Voir la demande dans AVRA')}
+      `,
+    });
+    return this.send({ to: params.to, subject: `[AVRA] Non remis — ${params.title} → ${params.intervenantName}`, html });
+  }
+
   async notifySenderReceipt(params: {
     to: string;
     senderName: string;

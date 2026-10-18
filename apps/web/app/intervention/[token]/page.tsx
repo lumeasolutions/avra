@@ -21,7 +21,9 @@ interface DemandeView {
 
 const STATUS_LABEL: Record<string, string> = {
   ENVOYEE: 'En attente de votre réponse',
-  VUE: 'Vue',
+  // Ouvrir le lien fait passer la demande en VUE (côté pro) : pour l'intervenant,
+  // elle attend toujours sa réponse.
+  VUE: 'En attente de votre réponse',
   ACCEPTEE: 'Acceptée',
   REFUSEE: 'Refusée',
   EN_COURS: 'En cours',
