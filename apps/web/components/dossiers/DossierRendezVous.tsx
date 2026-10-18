@@ -119,8 +119,8 @@ export function DossierRendezVous({
             <Link href={`/planning-gestion?voir=${encodeURIComponent(ev.id)}`} className="text-sm font-semibold text-[#304035] hover:underline break-words">
               {libelleIntervention(ev.type)}
             </Link>
-            <p className="text-[11px] text-[#304035]/50 flex items-center gap-1 flex-wrap">
-              <HardHat className="h-3 w-3" /> Planning gestion
+            <p className="text-[11px] text-[#304035]/50 break-words">
+              <HardHat className="inline h-3 w-3 -mt-0.5 mr-1" />Planning gestion
               {ev.intervenantName ? <> · {ev.intervenantName}</> : <> · aucun artisan assigné</>}
             </p>
           </div>
