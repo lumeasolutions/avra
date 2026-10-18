@@ -150,7 +150,7 @@ export class DemandesEmailService {
       ? `<p style="margin:12px 0;color:#7c4f1d"><strong>Date prévue :</strong> ${formatDateFR(params.scheduledFor)}</p>`
       : '';
     const notesStr = params.notes
-      ? `<p style="margin:12px 0;color:#3D3328;background:#fafaf8;padding:12px 14px;border-radius:8px;white-space:pre-wrap">${escapeHtml(params.notes)}</p>`
+      ? `<p style="margin:12px 0;color:#3D3328;background:#fafaf8;padding:12px 14px;border-radius:8px">${texteLignes(params.notes)}</p>`
       : '';
     const dossierStr = params.projectName
       ? `<p style="margin:12px 0;color:#1a2a1e"><strong>Dossier :</strong> ${escapeHtml(params.projectName)}</p>`
@@ -212,7 +212,7 @@ export class DemandesEmailService {
     const messageStr = params.message
       ? `<div style="background:#fff8ef;border:1px solid #fde7c2;border-radius:8px;padding:12px 16px;margin:18px 0;color:#7c4f1d">
            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Message</div>
-           <div style="font-style:italic">${escapeHtml(params.message)}</div>
+           <div style="font-style:italic">${texteLignes(params.message)}</div>
          </div>`
       : '';
 
@@ -274,8 +274,8 @@ export class DemandesEmailService {
         <div style="background:#fafaf8;padding:12px 14px;border-radius:8px;font-size:14px;font-weight:600;color:#1a2a1e;margin-bottom:14px">
           ${escapeHtml(params.demandeTitle)}
         </div>
-        <div style="background:#fff;border-left:4px solid #cbb98a;padding:14px 18px;border-radius:8px;margin:14px 0;color:#3D3328;white-space:pre-wrap;font-style:italic">
-          ${escapeHtml(preview)}
+        <div style="background:#fff;border-left:4px solid #cbb98a;padding:14px 18px;border-radius:8px;margin:14px 0;color:#3D3328;font-style:italic">
+          ${texteLignes(preview)}
         </div>
         ${ctaButton(link, 'Voir et répondre')}
       `,
@@ -308,7 +308,7 @@ export class DemandesEmailService {
     };
     const tone = tones[params.toStatus] ?? '#3D5449';
     const commentStr = params.comment
-      ? `<div style="background:#fafaf8;padding:12px 14px;border-radius:8px;margin:12px 0;color:#3D3328;white-space:pre-wrap;font-style:italic">« ${escapeHtml(params.comment)} »</div>`
+      ? `<div style="background:#fafaf8;padding:12px 14px;border-radius:8px;margin:12px 0;color:#3D3328;font-style:italic">« ${texteLignes(params.comment)} »</div>`
       : '';
 
     const html = baseLayout({
@@ -413,7 +413,7 @@ export class DemandesEmailService {
           ${ligne('Objet', `<strong>${escapeHtml(params.title)}</strong>`)}
           ${params.scheduledFor ? ligne('Date prévue', escapeHtml(formatDateFR(params.scheduledFor))) : ''}
         </table>
-        ${params.notes ? `<p style="margin:12px 0;color:#3D3328;background:#fafaf8;padding:12px 14px;border-radius:8px;white-space:pre-wrap">${escapeHtml(params.notes)}</p>` : ''}
+        ${params.notes ? `<p style="margin:12px 0;color:#3D3328;background:#fafaf8;padding:12px 14px;border-radius:8px">${texteLignes(params.notes)}</p>` : ''}
         <div style="background:#fafaf8;border-left:4px solid #cbb98a;padding:14px 18px;border-radius:8px;margin:18px 0">
           <div style="font-size:11px;color:#7c6c58;letter-spacing:.08em;font-weight:700;text-transform:uppercase">
             ${ok ? 'Documents transmis' : 'Documents joints à la demande'} (${params.documents.length})
@@ -493,6 +493,12 @@ function ctaButton(href: string, label: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td>
     <a href="${href}" target="_blank" style="display:inline-block;padding:12px 22px;background:linear-gradient(135deg,#1a2a1e 0%,#3D5449 100%);color:#cbb98a;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px">${escapeHtml(label)}</a>
   </td></tr></table>`;
+}
+
+/** Texte saisi sur plusieurs lignes → HTML échappé avec de vrais <br/>.
+ *  (Certains webmails, dont Infomaniak, ignorent white-space:pre-wrap.) */
+function texteLignes(s: string): string {
+  return escapeHtml(s).replace(/\r?\n/g, '<br/>');
 }
 
 function escapeHtml(s: string): string {
