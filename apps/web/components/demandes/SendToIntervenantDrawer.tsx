@@ -11,6 +11,7 @@ import { useDemandeTemplatesStore } from '@/store/useDemandeTemplatesStore';
 import {
   DEMANDE_TYPE_LABELS,
   DemandeType,
+  DemandeEmailDelivery,
   IntervenantInvitation,
   createDemande as apiCreateDemande,
   createInvitation as apiCreateInvitation,
@@ -172,6 +173,8 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sentDemandeId, setSentDemandeId] = useState<string | null>(null);
+  /** Ce qui est réellement parti par e-mail, par destinataire (écran « envoyé »). */
+  const [deliveries, setDeliveries] = useState<Array<{ name: string; delivery?: DemandeEmailDelivery }>>([]);
 
   // Invitation inline si l'intervenant n'a pas encore de compte
   const [inviteEmail, setInviteEmail] = useState('');
@@ -355,6 +358,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
         setNotes(prefill?.notes ?? '');
         setScheduledFor(prefill?.scheduledFor ?? '');
         setSentDemandeId(null);
+        setDeliveries([]);
         setError(null);
         setShowInviteForm(false);
         setInviteEmail('');
@@ -441,6 +445,11 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
       const successful = results.filter((r) => r.status === 'fulfilled');
       const failed = results.filter((r) => r.status === 'rejected');
       setSentCount(successful.length);
+      setDeliveries(results.flatMap((r, i) => {
+        if (r.status !== 'fulfilled') return [];
+        const iv = Array.isArray(intervenants) ? intervenants.find((x) => x.id === targets[i]) : undefined;
+        return [{ name: nomIntervenant(iv), delivery: r.value?.emailDelivery }];
+      }));
 
       if (successful.length === 0) {
         setError(`Echec d'envoi pour tous les destinataires (${failed.length}).`);
@@ -577,7 +586,7 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
             <div style={{ fontSize: 18, fontWeight: 800, color: '#1a2a1e', marginTop: 2 }}>
               {step === 'choose' && 'Choisir un intervenant'}
               {step === 'compose' && (selectedIntervenant?.companyName || `${selectedIntervenant?.firstName ?? ''} ${selectedIntervenant?.lastName ?? ''}`.trim() || 'Composer')}
-              {step === 'sent' && 'Envoyée ✓'}
+              {step === 'sent' && (deliveries.some((d) => d.delivery && d.delivery.intervenant.status !== 'sent') ? 'Enregistrée' : 'Envoyée ✓')}
             </div>
           </div>
           <button
@@ -1083,22 +1092,92 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
           )}
 
           {/* ── STEP SENT ──────────────────────────────────────────── */}
-          {step === 'sent' && (
+          {step === 'sent' && (() => {
+            // Ce qui est VRAIMENT parti (avant : « notifié·e » quoi qu'il arrive).
+            const connu = deliveries.some((d) => d.delivery);
+            const rates = deliveries.filter((d) => d.delivery && d.delivery.intervenant.status !== 'sent');
+            const toutParti = connu && rates.length === 0;
+            const accuses = deliveries
+              .map((d) => d.delivery?.receipt)
+              .filter((r): r is DemandeEmailDelivery['receipt'] => !!r);
+            const accuseOk = accuses.find((r): r is { status: 'sent'; to: string } => r.status === 'sent');
+            const accuseRate = accuses.find((r): r is { status: 'failed'; to: string; reason: string } => r.status === 'failed');
+            const nomSeul = selectedIntervenant ? nomIntervenant(selectedIntervenant) : "L'intervenant";
+            return (
             <div style={{
               textAlign: 'center', padding: 32,
             }}>
-              <CheckCircle2 size={56} style={{ color: '#15803d', margin: '0 auto 16px' }} />
+              {rates.length > 0
+                ? <AlertCircle size={56} style={{ color: '#b45309', margin: '0 auto 16px' }} />
+                : <CheckCircle2 size={56} style={{ color: '#15803d', margin: '0 auto 16px' }} />}
               <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>
-                {sentCount > 1 ? `${sentCount} demandes envoyees` : 'Demande envoyée'}
+                {rates.length > 0
+                  ? (sentCount > 1 ? `${sentCount} demandes enregistrées` : 'Demande enregistrée')
+                  : (sentCount > 1 ? `${sentCount} demandes envoyées` : 'Demande envoyée')}
               </h2>
               <p style={{ fontSize: 14, color: '#5b5045', lineHeight: 1.5 }}>
-                {sentCount > 1
-                  ? `${sentCount} intervenant${sentCount > 1 ? 's ont' : ' a'} été notifié${sentCount > 1 ? 's' : ''}·e.`
-                  : `${selectedIntervenant?.companyName ?? selectedIntervenant?.firstName ?? "L'intervenant"} a été notifié·e.`}
+                {!connu
+                  ? (sentCount > 1 ? `${sentCount} intervenants ont reçu la demande.` : `${nomSeul} a reçu la demande.`)
+                  : toutParti
+                    ? (sentCount > 1
+                        ? `Les ${sentCount} intervenants ont reçu la demande par e-mail.`
+                        : `${deliveries[0]?.name ?? nomSeul} a reçu la demande par e-mail.`)
+                    : (rates.length < deliveries.length
+                        ? `${deliveries.length - rates.length} sur ${deliveries.length} ${deliveries.length - rates.length > 1 ? 'ont' : 'a'} reçu la demande par e-mail.`
+                        : 'La demande est bien dans AVRA, mais aucun e-mail n’est parti.')}
                 {sentCount === 1 && !intervenantHasAccount && intervenantHasPendingInvite && (
                   <><br />Il pourra consulter la demande après acceptation de l'invitation.</>
                 )}
               </p>
+
+              {rates.length > 0 && (
+                <div style={{
+                  marginTop: 16, textAlign: 'left',
+                  padding: '12px 14px', borderRadius: 10,
+                  background: '#fffbeb', border: '1px solid #fde68a',
+                  color: '#92400e', fontSize: 13, lineHeight: 1.5,
+                }}>
+                  {rates.map((d, i) => {
+                    const it = d.delivery!.intervenant;
+                    return (
+                      <div key={i} style={{ marginBottom: i < rates.length - 1 ? 6 : 0 }}>
+                        ⚠ {it.status === 'failed'
+                          ? <>L'e-mail à <strong>{d.name}</strong> n'est pas parti : {it.reason}.</>
+                          : <><strong>{d.name}</strong> n'a pas d'adresse e-mail : il n'a pas été prévenu par e-mail.</>}
+                      </div>
+                    );
+                  })}
+                  <div style={{ marginTop: 8 }}>Prévenez-le directement, ou relancez la demande plus tard.</div>
+                </div>
+              )}
+
+              {accuseOk && (
+                <div style={{
+                  marginTop: 16, display: 'flex', alignItems: 'flex-start', gap: 10, textAlign: 'left',
+                  padding: '12px 14px', borderRadius: 10,
+                  background: '#f0fdf4', border: '1px solid #bbf7d0',
+                  color: '#166534', fontSize: 13, lineHeight: 1.5,
+                }}>
+                  <Mail size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span>
+                    {accuses.filter((r) => r.status === 'sent').length > 1
+                      ? `${accuses.filter((r) => r.status === 'sent').length} accusés d’envoi (un par destinataire) vous ont été adressés à `
+                      : 'Un accusé d’envoi vous a été adressé à '}
+                    <strong>{accuseOk.to}</strong>. Conservez-le : il prouve l'envoi et liste les documents transmis.
+                  </span>
+                </div>
+              )}
+              {!accuseOk && accuseRate && (
+                <div style={{
+                  marginTop: 16, textAlign: 'left',
+                  padding: '12px 14px', borderRadius: 10,
+                  background: '#fafaf8', border: '1px solid #ece7df',
+                  color: '#5b5045', fontSize: 13, lineHeight: 1.5,
+                }}>
+                  L'accusé d'envoi n'a pas pu vous être adressé ({accuseRate.reason}). L'envoi reste tracé dans l'historique de la demande.
+                </div>
+              )}
+
               <div style={{ marginTop: 22, display: 'flex', gap: 8, justifyContent: 'center' }}>
                 <button onClick={fermer} style={btnStyle('secondary')}>
                   Fermer
@@ -1115,7 +1194,8 @@ export function SendToIntervenantDrawer({ open, onClose, prefill, onSent }: Prop
                 )}
               </div>
             </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Footer (only on compose step) */}
@@ -1189,8 +1269,9 @@ function IntervenantCard({
         <input
           type="checkbox"
           checked={!!isSelected}
+          // Le clic remonte a la ligne, qui coche/decoche. (Avant, stopPropagation
+          // l'arretait ici : cliquer la case elle-meme ne faisait rien.)
           onChange={() => {/* parent gere via onClick */}}
-          onClick={(e) => e.stopPropagation()}
           style={{ flexShrink: 0, cursor: 'pointer' }}
         />
       )}
@@ -1410,3 +1491,8 @@ function TemplatesPicker({
   );
 }
 
+/** Nom affiché d'un intervenant : société, sinon prénom + nom. */
+function nomIntervenant(i?: IntervenantOption | null): string {
+  if (!i) return "L'intervenant";
+  return i.companyName || [i.firstName, i.lastName].filter(Boolean).join(' ') || "L'intervenant";
+}

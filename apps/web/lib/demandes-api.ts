@@ -107,7 +107,26 @@ export interface Demande {
   statusEvents?: DemandeStatusEvent[];
   /** Compteurs renvoyés par l'endpoint liste (pièces jointes ET messages déposés par l'intervenant). */
   _count?: { attachments?: number; messages?: number };
+  /** Renvoyé uniquement à la création : ce qui est réellement parti par e-mail. */
+  emailDelivery?: DemandeEmailDelivery;
 }
+
+/** Résultat des e-mails envoyés à la création d'une demande. */
+export interface DemandeEmailDelivery {
+  /** E-mail à l'intervenant. */
+  intervenant:
+    | { status: 'sent'; to: string }
+    | { status: 'failed'; to: string; reason: string }
+    | { status: 'no_email' };
+  /** Accusé d'envoi à la personne qui a envoyé la demande. */
+  receipt:
+    | { status: 'sent'; to: string }
+    | { status: 'failed'; to: string; reason: string }
+    | { status: 'skipped' };
+}
+
+/** Lignes d'historique qui tracent un e-mail (preuve d'envoi), pas un changement de statut. */
+export const EMAIL_PROOF_ROLE = 'email';
 
 export interface DemandesPage {
   data: Demande[];

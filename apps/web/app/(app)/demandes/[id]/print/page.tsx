@@ -11,7 +11,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Demande, getDemandePro, DEMANDE_TYPE_LABELS, DEMANDE_STATUS_LABELS } from '@/lib/demandes-api';
+import { Demande, getDemandePro, DEMANDE_TYPE_LABELS, DEMANDE_STATUS_LABELS, EMAIL_PROOF_ROLE } from '@/lib/demandes-api';
 
 export default function DemandePrintPage() {
   const params = useParams();
@@ -40,8 +40,8 @@ export default function DemandePrintPage() {
   if (error || !demande) return <div style={{ padding: 40, textAlign: 'center', color: '#b91c1c' }}>{error ?? 'Demande introuvable'}</div>;
 
   const intervenantName = demande.intervenant?.companyName
-    ?? [demande.intervenant?.firstName, demande.intervenant?.lastName].filter(Boolean).join(' ')
-    ?? '—';
+    || [demande.intervenant?.firstName, demande.intervenant?.lastName].filter(Boolean).join(' ')
+    || '—';
   const proName = [demande.createdBy.firstName, demande.createdBy.lastName].filter(Boolean).join(' ') || demande.createdBy.email;
 
   return (
@@ -138,16 +138,23 @@ export default function DemandePrintPage() {
         {demande.statusEvents && demande.statusEvents.length > 0 && (
           <div style={{ marginBottom: 22 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#7c6c58', textTransform: 'uppercase', marginBottom: 6 }}>
-              Historique des statuts
+              Historique (statuts et e-mails)
             </div>
             <ul style={{ padding: 0, listStyle: 'none', fontSize: 12 }}>
               {demande.statusEvents.map((e) => (
                 <li key={e.id} style={{ padding: '4px 0', color: '#5b5045' }}>
                   {new Date(e.createdAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
                   {' — '}
-                  {e.fromStatus ? `${e.fromStatus} → ` : ''}
-                  <strong>{e.toStatus}</strong>
-                  {e.comment ? <span style={{ fontStyle: 'italic', color: '#7c6c58' }}> · « {e.comment} »</span> : ''}
+                  {e.triggeredByRole === EMAIL_PROOF_ROLE ? (
+                    // Trace d'e-mail (preuve d'envoi) : pas un changement de statut.
+                    <span>✉ {e.comment}</span>
+                  ) : (
+                    <>
+                      {e.fromStatus ? `${DEMANDE_STATUS_LABELS[e.fromStatus] ?? e.fromStatus} → ` : ''}
+                      <strong>{DEMANDE_STATUS_LABELS[e.toStatus] ?? e.toStatus}</strong>
+                      {e.comment ? <span style={{ fontStyle: 'italic', color: '#7c6c58' }}> · « {e.comment} »</span> : ''}
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

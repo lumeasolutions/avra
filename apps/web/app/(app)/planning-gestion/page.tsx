@@ -587,7 +587,13 @@ export default function PlanningGestionPage() {
           attachments: atts,
         }),
       ))
-        .then(() => {
+        .then((crees) => {
+          // L'API dit ce qui est réellement parti : plus de « prévenu » à tort.
+          const nonPartis = crees.filter((d) => d.emailDelivery && d.emailDelivery.intervenant.status !== 'sent').length;
+          if (nonPartis > 0) {
+            setIntervSent(`__error__:${nonPartis}/${crees.length}`); setTimeout(() => setIntervSent(null), 8000);
+            return;
+          }
           const label = targetIds.length > 1
             ? `${targetIds.length} intervenants`
             : (assignedIntervenant?.name ?? 'L’intervenant');
@@ -641,10 +647,15 @@ export default function PlanningGestionPage() {
   return (
     <div className="space-y-6">
       {intervSent && (
-        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9999, background: intervSent === '__error__' ? '#dc2626' : '#16a34a', color: '#fff', padding: '12px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', maxWidth: 340 }}>
-          {intervSent === '__error__'
-            ? "Créneau créé, mais l'e-mail à l'intervenant n'a pas pu partir (vérifiez son e-mail)."
-            : `📧 ${intervSent} a été prévenu(e) par e-mail.`}
+        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9999, background: intervSent.startsWith('__error__') ? '#dc2626' : '#16a34a', color: '#fff', padding: '12px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', maxWidth: 340 }}>
+          {intervSent.startsWith('__error__')
+            ? (() => {
+                const [n, total] = intervSent.slice('__error__:'.length).split('/').map(Number);
+                return n && total > 1
+                  ? `Créneau créé, mais l'e-mail n'a pas pu partir pour ${n} intervenant${n > 1 ? 's' : ''} sur ${total}. Prévenez-les directement.`
+                  : "Créneau créé, mais l'e-mail à l'intervenant n'a pas pu partir (vérifiez son e-mail).";
+              })()
+            : `📧 ${intervSent} a été prévenu(e) par e-mail. Un accusé d'envoi vous a été adressé.`}
         </div>
       )}
       <style dangerouslySetInnerHTML={{ __html: `

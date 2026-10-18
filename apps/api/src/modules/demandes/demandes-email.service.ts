@@ -4,8 +4,10 @@ import { Injectable, Logger } from '@nestjs/common';
  * Service email pour les notifications du module Demandes.
  *
  * Utilise l'API HTTP Resend directement (pas de SDK pour eviter une dep
- * supplementaire dans apps/api). Tous les envois sont fire-and-forget :
- * un echec d'email ne bloque jamais l'operation metier.
+ * supplementaire dans apps/api). Un echec d'email ne bloque jamais l'operation
+ * metier, mais chaque envoi RENVOIE son resultat ({ ok, id } ou { ok:false,
+ * reason }) : l'appelant peut le tracer et le montrer a l'utilisateur au lieu
+ * d'afficher « notifié » quoi qu'il arrive.
  *
  * Variables d'env :
  *   RESEND_API_KEY    — cle API Resend (obligatoire pour activer les envois)
@@ -14,6 +16,26 @@ import { Injectable, Logger } from '@nestjs/common';
  */
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
+
+/** Résultat d'un envoi : `id` = identifiant du message chez Resend (preuve d'envoi). */
+export type EmailSendResult =
+  | { ok: true; id: string | null }
+  | { ok: false; reason: string };
+
+/** Libellés lisibles des types de demande (les e-mails affichaient la clé brute). */
+const DEMANDE_TYPE_LABELS: Record<string, string> = {
+  POSE: 'Pose',
+  LIVRAISON: 'Livraison',
+  SAV: 'SAV',
+  MESURE: 'Prise de mesure',
+  DEVIS: 'Demande de devis / renseignement',
+  CONFIRMATION_COMMANDE: 'Confirmation de commande',
+  COMPLEMENT: 'Complément',
+  AUTRE: 'Autre',
+};
+export function demandeTypeLabel(type: string): string {
+  return DEMANDE_TYPE_LABELS[(type || '').toUpperCase()] ?? type;
+}
 
 @Injectable()
 export class DemandesEmailService {
@@ -45,32 +67,49 @@ export class DemandesEmailService {
     return clean ? `${clean} <${addr}>` : this.from;
   }
 
-  private async send(opts: { to: string; subject: string; html: string; fromName?: string; replyTo?: string }): Promise<void> {
+  /** Envoie via l'API Resend. Ne lève jamais : le résultat dit si c'est parti. */
+  private async send(opts: { to: string; subject: string; html: string; fromName?: string; replyTo?: string }): Promise<EmailSendResult> {
     if (!this.enabled) {
       this.logger.warn(`[email] RESEND_API_KEY manquante — envoi ignore : "${opts.subject}"`);
-      return;
+      return { ok: false, reason: "l'envoi d'e-mails n'est pas configuré sur le serveur" };
     }
     try {
-      const res = await fetch(RESEND_API_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: this.buildFrom(opts.fromName),
-          to: opts.to,
-          subject: opts.subject,
-          html: opts.html,
-          ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
-        }),
+      const body = JSON.stringify({
+        from: this.buildFrom(opts.fromName),
+        to: opts.to,
+        subject: opts.subject,
+        html: opts.html,
+        ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
       });
-      if (!res.ok) {
-        const txt = await res.text().catch(() => '');
-        this.logger.error(`[email] Resend ${res.status}: ${txt}`);
+      // Resend limite le nombre d'envois par seconde : un envoi à plusieurs
+      // intervenants (chacun avec son accusé) peut dépasser la limite. Sur un
+      // 429, on patiente puis on retente (3 essais) au lieu d'abandonner.
+      let res: Response | null = null;
+      for (let essai = 0; essai < 3; essai++) {
+        res = await fetch(RESEND_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body,
+        });
+        if (res.status !== 429 || essai === 2) break;
+        const apres = Number(res.headers.get('retry-after'));
+        await new Promise((r) => setTimeout(r, apres > 0 && apres <= 5 ? apres * 1000 : 700 * (essai + 1)));
       }
+      if (!res) return { ok: false, reason: 'le service d’e-mails est injoignable' };
+      const txt = await res.text().catch(() => '');
+      if (!res.ok) {
+        this.logger.error(`[email] Resend ${res.status}: ${txt}`);
+        return { ok: false, reason: resendErrorReason(res.status, txt) };
+      }
+      let id: string | null = null;
+      try { id = (JSON.parse(txt) as { id?: string })?.id ?? null; } catch { /* corps vide */ }
+      return { ok: true, id };
     } catch (err: any) {
       this.logger.error(`[email] envoi echoue : ${err?.message ?? err}`);
+      return { ok: false, reason: 'le service d’e-mails est injoignable' };
     }
   }
 
@@ -100,7 +139,7 @@ export class DemandesEmailService {
     publicToken?: string;
     /** E-mail de l'utilisateur AVRA (pour Reply-To : l'intervenant lui répond directement). */
     proEmail?: string;
-  }): Promise<void> {
+  }): Promise<EmailSendResult> {
     const base = params.publicToken
       ? `${this.webUrl}/intervention/${params.publicToken}`
       : (params.hasAccount ? `${this.webUrl}/intervenant/demandes/${params.demandeId}` : `${this.webUrl}/login`);
@@ -138,7 +177,7 @@ export class DemandesEmailService {
           <strong>${escapeHtml(params.proName)}</strong> (${escapeHtml(params.workspaceName)}) vous a envoyé une demande sur AVRA.
         </p>
         <div style="background:#fafaf8;border-left:4px solid #cbb98a;padding:14px 18px;border-radius:8px;margin:18px 0">
-          <div style="font-size:11px;color:#7c6c58;letter-spacing:.08em;font-weight:700;text-transform:uppercase;margin-bottom:4px">${escapeHtml(params.type)}</div>
+          <div style="font-size:11px;color:#7c6c58;letter-spacing:.08em;font-weight:700;text-transform:uppercase;margin-bottom:4px">${escapeHtml(demandeTypeLabel(params.type))}</div>
           <div style="font-size:17px;font-weight:700;color:#1a2a1e">${escapeHtml(params.title)}</div>
         </div>
         ${dossierStr}
@@ -167,7 +206,7 @@ export class DemandesEmailService {
     token: string;
     message?: string | null;
     expiresAt: Date;
-  }): Promise<void> {
+  }): Promise<EmailSendResult> {
     const link = `${this.webUrl}/invitation/${params.token}`;
     const expiry = formatDateFR(params.expiresAt);
     const messageStr = params.message
@@ -214,7 +253,7 @@ export class DemandesEmailService {
     senderEmail?: string;
     /** Jeton de la demande : si message pro -> intervenant, la réponse revient dans AVRA. */
     replyToToken?: string;
-  }): Promise<void> {
+  }): Promise<EmailSendResult> {
     // Tronque le message en preview (preview uniquement dans le mail)
     const preview = params.messageBody.length > 280
       ? params.messageBody.slice(0, 280) + '…'
@@ -257,7 +296,7 @@ export class DemandesEmailService {
     fromStatus: string;
     toStatus: string;
     comment?: string | null;
-  }): Promise<void> {
+  }): Promise<EmailSendResult> {
     const link = `${this.webUrl}/intervenants?demande=${params.demandeId}`;
     const labels: Record<string, string> = {
       ENVOYEE: 'Envoyée', VUE: 'Vue', ACCEPTEE: 'Acceptée', REFUSEE: 'Refusée',
@@ -297,11 +336,131 @@ export class DemandesEmailService {
       html,
     });
   }
+
+  /**
+   * Accusé d'envoi adressé à la personne qui a envoyé la demande.
+   *
+   * Sert de PREUVE par e-mail : à qui, quand, quoi (dossier, objet, documents
+   * transmis), avec la référence de l'e-mail parti chez Resend. Si l'e-mail à
+   * l'intervenant a échoué, le message le dit clairement au lieu de rassurer.
+   *
+   * Pas de Reply-To : surtout pas l'adresse à jeton de la demande, sinon une
+   * réponse à l'accusé serait rangée comme un message de l'intervenant.
+   * Le lien public de l'intervenant (sans compte, sans expiration) n'y figure pas.
+   */
+  async notifySenderReceipt(params: {
+    to: string;
+    senderName: string;
+    workspaceName: string;
+    intervenantName: string;
+    intervenantEmail: string;
+    demandeId: string;
+    type: string;
+    title: string;
+    notes?: string | null;
+    scheduledFor?: Date | null;
+    projectName?: string | null;
+    sentAt: Date;
+    documents: Array<{ name: string; mimeType?: string | null }>;
+    /** Résultat de l'e-mail adressé à l'intervenant. */
+    delivery: EmailSendResult;
+  }): Promise<EmailSendResult> {
+    const ok = params.delivery.ok;
+    const ref = params.delivery.ok ? params.delivery.id : null;
+    const link = `${this.webUrl}/intervenants?demande=${encodeURIComponent(params.demandeId)}`;
+    const printLink = `${this.webUrl}/demandes/${encodeURIComponent(params.demandeId)}/print`;
+
+    const ligne = (label: string, valeur: string) => `
+      <tr>
+        <td style="padding:7px 12px 7px 0;font-size:11px;font-weight:700;color:#7c6c58;text-transform:uppercase;letter-spacing:.05em;vertical-align:top;white-space:nowrap">${label}</td>
+        <td style="padding:7px 0;font-size:14px;color:#1a2a1e">${valeur}</td>
+      </tr>`;
+
+    const documents = params.documents.length
+      ? `<ol style="margin:6px 0 0;padding:0 0 0 20px;color:#1a2a1e;font-size:14px;line-height:1.6">
+           ${params.documents.map((d) => `<li>${escapeHtml(d.name)}${d.mimeType ? ` <span style="color:#7c6c58;font-size:12px">· ${escapeHtml(formatMime(d.mimeType))}</span>` : ''}</li>`).join('')}
+         </ol>`
+      : `<p style="margin:6px 0 0;color:#7c6c58;font-size:14px">Aucun document joint à cette demande.</p>`;
+
+    const bandeau = ok
+      ? `<div style="background:#ecfdf3;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;margin:0 0 18px;color:#166534;font-size:14px">
+           ✓ La demande et ses documents ont bien été envoyés par e-mail à <strong>${escapeHtml(params.intervenantName)}</strong>.
+         </div>`
+      : `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 16px;margin:0 0 18px;color:#991b1b;font-size:14px">
+           ⚠ La demande est bien enregistrée dans AVRA, mais <strong>l'e-mail à ${escapeHtml(params.intervenantName)} n'a pas pu partir</strong>
+           (${escapeHtml(params.delivery.ok ? '' : params.delivery.reason)}).<br/>
+           Prévenez-le directement ou relancez la demande depuis AVRA.
+         </div>`;
+
+    const html = baseLayout({
+      title: ok ? "Accusé d'envoi" : "Échec d'envoi",
+      preheader: ok
+        ? `Envoyé à ${params.intervenantName} le ${formatDateFR(params.sentAt)} : ${params.title}`
+        : `L'e-mail à ${params.intervenantName} n'est pas parti : ${params.title}`,
+      footer: "Vous recevez cet accusé parce que vous avez envoyé cette demande depuis AVRA. Conservez-le : il atteste de l'envoi.",
+      body: `
+        <h1 style="font-size:22px;color:#1a2a1e;margin:0 0 6px">${ok ? "Accusé d'envoi" : "Échec d'envoi"}</h1>
+        <p style="color:#5b5045;margin:0 0 18px">
+          Bonjour ${escapeHtml(params.senderName)},<br/>
+          voici le récapitulatif de la demande que vous avez envoyée depuis AVRA (${escapeHtml(params.workspaceName)}).
+        </p>
+        ${bandeau}
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 6px">
+          ${ligne('Destinataire', `${escapeHtml(params.intervenantName)}<br/><span style="color:#7c6c58;font-size:13px">${escapeHtml(params.intervenantEmail)}</span>`)}
+          ${ligne(ok ? 'Envoyé le' : 'Tentative le', `${escapeHtml(formatDateFR(params.sentAt))} <span style="color:#7c6c58;font-size:12px">(heure de Paris)</span>`)}
+          ${params.projectName ? ligne('Dossier', escapeHtml(params.projectName)) : ''}
+          ${ligne('Type', escapeHtml(demandeTypeLabel(params.type)))}
+          ${ligne('Objet', `<strong>${escapeHtml(params.title)}</strong>`)}
+          ${params.scheduledFor ? ligne('Date prévue', escapeHtml(formatDateFR(params.scheduledFor))) : ''}
+        </table>
+        ${params.notes ? `<p style="margin:12px 0;color:#3D3328;background:#fafaf8;padding:12px 14px;border-radius:8px;white-space:pre-wrap">${escapeHtml(params.notes)}</p>` : ''}
+        <div style="background:#fafaf8;border-left:4px solid #cbb98a;padding:14px 18px;border-radius:8px;margin:18px 0">
+          <div style="font-size:11px;color:#7c6c58;letter-spacing:.08em;font-weight:700;text-transform:uppercase">
+            ${ok ? 'Documents transmis' : 'Documents joints à la demande'} (${params.documents.length})
+          </div>
+          ${documents}
+        </div>
+        ${ctaButton(link, 'Voir la demande dans AVRA')}
+        <p style="font-size:12px;color:#7c6c58;margin:16px 0 0;line-height:1.5">
+          Fiche imprimable avec l'historique complet : <a href="${printLink}" style="color:#3D5449">${escapeHtml(printLink)}</a><br/>
+          Référence AVRA : ${escapeHtml(params.demandeId)}${ref ? `<br/>Référence de l'e-mail envoyé : ${escapeHtml(ref)}` : ''}
+        </p>
+      `,
+    });
+    const subject = ok
+      ? `[AVRA] Accusé d'envoi — ${params.title} → ${params.intervenantName}`
+      : `[AVRA] Échec d'envoi — ${params.title} → ${params.intervenantName}`;
+    return this.send({ to: params.to, subject, html });
+  }
+}
+
+/** Traduit une erreur Resend en raison compréhensible par le cuisiniste. */
+function resendErrorReason(status: number, body: string): string {
+  let message = '';
+  try { message = String((JSON.parse(body) as { message?: string })?.message ?? ''); } catch { /* non JSON */ }
+  if (/testing emails|verify a domain|domain is not verified/i.test(message)) {
+    return "le domaine d'envoi des e-mails n'est pas vérifié";
+  }
+  if (status === 422 && /invalid `?to`?|email address/i.test(message)) return "l'adresse e-mail du destinataire est invalide";
+  if (status === 429) return "trop d'e-mails envoyés en peu de temps, réessayez dans une minute";
+  if (status === 401 || status === 403) return "le service d'e-mails a refusé l'envoi (clé d'accès)";
+  return `le service d'e-mails a répondu une erreur ${status}`;
+}
+
+/** « application/pdf » → « PDF », « image/jpeg » → « JPEG »… */
+function formatMime(mime: string): string {
+  const m = mime.toLowerCase();
+  if (m === 'application/pdf') return 'PDF';
+  if (m.startsWith('image/')) return m.slice(6).toUpperCase().replace('SVG+XML', 'SVG');
+  if (m.includes('word')) return 'Word';
+  if (m.includes('sheet') || m.includes('excel')) return 'Excel';
+  if (m.includes('zip')) return 'ZIP';
+  return m.split('/').pop() ?? m;
 }
 
 // ─── Helpers HTML ─────────────────────────────────────────────────────────
 
-function baseLayout(opts: { title: string; preheader: string; body: string }): string {
+function baseLayout(opts: { title: string; preheader: string; body: string; footer?: string }): string {
   return `<!doctype html>
 <html lang="fr">
 <head>
@@ -313,14 +472,14 @@ function baseLayout(opts: { title: string; preheader: string; body: string }): s
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5eee8;padding:32px 16px">
     <tr>
       <td align="center">
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 4px 18px rgba(26,42,30,.1)">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 4px 18px rgba(26,42,30,.1)">
           <tr><td style="padding:24px 32px 0;text-align:center">
             <div style="font-size:11px;letter-spacing:.18em;font-weight:700;color:#3D5449;text-transform:uppercase">AVRA</div>
           </td></tr>
           <tr><td style="padding:18px 32px 32px">${opts.body}</td></tr>
           <tr><td style="padding:18px 32px;background:#fafaf8;border-top:1px solid #ece7df;text-align:center;font-size:11px;color:#7c6c58">
             AVRA · La plateforme métier des cuisinistes, menuisiers et architectes d'intérieur<br/>
-            Vous recevez cet email parce que vous avez été identifié·e comme intervenant ou client professionnel.
+            ${escapeHtml(opts.footer ?? 'Vous recevez cet email parce que vous avez été identifié·e comme intervenant ou client professionnel.')}
           </td></tr>
         </table>
       </td>
@@ -345,10 +504,12 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#039;');
 }
 
+/** Date lisible en heure de Paris (le serveur tourne en UTC : sans le fuseau,
+ *  un rendez-vous de 9 h s'affichait 7 h ou 8 h dans les e-mails). */
 function formatDateFR(d: Date): string {
   return new Date(d).toLocaleDateString('fr-FR', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  }) + ' a ' + new Date(d).toLocaleTimeString('fr-FR', {
-    hour: '2-digit', minute: '2-digit',
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris',
+  }) + ' à ' + new Date(d).toLocaleTimeString('fr-FR', {
+    hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris',
   });
 }

@@ -1005,13 +1005,21 @@ function ChatView({ owlB64 }: { owlB64: string }) {
         const match = intervenants.find((iv) => norm(iv.name) === who)
           ?? intervenants.find((iv) => norm(iv.name).includes(who));
         if (!match) throw new Error(`Intervenant « ${p.intervenantName} » introuvable dans votre annuaire.`);
-        await createDemande({
+        const creee = await createDemande({
           intervenantId: match.id,
           type: (p.type ? String(p.type) : 'AUTRE') as any,
           title,
           notes: p.notes ? String(p.notes) : undefined,
           scheduledFor: p.scheduledFor ? new Date(String(p.scheduledFor)).toISOString() : undefined,
         });
+        // L'API dit si l'e-mail est vraiment parti : on ne promet pas un envoi raté.
+        const mail = creee.emailDelivery?.intervenant;
+        if (mail?.status === 'failed') {
+          return { successText: `Demande « ${title} » enregistrée, mais l'e-mail à ${match.name} n'est pas parti : ${mail.reason}. ⚠️` };
+        }
+        if (mail?.status === 'no_email') {
+          return { successText: `Demande « ${title} » enregistrée. ${match.name} n'a pas d'adresse e-mail : prévenez-le directement. ⚠️` };
+        }
         return { successText: `Demande « ${title} » envoyée à ${match.name} ✅` };
       }
       default:
