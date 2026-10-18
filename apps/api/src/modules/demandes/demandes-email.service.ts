@@ -389,7 +389,7 @@ export class DemandesEmailService {
     intervenantEmail: string;
     demandeId: string;
     title: string;
-    /** 'bounced' | 'complained' | 'failed' */
+    /** 'bounced' | 'complained' | 'failed' | 'suppressed' */
     probleme: string;
     raison?: string | null;
     quoi: string;
@@ -397,6 +397,8 @@ export class DemandesEmailService {
     const link = `${this.webUrl}/intervenants?demande=${encodeURIComponent(params.demandeId)}`;
     const explication = params.probleme === 'complained'
       ? `${escapeHtml(params.intervenantName)} a classé l'e-mail comme <strong>indésirable</strong>. Ses prochains e-mails AVRA risquent de ne plus lui parvenir.`
+      : params.probleme === 'suppressed'
+      ? `L'adresse de ${escapeHtml(params.intervenantName)} (${escapeHtml(params.intervenantEmail)}) est <strong>bloquée</strong> par le service d'envoi après un refus ou un signalement précédent : ${escapeHtml(params.quoi)} n'a pas été envoyé. Vérifiez son adresse e-mail.`
       : `La messagerie de ${escapeHtml(params.intervenantName)} (${escapeHtml(params.intervenantEmail)}) a <strong>refusé</strong> ${escapeHtml(params.quoi)}${params.raison ? ` : <em>${escapeHtml(params.raison)}</em>` : ''}.`;
     const html = baseLayout({
       title: 'E-mail non remis',
