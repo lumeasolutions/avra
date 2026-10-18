@@ -71,6 +71,9 @@ export interface GestEvent {
   intervenantName?: string;
   /** Type/specialite snapshot (POSEUR, PLOMBIER, etc.). */
   intervenantType?: string;
+  /** Dossier client de l'intervention (rattachement réel : la fiche dossier
+   *  affiche ses poses / livraisons, les demandes aux artisans y sont liées). */
+  dossierId?: string;
 }
 
 /**
@@ -177,7 +180,7 @@ async function _persistEvent(calendarType: 'GESTION' | 'PERSONAL', e: any, paylo
         type: _planningTypeToEventType(e.type),
         title: (e.client || e.title || e.type || 'Intervention').toString().slice(0, 200),
         startAt, endAt,
-        ...(calendarType === 'PERSONAL' ? _placeFields(e, withProject) : {}),
+        ..._placeFields(e, withProject),
         description: JSON.stringify({ k: calendarType === 'GESTION' ? 'gest' : 'perso', ...payload }),
       }),
     });
@@ -187,7 +190,7 @@ async function _persistEvent(calendarType: 'GESTION' | 'PERSONAL', e: any, paylo
     } catch (err) {
       // Dossier refusé par le serveur (ex. supprimé entre-temps) : on enregistre
       // le RDV sans rattachement plutôt que de le perdre.
-      if (calendarType !== 'PERSONAL' || !_placeFields(e).projectId) throw err;
+      if (!_placeFields(e).projectId) throw err;
       created = await post(false);
     }
     return created?.id ?? null;
@@ -214,14 +217,17 @@ async function _updateEvent(
         type: _planningTypeToEventType(e.type),
         title: (e.client || e.title || e.type || 'Intervention').toString().slice(0, 200),
         startAt, endAt,
-        ...(calendarType === 'PERSONAL' ? _placeFields(e, withProject) : {}),
+        // Plus de dossier (client changé) : on détache aussi côté serveur, sinon
+        // le RDV réapparaîtrait sur l'ancien dossier au prochain rechargement.
+        ...(withProject && !_serverDossierId(e.dossierId) ? { projectId: null } : {}),
+        ..._placeFields(e, withProject),
         description: JSON.stringify({ k: calendarType === 'GESTION' ? 'gest' : 'perso', ...payload }),
       }),
     });
     try {
       await put(true);
     } catch (err) {
-      if (calendarType !== 'PERSONAL' || !_placeFields(e).projectId) throw err;
+      if (!_placeFields(e).projectId) throw err;
       await put(false);
     }
   } catch { /* noop */ }
@@ -235,6 +241,16 @@ function _persoPayload(e: PlanningEvent): Record<string, unknown> {
     dossierId: e.dossierId || undefined,
     location: e.location?.trim() || undefined,
     visioUrl: e.visioUrl?.trim() || undefined,
+  };
+}
+
+/** Champs d'une intervention du planning gestion stockés dans la description JSON. */
+function _gestPayload(e: GestEvent): Record<string, unknown> {
+  return {
+    type: e.type, client: e.client, duration: e.duration,
+    durationMinutes: e.durationMinutes, startMinute: e.startMinute,
+    intervenantId: e.intervenantId, intervenantName: e.intervenantName, intervenantType: e.intervenantType,
+    dossierId: e.dossierId || undefined,
   };
 }
 
@@ -306,7 +322,8 @@ interface PlanningState {
   _setInvite: (id: string, invite: PlanningInvite) => void;
 
   // Gestion actions
-  addGestEvent: (event: Omit<GestEvent, 'id'>) => void;
+  /** Renvoie l'id provisoire (cf. attendreRdvEnregistre pour l'id serveur). */
+  addGestEvent: (event: Omit<GestEvent, 'id'>) => string;
   /** Met à jour un événement existant (drag&drop, édition). */
   updateGestEvent: (id: string, patch: Partial<Omit<GestEvent, 'id'>>) => void;
   deleteGestEvent: (id: string) => void;
@@ -387,13 +404,29 @@ export const usePlanningStore = create<PlanningState>()(
         const tempId = 'gev' + uid();
         const newEvent = { ...event, id: tempId };
         set(s => ({ gestEvents: [...s.gestEvents, newEvent] }));
-        void _persistEvent('GESTION', newEvent, {
-          type: event.type, client: event.client, duration: event.duration,
-          durationMinutes: event.durationMinutes, startMinute: event.startMinute,
-          intervenantId: event.intervenantId, intervenantName: event.intervenantName, intervenantType: event.intervenantType,
-        }).then((realId) => {
-          if (realId) set(s => ({ gestEvents: s.gestEvents.map(e => e.id === tempId ? { ...e, id: realId } : e) }));
+        // Suivi de l'id serveur (comme le planning classique) : permet de lier
+        // les demandes aux artisans au créneau (attendreRdvEnregistre).
+        const p = _persistEvent('GESTION', newEvent, _gestPayload(newEvent)).then((realId) => {
+          if (realId) {
+            _realIds.set(tempId, realId);
+            let current: GestEvent | undefined;
+            set(s => ({
+              gestEvents: s.gestEvents.map(e => {
+                if (e.id !== tempId) return e;
+                current = { ...e, id: realId };
+                return current;
+              }),
+            }));
+            // Modifié pendant l'enregistrement initial : on rejoue la mise à jour.
+            if (current && JSON.stringify(_gestPayload(current)) + _eventDates(current).startAt
+                !== JSON.stringify(_gestPayload(newEvent)) + _eventDates(newEvent).startAt) {
+              const snapshot = current;
+              _track(realId, _updateEvent(realId, 'GESTION', snapshot, _gestPayload(snapshot)));
+            }
+          }
         });
+        _track(tempId, p);
+        return tempId;
       },
 
       updateGestEvent: (id, patch) => {
@@ -406,11 +439,7 @@ export const usePlanningStore = create<PlanningState>()(
           }),
         }));
         if (merged) {
-          void _updateEvent(id, 'GESTION', merged, {
-            type: merged.type, client: merged.client,
-            duration: merged.duration, durationMinutes: merged.durationMinutes, startMinute: merged.startMinute,
-            intervenantId: merged.intervenantId, intervenantName: merged.intervenantName, intervenantType: merged.intervenantType,
-          });
+          _track(id, _updateEvent(id, 'GESTION', merged, _gestPayload(merged)));
         }
       },
 

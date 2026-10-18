@@ -7,7 +7,10 @@ import {
   AlertTriangle, CheckCircle, Clock, ChevronDown,
   Pencil, Trash2, Paperclip,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { usePlanningStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
+import { attendreRdvEnregistre } from '@/store/usePlanningStore';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { createDemande } from '@/lib/demandes-api';
 import { uploadDossierDocDirect } from '@/lib/dossier-docs-api';
@@ -182,8 +185,14 @@ function daysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
 }
 
+/** Id de dossier connu du serveur (cuid) : seul celui-là peut être lié à une demande. */
+const idDossierServeur = (id?: string) => (id && /^c[a-z0-9]{20,}$/.test(id) ? id : undefined);
+/** Retour autorisé après une ouverture depuis un dossier (chemin interne uniquement). */
+const retourValide = (r: string | null) => (r && /^\/dossiers(-signes)?\/[A-Za-z0-9_-]+$/.test(r) ? r : null);
+
 /* ── COMPOSANT PRINCIPAL ── */
 export default function PlanningGestionPage() {
+  const router = useRouter();
   const dossiers        = useVisibleDossiers();
   const dossiersSignes  = useVisibleDossiersSignes();
   // Grille 24h scrollable : on ouvre vers ~8h (façon Google Agenda) au lieu de minuit.
@@ -261,7 +270,9 @@ export default function PlanningGestionPage() {
   // intervenantId = intervenant « principal » (= 1er de intervenantIds), gardé
   // pour le snapshot event + le chargement des docs. intervenantIds = sélection
   // MULTIPLE : une demande/e-mail est envoyée à CHAQUE intervenant coché.
-  const [newEvent,   setNewEvent]     = useState<{ type: string; client: string; duration: number; intervenantId: string | null; intervenantIds: string[] }>({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null, intervenantIds: [] });
+  // dossierId : dossier choisi explicitement (ouverture depuis la fiche dossier
+  // ou intervention existante). Sinon, le dossier est retrouvé par son nom.
+  const [newEvent,   setNewEvent]     = useState<{ type: string; client: string; duration: number; intervenantId: string | null; intervenantIds: string[]; dossierId?: string }>({ type: 'POSE CUISINE', client: '', duration: 4, intervenantId: null, intervenantIds: [] });
   // Pieces du dossier client a joindre a la demande (optionnel) lors de l'assignation d'un intervenant.
   type PgDoc = { id: string; subfolderLabel: string; originalName: string; mimeType: string | null };
   const [pgDocs, setPgDocs] = useState<PgDoc[] | null>(null);
@@ -393,6 +404,7 @@ export default function PlanningGestionPage() {
       duration: ev.duration,
       intervenantId: ev.intervenantId ?? null,
       intervenantIds: ev.intervenantId ? [ev.intervenantId] : [],
+      dossierId: ev.dossierId,
     });
     // Calcule la date réelle (jour + weekOffset)
     const eventDates = getWeekDates(ev.weekOffset ?? 0);
@@ -437,6 +449,7 @@ export default function PlanningGestionPage() {
       intervenantId: assignedIntervenant?.id,
       intervenantName: assignedIntervenant?.name,
       intervenantType: assignedIntervenant?.type,
+      dossierId: (pgMatchedDossier as any)?.id,
     });
     setWeekOffset(diffWeeks);
     setShowAdd(false);
@@ -473,10 +486,14 @@ export default function PlanningGestionPage() {
   }, [popoverEventId]);
 
   // Dossier correspondant au client saisi (texte libre -> dossier connu).
-  const pgMatchedDossier = useMemo(
-    () => [...dossiers, ...dossiersSignesActifs].find((d: any) => d.name === newEvent.client),
-    [dossiers, dossiersSignesActifs, newEvent.client],
-  );
+  // Le dossier choisi explicitement l'emporte tant que le nom n'a pas été changé
+  // (y compris un dossier signé archivé ouvert depuis sa fiche).
+  const pgMatchedDossier = useMemo(() => {
+    const explicite = newEvent.dossierId
+      ? [...dossiers, ...dossiersSignes].find((d: any) => d.id === newEvent.dossierId && d.name === newEvent.client)
+      : undefined;
+    return explicite ?? [...dossiers, ...dossiersSignesActifs].find((d: any) => d.name === newEvent.client);
+  }, [dossiers, dossiersSignes, dossiersSignesActifs, newEvent.client, newEvent.dossierId]);
   const pgProjectId: string | undefined = (pgMatchedDossier as any)?.id;
 
   // Charge les pieces du dossier quand un intervenant est assigne + dossier connu.
@@ -529,7 +546,8 @@ export default function PlanningGestionPage() {
     const assignedIntervenant = newEvent.intervenantId
       ? intervenantsList.find((iv) => iv.id === newEvent.intervenantId) ?? null
       : null;
-    addGestEvent({
+    const dossierId: string | undefined = (pgMatchedDossier as any)?.id;
+    const tempId = addGestEvent({
       day: dayOfWeek,
       startHour: modalHour,
       startMinute: modalMinute,
@@ -538,6 +556,7 @@ export default function PlanningGestionPage() {
       type: newEvent.type,
       client: newEvent.client,
       weekOffset: diffWeeks,
+      dossierId,
       intervenantId: assignedIntervenant?.id,
       intervenantName: assignedIntervenant
         ? (newEvent.intervenantIds.length > 1
@@ -562,8 +581,14 @@ export default function PlanningGestionPage() {
         color: meta?.color || '#a67749',
         type: newEvent.type,
         weekOffset: diffWeeks,
+        dossierId,
       });
     }
+
+    // Ouverture depuis un dossier : on y revient une fois l'envoi terminé.
+    const retour = retourDossierRef.current;
+    if (retour) { retourDossierRef.current = null; modaleDepuisDossierRef.current = false; }
+    const revenir = (apresMs: number) => { if (retour) setTimeout(() => router.push(retour), apresMs); };
 
     // Agenda -> e-mail automatique : si un intervenant est assigné, on crée une
     // demande, ce qui lui envoie un e-mail (avec lien d'action sans login).
@@ -577,16 +602,23 @@ export default function PlanningGestionPage() {
       const atts = (pgSelectedDocIds.length && pgDocs)
         ? pgDocs.filter((d) => pgSelectedDocIds.includes(d.id)).map((d) => ({ dossierDocumentId: d.id, displayName: d.originalName, mimeType: d.mimeType ?? undefined }))
         : undefined;
-      Promise.all(targetIds.map((id) =>
+      const projectId = idDossierServeur(dossierId);
+      const titreDemande = `${formatTypeLabel(newEvent.type)} — ${newEvent.client}`.trim();
+      const note = pgNote.trim() || undefined;
+      // La demande est liée au dossier (visible dans « Demandes envoyées » de la
+      // fiche) et au créneau (id serveur attendu quelques instants au plus).
+      attendreRdvEnregistre(tempId).catch(() => null).then((eventId) => Promise.all(targetIds.map((id) =>
         createDemande({
           intervenantId: id,
           type: planningTypeToDemandeType(newEvent.type) as any,
-          title: `${formatTypeLabel(newEvent.type)} — ${newEvent.client}`.trim(),
-          notes: pgNote.trim() || undefined,
+          title: titreDemande,
+          notes: note,
           scheduledFor: when.toISOString(),
           attachments: atts,
+          ...(projectId ? { projectId } : {}),
+          ...(eventId ? { eventId } : {}),
         }),
-      ))
+      )))
         .then((crees) => {
           // L'API dit ce qui est réellement parti : plus de « prévenu » à tort.
           const nonPartis = crees.filter((d) => d.emailDelivery && d.emailDelivery.intervenant.status !== 'sent');
@@ -598,19 +630,77 @@ export default function PlanningGestionPage() {
               ? `Créneau créé, mais l'e-mail n'a pas pu partir pour ${noms.join(', ')} (${nonPartis.length} sur ${crees.length}). ${seul ? 'Prévenez-le' : 'Prévenez-les'} directement.`
               : `Créneau créé, mais l'e-mail à ${noms[0]} n'a pas pu partir. Prévenez-le directement.`;
             setIntervSent(`__error__:${message}`); setTimeout(() => setIntervSent(null), 9000);
+            revenir(4000);
             return;
           }
           const label = targetIds.length > 1
             ? `${targetIds.length} intervenants`
             : (assignedIntervenant?.name ?? 'L’intervenant');
           setIntervSent(label); setTimeout(() => setIntervSent(null), 6000);
+          revenir(2500);
         })
-        .catch(() => { setIntervSent('__error__'); setTimeout(() => setIntervSent(null), 6000); });
+        .catch(() => { setIntervSent('__error__'); setTimeout(() => setIntervSent(null), 6000); revenir(4000); });
+    } else {
+      revenir(0);
     }
     setWeekOffset(diffWeeks);
     setAlsoPlanning(false);
     setShowAdd(false);
   };
+
+  // ── Ouverture depuis une fiche dossier ─────────────────────────────────
+  // /planning-gestion?nouveau=1&dossier=<id>&type=<TYPE>&retour=/dossiers/<id>
+  // → fenêtre de création pré-remplie ; après enregistrement (ou annulation)
+  // on revient au dossier. ?voir=<idIntervention> ouvre l'intervention.
+  const retourDossierRef = useRef<string | null>(null);
+  const modaleDepuisDossierRef = useRef(false);
+  const requeteTraiteeRef = useRef(false);
+  useEffect(() => {
+    if (requeteTraiteeRef.current || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const voir = params.get('voir');
+    if (params.get('nouveau') === '1') {
+      const dos = params.get('dossier');
+      const tous = [...dossiers, ...dossiersSignes];
+      const dossier = dos ? tous.find((d: any) => d.id === dos) : undefined;
+      // Dossiers pas encore chargés : on réessaie au prochain rendu.
+      if (dos && !dossier && tous.length === 0) return;
+      requeteTraiteeRef.current = true;
+      retourDossierRef.current = retourValide(params.get('retour'));
+      const now = new Date();
+      const day = ((now.getDay() + 6) % 7) + 1;
+      setWeekOffset(0);
+      openAdd(day, Math.min(20, Math.max(7, now.getHours() + 1)), 0);
+      const type = params.get('type');
+      setNewEvent((n) => ({
+        ...n,
+        client: (dossier as any)?.name ?? n.client,
+        dossierId: (dossier as any)?.id,
+        type: type && ALL_TYPES.some((t) => t.key === type) ? type : n.type,
+      }));
+      window.history.replaceState(null, '', '/planning-gestion');
+    } else if (voir) {
+      const ev = gestEvents.find((e) => e.id === voir);
+      if (!ev) return; // pas encore synchronisé : on réessaie au prochain rendu
+      requeteTraiteeRef.current = true;
+      setWeekOffset(ev.weekOffset ?? 0);
+      setPopoverPosition({ x: Math.max(16, window.innerWidth / 2 - 110), y: 140 });
+      setPopoverEventId(ev.id);
+      window.history.replaceState(null, '', '/planning-gestion');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dossiers, dossiersSignes, gestEvents]);
+  // Annulation d'une création ouverte depuis un dossier : retour au dossier.
+  useEffect(() => {
+    if (!retourDossierRef.current) return;
+    if (showAdd) { modaleDepuisDossierRef.current = true; return; }
+    if (modaleDepuisDossierRef.current) {
+      const r = retourDossierRef.current;
+      retourDossierRef.current = null;
+      modaleDepuisDossierRef.current = false;
+      router.push(r);
+    }
+  }, [showAdd, router]);
 
   /* ── WEEK PICKER cells ── */
   const allPickCells: (Date | null)[] = [];
@@ -1241,6 +1331,14 @@ export default function PlanningGestionPage() {
                 {formatTime(ev.startHour, getStartMinute(ev))} · {ev.duration}h
               </p>
             </div>
+            {ev.dossierId && [...dossiers, ...dossiersSignes].some((d: any) => d.id === ev.dossierId) && (
+              <Link
+                href={`/dossiers/${ev.dossierId}`}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-[#304035] hover:bg-[#f5eee8] transition-colors border-b border-[#304035]/8"
+              >
+                📁 Ouvrir le dossier
+              </Link>
+            )}
             <button
               onClick={() => openEdit(ev.id)}
               className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-[#304035] hover:bg-[#f5eee8] transition-colors"
@@ -1442,6 +1540,11 @@ export default function PlanningGestionPage() {
                 <datalist id="gestion-clients">
                   {allClients.map(n => <option key={n} value={n} />)}
                 </datalist>
+                {newEvent.client.trim() !== '' && (
+                  pgMatchedDossier
+                    ? <p className="mt-1.5 text-[11px] font-semibold text-emerald-700">✓ Rattaché au dossier « {(pgMatchedDossier as any).name} » : visible sur sa fiche.</p>
+                    : <p className="mt-1.5 text-[11px] text-[#304035]/45">Aucun dossier à ce nom : l'intervention ne sera pas rattachée à un dossier.</p>
+                )}
               </div>
 
               {/* Calendrier date */}

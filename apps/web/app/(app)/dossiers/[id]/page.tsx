@@ -1486,8 +1486,9 @@ export default function DossierDetailPage() {
             </div>
           </div>
 
-          {/* Rendez-vous du dossier (planning) : visio « Rejoindre », invitation client. */}
-          <DossierRendezVous dossierId={id} canEdit={canEditThis} />
+          {/* Rendez-vous (planning) et interventions (planning gestion) du dossier,
+              avec raccourcis pour planifier sans ressaisir le client. */}
+          <DossierRendezVous dossierId={id} canEdit={canEditThis} dossierName={dossier?.name} />
 
           {/* Section devis du dossier : modifier + télécharger PDF / Word / Excel. */}
           {devisDossier.length > 0 && (

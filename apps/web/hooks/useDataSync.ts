@@ -674,6 +674,7 @@ export function useDataSync() {
           intervenantId: r.extra.intervenantId,
           intervenantName: r.extra.intervenantName,
           intervenantType: r.extra.intervenantType,
+          dossierId: r.extra.dossierId || event.project?.id || undefined,
         };
       });
 

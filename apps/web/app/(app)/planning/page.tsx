@@ -524,6 +524,7 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
         type: newEvent.type,
         client: dossier?.name || newEvent.title || rdvType?.label || 'RDV',
         weekOffset: diffWeeks,
+        dossierId: newEvent.dossierId || undefined,
       });
     }
 
@@ -570,7 +571,21 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
     deletePlanningEvent(ev.id);
   };
 
-  // Ouverture depuis un dossier : /planning?nouveau=1&dossier=<id>, ou ?voir=<idRdv>.
+  // Ouverture depuis un dossier : /planning?nouveau=1&dossier=<id>&retour=/dossiers/<id>,
+  // ou ?voir=<idRdv>. Avec « retour », on revient au dossier une fois la fenêtre
+  // fermée (enregistrement ou annulation) et l'éventuelle invitation au client traitée.
+  const retourDossierRef = useRef<string | null>(null);
+  const modaleDepuisDossierRef = useRef(false);
+  useEffect(() => {
+    if (!retourDossierRef.current) return;
+    if (showAdd || inviteModal) { modaleDepuisDossierRef.current = true; return; }
+    if (modaleDepuisDossierRef.current) {
+      const r = retourDossierRef.current;
+      retourDossierRef.current = null;
+      modaleDepuisDossierRef.current = false;
+      router.push(r);
+    }
+  }, [showAdd, inviteModal, router]);
   const queryHandledRef = useRef(false);
   useEffect(() => {
     if (queryHandledRef.current || typeof window === 'undefined') return;
@@ -585,6 +600,8 @@ Les RDV déjà planifiés avec ce type gardent leur titre et leur couleur.`)) re
       openAdd(day, hour, 0);
       const dos = params.get('dossier');
       if (dos) setNewEvent(n => ({ ...n, dossierId: dos }));
+      const retour = params.get('retour');
+      retourDossierRef.current = retour && /^\/dossiers(-signes)?\/[A-Za-z0-9_-]+$/.test(retour) ? retour : null;
       window.history.replaceState(null, '', '/planning');
     } else if (voir) {
       const ev = planningEvents.find(e => e.id === voir);

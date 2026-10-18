@@ -21,7 +21,7 @@ export function dureeRdvMin(ev: Pick<PlanningEvent, 'duration' | 'durationMinute
   return Math.max(15, ev.durationMinutes ?? Math.round((ev.duration || 1) * 60));
 }
 
-export function finRdv(ev: PlanningEvent): Date {
+export function finRdv(ev: Pick<PlanningEvent, 'day' | 'startHour' | 'startMinute' | 'weekOffset' | 'duration' | 'durationMinutes'>): Date {
   return new Date(debutRdv(ev).getTime() + dureeRdvMin(ev) * 60000);
 }
 
