@@ -517,6 +517,13 @@ model RefreshSession {
   lastUsedAt DateTime @default(now())
   /// Aide a reconnaitre l appareil dans une future page « mes sessions ».
   userAgent  String?  @db.VarChar(300)
+  /// Jeton precedent (SHA-256 du jti), encore accepte jusqu a prevValidUntil.
+  /// Une page rechargee ou quittee pendant un rafraichissement ne recoit
+  /// jamais les nouveaux cookies alors que le serveur a deja fait tourner la
+  /// session : sans ce delai de grace, la session mourait en silence et l
+  /// utilisateur etait deconnecte au plus tard 15 min apres (19/10/2026).
+  prevJtiLookup  String?   @unique @db.VarChar(64)
+  prevValidUntil DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

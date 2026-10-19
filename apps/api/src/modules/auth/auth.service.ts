@@ -10,6 +10,13 @@ import { AuthEmailService } from './services/auth-email.service';
 import { isEmailAllowed, isBetaGateEnabled } from '../../common/security/beta-gate';
 import type { JwtPayload } from '@avra/types';
 
+/**
+ * Duree pendant laquelle le jeton de rafraichissement remplace reste accepte.
+ * Couvre le pire cas : le navigateur n'a pas recu les nouveaux cookies et ne
+ * revient qu'a l'expiration de son jeton d'acces (15 min).
+ */
+const REFRESH_GRACE_MS = 20 * 60 * 1000;
+
 // Message renvoyé quand le bêta gate bloque un utilisateur.
 const BETA_GATE_MESSAGE =
   "AVRA est en bêta privée. L'accès n'est pas encore ouvert publiquement. Inscrivez-vous sur la liste d'attente pour être notifié au lancement.";
@@ -383,6 +390,8 @@ export class AuthService {
     let isLegacy = false;
     /** Session a faire tourner. Null = jeton issu de l'ancienne colonne. */
     let sessionId: string | null = null;
+    /** Jeton courant de cette session avant rotation : devient le « precedent ». */
+    let jtiLookupCourant: string | null = null;
 
     if (decoded) {
       // ─── New JWT scheme ────────────────────────────────────────────────
@@ -405,6 +414,29 @@ export class AuthService {
           && (await this.tokenRotation.verifyRefreshToken(decoded.jti, session.jtiHash))
         ) {
           sessionId = session.id as string;
+          jtiLookupCourant = session.jtiLookup as string;
+        }
+        // 19/10/2026 — Delai de grace : jeton tout juste remplace. Cas reel :
+        // la page est rechargee ou quittee pendant un rafraichissement ; le
+        // serveur a fait tourner la session mais le navigateur n'a jamais recu
+        // les nouveaux cookies. Il revient avec l'ancien jeton, au plus tard
+        // quand son jeton d'acces expire (15 min). La signature du JWT est
+        // deja verifiee ; le jti (32 octets aleatoires) est reconnu par son
+        // empreinte SHA-256. On refait tourner la session normalement.
+        if (!sessionId) {
+          const precedente = await (this.prisma as any).refreshSession.findUnique({
+            where: { prevJtiLookup: this.tokenRotation.jtiLookup(decoded.jti) },
+          });
+          if (
+            precedente
+            && precedente.userId === user.id
+            && precedente.expiresAt > new Date()
+            && precedente.prevValidUntil
+            && precedente.prevValidUntil > new Date()
+          ) {
+            sessionId = precedente.id as string;
+            jtiLookupCourant = precedente.jtiLookup as string;
+          }
         }
       } catch (err: any) {
         // Table absente (migration pas encore passee) : on laisse le repli
@@ -482,6 +514,12 @@ export class AuthService {
           jtiHash: hashedJti,
           expiresAt: tokenPair.refreshTokenExpiresAt,
           lastUsedAt: new Date(),
+          // Le jeton remplace reste accepte un moment (cf. delai de grace).
+          // Toujours le jeton COURANT d'avant rotation : si deux
+          // rafraichissements se croisent, les deux reponses restent valides,
+          // quelle que soit celle que le navigateur garde en dernier.
+          prevJtiLookup: jtiLookupCourant,
+          prevValidUntil: new Date(Date.now() + REFRESH_GRACE_MS),
         },
       });
     } else {
