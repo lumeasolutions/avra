@@ -8,9 +8,14 @@ import { X, Copy, Check, Loader2, RefreshCw, CalendarPlus, ExternalLink } from '
 import { lienAbonnementAgenda, liensAjoutAgenda } from '@/lib/events-api';
 import { backdropClose } from '@/lib/backdropClose';
 
-export function AbonnementAgendaModal({ onClose }: { onClose: () => void }) {
+/**
+ * @param gestionParDefaut ouverte depuis le Planning gestion : interventions et
+ *   dates du chantier cochées d'office.
+ */
+export function AbonnementAgendaModal({ onClose, gestionParDefaut = false }: { onClose: () => void; gestionParDefaut?: boolean }) {
   const [url, setUrl] = useState('');
-  const [gestion, setGestion] = useState(false);
+  const [gestion, setGestion] = useState(gestionParDefaut);
+  const [moi, setMoi] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -24,7 +29,8 @@ export function AbonnementAgendaModal({ onClose }: { onClose: () => void }) {
     return () => { alive = false; };
   }, []);
 
-  const flux = url ? `${url}${gestion ? '?gestion=1' : ''}` : '';
+  const options = [gestion ? 'gestion=1' : '', moi ? 'moi=1' : ''].filter(Boolean).join('&');
+  const flux = url ? `${url}${options ? `?${options}` : ''}` : '';
   const liens = flux ? liensAjoutAgenda(flux) : null;
 
   const copier = async () => {
@@ -81,10 +87,17 @@ export function AbonnementAgendaModal({ onClose }: { onClose: () => void }) {
             <p className="flex items-center gap-2 text-sm text-[#304035]/60 py-6 justify-center"><Loader2 className="h-4 w-4 animate-spin" /> Préparation du lien…</p>
           ) : liens ? (
             <>
-              <label className="flex items-center gap-2 text-xs text-[#304035]/70 cursor-pointer select-none">
-                <input type="checkbox" checked={gestion} onChange={(e) => setGestion(e.target.checked)} className="accent-[#304035]" />
-                Inclure aussi le planning gestion (interventions)
-              </label>
+              <div className="space-y-1.5">
+                <label className="flex items-start gap-2 text-xs text-[#304035]/70 cursor-pointer select-none">
+                  <input type="checkbox" checked={gestion} onChange={(e) => setGestion(e.target.checked)} className="accent-[#304035] mt-0.5" />
+                  <span>Inclure le planning gestion : interventions (pose, livraison…) et dates du chantier des dossiers</span>
+                </label>
+                <label className="flex items-start gap-2 text-xs text-[#304035]/70 cursor-pointer select-none">
+                  <input type="checkbox" checked={moi} onChange={(e) => setMoi(e.target.checked)} className="accent-[#304035] mt-0.5" />
+                  <span>Seulement mes rendez-vous (sans ceux des autres membres de l'équipe)</span>
+                </label>
+                <p className="text-[10px] text-[#304035]/45 pl-5">Choisissez les options avant de cliquer sur votre agenda : chaque combinaison donne un lien différent.</p>
+              </div>
               <div className="space-y-2">
                 <Btn href={liens.google} label="Google Agenda" sub="Ouvre Google Agenda, confirmez « Ajouter »" />
                 <Btn href={liens.webcal} label="iPhone / Mac (Apple Calendrier)" sub="Ouvre Calendrier, confirmez « S'abonner »" />

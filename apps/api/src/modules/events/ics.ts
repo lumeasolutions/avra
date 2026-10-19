@@ -29,11 +29,24 @@ export interface IcsEvent {
    * pour afficher la liste des participants.
    */
   attendees?: Array<{ name?: string; email: string }>;
+  /**
+   * Journée entière (dates du chantier). `start` / `end` portent alors le jour
+   * civil dans leurs champs UTC (minuit UTC du jour, `end` = lendemain). Pas de
+   * rappel 30 min (il tomberait la veille à 23 h 30) et la journée n'est pas
+   * marquée « occupée ».
+   */
+  allDay?: boolean;
 }
 
 export function icsDate(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}T${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}Z`;
+}
+
+/** Jour civil (champs UTC) au format DATE : 20261021. */
+export function icsDay(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}`;
 }
 
 /** Échappement des valeurs texte (RFC 5545 §3.3.11). */
@@ -79,8 +92,9 @@ function vevent(e: IcsEvent): string[] {
     'BEGIN:VEVENT',
     `UID:${e.uid}`,
     `DTSTAMP:${icsDate(new Date())}`,
-    `DTSTART:${icsDate(e.start)}`,
-    `DTEND:${icsDate(e.end)}`,
+    ...(e.allDay
+      ? [`DTSTART;VALUE=DATE:${icsDay(e.start)}`, `DTEND;VALUE=DATE:${icsDay(e.end)}`, 'TRANSP:TRANSPARENT']
+      : [`DTSTART:${icsDate(e.start)}`, `DTEND:${icsDate(e.end)}`]),
     `SEQUENCE:${e.sequence ?? 0}`,
     `SUMMARY:${icsText(e.summary)}`,
   ];
@@ -96,7 +110,7 @@ function vevent(e: IcsEvent): string[] {
       `ATTENDEE${a.name ? `;CN=${icsParam(a.name)}` : ''};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${a.email}`,
     );
   }
-  if (e.status !== 'CANCELLED') {
+  if (e.status !== 'CANCELLED' && !e.allDay) {
     // Rappel 30 min avant (repris par Google / Apple / Outlook).
     lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsText(e.summary)}`, 'TRIGGER:-PT30M', 'END:VALARM');
   }

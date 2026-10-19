@@ -15,6 +15,15 @@ import { SkipCsrf } from '../../common/guards/csrf.guard';
 import { IcalTokenService } from '../demandes/ical-feed.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { buildCalendar, IcsEvent } from './ics';
+import { DATES_CHANTIER, libelleIntervention, lireJour } from './calendar-feed.labels';
+
+/** Jour civil à Paris d'un instant, porté en minuit UTC (cf. IcsEvent.allDay). */
+function jourParis(d: Date): Date {
+  const [y, m, j] = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, j));
+}
 import type { JwtPayload } from '@avra/types';
 import { EventCalendarType } from '../../prisma-enums';
 
@@ -124,7 +133,12 @@ export class PlanningPublicCalendarController {
   @SkipCsrf()
   @Throttle({ default: { ttl: 60_000, limit: 30 } })
   @Get('p/:token.ics')
-  async feed(@Param('token') token: string, @Query('gestion') gestion: string | undefined, @Res() res: Response) {
+  async feed(
+    @Param('token') token: string,
+    @Query('gestion') gestion: string | undefined,
+    @Query('moi') moi: string | undefined,
+    @Res() res: Response,
+  ) {
     const userId = /^[a-f0-9]{64}$/i.test(token ?? '') ? await this.icalTokens.findUserIdByToken(token) : null;
     const memberships = userId
       ? await this.prisma.userWorkspace.findMany({
@@ -137,26 +151,50 @@ export class PlanningPublicCalendarController {
       return;
     }
     const withGestion = gestion === '1';
-    const rows = await this.events.forCalendarFeed(memberships.map((m) => m.workspaceId), withGestion);
+    // « Seulement mes rendez-vous » : utile en équipe, pour ne pas voir dans
+    // son agenda personnel tous les RDV des collègues.
+    const seulementMoi = moi === '1' ? userId : undefined;
+    const ids = memberships.map((m) => m.workspaceId);
+    const [rows, projets, reglages] = await Promise.all([
+      this.events.forCalendarFeed(ids, withGestion, seulementMoi),
+      withGestion ? this.events.chantierForCalendarFeed(ids, seulementMoi) : Promise.resolve([]),
+      withGestion
+        ? this.prisma.workspaceSettings.findMany({ where: { workspaceId: { in: ids } }, select: { extra: true } })
+        : Promise.resolve([]),
+    ]);
     const webUrl = (process.env.WEB_URL ?? 'https://avra-app.fr').replace(/\/$/, '');
+    // Métiers créés par l'utilisateur (réglages planningTypes.metiers) : leur
+    // vrai libellé plutôt que la clé technique.
+    const typesPerso = (reglages as Array<{ extra: unknown }>).flatMap((r) => {
+      const m = (r?.extra as any)?.planningTypes?.metiers;
+      return Array.isArray(m) ? m : [];
+    });
 
     const list: IcsEvent[] = rows.map((r) => {
       const x = parseEventJson(r.description);
-      const start = new Date(r.startAt);
-      const end = r.endAt ? new Date(r.endAt) : new Date(start.getTime() + 60 * 60000);
+      const allDay = !!r.allDay;
+      const start = allDay ? jourParis(new Date(r.startAt)) : new Date(r.startAt);
+      const end = allDay
+        ? new Date(jourParis(new Date(r.endAt ?? r.startAt)).getTime() + 86400000)
+        : r.endAt ? new Date(r.endAt) : new Date(start.getTime() + 60 * 60000);
       const visio = isHttpUrl(x.visioUrl) ? String(x.visioUrl).trim() : undefined;
       const lieu = (typeof x.location === 'string' && x.location.trim()) || r.location?.trim() || undefined;
-      const titre = (r.calendarType === 'GESTION' ? (x.client || r.title) : (x.title || r.title)) || 'RDV';
+      // Intervention : « Pose cuisine · Dupont » (avant : le seul nom du client,
+      // sans savoir si c'était une pose, une livraison ou un SAV).
+      const titre = (r.calendarType === 'GESTION'
+        ? [libelleIntervention(x.type, typesPerso), x.client || r.title].filter(Boolean).join(' · ')
+        : (x.title || r.title)) || 'RDV';
       const dossier = r.project?.name ?? undefined;
       const desc = [
         visio ? `Rejoindre la visio (${visioProvider(visio)}) : ${visio}` : '',
         dossier ? `Dossier : ${dossier}` : '',
+        typeof x.intervenantName === 'string' && x.intervenantName.trim() ? `Intervenant : ${x.intervenantName.trim()}` : '',
         x.invite?.to ? `Invitation envoyée à ${x.invite.to}${x.invite.status === 'ANNULEE' ? ' (annulée)' : ''}` : '',
         `Ouvrir le planning AVRA : ${webUrl}/${r.calendarType === 'GESTION' ? 'planning-gestion' : 'planning'}`,
       ].filter(Boolean).join('\n');
       return {
         uid: `avra-${r.id}@avra.fr`,
-        start, end,
+        start, end, allDay,
         summary: `${visio ? '🎥 ' : ''}${String(titre).slice(0, 200)}`,
         description: desc,
         location: visio ?? lieu,
@@ -165,8 +203,41 @@ export class PlanningPublicCalendarController {
       };
     });
 
+    // Dates du chantier (livraison, pose, réception… saisies à la validation du
+    // projet) en journées entières, avec le planning gestion.
+    const min = Date.now() - 90 * 86400000;
+    const max = Date.now() + 400 * 86400000;
+    for (const p of projets as Array<{ id: string; name: string; dossierBoard: unknown }>) {
+      const board = p.dossierBoard as { dates?: Record<string, unknown>; validees?: Record<string, unknown> } | null;
+      if (!board?.dates || typeof board.dates !== 'object') continue;
+      for (const [cle, valeur] of Object.entries(board.dates)) {
+        const libelle = DATES_CHANTIER[cle];
+        const jour = libelle ? lireJour(valeur) : null;
+        if (!libelle || !jour) continue;
+        const start = new Date(Date.UTC(jour.y, jour.m - 1, jour.d));
+        if (isNaN(start.getTime()) || start.getTime() < min || start.getTime() > max) continue;
+        const faite = board.validees?.[cle] === true;
+        list.push({
+          uid: `avra-chantier-${p.id}-${cle.normalize('NFD').replace(/[^A-Za-z0-9]+/g, '-')}@avra.fr`,
+          start,
+          end: new Date(start.getTime() + 86400000),
+          allDay: true,
+          summary: `${faite ? '✓' : '📌'} ${libelle} · ${p.name}`.slice(0, 220),
+          description: [
+            `Date du chantier prévue dans AVRA${faite ? ' (faite)' : ''}.`,
+            `Dossier : ${p.name}`,
+            `Ouvrir le dossier : ${webUrl}/dossiers/${p.id}`,
+          ].join('\n'),
+          status: 'CONFIRMED',
+        });
+      }
+    }
+
     const nom = memberships.length === 1 ? memberships[0].workspace?.name : undefined;
-    const ics = buildCalendar(list, { method: 'PUBLISH', name: `AVRA — Planning${nom ? ` ${nom}` : ''}` });
+    const ics = buildCalendar(list, {
+      method: 'PUBLISH',
+      name: `AVRA — Planning${withGestion ? ' et chantiers' : ''}${nom ? ` ${nom}` : ''}${seulementMoi ? ' (mes RDV)' : ''}`,
+    });
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.setHeader('Content-Disposition', 'inline; filename="avra-planning.ics"');
     res.setHeader('Cache-Control', 'no-cache, must-revalidate');

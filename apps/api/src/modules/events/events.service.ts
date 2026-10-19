@@ -174,20 +174,46 @@ export class EventsService {
    * RDV servis dans le flux d'abonnement agenda (Google / Outlook / iPhone) :
    * planning classique (+ planning gestion si demandé), de J-90 à J+400.
    */
-  async forCalendarFeed(workspaceIds: string[], withGestion: boolean) {
+  /**
+   * @param onlyUserId option « seulement mes rendez-vous » du flux : les RDV et
+   *   interventions posés par cet utilisateur uniquement.
+   */
+  async forCalendarFeed(workspaceIds: string[], withGestion: boolean, onlyUserId?: string) {
     const now = Date.now();
     return this.prisma.event.findMany({
       where: {
         workspaceId: { in: workspaceIds },
         calendarType: withGestion ? undefined : EventCalendarType.PERSONAL,
         startAt: { gte: new Date(now - 90 * 86400000), lte: new Date(now + 400 * 86400000) },
+        ...(onlyUserId ? { createdById: onlyUserId } : {}),
       },
       select: {
         id: true, title: true, calendarType: true, description: true,
-        startAt: true, endAt: true, location: true,
+        startAt: true, endAt: true, location: true, allDay: true,
         project: { select: { id: true, name: true } },
       },
       orderBy: { startAt: 'asc' },
+      take: 3000,
+    });
+  }
+
+  /**
+   * Dossiers en cours de chantier (non archivés, non terminés, non supprimés)
+   * pour les dates du chantier du flux agenda. Option « mes rendez-vous » :
+   * les dossiers attribués à l'utilisateur (ou créés par lui sans vendeur).
+   */
+  async chantierForCalendarFeed(workspaceIds: string[], onlyUserId?: string) {
+    return this.prisma.project.findMany({
+      where: {
+        workspaceId: { in: workspaceIds },
+        deletedAt: null,
+        archivedAt: null,
+        terminated: false,
+        ...(onlyUserId
+          ? { OR: [{ vendeurUserId: onlyUserId }, { vendeurUserId: null, ownerId: onlyUserId }] }
+          : {}),
+      },
+      select: { id: true, name: true, dossierBoard: true },
       take: 3000,
     });
   }

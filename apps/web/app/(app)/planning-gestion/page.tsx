@@ -5,7 +5,7 @@ import {
   CalendarCog, ChevronLeft, ChevronRight, Plus, X,
   Hammer, Truck, Zap, Wrench, Users, TrendingUp,
   AlertTriangle, CheckCircle, Clock, ChevronDown,
-  Pencil, Trash2, Paperclip,
+  Pencil, Trash2, Paperclip, CalendarPlus,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -20,6 +20,7 @@ import { uploadDossierDocDirect } from '@/lib/dossier-docs-api';
 import { api } from '@/lib/api';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CustomInterventionTypeModal } from '@/components/planning/CustomInterventionTypeModal';
+import { AbonnementAgendaModal } from '@/components/planning/AbonnementAgendaModal';
 import { backdropClose } from '@/lib/backdropClose';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -228,6 +229,8 @@ export default function PlanningGestionPage() {
   const peutToucher = (ev?: { createdById?: string } | null) =>
     !ev || jeSuisAdmin || !ev.createdById || ev.createdById === monUserId;
   const [refusRdv, setRefusRdv] = useState<string | null>(null);
+  // Abonnement agenda (Google Agenda, iPhone, Outlook) — demande cofondatrice.
+  const [showAbonnement, setShowAbonnement] = useState(false);
   const refuser = () => {
     setRefusRdv('Ce rendez-vous a été posé par un autre membre de l’équipe. Seul un administrateur peut le modifier.');
     setTimeout(() => setRefusRdv(null), 5000);
@@ -853,6 +856,15 @@ export default function PlanningGestionPage() {
         title="Planning gestion"
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={() => setShowAbonnement(true)}
+              title="Voir les interventions et les dates du chantier dans Google Agenda, iPhone ou Outlook"
+              aria-label="Voir dans mon agenda"
+              style={{ height: 30, padding: '0 12px', borderRadius: 20, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: 'white', fontSize: 12, fontWeight: 700 }}
+            >
+              <CalendarPlus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Mon agenda</span>
+            </button>
             <button onClick={() => setWeekOffset(w => w - 1)}
               style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <ChevronLeft className="h-4 w-4" style={{ color: 'white' }} />
@@ -1970,6 +1982,8 @@ export default function PlanningGestionPage() {
           onCancel={() => setShowCustomTypeModal(false)}
         />
       )}
+
+      {showAbonnement && <AbonnementAgendaModal gestionParDefaut onClose={() => setShowAbonnement(false)} />}
     </div>
   );
 }
