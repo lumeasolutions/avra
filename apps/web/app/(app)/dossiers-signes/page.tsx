@@ -298,6 +298,16 @@ export default function DossiersSignesPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [openModalType, setOpenModalType] = useState<'dates' | 'tableau' | null>(null);
   const [modalDossierId, setModalDossierId] = useState<string | null>(null);
+  // Lien direct depuis l'alerte « dates du chantier à fixer » :
+  // /dossiers-signes?dates=<id> ouvre la fenêtre des dates butoirs du dossier.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = new URLSearchParams(window.location.search).get('dates');
+    if (!id || !dossiersSignes.some((d) => d.id === id)) return; // pas encore chargé
+    setModalDossierId(id);
+    setOpenModalType('dates');
+    window.history.replaceState(null, '', '/dossiers-signes');
+  }, [dossiersSignes]);
   // Tableau de bord global "Dossiers signés"
   const [showDashboard, setShowDashboard] = useState(false);
   useEffect(() => {

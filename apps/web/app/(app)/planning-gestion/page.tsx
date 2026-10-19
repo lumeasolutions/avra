@@ -12,6 +12,8 @@ import Link from 'next/link';
 import { usePlanningStore, useVisibleDossiers, useVisibleDossiersSignes } from '@/store';
 import { attendreRdvEnregistre } from '@/store/usePlanningStore';
 import { prochainCreneau } from '@/lib/rdv';
+import { useDossierStore } from '@/store/useDossierStore';
+import { estDateChantier, infoDateChantier, libelleDateChantier, lireDate } from '@/lib/datesChantier';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { createDemande } from '@/lib/demandes-api';
 import { uploadDossierDocDirect } from '@/lib/dossier-docs-api';
@@ -307,6 +309,47 @@ export default function PlanningGestionPage() {
   const allClients = [...dossiers, ...dossiersSignesActifs].map(d => d.name);
   const dates = getWeekDates(weekOffset);
   const currentEvents = gestEvents.filter(e => e.weekOffset === weekOffset);
+
+  // ── Dates butoirs du chantier (livraison, pose, réception…) ──────────────
+  // Saisies dans « Valider le projet » (section Chantier). Affichées sous le jour
+  // concerné : l'équipe chantier les voit et peut planifier l'intervention
+  // d'un clic. Une date « validée » (faite) n'est plus affichée.
+  const datesButoiresSignes = useDossierStore((st) => st.datesButoiresSignes);
+  const echeancesValidees = useDossierStore((st) => st.echeancesValidees);
+  type ButoirChantier = { dossierId: string; nom: string; label: string; date: Date; planifie: boolean; enRetard: boolean };
+  const butoirsParJour = useMemo(() => {
+    const semaine = getWeekDates(weekOffset).map((d) => d.toDateString());
+    const auj = new Date(); auj.setHours(0, 0, 0, 0);
+    const parJour: ButoirChantier[][] = semaine.map(() => []);
+    for (const d of dossiersSignes) {
+      if ((d as any).archivedAt || (d as any).terminated) continue;
+      const saved = datesButoiresSignes[d.id] ?? {};
+      for (const [label, valeur] of Object.entries(saved)) {
+        if (!estDateChantier(label) || echeancesValidees[d.id]?.[label] === true) continue;
+        const date = lireDate(valeur);
+        if (!date) continue;
+        const idx = semaine.indexOf(date.toDateString());
+        if (idx < 0) continue;
+        // Déjà planifiée : une intervention ce jour-là pour ce dossier.
+        const planifie = gestEvents.some((e) =>
+          (e.weekOffset ?? 0) === weekOffset && e.day === idx + 1
+          && (e.dossierId === d.id || (!e.dossierId && e.client?.trim() === d.name?.trim())));
+        parJour[idx].push({ dossierId: d.id, nom: d.name, label, date, planifie, enRetard: !planifie && date < auj });
+      }
+    }
+    return parJour;
+  }, [weekOffset, dossiersSignes, datesButoiresSignes, echeancesValidees, gestEvents]);
+  /** Clic sur une date chantier : fenêtre d'intervention pré-remplie ce jour-là à 8 h. */
+  const planifierButoir = (b: ButoirChantier, jourIdx: number) => {
+    openAdd(jourIdx + 1, 8, 0);
+    const type = infoDateChantier(b.label)?.typeIntervention;
+    setNewEvent((n) => ({
+      ...n,
+      client: b.nom,
+      dossierId: b.dossierId,
+      type: type && ALL_TYPES.some((t) => t.key === type) ? type : n.type,
+    }));
+  };
   const todayDate = new Date();
 
   /**
@@ -918,6 +961,29 @@ export default function PlanningGestionPage() {
                   <div className={'text-lg font-bold mt-1 ' + (isCurrentDay ? 'bg-[#304035] text-white rounded-lg py-0.5 px-2 inline-block' : 'text-[#304035]')}>
                     {d.getDate()}
                   </div>
+                  {butoirsParJour[i].length > 0 && (
+                    <div className="mt-1.5 flex flex-col gap-1 px-1">
+                      {butoirsParJour[i].map((b) => (
+                        <button
+                          key={b.dossierId + b.label}
+                          type="button"
+                          disabled={b.planifie}
+                          onClick={() => planifierButoir(b, i)}
+                          title={b.planifie
+                            ? `${libelleDateChantier(b.label)} — ${b.nom} : intervention déjà planifiée ce jour-là`
+                            : `Date butoir chantier : ${libelleDateChantier(b.label)} — ${b.nom}${b.enRetard ? ' (dépassée)' : ''}. Cliquer pour planifier l'intervention.`}
+                          className="pg-butoir w-full truncate rounded-md px-1.5 py-0.5 text-[10px] font-bold text-left"
+                          style={b.planifie
+                            ? { background: '#ecfdf3', color: '#15803d', border: '1px solid #bbf7d0', cursor: 'default' }
+                            : b.enRetard
+                              ? { background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }
+                              : { background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }}
+                        >
+                          {b.planifie ? '✓ ' : '📌 '}{libelleDateChantier(b.label)} · {b.nom}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

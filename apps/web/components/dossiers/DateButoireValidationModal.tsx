@@ -44,6 +44,7 @@ import {
 import { getDocSignedUrl } from '@/lib/dossier-docs-api';
 import { extractDossier, dateTargetsForProfession, type ExtractionDatesButoires } from '@/lib/ai-extract-api';
 import { buildSignedEcheanceItems } from '@/lib/signedEcheanceItems';
+import { datesChantierPour, estDateChantier, infoDateChantier } from '@/lib/datesChantier';
 
 /**
  * Suggestions auto-complete pour le panneau ACCEDER → COMMANDES.
@@ -163,7 +164,15 @@ export type DateButoireItemKind = 'date' | 'access' | 'static';
 export interface DateButoireItem {
   label: string;
   kind: DateButoireItemKind;
+  /** 'chantier' : date de l'équipe chantier (livraison, pose, réception…),
+   *  affichée dans sa propre section et dans le Planning gestion. */
+  groupe?: 'chantier';
 }
+
+/** Dates du chantier d'un métier, au format des items de la fenêtre. */
+const itemsChantier = (profession: Profession): DateButoireItem[] =>
+  datesChantierPour(profession).map((d) => ({ label: d.label, kind: 'date' as const, groupe: 'chantier' as const }));
+
 
 /**
  * Liste par défaut (fallback) des items affichés dans le panneau
@@ -178,6 +187,7 @@ export const DEFAULT_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'BON DE LIVRAISON',            kind: 'access' },
   { label: 'FICHE DE POSE',        kind: 'date'   },
   { label: 'PERMIS DE CONSTRUIRE', kind: 'date'   },
+  ...itemsChantier(null),
   // SAV passé en date butoir actionnable le 30/07/2026 (cohérent avec les
   // 3 listes profession ci-dessus, qui l'ont toutes les 3) — était 'static'
   // (icône seule, pas de champ) depuis la refonte du 05/05/2026.
@@ -215,6 +225,7 @@ export const MENUISIER_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'COMMANDES FOURNISSEURS',   kind: 'access' },
   { label: 'CONFIRMATIONS / COMMANDE', kind: 'access' },
   { label: 'BON DE LIVRAISON',                kind: 'access' },
+  ...itemsChantier('menuisier'),
   { label: 'SAV',                      kind: 'date'   },
 ];
 
@@ -241,6 +252,7 @@ export const CUISINISTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'COMMANDE',                          kind: 'access' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS',   kind: 'access' },
   { label: 'BON DE LIVRAISON',                         kind: 'access' },
+  ...itemsChantier('cuisiniste'),
   { label: 'SAV',                               kind: 'date'   },
 ];
 
@@ -267,6 +279,7 @@ export const ARCHITECTE_DATE_BUTOIRE_ITEMS: DateButoireItem[] = [
   { label: 'COMMANDES FOURNISSEURS',                           kind: 'access' },
   { label: 'CONFIRMATIONS / FACTURES ACHATS FOURNISSEURS',     kind: 'access' },
   { label: 'BON DE LIVRAISON',                                        kind: 'access' },
+  ...itemsChantier('architecte'),
   { label: 'SAV',                                              kind: 'date'   },
 ];
 
@@ -342,7 +355,7 @@ const DEFAULT_DELAYS: Record<string, number> = {
 const DAYS = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];
 
 function suggestDate(label: string): string {
-  const days = DEFAULT_DELAYS[label] ?? 30;
+  const days = DEFAULT_DELAYS[label] ?? infoDateChantier(label)?.delaiJours ?? 30;
   const d = new Date();
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
@@ -432,6 +445,10 @@ export function DateButoireValidationModal({
     () => resolvedItems.filter((it) => it.kind === 'date'),
     [resolvedItems],
   );
+  /** Dates de l'équipe chantier (section dédiée) et le reste (administratif, commandes). */
+  const estChantier = (it: DateButoireItem) => it.groupe === 'chantier' || (it.kind === 'date' && estDateChantier(it.label));
+  const itemsAdmin = useMemo(() => resolvedItems.filter((it) => !estChantier(it)), [resolvedItems]);
+  const itemsDuChantier = useMemo(() => resolvedItems.filter(estChantier), [resolvedItems]);
   const planningEvents = usePlanningStore((s) => s.planningEvents);
   const gestEvents = usePlanningStore((s) => s.gestEvents);
 
@@ -621,6 +638,39 @@ export function DateButoireValidationModal({
   const progressPct = total === 0 ? 0 : Math.round((filledCount / total) * 100);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  /** Ligne « date butoir » (libellé, écart en jours, champ date). */
+  const ligneDate = (label: string, i: number) => {
+    const value = dates[label] ?? '';
+    const isFilled = !!value;
+    const delta = isFilled ? dayDelta(value) : 0;
+    return (
+      <div
+        key={label}
+        className={`dbv-item${isFilled ? ' filled' : ''}`}
+        style={{ animationDelay: `${i * 30}ms` }}
+      >
+        <div className="dbv-item-bullet dbv-item-bullet-folder">
+          {isFilled ? <Check style={{ width: 12, height: 12 }} /> : <Folder style={{ width: 12, height: 12 }} />}
+        </div>
+        <span className="dbv-item-label" title={label}>{label}</span>
+        {isFilled && (
+          <span className="dbv-item-delta">
+            {delta === 0 ? "auj." : delta > 0 ? `J+${delta}` : `J${delta}`}
+          </span>
+        )}
+        <input
+          type="date"
+          className="dbv-item-input"
+          min={today}
+          value={value}
+          onChange={(e) => setDates((s) => ({ ...s, [label]: e.target.value }))}
+          disabled={submitting || loading}
+          aria-label={`Date butoire pour ${label}`}
+        />
+      </div>
+    );
+  };
 
   const handlePrefill = () => {
     const next: Record<string, string> = {};
@@ -1475,6 +1525,17 @@ export function DateButoireValidationModal({
           align-self: flex-start;
         }
         .dbv-section-banner svg { color: #d9b38a; }
+        /* Section « Dates du chantier » (équipe chantier) */
+        .dbv-section-chantier {
+          margin-top: 18px;
+          background: linear-gradient(135deg, #7c4f1d 0%, #a67749 100%);
+          box-shadow: 0 4px 12px rgba(166,119,73,0.3);
+        }
+        .dbv-section-chantier svg { color: #fde7c2; }
+        .dbv-chantier-hint {
+          margin: -2px 0 10px; font-size: 11.5px; line-height: 1.45;
+          color: rgba(48,64,53,0.6);
+        }
 
         /* Bullet folder (icône dossier au lieu d'un numéro) */
         .dbv-item-bullet-folder {
@@ -2068,7 +2129,7 @@ export function DateButoireValidationModal({
               </div>
 
               <div className="dbv-list">
-                {resolvedItems.map((item, i) => {
+                {itemsAdmin.map((item, i) => {
                   const { label, kind } = item;
 
                   // ── 1) Items 'access' (COMMANDES, LIVRAISON) → bouton ACCEDER ──
@@ -2119,37 +2180,26 @@ export function DateButoireValidationModal({
                   }
 
                   // ── 3) Items 'date' (cas par défaut) → input date ──
-                  const value = dates[label] ?? '';
-                  const isFilled = !!value;
-                  const delta = isFilled ? dayDelta(value) : 0;
-                  return (
-                    <div
-                      key={label}
-                      className={`dbv-item${isFilled ? ' filled' : ''}`}
-                      style={{ animationDelay: `${i * 30}ms` }}
-                    >
-                      <div className="dbv-item-bullet dbv-item-bullet-folder">
-                        {isFilled ? <Check style={{ width: 12, height: 12 }} /> : <Folder style={{ width: 12, height: 12 }} />}
-                      </div>
-                      <span className="dbv-item-label" title={label}>{label}</span>
-                      {isFilled && (
-                        <span className="dbv-item-delta">
-                          {delta === 0 ? "auj." : delta > 0 ? `J+${delta}` : `J${delta}`}
-                        </span>
-                      )}
-                      <input
-                        type="date"
-                        className="dbv-item-input"
-                        min={today}
-                        value={value}
-                        onChange={(e) => setDates((s) => ({ ...s, [label]: e.target.value }))}
-                        disabled={submitting || loading}
-                        aria-label={`Date butoire pour ${label}`}
-                      />
-                    </div>
-                  );
+                  return ligneDate(label, i);
                 })}
               </div>
+
+              {itemsDuChantier.length > 0 && (
+                <>
+                  <div className="dbv-section-banner dbv-section-chantier">
+                    <Truck style={{ width: 14, height: 14 }} />
+                    Dates du chantier (équipe chantier)
+                  </div>
+                  <p className="dbv-chantier-hint">
+                    Livraison, pose, réception… Elles apparaissent dans le Planning gestion, avec une alerte à
+                    l'approche et en cas de retard.
+                    {!itemsDuChantier.some((it) => !!dates[it.label]) && " Facultatives, mais sans elles l'équipe chantier n'a aucun rappel."}
+                  </p>
+                  <div className="dbv-list">
+                    {itemsDuChantier.map((item, i) => ligneDate(item.label, itemsAdmin.length + i))}
+                  </div>
+                </>
+              )}
               </>
               )}
             </div>
