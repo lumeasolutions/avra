@@ -526,21 +526,50 @@ export class AuthService {
       }));
       // On fait tourner CETTE session, et elle seule : les autres appareils du
       // compte gardent la leur. C'est tout l'objet du changement.
-      await (this.prisma as any).refreshSession.update({
-        where: { id: sessionId },
-        data: {
-          jtiLookup: this.tokenRotation.jtiLookup(tokenPair.refreshTokenJti),
-          jtiHash: hashedJti,
-          expiresAt: tokenPair.refreshTokenExpiresAt,
-          lastUsedAt: new Date(),
-          // Le jeton remplace reste accepte un moment (cf. delai de grace).
-          // Toujours le jeton COURANT d'avant rotation : si deux
-          // rafraichissements se croisent, les deux reponses restent valides,
-          // quelle que soit celle que le navigateur garde en dernier.
-          prevJtiLookup: jtiLookupCourant,
-          prevValidUntil: new Date(Date.now() + REFRESH_GRACE_MS),
-        },
-      });
+      //
+      // Ecriture CONDITIONNELLE (19/10/2026) : deux rafraichissements arrives
+      // en meme temps lisaient la meme session, chacun fabriquait son jeton
+      // et le dernier a ecrire effacait l'autre. Si le navigateur gardait la
+      // reponse effacee, sa session mourait (constate en production : jeton
+      // garde par le navigateur ni courant ni precedent). On n'ecrit donc que
+      // si la session n'a pas bouge depuis la lecture ; sinon on relit et on
+      // enchaine derriere le concurrent, dont le jeton devient le precedent.
+      const lookupPresente = decoded ? this.tokenRotation.jtiLookup(decoded.jti) : null;
+      let attendu = jtiLookupCourant;
+      let ecrit = false;
+      for (let essai = 0; essai < 3 && attendu; essai++) {
+        const res = await (this.prisma as any).refreshSession.updateMany({
+          where: { id: sessionId, jtiLookup: attendu },
+          data: {
+            jtiLookup: this.tokenRotation.jtiLookup(tokenPair.refreshTokenJti),
+            jtiHash: hashedJti,
+            expiresAt: tokenPair.refreshTokenExpiresAt,
+            lastUsedAt: new Date(),
+            // Le jeton remplace reste accepte un moment (cf. delai de grace) :
+            // toujours le jeton COURANT d'avant rotation.
+            prevJtiLookup: attendu,
+            prevValidUntil: new Date(Date.now() + REFRESH_GRACE_MS),
+          },
+        });
+        if (res.count === 1) { ecrit = true; break; }
+        // Un rafraichissement concurrent vient de faire tourner la session.
+        // On ne le suit que s'il est parti du MEME jeton que nous (qui est
+        // donc maintenant le precedent) ; sinon notre jeton est perime.
+        const fraiche = await (this.prisma as any).refreshSession.findUnique({ where: { id: sessionId } });
+        if (
+          !fraiche
+          || fraiche.userId !== user.id
+          || fraiche.expiresAt <= new Date()
+          || fraiche.prevJtiLookup !== lookupPresente
+          || !fraiche.prevValidUntil
+          || fraiche.prevValidUntil <= new Date()
+        ) break;
+        attendu = fraiche.jtiLookup as string;
+      }
+      if (!ecrit) {
+        console.warn('[auth][refresh-refus]', JSON.stringify({ ...diag, course: true }));
+        throw new UnauthorizedException('Refresh token expired or invalid');
+      }
     } else {
       // Le jeton presente venait de l'ancienne colonne (session ouverte avant
       // la bascule, ou repli legacy). On lui ouvre sa propre session, puis on
