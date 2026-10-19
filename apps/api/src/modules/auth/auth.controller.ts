@@ -1,5 +1,6 @@
 import { Body, Controller, Post, UseGuards, Get, Res, Req, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { createHash } from 'crypto';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -161,6 +162,20 @@ export class AuthController {
     const cookies = (req as Request & { cookies?: Record<string, string> }).cookies ?? {};
     const refreshToken = cookies.refresh_token;
     const userId = cookies.user_id;
+    // TEMPORAIRE 19/10/2026 — diagnostic : combien de cookies refresh_token
+    // le navigateur envoie (un doublon ancien masquerait le bon). Empreintes
+    // tronquees du jti uniquement, jamais de valeur de jeton.
+    try {
+      const occ = String(req.headers.cookie ?? '').split(';').map((c) => c.trim())
+        .filter((c) => c.startsWith('refresh_token='))
+        .map((c) => {
+          try {
+            const charge = JSON.parse(Buffer.from(c.slice(14).split('.')[1] ?? '', 'base64url').toString());
+            return createHash('sha256').update(String(charge.jti)).digest('hex').slice(0, 8);
+          } catch { return '?'; }
+        });
+      console.log('[auth][refresh-cookies]', JSON.stringify({ n: occ.length, lks: occ, lu: occ[0] ?? null }));
+    } catch { /* diagnostic seulement */ }
 
     if (!refreshToken || !userId) {
       // Pas de cookies → le client doit se reconnecter.
