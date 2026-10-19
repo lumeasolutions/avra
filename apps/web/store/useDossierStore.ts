@@ -793,6 +793,14 @@ function isPersistableId(id: string): boolean {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
 
+/**
+ * Renvoie au serveur les données d'un dossier telles qu'elles sont dans ce
+ * navigateur (cf. useDataSync : rattrapage des enregistrements refusés).
+ */
+export function renvoyerDossierData(dossierId: string): void {
+  pushDossierData(() => useDossierStore.getState(), dossierId);
+}
+
 function pushDossierData(get: () => DossierState, dossierId: string): void {
   if (typeof window === 'undefined') return;
   if (!isPersistableId(dossierId)) return;

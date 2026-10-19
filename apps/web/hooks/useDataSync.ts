@@ -21,6 +21,10 @@ import {
   type DossierProfession,
 } from '@/store/useDossierStore';
 import { usePlanningStore } from '@/store/usePlanningStore';
+import { renvoyerDossierData } from '@/store/useDossierStore';
+
+/** Dossiers déjà renvoyés au serveur pendant cette session (cf. rattrapage). */
+const _dejaRenvoyes = new Set<string>();
 import { useFacturationStore } from '@/store/useFacturationStore';
 import { useIntervenantStore } from '@/store/useIntervenantStore';
 import { useStockStore } from '@/store/useStockStore';
@@ -585,6 +589,32 @@ export function useDataSync() {
             echeancesValidees: nextValidees,
             commandesAccess: nextCommandes,
           });
+        }
+
+        // Rattrapage (19/10/2026) : du 05/10 au 19/10, le serveur refusait
+        // tout enregistrement de tableau de bord venant d'un VENDEUR (dates
+        // butoirs, validations, commandes restées dans son seul navigateur).
+        // Pour un vendeur, ce qui diffère du serveur est renvoyé une fois par
+        // session. Pas pour un administrateur : ses enregistrements passaient,
+        // une différence chez lui peut venir d'un collègue plus récent.
+        const role = useAuthStore.getState().user?.role;
+        if (role && role !== 'ADMIN' && role !== 'OWNER') {
+          const differe = (local: Record<string, unknown> | undefined, serveur: unknown) => {
+            const srv = (serveur && typeof serveur === 'object' ? serveur : {}) as Record<string, unknown>;
+            return Object.entries(local ?? {}).some(([k, v]) => JSON.stringify(v) !== JSON.stringify(srv[k]));
+          };
+          for (const p of data) {
+            if (_dejaRenvoyes.has(p.id)) continue;
+            const b = ((p as any).dossierBoard ?? {}) as Record<string, unknown>;
+            if (
+              differe(nextDates[p.id], b.dates)
+              || differe(nextValidees[p.id], b.validees)
+              || differe(nextCommandes[p.id], b.commandes)
+            ) {
+              _dejaRenvoyes.add(p.id);
+              renvoyerDossierData(p.id);
+            }
+          }
         }
       }
 

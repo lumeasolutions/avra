@@ -337,21 +337,23 @@ export class ProjectsService {
       // dit depuis juin (selecteur en lecture seule pour un vendeur), la route
       // ne l'imposait pas. Un vendeur pouvait donc donner son dossier par
       // l'API et le perdre dans la foulee, sans pouvoir le recuperer.
-      const changeAttribution =
-        data.vendeurUserId !== undefined || data.vendeurName !== undefined;
-      if (changeAttribution && actor.role !== 'ADMIN' && actor.role !== 'OWNER') {
-        throw new ForbiddenException(
-          'Seul un administrateur peut attribuer un dossier à un autre vendeur.',
-        );
-      }
+      //
+      // 19/10/2026 — le navigateur renvoie TOUJOURS le vendeur avec le reste
+      // (dates butoirs, validations, commandes, prix...). Refuser la requete
+      // des que ces champs etaient presents bloquait donc TOUS les
+      // enregistrements d'un vendeur depuis le 05/10 : ses dates ne restaient
+      // que dans son navigateur (absentes pour l'equipe, l'agenda, les autres
+      // appareils). Un vendeur ne peut toujours pas reattribuer : pour lui, les
+      // champs d'attribution sont ignores, le reste est enregistre.
+      const peutAttribuer = actor.role === 'ADMIN' || actor.role === 'OWNER';
 
       const patch: Record<string, unknown> = {};
       if (data.prixLignes !== undefined) patch.prixLignes = data.prixLignes as any;
       if (data.confirmations !== undefined) patch.confirmations = data.confirmations as any;
       if (data.dateButoires !== undefined) patch.dateButoires = data.dateButoires as any;
       if (data.dossierBoard !== undefined) patch.dossierBoard = data.dossierBoard as any;
-      if (data.vendeurName !== undefined) patch.vendeurName = data.vendeurName;
-      if (data.vendeurUserId !== undefined) {
+      if (peutAttribuer && data.vendeurName !== undefined) patch.vendeurName = data.vendeurName;
+      if (peutAttribuer && data.vendeurUserId !== undefined) {
         // Robustesse : ne poser le lien FK que si l'userId est bien un membre de
         // CE workspace. Un id inconnu (membre local non hydraté, données de test)
         // ne doit pas faire échouer la contrainte FK — on retombe sur null en
