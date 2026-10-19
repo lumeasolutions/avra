@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useMemo, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FolderCheck, Search, X, ChevronRight, TrendingUp, BadgeCheck,
   Calendar, LayoutGrid, List, ArrowUpRight, Package, CheckCircle2,
@@ -298,16 +298,6 @@ export default function DossiersSignesPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [openModalType, setOpenModalType] = useState<'dates' | 'tableau' | null>(null);
   const [modalDossierId, setModalDossierId] = useState<string | null>(null);
-  // Lien direct depuis l'alerte « dates du chantier à fixer » :
-  // /dossiers-signes?dates=<id> ouvre la fenêtre des dates butoirs du dossier.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const id = new URLSearchParams(window.location.search).get('dates');
-    if (!id || !dossiersSignes.some((d) => d.id === id)) return; // pas encore chargé
-    setModalDossierId(id);
-    setOpenModalType('dates');
-    window.history.replaceState(null, '', '/dossiers-signes');
-  }, [dossiersSignes]);
   // Tableau de bord global "Dossiers signés"
   const [showDashboard, setShowDashboard] = useState(false);
   useEffect(() => {
@@ -845,6 +835,16 @@ export default function DossiersSignesPage() {
         </div>
       )}
 
+      {/* Lien direct depuis l'alerte « dates du chantier à fixer » :
+          /dossiers-signes?dates=<id> ouvre la fenêtre des dates du dossier
+          (aussi quand on est déjà sur cette page). */}
+      <Suspense fallback={null}>
+        <OuvertureDatesDepuisLien
+          idsConnus={dossiersSignes.map((d) => d.id)}
+          ouvrir={(id) => { setModalDossierId(id); setOpenModalType('dates'); }}
+        />
+      </Suspense>
+
       {/* Modals */}
       {/* DATES BUTOIRES — on réutilise la grande modale "Validation projet" en
           mode edit-signed : pré-remplie avec les dates déjà saisies, bouton
@@ -1207,4 +1207,23 @@ function PilotageRow({ item, tone, onOpen }: {
       <span style={{ fontSize: 11, fontWeight: 700, color: badgeColor[tone], flexShrink: 0, minWidth: 36, textAlign: 'right' }}>{badge}</span>
     </button>
   );
+}
+
+/**
+ * Ouvre la fenêtre des dates butoirs d'un dossier signé quand l'adresse porte
+ * ?dates=<id> (alerte « dates du chantier à fixer »), puis nettoie l'adresse
+ * pour qu'un nouveau clic sur la même alerte rouvre la fenêtre.
+ */
+function OuvertureDatesDepuisLien({ idsConnus, ouvrir }: { idsConnus: string[]; ouvrir: (id: string) => void }) {
+  const params = useSearchParams();
+  const router = useRouter();
+  const id = params?.get('dates') ?? null;
+  const connu = !!id && idsConnus.includes(id);
+  useEffect(() => {
+    if (!id || !connu) return; // dossiers pas encore chargés : on attend
+    ouvrir(id);
+    router.replace('/dossiers-signes', { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, connu]);
+  return null;
 }

@@ -96,25 +96,55 @@ function cleanName(n: string): string {
 
 /** "Plan technique" → "plan technique" pour usage en milieu de phrase. */
 function lowerLabel(label: string): string {
-  return label.trim().toLowerCase();
+  // Les sigles restent en majuscules (« le SAV », pas « le sav »).
+  return label.trim().split(/(\s+)/).map((w) => (SIGLES.has(w) ? w : w.toLowerCase())).join('');
 }
+const SIGLES = new Set(['SAV', 'DCE', 'APD', 'APS', 'PV', 'TVA', 'PLU', 'DOE']);
+
+/**
+ * Article et accord d'un libellé d'étape (« la pose cuisine », « les
+ * modifications », « l'état des lieux », « le plan technique »). Avant :
+ * toujours « le » + masculin → « Le fiche de pose… était attendu ».
+ * Déterminé par le premier mot du libellé.
+ */
+const MOTS_FEMININS = new Set([
+  'fiche', 'pose', 'livraison', 'réception', 'reception', 'commande', 'commandes',
+  'confirmation', 'confirmations', 'modification', 'modifications', 'facture',
+  'factures', 'date', 'mise', 'visite', 'étude', 'etude', 'validation', 'signature',
+  'demande', 'intervention', 'finition', 'fabrication', 'option', 'maquette', 'liste',
+]);
+/** Mots terminés par « s » qui restent singuliers. */
+const SINGULIERS_EN_S = new Set(['permis', 'devis', 'sav', 'débit', 'debit', 'relevé', 'releve', 'dossier', 'plan', 'marché', 'marche', 'suivi']);
+export function accordLabel(label: string): { le: string; du: string; e: string; pluriel: boolean } {
+  const premier = (lowerLabel(label).split(/[\s/]+/)[0] ?? '').toLowerCase();
+  const pluriel = /s$/.test(premier) && !SINGULIERS_EN_S.has(premier);
+  const feminin = MOTS_FEMININS.has(premier);
+  const voyelle = /^[aeiouyéèêàâh]/.test(premier);
+  const le = pluriel ? 'les ' : voyelle ? "l'" : feminin ? 'la ' : 'le ';
+  const du = pluriel ? 'des ' : voyelle ? "de l'" : feminin ? 'de la ' : 'du ';
+  return { le, du, e: (feminin ? 'e' : '') + (pluriel ? 's' : ''), pluriel };
+}
+const majuscule = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // ── 1. Alertes dossiers : dates butoires ──────────────────────────────────
 
 export function msgButoirRetard(dossierName: string, label: string, daysLate: number): string {
   const dur = formatDuration(daysLate, 'past');
+  const a = accordLabel(label);
+  const sujet = `${majuscule(a.le)}${lowerLabel(label)}`;
   if (daysLate === 1) {
-    return `⚠ Le ${lowerLabel(label)} du dossier ${cleanName(dossierName)} était attendu hier. Une relance s'impose.`;
+    return `⚠ ${sujet} du dossier ${cleanName(dossierName)} ${a.pluriel ? 'étaient' : 'était'} attendu${a.e} hier. Une relance s'impose.`;
   }
   if (daysLate <= 3) {
-    return `⚠ Le ${lowerLabel(label)} du dossier ${cleanName(dossierName)} est en retard depuis ${dur}. Action recommandée rapidement.`;
+    return `⚠ ${sujet} du dossier ${cleanName(dossierName)} ${a.pluriel ? 'sont' : 'est'} en retard depuis ${dur}. Action recommandée rapidement.`;
   }
-  return `⚠ Le ${lowerLabel(label)} du dossier ${cleanName(dossierName)} était attendu il y a ${dur}. Une relance est nécessaire.`;
+  return `⚠ ${sujet} du dossier ${cleanName(dossierName)} ${a.pluriel ? 'étaient' : 'était'} attendu${a.e} il y a ${dur}. Une relance est nécessaire.`;
 }
 
 export function msgButoirProche(dossierName: string, label: string, daysUntil: number): string {
+  const a = accordLabel(label);
   if (daysUntil === 0) {
-    return `Aujourd'hui : le ${lowerLabel(label)} doit être finalisé chez ${cleanName(dossierName)}.`;
+    return `Aujourd'hui : ${a.le}${lowerLabel(label)} ${a.pluriel ? 'doivent' : 'doit'} être finalisé${a.e} chez ${cleanName(dossierName)}.`;
   }
   if (daysUntil === 1) {
     return `Demain : ${lowerLabel(label)} à effectuer pour le dossier ${cleanName(dossierName)}.`;
@@ -122,7 +152,7 @@ export function msgButoirProche(dossierName: string, label: string, daysUntil: n
   if (daysUntil === 2) {
     return `Après-demain : ${lowerLabel(label)} à effectuer chez ${cleanName(dossierName)}.`;
   }
-  return `Plus que ${formatPlural(daysUntil, 'jour')} avant l'échéance du ${lowerLabel(label)} chez ${cleanName(dossierName)}.`;
+  return `Plus que ${formatPlural(daysUntil, 'jour')} avant l'échéance ${a.du}${lowerLabel(label)} chez ${cleanName(dossierName)}.`;
 }
 
 // ── 2. Acompte ────────────────────────────────────────────────────────────
