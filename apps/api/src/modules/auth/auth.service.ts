@@ -392,6 +392,8 @@ export class AuthService {
     let sessionId: string | null = null;
     /** Jeton courant de cette session avant rotation : devient le « precedent ». */
     let jtiLookupCourant: string | null = null;
+    /** Diagnostic d'un refus (empreintes tronquees, jamais de jeton). TEMPORAIRE 19/10/2026. */
+    const diag: Record<string, unknown> = {};
 
     if (decoded) {
       // ─── New JWT scheme ────────────────────────────────────────────────
@@ -407,6 +409,8 @@ export class AuthService {
         const session = await (this.prisma as any).refreshSession.findUnique({
           where: { jtiLookup: this.tokenRotation.jtiLookup(decoded.jti) },
         });
+        diag.lk = this.tokenRotation.jtiLookup(decoded.jti).slice(0, 8);
+        diag.cur = session ? { user: session.userId === user.id, exp: session.expiresAt > new Date() } : null;
         if (
           session
           && session.userId === user.id
@@ -427,6 +431,15 @@ export class AuthService {
           const precedente = await (this.prisma as any).refreshSession.findUnique({
             where: { prevJtiLookup: this.tokenRotation.jtiLookup(decoded.jti) },
           });
+          diag.prev = precedente
+            ? {
+                user: precedente.userId === user.id,
+                exp: precedente.expiresAt > new Date(),
+                jusqua: precedente.prevValidUntil,
+                maintenant: new Date(),
+                curLk: String(precedente.jtiLookup).slice(0, 8),
+              }
+            : null;
           if (
             precedente
             && precedente.userId === user.id
@@ -442,7 +455,9 @@ export class AuthService {
         // Table absente (migration pas encore passee) : on laisse le repli
         // ci-dessous decider, plutot que de deconnecter tout le monde.
         console.warn('[auth] lecture RefreshSession impossible :', String(err?.message ?? err));
+        diag.erreur = String(err?.message ?? err).slice(0, 200);
       }
+      if (!sessionId) console.warn('[auth][refresh-refus]', JSON.stringify(diag));
 
       const userAny = user as typeof user & { refreshTokenJtiHash: string | null };
 
@@ -505,6 +520,10 @@ export class AuthService {
     const hashedJti = await this.tokenRotation.hashRefreshToken(tokenPair.refreshTokenJti);
 
     if (sessionId) {
+      console.log('[auth][refresh-ok]', JSON.stringify({
+        lk: diag.lk, grace: diag.prev !== undefined,
+        nouveau: this.tokenRotation.jtiLookup(tokenPair.refreshTokenJti).slice(0, 8),
+      }));
       // On fait tourner CETTE session, et elle seule : les autres appareils du
       // compte gardent la leur. C'est tout l'objet du changement.
       await (this.prisma as any).refreshSession.update({
