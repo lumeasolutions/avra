@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards, Get, Res, Req, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Get, Res, Req, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -165,7 +165,12 @@ export class AuthController {
     if (!refreshToken || !userId) {
       // Pas de cookies → le client doit se reconnecter.
       clearAuthCookies(res);
-      return res.status(401).json({ message: 'No refresh token' });
+      // Exception plutot que `return res.status(401).json()` : en mode
+      // passthrough, Nest serialisait l'objet Response renvoye (« 500 circular
+      // structure » dans les journaux a chaque refus) ; et un simple
+      // res.status(401) serait ecrase par le 201 par defaut du POST. Les
+      // cookies purges ci-dessus partent quand meme avec la reponse d'erreur.
+      throw new UnauthorizedException('No refresh token');
     }
 
     try {
@@ -192,7 +197,7 @@ export class AuthController {
       // le jeton est vraiment mort (signature ou date) ; sinon on repond 401
       // sans toucher aux cookies, et le client rejoue avec les nouveaux.
       if (!this.auth.isRefreshJwtStillValid(refreshToken)) clearAuthCookies(res);
-      return res.status(401).json({ message: 'Invalid refresh token' });
+      throw new UnauthorizedException('Invalid refresh token');
     }
   }
 
