@@ -101,3 +101,28 @@ export function lireDate(str?: string | null): Date | null {
  * anciens dossiers, souvent déjà posés, ne sont pas relancés à tort).
  */
 export const MISE_EN_SERVICE_DATES_CHANTIER = new Date(2026, 9, 19);
+
+/**
+ * Les dates du chantier comptent-elles pour ce dossier (compteur « x / N
+ * dates », étapes du tableau de bord) ? Non pour un dossier signé AVANT la
+ * mise en service qui n'en a saisi aucune : souvent déjà posé, il passerait
+ * sinon de « 4/4 » à « 4/8 » sans que rien n'ait changé. Oui pour tous les
+ * autres, et dès qu'une date chantier y est enregistrée.
+ */
+export function datesChantierComptent(
+  signeLe: string | null | undefined,
+  enregistrees: Record<string, unknown> | null | undefined,
+): boolean {
+  if (Object.entries(enregistrees ?? {}).some(([label, v]) => !!v && estDateChantier(label))) return true;
+  const signe = lireDate(signeLe);
+  return !signe || signe >= MISE_EN_SERVICE_DATES_CHANTIER;
+}
+
+/** Retire les dates du chantier d'une liste d'étapes quand elles ne comptent pas (cf. ci-dessus). */
+export function etapesAuCompteur<T extends { label: string }>(
+  items: T[],
+  signeLe: string | null | undefined,
+  enregistrees: Record<string, unknown> | null | undefined,
+): T[] {
+  return datesChantierComptent(signeLe, enregistrees) ? items : items.filter((it) => !estDateChantier(it.label));
+}

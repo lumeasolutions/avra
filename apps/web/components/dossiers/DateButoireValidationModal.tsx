@@ -44,7 +44,7 @@ import {
 import { getDocSignedUrl } from '@/lib/dossier-docs-api';
 import { extractDossier, dateTargetsForProfession, type ExtractionDatesButoires } from '@/lib/ai-extract-api';
 import { buildSignedEcheanceItems } from '@/lib/signedEcheanceItems';
-import { datesChantierPour, estDateChantier, infoDateChantier } from '@/lib/datesChantier';
+import { datesChantierComptent, datesChantierPour, estDateChantier, infoDateChantier } from '@/lib/datesChantier';
 
 /**
  * Suggestions auto-complete pour le panneau ACCEDER → COMMANDES.
@@ -629,11 +629,24 @@ export function DateButoireValidationModal({
   // ── Computed ─────────────────────────────────────────────────────────────
   // Seuls les items 'date' comptent dans la progression / dans le `allFilled`.
   // Les 'access' et 'static' sont purement informatifs côté validation.
-  const filledCount = useMemo(
-    () => dateItems.filter((it) => !!dates[it.label]).length,
-    [dateItems, dates],
+  // Dossier déjà signé avant la mise en service des dates chantier et sans
+  // aucune d'elles : la section reste saisissable mais ne compte pas (sinon
+  // « 4/8 » pour un dossier complet). Signature en cours : elles comptent.
+  const signeLe = useDossierStore((s) => {
+    const d = s.dossiersSignes.find((x) => x.id === dossierId);
+    return d ? (d.signedDate || d.dateSignature || '') : null;
+  });
+  const chantierCompte = !isEditMode || datesChantierComptent(signeLe, initialDates);
+  const itemsComptes = useMemo(
+    () => (chantierCompte ? dateItems : dateItems.filter((it) => !estChantier(it))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dateItems, chantierCompte],
   );
-  const total = dateItems.length;
+  const filledCount = useMemo(
+    () => itemsComptes.filter((it) => !!dates[it.label]).length,
+    [itemsComptes, dates],
+  );
+  const total = itemsComptes.length;
   const allFilled = total > 0 && filledCount === total;
   const progressPct = total === 0 ? 0 : Math.round((filledCount / total) * 100);
 

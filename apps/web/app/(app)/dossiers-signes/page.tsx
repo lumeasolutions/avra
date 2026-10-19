@@ -28,6 +28,7 @@ import {
 } from '@/components/dossiers/DateButoireValidationModal';
 import { SignedDossierDashboardModal } from '@/components/dossiers/SignedDossierDashboardModal';
 import { useDossierPermissions } from '@/hooks/useDossierPermissions';
+import { etapesAuCompteur } from '@/lib/datesChantier';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -554,7 +555,7 @@ export default function DossiersSignesPage() {
                 // compte les items 'date' ayant une date NON VIDE (pas les clés
                 // brutes du store, qui peuvent diverger → "5/6" alors que 100%).
                 const savedDatesGrid = datesButoiresSignes[d.id] ?? {};
-                const dateItemsForPro = getModalDateItems(profession).filter(it => it.kind === 'date');
+                const dateItemsForPro = etapesAuCompteur(getModalDateItems(profession).filter(it => it.kind === 'date'), d.signedDate || d.dateSignature, savedDatesGrid);
                 const totalDates = dateItemsForPro.length;
                 const datesCount = dateItemsForPro.filter(it => !!savedDatesGrid[it.label]).length;
                 return (
@@ -655,7 +656,7 @@ export default function DossiersSignesPage() {
                 const [c1, c2] = avatarColor(d.name);
                 // MÊME métrique que la modale Dates butoires (items 'date' non vides).
                 const savedDatesList = datesButoiresSignes[d.id] ?? {};
-                const dateItemsForProList = getModalDateItems(profession).filter(it => it.kind === 'date');
+                const dateItemsForProList = etapesAuCompteur(getModalDateItems(profession).filter(it => it.kind === 'date'), d.signedDate || d.dateSignature, savedDatesList);
                 const totalDateslist = dateItemsForProList.length;
                 const datesCountList = dateItemsForProList.filter(it => !!savedDatesList[it.label]).length;
                 return (

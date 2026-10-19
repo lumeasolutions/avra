@@ -25,6 +25,7 @@ import {
 } from '@/store/useDossierStore';
 import { echeanceStatus, parseLocalDate } from '@/lib/echeanceStatus';
 import { buildSignedEcheanceItems } from '@/lib/signedEcheanceItems';
+import { etapesAuCompteur } from '@/lib/datesChantier';
 import {
   MENUISIER_DATE_BUTOIRE_ITEMS,
   CUISINISTE_DATE_BUTOIRE_ITEMS,
@@ -128,7 +129,10 @@ export function SignedDossierDashboardModal({
   const getLineStatus = (dateButoir: string, validee?: boolean) => echeanceStatus(dateButoir, validee === true);
 
   // Étapes fixes du métier + étapes ajoutées / renommées dans le dossier signé.
-  const items = buildSignedEcheanceItems(getDateButoireItemsForProfession(profession), {
+  // Dossier signé avant la mise en service des dates chantier et sans aucune
+  // d'elles : on ne lui ajoute pas 4 étapes « à valider » après coup.
+  const etapesMetier = etapesAuCompteur(getDateButoireItemsForProfession(profession), dossier?.signedDate || dossier?.dateSignature, saved);
+  const items = buildSignedEcheanceItems(etapesMetier, {
     subfolderLabels: (dossier?.signedSubfolders ?? []).map(sf => sf.label),
     templateLabels: getSignedTemplateLabels(profession),
     dates: saved,
